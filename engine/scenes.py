@@ -36,6 +36,14 @@ log = logging.getLogger(__name__)
 SCENE_TYPES = ("Social", "Action", "Plot", "Vignette")
 DEFAULT_TYPE = "Social"
 
+# Storage-seam hard cap on the free-text `summary` column. Enforced here so NO
+# producer can persist an oversized blob: the player command (parser/scene_
+# commands.py) AND the background idle-queue LLM summary writer (engine/idle_
+# queue.py) both clamp to this value. The parser layer mirrors it for the
+# user-facing truncate-with-notice UX; this is the authoritative safety net.
+# Drift-guarded by tests/test_scene_summary_storage_cap.py.
+MAX_SUMMARY_LEN = 4000
+
 # ── In-memory cache of active scenes: {room_id: scene_id} ────────────────────
 # Populated on startup by _warm_cache() and kept in sync.
 _active_scenes: dict[int, int] = {}
@@ -436,8 +444,9 @@ async def set_scene_type(db, char: dict, room_id: int, scene_type: str) -> dict:
 
 
 async def set_scene_summary(db, char: dict, room_id: int, summary: str) -> dict:
-    """Set the scene summary (shown in archive)."""
-    return await _update_active_field(db, char, room_id, "summary", summary.strip(),
+    """Set the scene summary (shown in archive). Hard-capped at the storage seam."""
+    summary = summary.strip()[:MAX_SUMMARY_LEN]
+    return await _update_active_field(db, char, room_id, "summary", summary,
                                       "Scene summary saved.")
 
 

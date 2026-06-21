@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
 
 from engine.era_validator import era_violations, is_era_clean, ERA_PROMPT_HINT
+from engine.scenes import MAX_SUMMARY_LEN
 
 if TYPE_CHECKING:
     from ai.providers import AIManager
@@ -185,7 +186,7 @@ class SceneSummaryTask(IdleTask):
                     return
                 await db.execute(
                     "UPDATE scenes SET summary = ? WHERE id = ?",
-                    (summary.strip(), self.scene_id),
+                    (summary.strip()[:MAX_SUMMARY_LEN], self.scene_id),
                 )
                 await db.commit()
                 log.info(

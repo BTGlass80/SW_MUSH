@@ -29,11 +29,19 @@ log = logging.getLogger(__name__)
 STATUS_OPEN = "open"
 STATUS_CLOSED = "closed"
 
+# Storage-seam hard cap on the free-text `summary` column — enforced here so the
+# cap holds for every caller (the +plot/create and +plot/summary commands clamp
+# it for the user-facing notice; this is the authoritative safety net). Mirrors
+# engine.scenes.MAX_SUMMARY_LEN; drift-guarded by
+# tests/test_scene_summary_storage_cap.py.
+MAX_SUMMARY_LEN = 4000
+
 
 async def create_plot(db, creator_id: int, creator_name: str,
                       title: str, summary: str = "") -> dict:
     """Create a new plot. Returns the plot dict."""
     now = time.time()
+    summary = (summary or "")[:MAX_SUMMARY_LEN]
     await db.execute(
         """INSERT INTO plots
            (title, summary, creator_id, creator_name, status, created_at, updated_at)
@@ -132,6 +140,8 @@ async def update_plot(db, plot_id: int, **fields) -> bool:
     """Update plot fields. Returns True on success."""
     if not fields:
         return False
+    if fields.get("summary") is not None:
+        fields["summary"] = str(fields["summary"])[:MAX_SUMMARY_LEN]
     fields["updated_at"] = time.time()
     set_clause = ", ".join(f"{k} = ?" for k in fields)
     vals = list(fields.values()) + [plot_id]
