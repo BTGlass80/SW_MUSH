@@ -1363,6 +1363,44 @@ async def adjust_rep(char: dict, faction_code: str, db,
         if not reason:
             reason = action_key or "rep_change"
 
+        def _emit_rep(prev_score: int, new_score: int, is_member: bool) -> None:
+            # T3.19 telemetry: adjust_rep is the SINGLE funnel for ALL faction
+            # reputation movement (member DB rep_score 0..100 + non-member
+            # attributes faction_rep -100..100), so one emit per landed change
+            # captures the progression signal — which actions drive rep, how
+            # fast players climb tiers, where rep pins at a cap, and member vs
+            # non-member flows. The cross-faction penalty recursion below lands
+            # its own mutation and emits its own event (action="",
+            # reason="Cross-faction: ..."), so penalties are visible too. Skip
+            # explicit no-op deltas. Fail-open + buffer-only: it can NEVER block
+            # or disturb the rep path it observes. Keep-rate is a use-site
+            # tunable per the T3.19 contract (1.0 at launch's small population).
+            if delta == 0:
+                return
+            try:
+                from engine.telemetry import emit as _tele_emit
+                from engine.tunables import get_tunable
+                cid = char.get("id")
+                try:
+                    cid = int(cid)
+                except (TypeError, ValueError):
+                    pass
+                _tele_emit("faction_rep", {
+                    "char_id": cid,
+                    "faction": faction_code,
+                    "delta": int(delta),
+                    "rep": int(new_score),
+                    "prev": int(prev_score),
+                    "member": bool(is_member),
+                    "clamped": (prev_score + delta) != new_score,
+                    "tier": get_rep_tier(new_score)[0],
+                    "prev_tier": get_rep_tier(prev_score)[0],
+                    "action": action_key or "",
+                    "reason": reason or "",
+                }, sample=float(get_tunable("telemetry.faction_rep_sample", 1.0)))
+            except Exception as _e:
+                log.debug("faction_rep telemetry emit failed: %s", _e)
+
         org = await db.get_organization(faction_code)
         if not org:
             return 0
@@ -1379,6 +1417,7 @@ async def adjust_rep(char: dict, faction_code: str, db,
             _log_rep_change(char, faction_code, delta, reason)
             _set_attrs(char, a)
             await db.save_character(char["id"], attributes=char.get("attributes", "{}"))
+            _emit_rep(old_rep, new_rep, is_member=False)
 
             # Notification
             if session and delta != 0:
@@ -1401,6 +1440,7 @@ async def adjust_rep(char: dict, faction_code: str, db,
         a = _get_attrs(char)
         _set_attrs(char, a)
         await db.save_character(char["id"], attributes=char.get("attributes", "{}"))
+        _emit_rep(current_rep, new_rep, is_member=True)
 
         # Notification
         if session and delta != 0:
