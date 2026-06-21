@@ -678,6 +678,46 @@ def resolve_craft(
     skill_check_result,   # SkillCheckResult from perform_skill_check
     experiment: bool = False,
 ) -> dict:
+    """Chokepoint wrapper: compute the craft outcome, then emit ONE fail-open
+    ``craft`` telemetry event (T3.19) for the unified completion.
+
+    Crafting completion was the last dark safe-lane production funnel — the
+    credit SINK (schematic_tuition) already rides ``credit_flow`` and the
+    skill roll rides ``skill_check``, but the per-schematic
+    success/partial/fumble + quality distribution (the direct tuning signal
+    for the ``QUALITY_MULT_*`` knobs and per-schematic difficulty) was
+    unobserved. Telemetry is buffer-only + offline-flushed → zero gameplay
+    behaviour; it can never disturb the craft it observes.
+    """
+    outcome = _resolve_craft_impl(char, schematic, skill_check_result, experiment)
+    try:
+        from engine.telemetry import emit as _tele_emit
+        _r = skill_check_result
+        _tele_emit("craft", {
+            "char_id": int(char.get("id") or 0),
+            "schematic": schematic.get("key", ""),
+            "output_key": schematic.get("output_key", ""),
+            "skill": schematic.get("skill_required", ""),
+            "difficulty": int(schematic.get("difficulty", 0) or 0),
+            "success": bool(outcome.get("success")),
+            "partial": bool(outcome.get("partial")),
+            "fumble": bool(outcome.get("fumble")),
+            "quality": round(float(outcome.get("quality") or 0.0), 1),
+            "margin": int(getattr(_r, "margin", 0) or 0),
+            "critical": bool(getattr(_r, "critical_success", False)),
+            "experiment": bool(experiment),
+        })
+    except Exception as _e:
+        log.debug("craft telemetry emit failed: %s", _e)
+    return outcome
+
+
+def _resolve_craft_impl(
+    char: dict,
+    schematic: dict,
+    skill_check_result,   # SkillCheckResult from perform_skill_check
+    experiment: bool = False,
+) -> dict:
     """
     Resolve a crafting attempt after a skill check has been performed.
 
