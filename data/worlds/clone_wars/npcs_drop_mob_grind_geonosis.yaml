@@ -1,0 +1,359 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_geonosis.yaml
+#
+# Geonosis Hostile Mob Grind Batch (2026-06-21)
+#
+# Six roaming hostile NPCs seeded across Geonosis rooms to populate
+# the solo-PvE mob-grind reward loop (engine/hunting_rewards.py).
+# All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone spread: Droid Staging Ground, Foundry Upper Level,
+# B2 Assembly, Deep Hive Tunnel, Upper Hive Tunnel, CIS Field Command Post.
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats grounded in Drop H codebase baselines
+#   (npcs_drop_h_combat.yaml); sourcebooks absent in this tree —
+#   stats UNVERIFIED against WEG40120 PDF.
+# Weapons: blaster_rifle (B1/B2), vibroblade (Geonosian warriors),
+#   blaster_carbine (merc) — all keys confirmed in data/weapons.yaml.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # DROID STAGING GROUND — 1 NPC (B1 sentry in IFF-override mode)
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: B1 Sentry Override Unit
+    room: "Geonosis - Droid Staging Ground"
+    species: Droid
+    description: >-
+      A B1 battle droid standing one step apart from the regular
+      staging rows, its photoreceptors cycling through a narrower
+      threat-detection band than standard. A scorch mark on its
+      right pauldron and a fresh weld line on its torso tell the
+      story: this unit took a hit, got patched, and was redeployed
+      without a full transponder re-flash. It now identifies
+      almost everything as an unauthorized contact.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 1D
+        mechanical: 1D
+        perception: 2D+1
+        strength: 2D
+        technical: 1D
+      skills:
+        blaster: 3D+1
+        dodge: 2D+2
+        search: 2D+1
+      weapon: blaster_rifle
+      move: 10
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A B1 with a corrupted IFF transponder running a standing
+        shoot-on-sight protocol. It does not negotiate. It does not
+        hesitate. Its threat-ID logic has collapsed to a binary:
+        logged Geonosian droid serial numbers are safe; everything
+        else is a target. The tone is blank, machine-flat, without
+        the faint nervous energy ordinary B1s carry.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Flat droid monotone. Short target-confirmation readouts.
+        No "roger roger" — this one skipped the pleasantries.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "THREAT DETECTED. ENGAGING."
+        - "UNAUTHORIZED CONTACT. INITIATING SWEEP PROTOCOL."
+        - "*The droid raises its rifle with jerky, overcautious movement.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # FOUNDRY UPPER LEVEL — 1 NPC (B1 access-control enforcer)
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: B1 Foundry Floor Enforcer
+    room: "Geonosis - Foundry Upper Level"
+    species: Droid
+    description: >-
+      A B1 battle droid posted on the upper walkway above the main
+      foundry floor, rifle at ready-low. Its standing orders are to
+      deter anyone without a Geonosian escort or CIS authorization
+      from approaching the production access hatches. It has shot
+      two Separatist contractors this month already. The Geonosian
+      overseers below consider this an acceptable casualty rate for
+      securing the production schedule.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 1D
+        mechanical: 1D
+        perception: 2D
+        strength: 2D
+        technical: 1D
+      skills:
+        blaster: 3D
+        dodge: 2D+2
+        search: 2D+1
+      weapon: blaster_rifle
+      move: 10
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Standard B1 access-control logic, no deviations. It
+        challenges anyone who moves toward the upper floor; the
+        challenge window is three seconds before it opens fire.
+        It will pursue into the adjacent corridors before reverting
+        to post. Not creative, not dangerous alone — there is just
+        always another one behind it.
+      knowledge: []
+      faction: cis
+      dialogue_style: "Standard B1 monotone. Roger roger. Nothing more."
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'Halt. Upper level access is restricted.' *The rifle comes up.*"
+        - "'Authorization absent. Engaging.' Roger roger."
+        - "*The B1 takes aim with unhurried mechanical precision.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # B2 ASSEMBLY — 1 NPC (malfunctioning B2 off the line)
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: B2 Assembly Malfunction Unit
+    room: "Geonosis - B2 Super Battle Droid Assembly"
+    species: Droid
+    description: >-
+      A B2 super battle droid that rolled off the assembly line
+      three hours ago with a targeting matrix that never finished
+      initialization. The Geonosian technician who flagged it
+      is currently hiding behind a component rack waiting for a
+      shutdown override team that has not arrived. The B2 paces
+      between assembly stations, wrist-blasters raised, firing
+      at anything that resolves as a target — which is everything
+      that moves.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 1D
+        mechanical: 1D
+        perception: 2D+1
+        strength: 3D+2
+        technical: 1D
+      skills:
+        blaster: 4D+1
+        dodge: 2D+2
+        brawling: 3D+2
+        search: 2D
+      weapon: blaster_rifle
+      move: 8
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A B2 with no functioning IFF and a targeting loop stuck
+        in full-combat mode. It does not speak. It processes
+        motion as threats. It is not angry or hostile in the
+        organic sense — it is simply running the only subroutine
+        it knows how to run. Stronger and more durable than
+        anything on this floor; the only question is how long
+        the Geonosians will wait before they write off whatever
+        equipment it damages during the shutdown window.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        No voice output. The wrist-cannon hum is the only
+        announcement it makes.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The B2's targeting array snaps to you. Both wrist-cannons rise.*"
+        - "*A low mechanical whine — the wrist-blasters cycling to full power.*"
+        - "*It advances without sound, wrist-cannons tracking every step you take.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # DEEP HIVE TUNNEL — 1 NPC (Geonosian tunnel patrol)
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Geonosian Tunnel Stalker
+    room: "Geonosis - Deep Hive Tunnel"
+    species: Geonosian
+    description: >-
+      A Geonosian warrior moving through the deep tunnel with the
+      silent, unlit confidence of something that was born here. Its
+      wings are folded close — the passage is not wide enough to
+      open them fully — and it carries a vibroblade in two of its
+      four arms, the other two pressed against the tunnel wall for
+      guidance. Its compound eyes catch you long before you see it.
+      The deep tunnels are not mapped. Geonosians do not want them
+      to be. This one enforces that preference.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 1D+2
+        mechanical: 1D+1
+        perception: 3D+1
+        strength: 3D
+        technical: 1D+2
+      skills:
+        brawling: 4D+2
+        melee_combat: 4D+1
+        dodge: 4D
+        sneak: 3D+2
+        flying: 4D
+        intimidation: 3D
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A warrior-caste Geonosian who has spent most of its adult
+        life in the deep tunnel network. It treats any unescorted
+        off-worlder as a violation of hive security and responds
+        immediately with lethal force. It will not speak first.
+        If it is speaking at all, the fight has already started.
+        Exceptionally patient — it may circle for several moments
+        before committing, but the commitment is total.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Rapid clicking and hissing Geonosian. No Basic.
+        Communication is posture and proximity.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*A long string of rapid clicks echoes off the tunnel walls.*"
+        - "*The Geonosian drops into a fighting crouch, vibroblade forward.*"
+        - "*It hisses and spreads its wings partway — a threat display.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # UPPER HIVE TUNNEL — 1 NPC (Geonosian hive warden)
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Geonosian Hive Warden
+    room: "Geonosis - Upper Hive Tunnel"
+    species: Geonosian
+    description: >-
+      A Geonosian in the heavier thoracic plating of a hive
+      warden — one of the warrior-caste members assigned to
+      the connector tunnels between surface and hive interior,
+      the most heavily trafficked (and therefore most contested)
+      passages in Stalgasin. It moves in short patrol sweeps,
+      always returning to the same choke point. A vibroblade
+      is strapped across its back in the Geonosian fighting-carry
+      position: accessible in two-tenths of a second.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 1D+2
+        mechanical: 1D+1
+        perception: 3D
+        strength: 3D+1
+        technical: 1D+2
+      skills:
+        brawling: 4D+2
+        melee_combat: 4D+2
+        dodge: 4D+1
+        flying: 4D
+        intimidation: 3D+2
+        search: 3D
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Experienced hive-security Geonosian who has worked this
+        tunnel for years. It knows which contractors have standing
+        access and which faces it has never cleared. Any uncleared
+        off-worlder entering the upper connector gets one moment of
+        assessment before the warden decides. The decision is almost
+        always the same. It is not cruel — it is simply efficient,
+        the way a locked door is efficient.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Clipped Geonosian clicks and a single Basic phrase
+        it uses for every unauthorized contact: "Not cleared."
+        Then the vibroblade.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'Not cleared.' *The vibroblade clears its sheath.*"
+        - "*The warden's wings lift slightly as it drops into stance.*"
+        - "*Rapid Geonosian clicking — a challenge, or an alert to others nearby.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # CIS FIELD COMMAND POST — 1 NPC (human mercenary enforcer)
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: CIS Field Mercenary
+    room: "Geonosis - CIS Field Command Post"
+    species: Human
+    description: >-
+      A lean Human in sand-dusted CIS field armor, blaster carbine
+      slung with the strap shortened for quick deployment. He has
+      the flat eyes of someone who has been doing contract security
+      work in contested space for a long time and stopped counting
+      anything other than the credit total. He guards the command
+      post access because that is what he was paid to do, and the
+      job includes discouraging visitors who did not schedule a
+      meeting.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D+2
+        dodge: 3D+2
+        brawling: 3D+1
+        search: 3D
+        streetwise: 2D+2
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        Professional mercenary, no ideological investment in the
+        Separatist cause — he works for whoever posted the contract.
+        Currently that is a CIS logistics officer who wants the
+        command post secure and quiet. He challenges unauthorized
+        visitors once, professionally, and then acts on the result.
+        He does not bluster or negotiate. The job is simple and he
+        is good at it.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Clipped, flat Basic. No Outer Rim accent — a Core-educated
+        voice doing Outer Rim work. "Access?" Then silence.
+        Then shooting.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'Access?' *He raises the carbine without waiting for an answer.*"
+        - "*He steps into a shooting stance, carbine leveled.* 'Wrong answer.'"
+        - "'Command post is restricted.' *The carbine is already coming up.*"
