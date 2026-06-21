@@ -1175,8 +1175,19 @@ class LearnCommand(BaseCommand):
             return
 
         if tuition:
-            char["credits"] = await ctx.db.adjust_credits(
-                char["id"], -tuition, "schematic_tuition")
+            # allow_negative=False + None-abort: the pre-check reads the stale
+            # session-cached balance; a live DB drain since could otherwise
+            # drive credits negative on the atomic write (QA 2026-06-20,
+            # credit-integrity — same class as the vendor sites).
+            _bal = await ctx.db.adjust_credits(
+                char["id"], -tuition, "schematic_tuition",
+                allow_negative=False)
+            if _bal is None:
+                await ctx.session.send_line(
+                    f"  Tuition for the {schem['name']} is {tuition:,} cr — "
+                    f"your balance can't cover it right now.")
+                return
+            char["credits"] = _bal
         if free:
             _mark_free_lesson(char, trainer_lower)
 

@@ -67,18 +67,28 @@ class FakeSession:
 
 
 class FakeDB:
-    def __init__(self, npcs=None, inventory=None):
+    def __init__(self, npcs=None, inventory=None, balance=10_000):
         self.npcs = npcs or []
         self.inventory = list(inventory or [])
         self.credit_calls = []
         self.removed = []
+        # The fake's authoritative balance (the real adjust_credits reads the
+        # DB credits row). Defaults high enough to cover the Drop-G tuition so
+        # the allow_negative=False None-abort path is NOT spuriously hit; a
+        # test wanting the overdraw path can pass balance=<low>.
+        self._balance = balance
 
     async def get_npcs_in_room(self, room_id):
         return self.npcs
 
-    async def adjust_credits(self, char_id, delta, tag):
+    async def adjust_credits(self, char_id, delta, tag, *, allow_negative=True):
+        # Mirror the real chokepoint: allow_negative=False returns None
+        # (no charge) when the result would go negative.
+        cur = getattr(self, "_balance", 0)
+        if not allow_negative and cur + delta < 0:
+            return None
         self.credit_calls.append((char_id, delta, tag))
-        self._balance = getattr(self, "_balance", 0) + delta
+        self._balance = cur + delta
         return self._balance
 
     async def save_character(self, char_id, **kw):
