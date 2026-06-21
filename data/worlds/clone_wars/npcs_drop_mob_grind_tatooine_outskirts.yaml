@@ -1,0 +1,394 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_tatooine_outskirts.yaml
+#
+# Tatooine City Outskirts Hostile Mob Grind Batch (2026-06-21)
+#
+# Six roaming hostile NPCs seeded across City Outskirts rooms to extend
+# the solo-PvE mob-grind reward loop (engine/hunting_rewards.py).
+# Complements the existing Jundland Wastes grind batch (rooms 48-53);
+# this batch covers rooms 40-47 (tatooine_outskirts zone, contested_marches
+# threat band).
+#
+# All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone spread:
+#   City Outskirts - Eastern Gate x1        (swoop gang scout)
+#   City Outskirts - Abandoned Moisture Farm x1 (desperate squatter)
+#   City Outskirts - Speeder Track x1       (swoop gang enforcer)
+#   City Outskirts - Wrecked Sandcrawler x1 (outskirts womp rat)
+#   City Outskirts - Hermit's Ridge x1      (outlaw lookout)
+#   City Outskirts - Desert Trail Junction x1 (trail bandit)
+#
+# Avoided: Scavenger Market (vendor: true) and Republic Checkpoint
+# (clone trooper presence — hostile mobs there are contextually wrong).
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats. WEG40120 PDF unavailable in this tree;
+#   stats are UNVERIFIED against the PDF. Grounded in sibling CW NPC
+#   patterns (tatooine grind baseline, Drop H baselines).
+# Weapons: blaster_pistol, hold_out_blaster, blaster_carbine —
+#   all keys confirmed in data/weapons.yaml. Womp Rat uses empty
+#   weapon key; combat engine falls back to brawling + STR.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # EASTERN GATE — 1 NPC (swoop gang scout)
+  # Last city structure before the open desert; ideal gang watchpost
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Swoop Gang Scout
+    room: "City Outskirts - Eastern Gate"
+    species: Zabrak
+    description: >-
+      A Zabrak with three-day dust on his jacket and his back to the
+      ferrocrete wall beside the gate, watching everything that comes in
+      from the desert side. He has a data-chip in one hand and a blaster
+      pistol not quite hidden under his jacket — the kind of not-hidden
+      that is meant to be noticed. He works a loose arrangement with the
+      Dustback Swoop Gang: flag worthwhile marks coming in from the wastes,
+      take a cut when the crew rolls them at the track or the farm. When
+      you make eye contact, the calculation happens visibly behind his
+      yellow eyes, and the answer is not good for you.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D+1
+        perception: 3D
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        dodge: 3D
+        search: 3D+1
+        streetwise: 3D
+        sneak: 2D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A swoop gang scout and spotter who has been working this gate
+        for two months. He is not a fighter by preference but he is
+        competent, and the gang expects him to handle anyone who makes
+        the scout role awkward. He engages as soon as he reads you as
+        a threat to the operation — which happens faster than most
+        people expect, because he has been watching for exactly this
+        kind of threshold all day.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Flat, unhurried Basic with a Zabrak backcountry cadence.
+        "You came a long way." The blaster is already in his hand.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The data-chip disappears and the blaster comes up in the same motion.*"
+        - "*He fires from the wall's cover, accurate and calm.*"
+        - "*'Wrong look.' He fires again and moves sideways.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # ABANDONED MOISTURE FARM — 1 NPC (violent squatter)
+  # Post-raid ruins; claimed by desperate outcasts who defend fiercely
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Moisture Farm Squatter
+    room: "City Outskirts - Abandoned Moisture Farm"
+    species: Human
+    description: >-
+      A Human in patched clothing with four months of Tatooine grit
+      ground into the creases. She claimed the underground quarters
+      after the Tusken raid cleared out the original owners — first
+      as temporary shelter, then as permanent territory. The hold-out
+      blaster was already in her hand when she heard footsteps on
+      the ferrocrete above. She has fought off three previous attempts
+      to displace her, twice with this same weapon, once with a
+      vaporator strut. She has run out of patience and does not intend
+      to run out of ground.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D+2
+        technical: 2D+1
+      skills:
+        blaster: 3D+2
+        brawling: 3D+1
+        dodge: 2D+2
+        survival: 2D+2
+        streetwise: 2D+1
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A desperate survivor who has claimed the ruins as her last
+        foothold. She is not a professional criminal — she is someone
+        who has been cornered by poverty and circumstance and has
+        decided to hold this ground regardless of cost. She attacks
+        fast, uses the ruined vaporator towers as cover, and does
+        not issue warnings she does not intend to follow through on.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Rough, tired Basic. "Not taking anything else." The blaster
+        is already leveled.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*She fires from the shadow of a vaporator tower, no preamble.*"
+        - "*'Not moving.' She fires again and retreats behind the wall.*"
+        - "*She braces against the ruined ferrocrete and shoots.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # SPEEDER TRACK — 1 NPC (swoop gang enforcer)
+  # Illegal swoop circuit; gang enforces a protection toll on visitors
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Swoop Gang Enforcer
+    room: "City Outskirts - Speeder Track"
+    species: Human
+    description: >-
+      A broad Human with the Dustback Swoop Gang's stylized tire-tread
+      tattoo on his neck, leaning against a swoop that has seen better
+      days but runs well enough for the track circuit. He collects
+      entry fees from anyone who wants to watch the racing without
+      gang clearance — which is everyone, because clearance requires
+      knowing the right people, and the fee is cheaper than knowing
+      them. When you approach without credits already in hand, the
+      mood shifts with the efficiency of someone who does this multiple
+      times a night.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D+2
+        perception: 2D+2
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D
+        brawling: 3D+2
+        intimidation: 3D+1
+        dodge: 3D
+        streetwise: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A swoop gang enforcer who runs the track's protection collection.
+        He prefers intimidation to combat — it is faster and cheaper —
+        but he is thoroughly capable of the combat and does not hesitate
+        once the intimidation phase fails. He is physically imposing,
+        used to getting his way, and slightly annoyed at anyone who
+        makes a simple shakedown complicated.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Flat, unhurried Basic with the specific confidence of a large
+        person who rarely has to explain himself twice.
+        "Track fee's twenty credits." The blaster comes out when you
+        don't reach for the pouch.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*'Bad choice.' The blaster comes up.*"
+        - "*He fires once and advances, using the swoop as cover.*"
+        - "*He steps sideways off the berm and fires again.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # WRECKED SANDCRAWLER — 1 NPC (outskirts womp rat)
+  # Hull riddled with warrens; the creature colony is firmly established
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Outskirts Womp Rat
+    room: "City Outskirts - Wrecked Sandcrawler"
+    species: Creature
+    description: >-
+      A womp rat the size of a large hound, rust-brown and quick,
+      emerging from one of the gaps in the old sandcrawler's hull where
+      the plating buckled. The hull has been its warren colony's territory
+      for long enough that the scent markings cover every accessible
+      surface. It is smaller than the deep-canyon specimens but leaner,
+      faster, and more aggressive around humans — a product of three
+      generations of city-edge adaptation. Its small, fixed eyes carry
+      the absolute focus of a creature whose only cognitive setting is
+      "this is my space and you are in it."
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 1D
+        mechanical: 1D
+        perception: 2D+1
+        strength: 2D
+        technical: 1D
+      skills:
+        brawling: 3D+2
+        sneak: 3D
+        search: 2D+1
+      weapon: ""
+      move: 12
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A territorial city-edge womp rat defending its colony's den
+        site in the sandcrawler hull. Pure instinct — threat in its
+        space equals immediate attack. It is smaller than the deep
+        canyon specimens, which means it relies more on speed and
+        the confined hull geometry than on raw size. It bites,
+        retreats into a hull gap, and bites again from a different
+        angle. It does not disengage until its threat is gone or
+        it is driven well back from the colony entrance.
+      knowledge: []
+      faction: wildlife
+      dialogue_style: >-
+        Chittering and snarling, teeth visible. No Basic.
+        The colony sounds louder behind it.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The womp rat lunges out of the hull gap, going for your ankles.*"
+        - "*It snaps and retreats into shadow, then comes from a different gap.*"
+        - "*A rapid, chattering shriek. It charges again.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # HERMIT'S RIDGE — 1 NPC (outlaw lookout)
+  # Rocky high ground; criminal network uses it as a traffic watch
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Outlaw Lookout
+    room: "City Outskirts - Hermit's Ridge"
+    species: Human
+    description: >-
+      A Human perched on a sandstone shelf behind a wind-carved
+      boulder, macrobinoculars on a chest strap and a blaster carbine
+      across his knees. He is watching the desert approaches and the
+      road back toward the city gate simultaneously, which is the job —
+      spot incoming traffic, flag the relevant pieces to the crew below,
+      collect his share at the end of the shift. The ridge is called
+      "the old hermit's place" by locals and nobody comes up here except
+      to avoid being seen, which suits him perfectly. He clocked you two
+      minutes before you reached him. His expression says the math was
+      not in your favor.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D
+        sneak: 3D+1
+        search: 3D+2
+        streetwise: 2D+2
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A criminal network spotter who has worked the Hermit's Ridge
+        observation post for six weeks. He is experienced, patient, and
+        completely unsentimental about what happens to people he flags
+        for the crew. When someone comes up the ridge without gang
+        clearance, the calculation is simple: they either saw him, in
+        which case they cannot leave, or they didn't see him, in which
+        case he has the advantage and the situation is the same. He
+        fires from the elevated position, accurate and without
+        forewarning.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Quiet, flat Basic from above. "You should have taken the lower road."
+        He fires before the sentence is finished.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*A shot from the ridge — he had the angle before you arrived.*"
+        - "*He shifts behind the boulder and fires again from a new gap.*"
+        - "*'Wrong ridge.' Another controlled shot from the elevated position.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # DESERT TRAIL JUNCTION — 1 NPC (trail bandit)
+  # Road fork with sight lines to both paths; classic ambush choke point
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Trail Bandit
+    room: "City Outskirts - Desert Trail Junction"
+    species: Weequay
+    description: >-
+      A Weequay with the road-worn appearance of someone who has been
+      working this junction for a long season. She knows both trails
+      well enough to know which one travelers take when they are in a
+      hurry and which one they use when they are trying to avoid the
+      checkpoint — information she uses to position herself at the
+      fork before traffic arrives. The blaster carbine is slung at a
+      diagonal that says it will be in hand within a breath. The two
+      stone stacks that mark the junction she has added to every morning
+      so she always knows which way to look first. It is a professional
+      arrangement and she does not appreciate complications.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D+1
+        perception: 2D+2
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 2D+2
+        streetwise: 3D
+        intimidation: 3D+1
+        survival: 2D+2
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A professional bandit who has worked the junction long enough to
+        be systematic about it. She is not impulsive — she selects targets,
+        times her approach, and has a clear decision point: if you reach
+        for credits, it is a transaction; if you reach for anything else,
+        it is a fight. She is fast with the carbine and uses the fork's
+        geometry to cut off retreat. She does not pursue past the junction
+        sight-lines because she knows this ground and does not want to
+        fight on someone else's.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Weequay-accented Basic, economical and direct. "The road has a fee."
+        Her hand is already on the carbine.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The carbine comes up before you finish the thought.*"
+        - "*She fires and steps sideways to cut the angle on the eastern path.*"
+        - "*'Wrong choice.' She fires again from the fork's shelter.*"
