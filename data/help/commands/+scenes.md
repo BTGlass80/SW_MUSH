@@ -2,26 +2,31 @@
 key: +scenes
 title: +Scenes — Scene List
 category: "Commands: RP"
-summary: List all your recent scenes with status, type, location, and duration.
+summary: List your scenes or browse the public shared-scene archive.
 aliases: [scenes]
-see_also: [+scene, emote, say]
+see_also: [+scene, emote, say, +plots]
 tags: [scene, rp, logging, archive, command]
 access_level: 0
 examples:
   - cmd: "+scenes"
     description: "List all your recent scenes, newest first."
+  - cmd: "+scenes shared"
+    description: "Browse the public shared-scene archive from all players."
+  - cmd: "+scenes Ahsoka"
+    description: "Browse shared scenes by the player named Ahsoka."
 ---
 
-Show a compact list of all scenes you have participated in, with
-their status, type, location, start time, and duration. Use
-+scene <id> to view the full pose log for any entry.
+Show your scene history, or browse the public shared-scene archive.
+Use +scene <id> to view the full pose log for any entry.
 
 SYNTAX
 
-  +scenes
-  scenes
+  +scenes                  Your scene history (all statuses)
+  +scenes shared           The public shared-scene archive (all players)
+  +scenes <player>         A specific player's shared (public) scenes
+  scenes                   Alias for +scenes
 
-OUTPUT FORMAT
+OUTPUT FORMAT (your history)
 
   #  14  SHARED    Social      The Cantina Deal
              Mos Eisley Cantina  2026-06-15 21:10  47m
@@ -41,13 +46,24 @@ OUTPUT FORMAT
 STATUS MEANINGS
 
   ACTIVE      Scene is currently recording in a room.
-  COMPLETED   Scene has ended; private archive.
+  COMPLETED   Scene has ended; private archive (only you can read it).
   SHARED      Published — any player can read the full log.
+
+PRIVACY NOTE
+
+  Only SHARED scenes appear in +scenes shared or +scenes <player>.
+  A player's COMPLETED (private) scenes are never browsable by others.
 
 EXAMPLES
 
   +scenes
   → Your scene history. Tap +scene <id> to read any log.
+
+  +scenes shared
+  → The public archive: all published scenes from every player.
+
+  +scenes Greedo
+  → Greedo's publicly shared scenes only.
 
   +scene 14
   → Read the full pose log for scene #14.
@@ -56,6 +72,8 @@ EXAMPLES
   → Publish scene #14 to the shared archive.
 
 CHEAT SHEET
-  +scenes         list your scene history
-  +scene <id>     read a scene log
-  +scene/share    publish a scene
+  +scenes                  your scene history
+  +scenes shared           public archive (all players)
+  +scenes <player>         a player's shared scenes
+  +scene <id>              read a scene log
+  +scene/share <id>        publish a scene
