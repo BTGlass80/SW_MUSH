@@ -358,6 +358,18 @@ class _LiveHarness:
             log.warning("smoke harness: player_cities init failed",
                         exc_info=True)
 
+        # ── Vanity-titles schema ──
+        # GameServer initializes this at boot (server/game_server.py); mirror it
+        # so the mob-grind milestone title grant (titles.grant_earned_title,
+        # which writes the vanity_titles column) works in-process. Without it,
+        # kill-milestone title grants silently misfire (sqlite: no such column:
+        # vanity_titles) — QA 2026-06-21 harness gap.
+        try:
+            from engine.titles import ensure_schema as _title_schema
+            await _title_schema(srv.db)
+        except Exception:
+            log.warning("smoke harness: titles init failed", exc_info=True)
+
         # ── World lore ──
         try:
             from engine.world_lore import ensure_lore_schema, seed_lore

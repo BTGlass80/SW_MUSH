@@ -73,6 +73,15 @@ _SPECIAL_MARKERS = (
 )
 
 
+def _safe_int(v, default: int = 0) -> int:
+    """Tolerant int — a corrupt hunting_log value (str/None) must never crash
+    +hunting or the reward path (it self-heals on the next normal kill)."""
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return default
+
+
 def _ai_config(npc_row: dict) -> dict:
     raw = (npc_row or {}).get("ai_config_json", "{}")
     if isinstance(raw, dict):
@@ -143,7 +152,7 @@ async def on_huntable_kill(db, killer_char: dict, npc_row: dict, *,
         attrs = _load_attrs(killer_char)
         log_d = _load_log(attrs, day_stamp)
 
-        reward = _reward_for(int(log_d.get("daily_credits", 0)))
+        reward = _reward_for(_safe_int(log_d.get("daily_credits")))
 
         # Credits via the funnel chokepoint (a real, bounded faucet).
         new_balance = await db.adjust_credits(
@@ -151,10 +160,10 @@ async def on_huntable_kill(db, killer_char: dict, npc_row: dict, *,
         if isinstance(new_balance, int):
             killer_char["credits"] = new_balance
 
-        prev_kills = int(log_d.get("kills", 0))
+        prev_kills = _safe_int(log_d.get("kills"))
         new_kills = prev_kills + 1
         log_d["kills"] = new_kills
-        log_d["daily_credits"] = int(log_d.get("daily_credits", 0)) + reward
+        log_d["daily_credits"] = _safe_int(log_d.get("daily_credits")) + reward
         attrs[HUNT_LOG_KEY] = log_d
         await _persist_attrs(db, killer_char, attrs)
 
@@ -199,11 +208,11 @@ def hunting_log_view(char: dict, *, day_stamp: str | None = None) -> dict:
     log_d = attrs.get(HUNT_LOG_KEY)
     if not isinstance(log_d, dict):
         log_d = {}
-    kills = int(log_d.get("kills", 0))
+    kills = _safe_int(log_d.get("kills"))
     if day_stamp is None:
         from datetime import datetime as _d, timezone as _t
         day_stamp = _d.now(_t.utc).date().isoformat()
-    daily = int(log_d.get("daily_credits", 0)) if log_d.get("day") == day_stamp else 0
+    daily = _safe_int(log_d.get("daily_credits")) if log_d.get("day") == day_stamp else 0
     next_thresh = next(((t, k) for t, k in TITLE_THRESHOLDS if kills < t), None)
     return {
         "kills": kills,

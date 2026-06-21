@@ -275,6 +275,11 @@ class AreaGeometry:
         # renderer keys off truthiness of `substrate_image`).
         if self.substrate_image:
             out["substrate_image"] = self.substrate_image
+        # Emit the interior marker so a future client can dispatch on it (e.g.
+        # suppress the compass/district chrome for a building interior). Only
+        # when true, keeping the procedural-area wire shape unchanged.
+        if self.is_interior:
+            out["is_interior"] = True
         if include_player:
             out["player"] = dict(player) if player else {}
             out["contacts"] = list(contacts) if contacts else []

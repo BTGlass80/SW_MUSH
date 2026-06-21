@@ -37,7 +37,7 @@ npcs:
 
   # ─── Vela Niree — Twi'lek rumor producer ───────────────────────────
   - name: "Vela Niree"
-    room: "Chalmun's Cantina - Main Room"
+    room: "Chalmun's Cantina - Main Bar"
     species: "Twi'lek"
     description: >
       A green-skinned Twi'lek dancer in faded silks, perched on a bar

@@ -1006,17 +1006,19 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
                             if _ai_cfg.get("is_bounty_target"):
                                 from engine.bounty_board import get_bounty_board
                                 _board = get_bounty_board()
-                                # Find the player who dealt the killing blow
-                                # (first non-NPC attacker in this round)
-                                _killer_id = None
-                                for _ac in combat.combatants.values():
-                                    if not _ac.is_npc and any(
-                                        _a.action_type == ActionType.ATTACK
-                                        and _a.target_id == c.id
-                                        for _a in _ac.actions
-                                    ):
-                                        _killer_id = _ac.id
-                                        break
+                                # QA 2026-06-21: attribute the kill via
+                                # c.last_attacker_id — the SAME chain the
+                                # anomaly, WoW.3a, and mob-grind hooks use — not
+                                # a scan of THIS round's combatant actions.
+                                # roll_initiative() clears actions each round, so
+                                # the scan silently missed a bounty target that
+                                # bled out from a mortal wound on a later round
+                                # (no PC re-attacked the downed NPC that round)
+                                # and mis-attributed/dropped multi-attacker and
+                                # killer-also-died kills. notify_target_killed
+                                # self-filters to the PC who holds the contract,
+                                # so a non-contract or NPC attacker just no-ops.
+                                _killer_id = c.last_attacker_id
                                 if _killer_id:
                                     _contract = await _board.notify_target_killed(
                                         c.id, _killer_id, ctx.db
