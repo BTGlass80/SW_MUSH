@@ -453,9 +453,20 @@ class ShopCommand(BaseCommand):
 
         # Deduct credits — routed through the ledger chokepoint (Drop 1 / F1)
         # so the vendor-droid upgrade sink is logged on @economy.
-        # adjust_credits applies the delta atomically and returns the balance.
-        char["credits"] = await ctx.db.adjust_credits(
-            char["id"], -upgrade_cost, "vendor_droid_upgrade")
+        # allow_negative=False + None-abort: the pre-check above reads the
+        # stale session-cached balance, so a live DB drain since (concurrent
+        # session / mission payout + spend) could otherwise drive credits
+        # negative on the atomic write (QA 2026-06-20, credit-integrity).
+        _bal = await ctx.db.adjust_credits(
+            char["id"], -upgrade_cost, "vendor_droid_upgrade",
+            allow_negative=False)
+        if _bal is None:
+            await ctx.session.send_line(
+                f"  Insufficient credits. Upgrade to {target_tier['name']} "
+                f"costs {upgrade_cost:,} cr."
+            )
+            return
+        char["credits"] = _bal
 
         # Update droid tier (inventory carries over)
         data["tier"] = target_num
