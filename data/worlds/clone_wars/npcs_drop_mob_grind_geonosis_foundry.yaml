@@ -1,0 +1,392 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_geonosis_foundry.yaml
+#
+# Geonosis Droid Foundry & Hive Interior Hostile Mob Grind Batch (2026-06-21)
+#
+# Six roaming hostile NPCs seeded across the Droid Foundry deep levels and
+# Hive interior rooms to populate the solo-PvE mob-grind reward loop
+# (engine/hunting_rewards.py).
+# All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone spread: Droid Foundry Main Floor x1, Foundry Control Center x1,
+#              Secondary Foundry Deep Level x1, Main Hive Chamber x1,
+#              Warrior Caste Barracks x1, Battle Ruins x1.
+#
+# These rooms had zero hostile NPC occupants before this drop (verified
+# against all data/worlds/clone_wars/npcs_*.yaml files at HEAD).
+#
+# Era note (~20 BBY): Two years after the First Battle of Geonosis,
+# the Geonosian droid foundry complex continues limited production under
+# Archduke Poggle's authority and CIS contract. Rogue and mis-keyed droids
+# are a persistent hazard; Geonosian warrior-caste territorial aggression
+# predates and survives the Republic incursion intact.
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats. WEG40120 PDF unavailable in this tree;
+#   stats are UNVERIFIED against the PDF. Grounded in sibling
+#   NPC patterns (npcs_drop_mob_grind_geonosis.yaml,
+#   npcs_drop_mob_grind_geonosis_arena.yaml baselines).
+# Weapons: blaster_pistol, vibroblade — all keys confirmed in
+#   data/weapons.yaml. Brawling-only NPCs use weapon: "".
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # DROID FOUNDRY - MAIN FLOOR — 1 NPC (scrambled assembly-line B1)
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Scrambled Assembly B1
+    room: "Geonosis - Droid Foundry - Main Floor"
+    species: Droid
+    description: >-
+      A B1 battle droid that walked off the primary assembly line
+      under its own power before the activation sequence completed.
+      Its photoreceptors are cycling through IFF states too fast to
+      stabilize — every three seconds the color shifts from amber to
+      red and back. The Geonosian technicians have stopped trying to
+      intercept it after the third one went to the medical station.
+      It patrols a twelve-meter loop between the conveyor housing and
+      the hydraulic press, rifle raised, firing at anything that
+      breaks the pattern.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 1D
+        mechanical: 1D
+        perception: 2D
+        strength: 2D
+        technical: 1D
+      skills:
+        blaster: 3D
+        dodge: 2D+1
+        search: 2D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        An assembly-line reject still running an incomplete boot
+        sequence. It has no personality to speak of — just a broken
+        targeting loop that classifies motion as threat. It will
+        shoot at a crate rolling off a conveyor with the same urgency
+        it brings to shooting at a person. The tone is neither angry
+        nor calm: it is absent. A machine running in the dark.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Garbled status outputs — partial target-acquisition strings
+        that never complete. No "roger roger." Just static bursts
+        and firing solutions.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The droid's photoreceptors flash amber-red. Its rifle rises.*"
+        - "'TARG — TARG — TARG —' *The acquisition loop restarts again.*"
+        - "*It fires twice into empty space, then pivots to face you.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # FOUNDRY CONTROL CENTER — 1 NPC (Geonosian production marshal)
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Geonosian Foundry Marshal
+    room: "Geonosis - Foundry Control Center"
+    species: Geonosian
+    description: >-
+      A stocky Geonosian in the pale grey production-rank markings
+      of a senior foundry overseer, a blaster pistol worn on a
+      secondary belt clip rather than the primary holster — the
+      gesture of someone who rarely needs it but has never stopped
+      carrying it. Its compound eyes run a continuous sweep of every
+      console and access point in the control center. It noticed you
+      twelve seconds before you noticed it. Now it is deciding whether
+      you represent an interruption or a threat. The deciding takes
+      about two seconds.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D+2
+        strength: 2D+2
+        technical: 2D+1
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        flying: 3D+2
+        intimidation: 3D+2
+        search: 3D
+        command: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A Geonosian production overseer who has spent twenty years
+        optimizing throughput and tolerating exactly zero
+        off-schedule visitors. It does not distinguish between
+        Republic agents, CIS inspectors without proper clearance,
+        and random intruders — any of them in the control center
+        without authorization represents a production risk. It will
+        not raise its voice. It will not issue a warning twice.
+        It considers the second shot a courtesy.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Rapid Geonosian clicks in a flat production-supervisor
+        cadence — no interrogation, no threats, just a brief
+        demand-code and then action. The body language is the
+        primary language.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*A sharp Geonosian demand-click. Then the pistol is drawn.*"
+        - "*The marshal steps between you and the control console, weapon leveled.*"
+        - "*It clicks something short and final, and shoots.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # SECONDARY FOUNDRY (DEEP LEVEL) — 1 NPC (rogue maintenance chassis)
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Rogue Foundry Maintenance Droid
+    room: "Geonosis - Secondary Foundry (Deep Level)"
+    species: Droid
+    description: >-
+      A heavy-chassis maintenance droid built for moving components
+      between the deep sub-level press stations and the main floor
+      conveyors — four arms, two of which terminate in industrial
+      cutting plasma torches that are not supposed to be on right now.
+      It came back online six days ago after a power-surge reset that
+      wiped its safety interlock subroutines. The Geonosian supervisor
+      filed a shutdown request and then left the building. The request
+      was never processed. The torches are on. The droid is moving.
+    char_sheet:
+      attributes:
+        dexterity: 1D+2
+        knowledge: 1D
+        mechanical: 2D
+        perception: 2D
+        strength: 4D+1
+        technical: 2D
+      skills:
+        brawling: 5D
+        dodge: 2D
+        search: 2D+1
+      weapon: ""
+      move: 8
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A maintenance droid with no survival instinct or pain
+        response running industrial tools it was never programmed
+        to use as weapons. It does not pursue prey — it moves along
+        its scheduled route, and the route goes through the same
+        corridors you need. Getting close enough to stop it means
+        getting close enough for the cutting torches to reach. It
+        does not understand that it is dangerous. That is what makes
+        it dangerous.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Work-status announcements on a loop — component weight
+        readouts and conveyor timing updates. Monotone synthesized
+        industrial voice.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The plasma torches swivel toward you with the indifference of machinery.*"
+        - "'MAINTENANCE CYCLE IN PROGRESS.' *The cutting arms extend.*"
+        - "*It does not accelerate. It does not slow. It just keeps coming.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # MAIN HIVE CHAMBER — 1 NPC (Geonosian warrior champion)
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Geonosian Hive Champion
+    room: "Geonosis - Main Hive Chamber"
+    species: Geonosian
+    description: >-
+      A Geonosian that stands half a head taller than any warrior you
+      have seen on this planet, its carapace carrying the ridge-scarring
+      of ritual combat — dozens of marks, each one a contest it won. The
+      vibroblade it carries is not standard issue. The hilt has been
+      re-wrapped in something that was probably leather until recently,
+      and the blade itself is ground to a profile different from the
+      factory shape, the edge drawn back at a shallower angle. Someone
+      who knows what they are doing modified that weapon. The champion
+      watches the chamber entrance from a raised dais near the central
+      pillar, wings spread to their full width in territorial display.
+      It has been waiting for something to fight since the Republic
+      fleet left.
+    char_sheet:
+      attributes:
+        dexterity: 3D+2
+        knowledge: 2D
+        mechanical: 1D+2
+        perception: 3D+2
+        strength: 3D+2
+        technical: 1D+2
+      skills:
+        brawling: 5D
+        melee_combat: 5D+1
+        dodge: 4D+2
+        flying: 4D+2
+        intimidation: 4D+1
+        sneak: 3D+2
+      weapon: vibroblade
+      move: 12
+      force_points: 1
+      character_points: 4
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        The strongest fighter in this hive complex by reputation
+        and repeated demonstration. It is not aggressive in the
+        tactical sense — it does not charge; it positions. When
+        it moves, it is because it has already decided where the
+        fight ends. It treats every challenger as an opportunity
+        to extend its record. There is no hatred here, no
+        territorial fury in the usual sense — just the calm of
+        something that has won enough times to stop being afraid.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        A single sustained hiss when it decides to engage.
+        Then silence, and movement. Communication is the fight.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The champion spreads its wings to full width and drops into a low stance.*"
+        - "*A long, low hiss — the blade comes up in a guard position you don't recognize.*"
+        - "*It circles without rushing, compound eyes tracking every centimeter of your position.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # WARRIOR CASTE BARRACKS — 1 NPC (Geonosian barracks veteran)
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Geonosian Barracks Veteran
+    room: "Geonosis - Warrior Caste Barracks"
+    species: Geonosian
+    description: >-
+      A Geonosian warrior resting against the barracks wall in the
+      loose, folded stillness of a soldier between rotations —
+      wings half-furled, vibroblade across both knees, and compound
+      eyes that do not close when the body slows. It registered your
+      entry the moment you crossed the threshold. The wings are
+      already beginning to spread. Off-duty means nothing when
+      someone unauthorized walks into the warrior barracks. There
+      are no non-combatants in this room.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 1D+2
+        mechanical: 1D+1
+        perception: 3D
+        strength: 3D+1
+        technical: 1D+2
+      skills:
+        brawling: 4D+2
+        melee_combat: 4D+2
+        dodge: 4D+1
+        flying: 4D
+        intimidation: 3D+1
+        sneak: 3D+1
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A warrior-caste Geonosian with ten years of active barracks
+        service. It has no patience for intruders and no interest
+        in explanations. The barracks is hive territory; trespass
+        is answered the same way it was answered before the Republic
+        came and after they left. Rest is not surrender. It can
+        be at full fighting readiness in under a second, and it
+        knows it.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        No warning. A short combat-posture click that sounds like
+        a bone snapping, then immediate engagement.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The warrior rises from its resting posture faster than seems possible.*"
+        - "*A single sharp click — the vibroblade is in its hand before the echo fades.*"
+        - "*It advances in a low glide, wings extended, blade forward.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # BATTLE RUINS — 1 NPC (Trandoshan salvage enforcer)
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Trandoshan Ruins Claim Enforcer
+    room: "Geonosis - Battle Ruins"
+    species: Trandoshan
+    description: >-
+      A Trandoshan in mismatched scavenger gear picking through
+      collapsed Republic walker wreckage with the territorial
+      focus of someone who has been claiming this stretch of
+      ruins for three weeks. He has probably found something
+      worth protecting — the way he positions himself between you
+      and the deeper rubble says so without him having to.
+      A blaster pistol is already in his right hand. He is not
+      waiting to find out if you have the same idea he does.
+      Out here, away from the hive and the CIS patrols, the only
+      rule is who moved first.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+2
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        dodge: 3D+2
+        brawling: 4D
+        search: 3D
+        streetwise: 2D+2
+        survival: 2D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Trandoshan salvage operator working the Geonosis battle
+        ruins solo, which is either very brave or very stupid and
+        the evidence so far supports the former. He has been out
+        here long enough to know which scavengers are competition
+        and which ones are threats, and he treats both categories
+        the same way. He has a claim on this debris field and
+        intends to defend it. He does not bluff and he does not
+        warn twice.
+      knowledge: []
+      faction: neutral
+      dialogue_style: >-
+        Blunt Trandoshan Basic, heavy accent, short sentences.
+        "Mine." "Move." "Don't." Then shooting.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'Mine.' *The pistol centers on you without hesitation.*"
+        - "*He steps sideways to cut off your line to the deep rubble.* 'Move on.'"
+        - "'Already gave you a chance.' *He fires.*"
