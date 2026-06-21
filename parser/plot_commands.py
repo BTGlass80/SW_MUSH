@@ -51,18 +51,40 @@ class PlotsListCommand(BaseCommand):
     key = "+plots"
     aliases = ["+plot/list", "+arcs"]
     help_category = "Social"
-    help_text = "List open story arcs / plots."
+    help_text = (
+        "List story arcs / plots.\n\n"
+        "  +plots          Open (active) plots\n"
+        "  +plots closed   Closed (resolved) plots in the archive\n"
+        "  +plots all      Every plot, open and closed\n\n"
+        "Use +plot <id> to view a plot's detail and linked scenes."
+    )
 
     async def execute(self, ctx: CommandContext):
-        from engine.plots import get_open_plots, get_scene_count
-        plots = await get_open_plots(ctx.db, limit=30)
+        from engine.plots import (
+            get_open_plots, get_closed_plots, get_all_plots, get_scene_count,
+        )
+        arg = (ctx.args or "").strip().lower()
+
+        if arg == "closed":
+            plots = await get_closed_plots(ctx.db, limit=30)
+            title_bar = "═══ CLOSED PLOTS ═══"
+            empty = "No closed plots yet."
+        elif arg in ("all", "*"):
+            plots = await get_all_plots(ctx.db, limit=30, include_closed=True)
+            title_bar = "═══ ALL PLOTS ═══"
+            empty = "No plots yet."
+        else:
+            plots = await get_open_plots(ctx.db, limit=30)
+            title_bar = "═══ OPEN PLOTS ═══"
+            empty = "No open plots."
+
         if not plots:
-            await ctx.session.send_line("No open plots.")
+            await ctx.session.send_line(empty)
             await ctx.session.send_line(
                 "\033[2mUse +plot/create <title>=<summary> to start one!\033[0m")
             return
 
-        lines = ["\033[33m═══ OPEN PLOTS ═══\033[0m"]
+        lines = [f"\033[33m{title_bar}\033[0m"]
         for p in plots:
             sc_count = await get_scene_count(ctx.db, p["id"])
             lines.append(
@@ -81,7 +103,8 @@ class PlotsListCommand(BaseCommand):
                 lines.append(f"      \033[2m{s}\033[0m")
 
         lines.append("")
-        lines.append("\033[2mUse +plot <id> for details. +plot/create <title>=<summary> to start one.\033[0m")
+        lines.append("\033[2mUse +plot <id> for details · +plots closed for the archive · "
+                     "+plot/create <title>=<summary> to start one.\033[0m")
         await ctx.session.send_line("\r\n".join(lines))
 
 

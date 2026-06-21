@@ -115,12 +115,13 @@ Most players share their best scenes (memorable moments, important plot beats, p
 ### Browsing scenes
 
 ```
-+scenes                  — List recent scenes (yours + public)
-+scenes shared           — List public shared scenes
-+scenes plot             — List Plot-type scenes
-+scenes <player>         — Scenes by a specific player
++scenes                  — Your own recent scenes (any status)
++scenes shared           — The public shared-scene archive
++scenes <player>         — A player's shared (public) scenes
 +scene <id>              — View a scene's log
 ```
+
+Bare `+scenes` lists only **your** scenes (the ones you took part in), newest first. `+scenes shared` opens the public archive — every scene anyone has published. `+scenes <player>` narrows that archive to one author's shared scenes (their *private* scenes never appear; only what they chose to share). `shared` is a reserved keyword, so a character literally named "Shared" can't be browsed by name — but that's the only collision.
 
 The browse-and-read flow is how players engage with the archive. Newer players can read shared scenes to understand the server's RP culture; established players can revisit their own scene history for character continuity.
 
@@ -138,7 +139,23 @@ What does **not** get logged:
 - Private pages (whispered messages between two characters).
 - Mechanical commands (combat dice rolls, inventory checks).
 
-The log is the **public-facing scene** — what a observer in the room would have seen. Private/OOC stays out of the record.
+The log is the **public-facing scene** — what an observer in the room would have seen. Private/OOC stays out of the record.
+
+### Pose order — keeping turns straight
+
+In a busy multi-player scene it's easy for two people to pose at once or for a quiet player to get talked over. The scene system has an optional **pose-order tracker** that quietly tells each player when it's their turn:
+
+```
++scene/poseorder         — Start / show the pose-order tracker
++scene/mode <mode>       — Set mode: round-robin or 3-per
++scene/drop <name>       — Remove someone from the rotation
+```
+
+It needs **at least two participants**. In **round-robin** mode (the default), each poser is privately nudged "it's your turn" when the rotation reaches them. In **3-per** mode, each player gets up to three poses before the cycle resets — looser, good for fast banter. Players who go idle can be dropped from the rotation with `+scene/drop`. Pose order is a convenience, never a hard gate: nobody is blocked from posing, the tracker just keeps the spotlight moving.
+
+### Scenes reward CP
+
+Posing in a logged scene isn't only for the archive — it earns **Character Points**. When a scene ends, every participant who posed receives a scene-CP bonus scaled to how much they contributed (see *Guide #09 — CP & Progression*). This is the engine rewarding roleplay directly: the more you put into a scene, the more progression you earn from it. (Only IC poses count; OOC chatter does not.)
 
 ---
 
@@ -166,11 +183,13 @@ The plot is now public. Other players can see it via `+plots`.
 ### Listing and viewing plots
 
 ```
-+plots                          — List open plots
++plots                          — List open (active) plots
++plots closed                   — List closed (resolved) plots
++plots all                      — List every plot, open and closed
 +plot <id>                      — View plot details + linked scenes
 ```
 
-The `+plots` list shows open plots with their summaries. Players browsing for RP opportunities can find plots they want to engage with.
+The `+plots` list shows open plots with their summaries. Players browsing for RP opportunities can find plots they want to engage with. `+plots closed` surfaces finished arcs for reference and inspiration; `+plots all` shows both at once. (`+arcs` is an alias for `+plots`.)
 
 The `+plot <id>` detail view shows the plot's title, summary, status (open/closed), creation date, and a list of all scenes linked to it.
 
@@ -218,7 +237,7 @@ She creates a plot: `+plot/create The Lost Convoy=A Republic supply convoy bound
 
 **Session 5.** Resolution. The convoy is found (or destroyed, or rescued — the players have agency). The final scene runs. It's linked to the plot. The plot is closed: `+plot/close 14`.
 
-Now the plot exists as a 5-scene narrative arc in the archive. New players months later can browse `+plots` (filtered to closed), find "The Lost Convoy," read all five linked scenes in order, and understand the entire story.
+Now the plot exists as a 5-scene narrative arc in the archive. New players months later can browse `+plots closed`, find "The Lost Convoy," read all five linked scenes in order, and understand the entire story.
 
 This is the **persistence of player narrative**. Without plots, the story would have happened in five disconnected scenes. With plots, it's a discoverable, archived story arc that contributes to the server's lore.
 
@@ -239,36 +258,44 @@ Each place is its own "where" within the room. Players can sit at a place. Talki
 
 ```
 places                       — List places in the current room
-join <#|name>                — Sit at a place
+join <#|name>                — Sit at a place (alias: sit)
+join with <player>           — Sit at whatever place a player is already at
 depart                       — Leave your current place (alias: stand)
-tt <message>                 — Table-talk: speak only to your place
-ttooc <message>              — OOC table-talk
-mutter <message>             — Whisper to one player at your place
+tt <message>                 — Table-talk: full to your place, muffled to the room
+ttooc <message>              — OOC table-talk (place-only, no room leak)
+mutter <player> = <message>  — Mutter to one person; the room overhears fragments
 ```
 
 The `places` command shows what's available in the current room. You'll see something like:
 
 ```
-Places in this room:
-1. Corner Booth (4 seats — 2 occupied: Trill, Mara)
-2. Window Table (3 seats — empty)
-3. Bar (4 stools — 1 occupied: Kessa)
-4. Back Alcove (2 seats — empty)
+=== Places ===
+  #1 Corner Booth — 2 empty places
+      A dimly lit booth in the corner.
+      Present: Trill, Mara
+  #2 Window Table — 3 empty places
+  #3 Bar — 3 empty places
+      Present: Kessa
+  #4 Back Alcove — 2 empty places
+
+  You are at: Bar
 ```
 
-You `join 1` (or `join corner booth`) to sit. Anyone in the room knows you sat down — but conversation at your place is mostly private to other players at that place.
+Each line shows the place number, its name, and how many seats remain (an empty place lists no occupants). You `join 1` (or `join corner booth`, or `join with Kessa`) to sit. Anyone in the room sees you sit down — but conversation at your place is *mostly* private to the other players sitting there.
 
 ### Table-talk vs. room-talk
 
 While at a place, you have two speech modes:
 
-- **`say`** (room-talk): Heard by everyone in the room, place or no place.
-- **`tt`** (table-talk): Heard only by other players at your place.
+- **`say`** (room-talk): Heard in full by everyone in the room, place or no place.
+- **`tt`** (table-talk): Your place-mates hear the **full** line. Everyone *else* in the room hears a **muffled** version — most words drop to "..." while a few leak through. It's semi-private, not airtight: a sharp-eared character at the next table catches fragments.
+
+That muffle is deliberate — it models a real cantina where you can tell two people are murmuring at the corner booth and catch the odd word. If you *want* a phrase to carry across the room, wrap it in `"double quotes"`: quoted words always leak through the muffle intact. Poses sent via `tt` (`tt :leans in`) show the room only "*Name* mutters something at the booth" — the pose itself stays at the table.
 
 This is the parallel-conversation magic. In a busy cantina:
-- Trill and Mara at the Corner Booth are having a private conversation via `tt`.
-- Kessa at the Bar is loudly grumbling via `say` — everyone hears her, including the booth and table players.
-- Players at the Window Table are having their own `tt` conversation, unaware of the specifics of what Trill and Mara are discussing.
+- Trill and Mara at the Corner Booth talk via `tt` — the rest of the room only catches scraps.
+- Kessa at the Bar is loudly grumbling via `say` — everyone hears her in full, including the booth and table players.
+- Players at the Window Table run their own `tt` conversation, catching only fragments of what Trill and Mara are discussing.
 
 Each conversation runs independently. The room can support 3-5 simultaneous conversations comfortably. Without places, all these conversations would collide into one noisy mess.
 

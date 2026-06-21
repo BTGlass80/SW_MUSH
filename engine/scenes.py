@@ -519,6 +519,52 @@ async def get_char_scenes(db, char_id: int, limit: int = 15) -> list[dict]:
         return []
 
 
+async def get_shared_scenes(db, limit: int = 30) -> list[dict]:
+    """Return recently shared (public) scenes, newest-shared first.
+
+    Powers `+scenes shared` — the public archive browse. Only status='shared'
+    rows are returned, so this is safe to show any player."""
+    try:
+        rows = await db.fetchall(
+            """SELECT s.id, s.title, s.scene_type, s.location,
+                      s.status, s.started_at, s.completed_at
+               FROM scenes s
+               WHERE s.status = 'shared'
+               ORDER BY s.shared_at DESC
+               LIMIT ?""",
+            (limit,)
+        )
+        return [dict(r) for r in rows]
+    except Exception as e:
+        log.warning("[scenes] get_shared_scenes error: %s", e)
+        return []
+
+
+async def get_player_shared_scenes(db, player_name: str,
+                                   limit: int = 30) -> list[dict]:
+    """Return shared (public) scenes a named player took part in.
+
+    Powers `+scenes <player>`. Privacy: ONLY status='shared' scenes are
+    returned, so browsing another player's public archive never exposes
+    their private (completed-but-unshared) scenes."""
+    try:
+        rows = await db.fetchall(
+            """SELECT DISTINCT s.id, s.title, s.scene_type, s.location,
+                      s.status, s.started_at, s.completed_at
+               FROM scenes s
+               JOIN scene_participants sp ON sp.scene_id = s.id
+               JOIN characters c ON c.id = sp.char_id
+               WHERE s.status = 'shared' AND c.name = ? COLLATE NOCASE
+               ORDER BY s.started_at DESC
+               LIMIT ?""",
+            (player_name, limit)
+        )
+        return [dict(r) for r in rows]
+    except Exception as e:
+        log.warning("[scenes] get_player_shared_scenes error: %s", e)
+        return []
+
+
 async def get_scene_detail(db, scene_id: int) -> dict | None:
     """Return scene dict with pose log and participant list."""
     try:

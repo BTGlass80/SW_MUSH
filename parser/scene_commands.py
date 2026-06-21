@@ -155,19 +155,36 @@ class SceneCommand(BaseCommand):
 class ScenesListCommand(BaseCommand):
     key = "+scenes"
     aliases = ["scenes"]
-    help_text = "List your recent scenes."
-    usage = "+scenes"
+    help_text = (
+        "List scenes.\n\n"
+        "  +scenes            Your own recent scenes (any status)\n"
+        "  +scenes shared     The public shared-scene archive\n"
+        "  +scenes <player>   A player's shared (public) scenes\n\n"
+        "Use +scene <id> to read any listed scene's log."
+    )
+    usage = "+scenes [shared | <player>]"
 
     async def execute(self, ctx: CommandContext):
         from engine import scenes as sm
         char = ctx.session.character
-        scene_list = await sm.get_char_scenes(ctx.db, char["id"])
+        arg = (ctx.args or "").strip()
 
-        await ctx.session.send_line(ansi.header("=== Your Recent Scenes ==="))
+        if not arg:
+            scene_list = await sm.get_char_scenes(ctx.db, char["id"])
+            header = "=== Your Recent Scenes ==="
+            empty = "  No scenes found. Use +scene/start to begin one."
+        elif arg.lower() == "shared":
+            scene_list = await sm.get_shared_scenes(ctx.db)
+            header = "=== Shared Scenes (Public Archive) ==="
+            empty = "  No shared scenes yet. Publish one with +scene/share."
+        else:
+            scene_list = await sm.get_player_shared_scenes(ctx.db, arg)
+            header = f"=== Shared Scenes — {arg} ==="
+            empty = f"  No shared scenes found for '{arg}'."
+
+        await ctx.session.send_line(ansi.header(header))
         if not scene_list:
-            await ctx.session.send_line(
-                ansi.dim("  No scenes found. Use +scene/start to begin one.")
-            )
+            await ctx.session.send_line(ansi.dim(empty))
             await ctx.session.send_line("")
             return
 
@@ -189,7 +206,7 @@ class ScenesListCommand(BaseCommand):
             )
         await ctx.session.send_line("")
         await ctx.session.send_line(
-            ansi.dim("  +scene <id> to view log · +scene/share <id> to publish")
+            ansi.dim("  +scene <id> to view log · +scenes shared for the public archive")
         )
         await ctx.session.send_line("")
 
