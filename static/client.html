@@ -2653,6 +2653,193 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ════════════════════════════════════════════════════════════════════
+   IN-GAME GUIDE BROWSER overlay
+   ════════════════════════════════════════════════════════════════════ */
+.guide-overlay {
+  position: fixed; inset: 0; z-index: 190;
+  background: rgba(4,6,3,0.88);
+  display: none; align-items: center; justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(2px);
+}
+.guide-overlay.show { display: flex; }
+.guide-modal {
+  background: linear-gradient(180deg, #0c1408 0%, #080e04 100%);
+  border: 1px solid var(--accent-dim);
+  box-shadow: 0 0 40px rgba(255,200,87,0.10);
+  width: 100%; max-width: 1000px; max-height: 88vh;
+  display: flex; flex-direction: column;
+  font-family: inherit; color: var(--text);
+}
+.guide-modal-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--accent-dim);
+  background: rgba(255,200,87,0.04);
+  flex-shrink: 0;
+}
+.guide-modal-title {
+  flex: 1; color: var(--accent-bright);
+  font-size: 14px; letter-spacing: 3px;
+  font-family: var(--font-display);
+}
+.guide-modal-close {
+  background: transparent; border: 1px solid var(--accent-dim);
+  color: var(--accent); width: 24px; height: 24px;
+  cursor: pointer; font-size: 16px; line-height: 1;
+  padding: 0;
+}
+.guide-modal-close:hover {
+  border-color: var(--accent-bright); color: var(--accent-bright);
+}
+.guide-modal-body {
+  display: flex; flex: 1; overflow: hidden;
+}
+/* Left column: category + guide list */
+.guide-list-col {
+  width: 230px; min-width: 160px; flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--accent-dim);
+  padding: 10px 0;
+  background: rgba(0,0,0,0.18);
+}
+.guide-cat-label {
+  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--accent-dim); padding: 10px 14px 4px;
+  font-family: var(--font-display);
+}
+.guide-list-item {
+  display: block; width: 100%; text-align: left;
+  padding: 5px 14px; cursor: pointer;
+  border: none; background: transparent;
+  font: inherit; color: var(--text-dim);
+  font-size: 11px; line-height: 1.4;
+  transition: color 0.1s, background 0.1s;
+}
+.guide-list-item:hover {
+  color: var(--text); background: rgba(255,200,87,0.06);
+}
+.guide-list-item.active {
+  color: var(--accent-bright); background: rgba(255,200,87,0.10);
+  border-left: 2px solid var(--accent);
+}
+.guide-list-item .gli-title { display: block; font-weight: 600; }
+.guide-list-item .gli-summary {
+  display: block; font-size: 10px; opacity: 0.7; margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Right column: reading pane */
+.guide-read-col {
+  flex: 1; overflow-y: auto; padding: 20px 24px;
+}
+.guide-read-col .guide-read-title {
+  font-family: var(--font-display);
+  font-size: 20px; font-weight: 700; letter-spacing: 2px;
+  color: var(--accent-bright);
+  margin: 0 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--accent-dim);
+}
+.guide-loading {
+  color: var(--text-dim); font-size: 12px; padding: 12px 0;
+}
+/* Markdown body styles — adapted from portal .md-body for the dark terminal theme */
+.guide-md {
+  font-size: 13px; line-height: 1.75;
+  color: var(--text);
+}
+.guide-md h1 {
+  font-family: var(--font-display);
+  font-size: 20px; font-weight: 700; letter-spacing: 2px;
+  color: var(--accent-bright);
+  margin: 28px 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--accent-dim);
+}
+.guide-md h1:first-child { margin-top: 0; }
+.guide-md h2 {
+  font-family: var(--font-display);
+  font-size: 15px; font-weight: 600; letter-spacing: 1.5px;
+  color: var(--accent);
+  margin: 22px 0 8px;
+}
+.guide-md h3 {
+  font-family: var(--font-display);
+  font-size: 13px; font-weight: 600; letter-spacing: 1.5px;
+  color: var(--text);
+  margin: 18px 0 6px;
+  text-transform: uppercase;
+}
+.guide-md h4 {
+  font-family: var(--font-display);
+  font-size: 12px; font-weight: 600;
+  color: var(--accent-dim);
+  margin: 14px 0 4px;
+  text-transform: uppercase;
+}
+.guide-md p { margin-bottom: 12px; }
+.guide-md ul, .guide-md ol { padding-left: 22px; margin-bottom: 12px; }
+.guide-md li { margin-bottom: 3px; }
+.guide-md code {
+  font-family: var(--font-mono);
+  background: rgba(0,0,0,0.35);
+  padding: 1px 5px; border-radius: 2px;
+  font-size: 12px; color: var(--accent-bright);
+  border: 1px solid var(--accent-dim);
+}
+.guide-md pre {
+  background: rgba(0,0,0,0.45);
+  border: 1px solid var(--accent-dim);
+  padding: 12px; border-radius: 2px;
+  overflow-x: auto; margin: 12px 0;
+  font-family: var(--font-mono);
+  font-size: 12px; line-height: 1.55;
+  color: var(--text);
+}
+.guide-md pre code {
+  background: transparent; border: none; padding: 0; color: inherit;
+}
+.guide-md table {
+  width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 12px;
+}
+.guide-md th {
+  text-align: left; padding: 5px 8px;
+  border-bottom: 1px solid var(--accent-dim);
+  color: var(--accent); font-family: var(--font-display);
+  font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+}
+.guide-md td {
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(255,200,87,0.08);
+  color: var(--text-dim);
+}
+.guide-md tr:last-child td { border-bottom: none; }
+.guide-md blockquote {
+  border-left: 2px solid var(--accent);
+  padding-left: 14px; margin: 12px 0;
+  color: var(--text-dim); font-style: italic;
+}
+.guide-md hr {
+  border: none; border-top: 1px solid var(--accent-dim);
+  margin: 24px 0;
+}
+.guide-md strong { color: var(--text); font-weight: 600; }
+.guide-md em { color: var(--accent); font-style: italic; }
+.guide-md a { color: var(--accent); border-bottom: 1px solid rgba(255,200,87,0.3); }
+.guide-md a:hover { color: var(--accent-bright); border-bottom-color: var(--accent-bright); }
+/* GUIDES qa-btn variant */
+.qa-btn.guide-qa-btn {
+  background: rgba(255,200,87,0.08);
+  border: 1px solid var(--accent-dim);
+  color: var(--accent);
+}
+.qa-btn.guide-qa-btn:hover {
+  background: rgba(255,200,87,0.16);
+  border-color: var(--accent-bright);
+  color: var(--accent-bright);
+}
+
+/* ════════════════════════════════════════════════════════════════════
    PHASE 6 WEB UI — city sidebar + modal styles
    ════════════════════════════════════════════════════════════════════ */
 /* Sidebar summary entries */
@@ -4670,6 +4857,7 @@ a { color: inherit; text-decoration: none; }
       <button class="qa-btn" data-qa="INV"  data-cmd="inventory" data-action="send" title="Open inventory">INV</button>
       <button class="qa-btn" data-qa="JOBS" data-cmd="bounties" data-action="send" title="Open bounty board">JOBS</button>
       <button class="qa-btn" data-qa="CRAFT" data-cmd="schematics" data-action="send" title="Open crafting panel">CRAFT</button>
+      <button class="qa-btn guide-qa-btn" onclick="openGuideBrowser()" title="Open field guide browser (or type: guide)">GUIDE</button>
       <!-- Direction buttons appended dynamically based on exits -->
     </div>
     <div class="cmd-bar" id="cmd-bar-ground">
@@ -4733,6 +4921,28 @@ a { color: inherit; text-decoration: none; }
       </div>
       <div class="city-modal-body" id="city-modal-body">
         <!-- Filled by renderCityModal() -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       IN-GAME GUIDE BROWSER overlay
+       Type +guide, guide, or guides in-game, or click the GUIDES button.
+       ══════════════════════════════════════════════════════════════ -->
+  <div class="guide-overlay" id="guide-overlay" onclick="guideOverlayBackdropClick(event)">
+    <div class="guide-modal" onclick="event.stopPropagation()">
+      <div class="guide-modal-head">
+        <span class="guide-modal-title">FIELD GUIDE</span>
+        <button class="guide-modal-close" onclick="closeGuideBrowser()"
+                title="Close (Esc)">×</button>
+      </div>
+      <div class="guide-modal-body">
+        <div class="guide-list-col" id="guide-list-col">
+          <div class="guide-loading" style="padding:10px 14px;">Loading guides…</div>
+        </div>
+        <div class="guide-read-col" id="guide-read-col">
+          <div class="guide-loading">Select a guide from the list.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -5952,6 +6162,15 @@ function resolveStagedTemplate(template, key) {
 
 function sendCmd(text) {
   if (!text || !text.trim()) return;
+  // Guide browser intercept — bare guide/help commands open the overlay locally.
+  // "help <topic>" with args (and everything else) still goes to the server.
+  var _trimLow = text.trim().toLowerCase();
+  if (_trimLow === '+guide' || _trimLow === '+guides' ||
+      _trimLow === 'guide'  || _trimLow === 'guides'  ||
+      _trimLow === 'help') {
+    openGuideBrowser();
+    return;
+  }
   // Echo plus add to history
   cmdHistory.push(text);
   if (cmdHistory.length > 200) cmdHistory.shift();
@@ -13367,6 +13586,176 @@ function init() {
   connect();
 }
 
+/* ════════════════════════════════════════════════════════════════════
+   IN-GAME GUIDE BROWSER
+   Accessible via: GUIDE button in qa-row, or typing guide/+guide/help.
+   Data source: GET /api/portal/guides  (index) and
+                GET /api/portal/guide/{slug}  (content).
+   No new server endpoints — uses existing portal API.
+   ════════════════════════════════════════════════════════════════════ */
+
+var _guideIndexCache = null;   // cached {guides, categories} after first fetch
+var _guideActiveSlug = null;   // slug of the currently displayed guide
+
+/* Markdown renderer — ported verbatim from portal.html renderMarkdown(),
+   renamed to avoid collision, and uses this file's escapeHtml() helper. */
+function renderGuideMarkdown(md) {
+  if (!md) return '';
+  var html = escapeHtml(md);
+  html = html.replace(/```([^`]*?)```/gs, function(_, code) { return '<pre>' + code.trim() + '</pre>'; });
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  html = html.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
+  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  html = html.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, function(_, label, url) {
+    var safe = /^(#\/|https?:\/\/|mailto:)/i.test(url);
+    if (!safe) return label;
+    var ext = /^https?:/i.test(url);
+    var attrs = ext ? ' target="_blank" rel="noopener noreferrer"' : '';
+    return '<a href="' + url + '"' + attrs + '>' + label + '</a>';
+  });
+  html = html.replace(/^---+$/gm, '<hr>');
+  html = html.replace(/^(\|.+\|)\n(\|[-| :]+\|)\n((?:\|.+\|\n?)*)/gm, function(_, hdr, sep, body) {
+    var ths = hdr.split('|').filter(function(c){return c.trim();}).map(function(c){return '<th>'+c.trim()+'</th>';}).join('');
+    var trs = body.trim().split('\n').map(function(row) {
+      var tds = row.split('|').filter(function(c){return c.trim();}).map(function(c){return '<td>'+c.trim()+'</td>';}).join('');
+      return '<tr>'+tds+'</tr>';
+    }).join('');
+    return '<table><thead><tr>'+ths+'</tr></thead><tbody>'+trs+'</tbody></table>';
+  });
+  html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+  html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+  html = html.replace(/(<li>.*<\/li>(\n|$))+/g, function(m) { return '<ul>' + m + '</ul>'; });
+  html = html.replace(/\n\n+/g, '</p><p>');
+  html = '<p>' + html + '</p>';
+  html = html.replace(/<p>\s*(<h[1-4]|<pre|<table|<ul|<hr|<blockquote)/g, '$1');
+  html = html.replace(/(<\/h[1-4]>|<\/pre>|<\/table>|<\/ul>|<\/blockquote>|<hr>)\s*<\/p>/g, '$1');
+  return html;
+}
+
+/* Render the left-column guide list from cached index data. */
+function _renderGuideList(data) {
+  var col = $('guide-list-col');
+  if (!col) return;
+  var cats = data.categories || [];
+  var guides = data.guides || [];
+  if (!guides.length) {
+    col.innerHTML = '<div class="guide-loading" style="padding:10px 14px;">No guides available.</div>';
+    return;
+  }
+  var html = '';
+  cats.forEach(function(cat) {
+    var catGuides = guides.filter(function(g) { return g.category === cat.key; });
+    if (!catGuides.length) return;
+    html += '<div class="guide-cat-label">' + escapeHtml(cat.label || cat.key) + '</div>';
+    catGuides.forEach(function(g) {
+      var isActive = g.slug === _guideActiveSlug;
+      html += '<button class="guide-list-item' + (isActive ? ' active' : '') + '"' +
+              ' onclick="loadGuideIntoPane(' + JSON.stringify(g.slug) + ')"' +
+              ' data-guide-slug="' + escapeHtml(g.slug) + '">' +
+              '<span class="gli-title">' + escapeHtml(g.title) + '</span>' +
+              (g.summary ? '<span class="gli-summary">' + escapeHtml(g.summary) + '</span>' : '') +
+              '</button>';
+    });
+  });
+  // Uncategorized guides (category not in any known category key)
+  var knownKeys = cats.map(function(c){ return c.key; });
+  var other = guides.filter(function(g){ return knownKeys.indexOf(g.category) === -1; });
+  if (other.length) {
+    html += '<div class="guide-cat-label">OTHER</div>';
+    other.forEach(function(g) {
+      var isActive = g.slug === _guideActiveSlug;
+      html += '<button class="guide-list-item' + (isActive ? ' active' : '') + '"' +
+              ' onclick="loadGuideIntoPane(' + JSON.stringify(g.slug) + ')"' +
+              ' data-guide-slug="' + escapeHtml(g.slug) + '">' +
+              '<span class="gli-title">' + escapeHtml(g.title) + '</span>' +
+              (g.summary ? '<span class="gli-summary">' + escapeHtml(g.summary) + '</span>' : '') +
+              '</button>';
+    });
+  }
+  col.innerHTML = html;
+}
+
+/* Update the active-item highlight in the list without re-rendering. */
+function _updateGuideListActive(slug) {
+  var col = $('guide-list-col');
+  if (!col) return;
+  col.querySelectorAll('.guide-list-item').forEach(function(btn) {
+    var s = btn.getAttribute('data-guide-slug');
+    btn.classList.toggle('active', s === slug);
+  });
+}
+
+/* Load a single guide's content into the reading pane. */
+function loadGuideIntoPane(slug) {
+  _guideActiveSlug = slug;
+  _updateGuideListActive(slug);
+  var pane = $('guide-read-col');
+  if (!pane) return;
+  pane.innerHTML = '<div class="guide-loading">Loading…</div>';
+  fetch('/api/portal/guide/' + encodeURIComponent(slug))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!pane) return;
+      if (data.error) {
+        pane.innerHTML = '<div class="guide-loading">Guide unavailable.</div>';
+        return;
+      }
+      pane.innerHTML =
+        '<div class="guide-read-title">' + escapeHtml(data.title || '') + '</div>' +
+        '<div class="guide-md">' + renderGuideMarkdown(data.content || '') + '</div>';
+    })
+    .catch(function() {
+      if (pane) pane.innerHTML = '<div class="guide-loading">Could not load guide — check connection.</div>';
+    });
+}
+
+/* Open the guide browser overlay. Fetches index on first call. */
+function openGuideBrowser() {
+  var ov = $('guide-overlay');
+  if (!ov) return;
+  ov.classList.add('show');
+  document.addEventListener('keydown', _guideEscHandler);
+  if (_guideIndexCache) {
+    // Already loaded — re-render list (active state may have changed) and return.
+    _renderGuideList(_guideIndexCache);
+    return;
+  }
+  fetch('/api/portal/guides')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      _guideIndexCache = data;
+      _renderGuideList(data);
+      // Auto-load the first guide if nothing is active yet.
+      if (!_guideActiveSlug && data.guides && data.guides.length) {
+        loadGuideIntoPane(data.guides[0].slug);
+      }
+    })
+    .catch(function() {
+      var col = $('guide-list-col');
+      if (col) col.innerHTML = '<div class="guide-loading" style="padding:10px 14px;">Could not load guide index — check connection.</div>';
+    });
+}
+
+/* Close the guide browser overlay. */
+function closeGuideBrowser() {
+  var ov = $('guide-overlay');
+  if (ov) ov.classList.remove('show');
+  document.removeEventListener('keydown', _guideEscHandler);
+}
+
+/* Backdrop click — close only when clicking the dark veil, not the modal itself. */
+function guideOverlayBackdropClick(ev) {
+  if (ev && ev.target && ev.target.id === 'guide-overlay') closeGuideBrowser();
+}
+
+function _guideEscHandler(e) {
+  if (e.key === 'Escape') closeGuideBrowser();
+}
+
 /* INLINE-HANDLER EXPORTS — see notes at the IIFE wrapper at the top of this
    script. The HTML uses `onclick="setSheetTab('full')"` etc., which run in
    global scope; the script body runs inside an IIFE, so we have to lift the
@@ -13389,6 +13778,11 @@ window.toggleCommsPane          = toggleCommsPane;
 window.toggleSidePanel          = toggleSidePanel;
 window.scrollPoseLogToBottom    = scrollPoseLogToBottom;
 window.reconnectClick           = reconnectClick;
+/* Guide browser — inline onclick handlers on the overlay and qa-btn. */
+window.openGuideBrowser         = openGuideBrowser;
+window.closeGuideBrowser        = closeGuideBrowser;
+window.guideOverlayBackdropClick = guideOverlayBackdropClick;
+window.loadGuideIntoPane        = loadGuideIntoPane;
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
