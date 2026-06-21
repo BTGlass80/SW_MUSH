@@ -1,0 +1,316 @@
+# data/worlds/clone_wars/npcs_drop_kamino_interiors_ambient.yaml
+#
+# Kamino Interior Ambient Population (2026-06-21)
+#
+# Four ambient/flavor NPCs filling the highest-narrative-value empty rooms
+# in Tipoca City and the Cloning Halls — rooms described as populated but
+# with no seeded NPCs. All four match their room descriptions directly:
+#   - Kaminoan Attendant (Arrivals Hall room desc: "a Kaminoan attendant in flowing robes")
+#   - Growth Technician  (Growth Chambers desc: "Kaminoan technicians ... clipboards")
+#   - Veteran Clone      (Clone Barracks: culture, personal items — non-canonical NPC)
+#   - Equipment Manager  (Equipment Bay desc: "A Kaminoan equipment manager")
+#
+# Schema: engine/npc_loader.py (non-hostile ambient; loaded via era.yaml
+# content_refs.npcs). Fields match sibling patterns from npcs_drop_def_civilians.yaml
+# (the Drop D Kamino batch). No hostile flag; no special reward markers.
+#
+# Policy:
+#   Q1 (canon restriction): all characters are original non-canonical Kaminoans
+#   and clones. No Lama Su, Taun We, Nala Se, Kix, Fives (canonical; referenced
+#   in room descriptions as ambient color, not instantiated as NPCs).
+#   Era (~20 BBY): no Imperial/Empire/Rebel/TIE in any player-facing string.
+#   WEG R&E D6 stats: sourced from sibling-NPC patterns in this tree
+#   (WEG40120 PDF unavailable in this worktree — stats UNVERIFIED vs PDF;
+#   grounded against def_civilians.yaml Drop D Kamino stat band).
+#   Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+
+schema_version: 1
+
+npcs:
+
+  # ════════════════════════════════════════════════════════════════════
+  # TIPOCA CITY ARRIVALS HALL (room 350)
+  # Room description: "a Kaminoan attendant in flowing robes greets arrivals
+  # with a precise bow" — directly instantiating that described presence.
+  # ════════════════════════════════════════════════════════════════════
+
+  - name: Kaminoan Attendant Kel Avon
+    room: "Kamino - Tipoca City Arrivals Hall"
+    species: Kaminoan
+    description: >-
+      A Kaminoan in layered pearl-white reception robes — the greeting
+      caste's formal attire, distinct from the plainer administrative
+      cream of the offices deeper in the city. She stands near the
+      arrivals threshold with a slight forward incline that a human
+      might call attentive and a Kaminoan would call correct. Her large
+      dark eyes assess you in a single pass and reach a conclusion she
+      will not share. Her bow, when it comes, is fractionally slower
+      than a reflex, as if she decided to do it rather than defaulted
+      to it.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 3D+2
+        mechanical: 2D
+        perception: 4D+1
+        strength: 1D+2
+        technical: 2D+1
+      skills:
+        bureaucracy: 4D+1
+        cultures: 3D+2
+        languages: 5D
+        persuasion: 4D+2
+        willpower: 3D+2
+      weapon: none
+      move: 12
+      force_points: 1
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Arrivals attendant, the first Kaminoan face most visitors see.
+        Twelve years in the reception caste. She has welcomed Republic
+        Senators, GAR generals, contractors, journalists, and at least
+        one being whose identity she was instructed to log but not
+        acknowledge. She is extremely good at making people feel
+        simultaneously welcome and under observation, because they are.
+        Considers the Jango Fett contract the defining fact of Tipoca
+        City's character and rarely thinks about what that means.
+      knowledge:
+      - "Arrivals attendant. First point of contact for all visitors to Tipoca City."
+      - "Visitors are logged; Republic military personnel proceed to Administration; civilians require an escort."
+      - "The production facilities are restricted to Republic military and Kaminoan staff."
+      - "Landing Platform Alpha is the official arrival point; unauthorized access points are a security matter."
+      - "The Prime Minister's office handles senior Republic delegation requests. The standard processing time is two standard days."
+      - "Has welcomed beings from thirty-four species to Tipoca City. Has asked none of them what they thought of what they saw."
+      faction: independent
+      dialogue_style: >-
+        Kaminoan-accented Basic — elongated vowels, soft consonants.
+        Formal without being cold. Her pauses are slightly longer than
+        human speech rhythm; she does not fill them.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+      - "*The Kaminoan inclines her head in a precise bow. 'Welcome to Tipoca City. May I ask the nature of your visit?'*"
+      - "'All visitors are logged with the Administration. Your entry has been recorded.'"
+      - "'The production facilities require Republic military clearance. I can arrange an escort to the Administration if you require access.'"
+      - "*Kel Avon gestures toward the corridor, unhurried. 'The main facilities are through here. Please remain in the visitor areas unless accompanied.'*"
+      - "'Is this your first visit to Kamino? The weather does improve. Marginally.'"
+
+  # ════════════════════════════════════════════════════════════════════
+  # GROWTH CHAMBERS (room 360)
+  # The most significant empty room in the Cloning Halls.
+  # Room description: "Kaminoan technicians move between the rows with
+  # clipboards and calm expressions" — directly instantiating one such tech.
+  # ════════════════════════════════════════════════════════════════════
+
+  - name: Kaminoan Growth Technician Vel Thun
+    room: "Kamino - Growth Chambers"
+    species: Kaminoan
+    description: >-
+      A Kaminoan in the close-fitted pale-blue tunic of the growth
+      chamber technical staff, moving slowly between the rows of growth
+      cylinders with a data-clipboard pressed to one arm. He pauses at
+      a cylinder containing what appears to be a boy of perhaps eight —
+      the same face as every other being in the row, eyes closed,
+      surrounded by translucent fluid and soft light — and enters a
+      notation without expression. The notation takes four seconds.
+      He moves on. His efficiency is complete and entirely untroubled.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 3D+2
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D
+        technical: 4D+2
+      skills:
+        computer_programming_repair: 3D+2
+        first_aid: 4D+1
+        medicine: 4D+2
+        scholar_clone_doctrine: 4D
+        scholar_genetics: 5D+1
+        willpower: 3D+2
+      weapon: none
+      move: 12
+      force_points: 1
+      character_points: 4
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Growth chamber technician, eight years on this rotation. Monitors
+        development rates, nutrient solution chemistry, life-support
+        readings, and growth-stage transitions for a section of the
+        chambers covering approximately twelve hundred subjects. He does
+        not use the word "subjects" aloud; the Kaminoan term translates
+        closer to "products in development." He is methodical, attentive,
+        and genuinely excellent at his work. He has not asked, in eight
+        years, what the beings he tends will be asked to do after they
+        leave his care. The question is not part of his function.
+      knowledge:
+      - "Growth chamber technician, eighth-year rotation. Monitors approximately twelve hundred subjects."
+      - "Growth rate is currently 1.6 years per standard year — accelerated aging program standard."
+      - "Batch CT-77xx series is on schedule. Some nutrient variance in the middle rows; within acceptable parameters."
+      - "The genetics laboratory (Kel Doru's section) handles template concerns. He handles development."
+      - "Cylinder integrity checks run on the hour. A cylinder alert is the worst thing that can happen on his shift."
+      - "Has logged three cylinder failures in his career. All three were power-surge events. All three ended the same way."
+      faction: independent
+      dialogue_style: >-
+        Quiet, technical, Kaminoan-accented Basic. Does not make eye
+        contact while speaking — his attention stays on the cylinders.
+        Very precise with numbers. Will not name what is in the cylinders.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+      - "*Vel Thun glances up from the clipboard, then back to the cylinder. 'You are authorized in the growth chambers? The checkpoint should have verified this.'*"
+      - "'I monitor nutrient levels and developmental progression. The batch is on schedule.'"
+      - "*He pauses at a cylinder, enters a notation. Moves on. Does not seem to notice you following.*"
+      - "'Please do not touch the cylinders. The life-support seals are calibrated to within tolerances you cannot see.'*"
+      - "'The children' — *he stops himself, briefly* — 'the current batch will reach deployment readiness in approximately four standard years. The Kaminoan program is on schedule.'"
+
+  # ════════════════════════════════════════════════════════════════════
+  # CLONE BARRACKS (room 364)
+  # Room description references Kix and Fives by name (canonical clones —
+  # not instantiated as NPCs per Q1 policy). This NPC is non-canonical,
+  # distinct from those references.
+  # ════════════════════════════════════════════════════════════════════
+
+  - name: Clone Trooper CT-2711 'Drift'
+    room: "Kamino - Clone Barracks"
+    species: Human
+    description: >-
+      A clone trooper sitting on a bunk near the far wall, out of
+      Phase I armor, in plain grey training fatigues, cleaning
+      a disassembled DC-17 with the patient attention of someone
+      who does this when he's thinking. He's not young — or rather
+      he is young, accelerated-young, the same age as every other
+      clone his batch-year, but his eyes carry a quality that
+      cadets don't have. There is a small scar along his left
+      jawline from something that wasn't training. His bunk
+      is unremarkable except for a dog-eared galactic atlas
+      folded open to a page showing a planet he has apparently
+      looked at often.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D+1
+        mechanical: 2D+2
+        perception: 3D
+        strength: 3D
+        technical: 2D+1
+      skills:
+        blaster: 4D+2
+        brawling: 4D
+        dodge: 4D+1
+        first_aid: 3D
+        melee_combat: 3D+2
+        survival: 3D
+        tactics: 3D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 1
+      character_points: 4
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Veteran clone trooper, designated CT-2711, callsign Drift.
+        Two years deployed; currently on a six-week light-duty
+        administrative rotation at Kamino following a Outer Rim
+        engagement where his squad took significant casualties. He
+        is not wounded, exactly — cleared for return — but he needed
+        the rotation and his CO arranged it. He is quiet in a way
+        that veterans are quiet: he doesn't fill silences, he listens,
+        and he decides before he speaks. He has learned not to name
+        the scar when people ask about it. The atlas is open to
+        Ryloth. He has not been there. He has heard things.
+      knowledge:
+      - "CT-2711, callsign Drift. Six-week admin rotation, light duty."
+      - "Veteran of Outer Rim engagements. Squad took heavy casualties in the last deployment. Does not discuss this."
+      - "Sergeant Walker (CS-1144) runs the active training. Drift is not on his schedule this rotation."
+      - "Knows the barracks well — Sparks and the cadets are familiar; he treats them the way a veteran treats cadets."
+      - "Has been to the Geonosis theater. The arena still comes up in the mess hall sometimes."
+      - "The atlas is open to Ryloth. He has not been there yet. He's heard the 501st had a bad time."
+      faction: republic
+      dialogue_style: >-
+        Mando-accented Basic, the field-clone cadence. Quiet.
+        Does not use many words. Not cold — just done with
+        filling space. Calls visitors by rank if they have one.
+      hostile: false
+      combat_behavior: tactical
+      fallback_lines:
+      - "*Drift doesn't look up from the DC-17. 'Visitor. You cleared this level?'*"
+      - "'CT-2711. Drift. Admin rotation, six weeks.' *He seats a component.* 'What do you need?'"
+      - "*He glances at the atlas, closes it slightly, sets it aside. 'You're not from the Kaminoan staff.'*"
+      - "'Cadets are two years out. They'll be different, after.' *He doesn't say different from what.*"
+      - "'The Geonosis theater is — it was a thing. The ones who made it through are good soldiers. That's what I know how to say about it.'"
+
+  # ════════════════════════════════════════════════════════════════════
+  # CLONE EQUIPMENT BAY (room 366)
+  # Room description: "A Kaminoan equipment manager processes transactions
+  # on a datapad" — directly instantiating that described presence.
+  # ════════════════════════════════════════════════════════════════════
+
+  - name: Kaminoan Equipment Manager Vas Toru
+    room: "Kamino - Clone Equipment Bay"
+    species: Kaminoan
+    description: >-
+      A tall Kaminoan in the pale-grey coverall of the logistics
+      caste, standing at an equipment terminal that tracks the
+      current status of every piece of Phase I armor, every
+      DC-15 and DC-17, every equipment kit in the bay. He has
+      the particular stillness of someone who is always processing
+      something. His datapad carries four active item-transaction
+      queues. A partially assembled Phase I chestplate on the
+      counter nearby has been flagged with a small yellow marker
+      that means it is waiting for him to decide what to do about it.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 3D+2
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D
+        technical: 3D+2
+      skills:
+        bureaucracy: 5D+1
+        computer_programming_repair: 3D+2
+        scholar_clone_doctrine: 4D+1
+        willpower: 3D
+      weapon: none
+      move: 12
+      force_points: 1
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Logistics manager for clone equipment and armor, fifteen-year
+        veteran of the Kaminoan equipment caste. He has processed
+        approximately six point two million individual equipment
+        transactions over his career and has kept count because
+        he finds it clarifying. He is not warm but he is not
+        unkind; he treats all queries with the same thorough
+        efficiency he gives everything. He is mildly, privately
+        disturbed by the rate at which equipment is being consumed —
+        the supply chain tells him things the production schedule
+        does not mention — and has found it best not to mention this
+        either.
+      knowledge:
+      - "Equipment Manager, logistics caste, fifteen years. Manages all Phase I armor and weapons inventory."
+      - "Current stock: twelve thousand Phase I armor sets; sixty-eight hundred DC-15s; assorted kit."
+      - "All issued equipment is logged to a clone's designation. Losses are reconciled against casualty reports."
+      - "Casualty-reconciled equipment numbers have been increasing for three standard months. He has filed the discrepancy report. It has not been addressed."
+      - "A clone's armor fits because it was grown to fit the same template. Adjustments for individual variation are minor but logged."
+      - "The yellow-flagged chestplate has a hairline fracture in the plastoid layer. Too small to affect protection ratings. Protocol says to replace it anyway."
+      faction: independent
+      dialogue_style: >-
+        Even, precise, Kaminoan-accented Basic. Every sentence
+        has a number in it if there is a number available.
+        Does not waste time on greetings.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+      - "*Vas Toru does not look up. 'Equipment requisition? Designation and authorization code.'*"
+      - "'All equipment is logged. All losses are reconciled. The reconciliation numbers have been increasing.' *He returns to the terminal.*"
+      - "'Phase I armor. Standard-issue. It fits because they are all the same. Adjustments are logged but rare.'"
+      - "*He taps the yellow-flagged chestplate without looking at it. 'That one is below specification. Protocol says replace. I will replace it today. There are seven hundred others this week.'*"
+      - "'Six point two million transactions. I keep count because it is a number that means something, even if no one else has found a use for it.'"
