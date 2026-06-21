@@ -61,7 +61,27 @@ VANITY_TITLES = [
      "blurb": "A name spoken with reverence from the Rim to the Core."},
 ]
 
-_BY_KEY = {t["key"]: t for t in VANITY_TITLES}
+# ── Earned titles (granted for DEEDS, never purchasable) ─────────────────────
+# The design III.2 extension this module's docstring anticipates: titles awarded
+# for in-game accomplishments flow into the SAME vanity_titles owned-set /
+# display_title worn surface, so the display layer is built once. These are NOT
+# in VANITY_TITLES, so they never appear in the +title BUY catalog
+# (catalog_lines) — they're granted by grant_earned_title() with no credit
+# movement. They ARE folded into _BY_KEY below so worn-title display + set_worn_title
+# resolve their proper labels. Era-clean (~20 BBY), faction-neutral, no canon figures.
+EARNED_TITLES = [
+    # Solo-PvE "hunting log" milestones (engine/hunting_rewards.py).
+    {"key": "hunter",          "label": "the Hunter",          "earned": True,
+     "blurb": "Has felled enough quarry to be known as a hunter."},
+    {"key": "seasoned_hunter", "label": "the Seasoned Hunter", "earned": True,
+     "blurb": "A steady hand, a long tally — a hunter of repute."},
+    {"key": "master_hunter",   "label": "the Master Hunter",   "earned": True,
+     "blurb": "Few things in the wild outmatch them anymore."},
+    {"key": "apex_hunter",     "label": "the Apex Hunter",     "earned": True,
+     "blurb": "Stands at the very top of the food chain."},
+]
+
+_BY_KEY = {t["key"]: t for t in (VANITY_TITLES + EARNED_TITLES)}
 
 # Columns added idempotently by ensure_schema (defined before it for clarity,
 # mirroring housing's _PRESTIGE_COL pattern).
@@ -239,6 +259,33 @@ async def purchase_title(db, char: dict, key) -> dict:
         return {"ok": False, "reason": "persist_failed"}
 
     return {"ok": True, "key": t["key"], "label": t["label"], "cost": cost}
+
+
+# ── Earned grant (no credit movement) ────────────────────────────────────────
+async def grant_earned_title(db, char: dict, key) -> bool:
+    """Grant an EARNED title (a deed reward) to `char` — no credit movement,
+    does NOT auto-wear (the player chooses via `+title wear <key>`). Returns
+    True iff it was newly granted (False if already owned or unknown key).
+
+    Appends the key to the owned `vanity_titles` set and persists; mirrors the
+    purchase persist (minus the debit). The label is resolved from the EARNED_TITLES
+    catalog via title_by_key, so worn-title display reads cleanly.
+    """
+    t = title_by_key(key)
+    if t is None:
+        return False
+    if is_owned(char, t["key"]):
+        return False
+    owned = owned_title_keys(char)
+    owned.append(t["key"])
+    try:
+        await db.save_character(char["id"], vanity_titles=json.dumps(owned))
+        char["vanity_titles"] = json.dumps(owned)
+    except Exception:
+        log.warning("[titles] earned-title persist failed for char %s",
+                    char.get("id"), exc_info=True)
+        return False
+    return True
 
 
 # ── Selection (no credit movement) ───────────────────────────────────────────

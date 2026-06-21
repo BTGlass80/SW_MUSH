@@ -133,6 +133,7 @@ from parser.channel_commands import register_channel_commands
 from parser.party_commands import register_party_commands
 from parser.encounter_commands import register_encounter_commands
 from parser.title_commands import register_title_commands
+from parser.hunting_commands import register_hunting_commands
 from parser.commissary_commands import register_commissary_commands
 from parser.insurance_commands import register_insurance_commands
 from parser.den_commands import register_den_commands
@@ -286,6 +287,7 @@ class GameServer:
         register_espionage_commands(self.registry)
         register_achievement_commands(self.registry)
         register_title_commands(self.registry)
+        register_hunting_commands(self.registry)
         register_commissary_commands(self.registry)
         register_insurance_commands(self.registry)
         register_den_commands(self.registry)

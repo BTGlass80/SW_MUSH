@@ -342,10 +342,16 @@ async def _try_auto_resolve(combat, ctx):
     await _auto_declare_npc_actions(combat, ctx)
 
     if combat.all_declared():
+        # Snapshot NPC combatants BEFORE resolution — resolve_round() runs
+        # _cleanup() which removes dead combatants, so the mob-grind reward
+        # (which needs the just-killed NPCs) must capture them here first.
+        _pre_npcs = [c for c in combat.combatants.values()
+                     if c.is_npc and c.char]
         events = combat.resolve_round()
         # Don't broadcast events to room yet — they go in the Action Log
         # But we DO need to apply wear and persist wounds immediately
         await _apply_combat_wear(combat, ctx)
+        await _award_mob_grind_rewards(combat, ctx, _pre_npcs)
 
         # Phase 7c (May 23 2026): city-guard combat-round triggers.
         # Check if any city guards in this room should now join
@@ -891,6 +897,65 @@ async def _auto_declare_npc_actions(combat, ctx):
         await sess.send_line(generic_line)
 
 
+async def _award_mob_grind_rewards(combat, ctx, pre_npcs):
+    """Solo-PvE mob-grind reward (2026-06-21).
+
+    resolve_round() runs _cleanup() which REMOVES dead combatants before
+    _apply_combat_wear, so a reward keyed on NPC death cannot fire from inside
+    that loop. We instead receive the pre-resolution NPC-combatant snapshot
+    (`pre_npcs`) and, for any that LEFT combat this round while at wound_level
+    DEAD (killed, not fled), pay the killer a small daily-capped credit trickle
+    + prestige (engine/hunting_rewards). The NPC db row survives death
+    (room_id=None), so its ai_config is still readable for the huntable
+    predicate. NO character points. Requires a live killer session (the
+    actively-grinding PC) — which also sidesteps any NPC/PC id collision on
+    last_attacker_id. Best-effort: a reward failure can never break combat.
+    """
+    if not pre_npcs:
+        return
+    try:
+        from engine.character import WoundLevel as _WLM
+        from engine.hunting_rewards import is_huntable_mob, on_huntable_kill
+        from datetime import datetime as _dtM, timezone as _tzM
+    except Exception:
+        return
+    _day = None
+    for c in pre_npcs:
+        try:
+            if c.id in combat.combatants:
+                continue  # survived the round
+            if not (c.char and c.char.wound_level.value >= _WLM.DEAD.value):
+                continue  # left combat for another reason (fled), not killed
+            _kid = c.last_attacker_id
+            if _kid is None or not ctx.session_mgr:
+                continue
+            _sess = ctx.session_mgr.find_by_character(int(_kid))
+            if not (_sess and _sess.character):
+                continue  # killer offline / not a live PC
+            npc_row = await ctx.db.get_npc(c.id)
+            if not npc_row or not is_huntable_mob(npc_row):
+                continue  # special NPC (its own reward) or no row
+            if _day is None:
+                _day = _dtM.now(_tzM.utc).date().isoformat()
+            summary = await on_huntable_kill(
+                ctx.db, _sess.character, npc_row, day_stamp=_day)
+            if summary:
+                await _sess.send_line(
+                    f"  \033[2m(You recover {summary['reward']} cr from "
+                    f"{c.name}. Hunting log: {summary['total_kills']} "
+                    f"felled.)\033[0m"
+                )
+                if summary.get("title_label"):
+                    await _sess.send_line(
+                        "  \033[1;33m✦ Title earned: "
+                        f"{summary['title_label']} — wear it with "
+                        f"+title wear {summary['title_key']}.\033[0m"
+                    )
+        except Exception as _e:
+            log.warning("Mob-grind reward error for NPC %s: %s",
+                        getattr(c, "id", None), _e, exc_info=True)
+
+
 async def _apply_combat_wear(combat, ctx):
     """Apply weapon condition wear and persist wound states after resolution."""
     from engine.items import read_equipment, write_equipment
@@ -1171,6 +1236,15 @@ async def _apply_combat_wear(combat, ctx):
                             "NPC %s: %s", c.id, _we, exc_info=True,
                         )
                     # ── End WoW.3a kill credit ───────────────────────────
+                    # NOTE: DEAD-gated reward hooks must NOT be added in this
+                    # loop — combat.resolve_round() runs _cleanup() which
+                    # REMOVES dead combatants before _apply_combat_wear is
+                    # called, so a DEAD NPC is never present here. The solo-PvE
+                    # mob-grind reward instead fires from
+                    # _award_mob_grind_rewards() at the resolve_round call
+                    # site, which snapshots NPC combatants BEFORE resolution.
+                    # (The pre-existing bounty/anomaly/WoW.3a hooks above share
+                    # this inertness — logged as a separate finding.)
                     # ── Dead NPC combatant cleanup ───────────────────────
                     from engine.character import WoundLevel as _WL2
                     if c.char.wound_level.value >= _WL2.DEAD.value:
@@ -2449,10 +2523,13 @@ class ResolveCommand(BaseCommand):
                 action_type=ActionType.OTHER, description="hesitates"
             ))
 
+        _pre_npcs = [c for c in combat.combatants.values()
+                     if c.is_npc and c.char]
         events = combat.resolve_round()
 
         # Admin resolve skips posing — auto-generate all poses and flush
         await _apply_combat_wear(combat, ctx)
+        await _award_mob_grind_rewards(combat, ctx, _pre_npcs)
 
         # Phase 7c: city-guard combat-round triggers (also fires
         # on admin resolve so the behavior is consistent across
