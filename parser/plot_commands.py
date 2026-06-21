@@ -21,6 +21,7 @@ from server import ansi
 
 log = logging.getLogger(__name__)
 
+MAX_SUMMARY_LEN = 4000
 
 # ── Formatting helpers ─────────────────────────────────────────────────────────
 
@@ -218,6 +219,10 @@ async def _cmd_create(ctx: CommandContext):
     if len(title) > 100:
         await ctx.session.send_line("Title too long (100 char max).")
         return
+    if len(summary) > MAX_SUMMARY_LEN:
+        summary = summary[:MAX_SUMMARY_LEN]
+        await ctx.session.send_line(
+            f"  (Summary truncated to {MAX_SUMMARY_LEN:,} characters.)")
 
     from engine.plots import create_plot
     p = await create_plot(
@@ -258,7 +263,12 @@ async def _cmd_summary(ctx: CommandContext):
         await ctx.session.send_line("Only the plot creator can update the summary.")
         return
 
-    await update_plot(ctx.db, plot_id, summary=text.strip())
+    text = text.strip()
+    if len(text) > MAX_SUMMARY_LEN:
+        text = text[:MAX_SUMMARY_LEN]
+        await ctx.session.send_line(
+            f"  (Summary truncated to {MAX_SUMMARY_LEN:,} characters.)")
+    await update_plot(ctx.db, plot_id, summary=text)
     await ctx.session.send_line(f"\033[92mPlot #{plot_id} summary updated.\033[0m")
 
 

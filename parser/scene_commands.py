@@ -23,6 +23,8 @@ from server import ansi
 
 log = logging.getLogger(__name__)
 
+MAX_SUMMARY_LEN = 4000
+
 # Achievement hooks (graceful-drop)
 async def _ach_scene_hook(db, char_id, event, session=None):
     try:
@@ -134,8 +136,14 @@ class SceneCommand(BaseCommand):
             return
 
         # +scene <id> — show scene log
-        if ctx.args and ctx.args.strip().isdigit():
-            await _show_scene_log(ctx, int(ctx.args.strip()))
+        if ctx.args:
+            arg = ctx.args.strip()
+            if arg.isdigit():
+                await _show_scene_log(ctx, int(arg))
+            else:
+                await ctx.session.send_line(
+                    ansi.error("Invalid scene ID. Usage: +scene <id>")
+                )
             return
 
         # +scene — show active scene in current room
@@ -340,6 +348,10 @@ async def _cmd_scene_field(ctx: CommandContext, field: str, value: str):
     elif field == "type":
         result = await sm.set_scene_type(ctx.db, char, room_id, value)
     elif field == "summary":
+        if len(value) > MAX_SUMMARY_LEN:
+            value = value[:MAX_SUMMARY_LEN]
+            await ctx.session.send_line(
+                f"  (Summary truncated to {MAX_SUMMARY_LEN:,} characters.)")
         result = await sm.set_scene_summary(ctx.db, char, room_id, value)
     else:
         result = {"ok": False, "msg": "Unknown field."}
