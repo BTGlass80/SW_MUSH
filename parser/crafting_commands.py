@@ -1766,8 +1766,19 @@ class BuyResourcesCommand(BaseCommand):
             )
             return
 
-        # Execute purchase (through the credit chokepoint)
-        char["credits"] = await ctx.db.adjust_credits(char["id"], -total_cost, "resource_vendor")
+        # Execute purchase through the credit chokepoint. allow_negative=False
+        # makes the DB the source of truth: the cache check above is advisory,
+        # so a concurrent drain between session-load and here can't drive the
+        # balance negative. None → overdraw refused, abort with no resources
+        # granted (QA 2026-06-21, credit-integrity — matches LearnCommand).
+        new_balance = await ctx.db.adjust_credits(
+            char["id"], -total_cost, "resource_vendor", allow_negative=False)
+        if new_balance is None:
+            await ctx.session.send_line(
+                f"  Not enough credits. {qty}x {rtype} costs {total_cost:,} cr."
+            )
+            return
+        char["credits"] = new_balance
 
         result_msg = add_resource(char, rtype, qty, NPC_RESOURCE_QUALITY)
         # Save inventory

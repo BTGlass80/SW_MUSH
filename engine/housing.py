@@ -883,6 +883,17 @@ async def rent_room(db, char: dict, lot_id: int) -> dict:
         return {"ok": False,
                 "msg": f"You need {total_cost:,}cr ({TIER1_DEPOSIT:,}cr deposit + {TIER1_WEEKLY_RENT:,}cr first week)."}
 
+    # Debit FIRST against the live DB balance (the cache check above is advisory).
+    # allow_negative=False refuses the overdraw atomically and returns None, so a
+    # concurrent drain can't drive credits negative and we never create orphan
+    # rooms for a sale that didn't fund. (QA 2026-06-21, housing credit-integrity.)
+    new_balance = await db.adjust_credits(char_id, -total_cost, "housing_purchase",
+                                          allow_negative=False)
+    if new_balance is None:
+        return {"ok": False,
+                "msg": f"You need {total_cost:,}cr ({TIER1_DEPOSIT:,}cr deposit + {TIER1_WEEKLY_RENT:,}cr first week)."}
+    char["credits"] = new_balance
+
     entry_room = lot["room_id"]
     planet_label = lot["label"]
     room_name = f"{char['name']}'s Room"
@@ -898,8 +909,6 @@ async def rent_room(db, char: dict, lot_id: int) -> dict:
     exit_in_id  = await db.create_exit(entry_room, new_room_id, door_dir,
                                         f"{char['name']}'s room")
     exit_out_id = await db.create_exit(new_room_id, entry_room, "out", "Exit")
-
-    char["credits"] = await db.adjust_credits(char_id, -total_cost, "housing_purchase")
 
     now = time.time()
     cursor = await db.execute(
@@ -1937,6 +1946,17 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
     planet_descs = _TIER3_ROOM_DESCS.get(lot_planet, _TIER3_ROOM_DESCS["tatooine"])
     char_name = char.get("name", "Unknown")
 
+    # Debit FIRST against the live DB balance (the cache check above is advisory).
+    # allow_negative=False refuses the overdraw atomically and returns None, so a
+    # concurrent drain can't drive credits negative and we never create orphan
+    # rooms for a home that didn't fund. (QA 2026-06-21, housing credit-integrity.)
+    new_balance = await db.adjust_credits(char_id, -cfg["cost"], "housing_upgrade",
+                                          allow_negative=False)
+    if new_balance is None:
+        return {"ok": False,
+                "msg": f"A {cfg['label']} costs {cfg['cost']:,}cr. You have {char.get('credits', 0):,}cr."}
+    char["credits"] = new_balance
+
     # Create rooms
     room_ids = []
     for i in range(cfg["rooms"]):
@@ -1971,8 +1991,7 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
         await db.create_exit(room_ids[i + 1], room_ids[i], "out",
                              planet_descs[min(i, len(planet_descs) - 1)][0])
 
-    # Charge credits
-    char["credits"] = await db.adjust_credits(char_id, -cfg["cost"], "housing_upgrade")
+    # (Credits already debited above, before room creation.)
 
     # If they have existing Tier 1/2 housing, evict it first
     if existing:
@@ -2408,6 +2427,18 @@ async def purchase_shopfront(db, char: dict, lot_id: int,
     shop_descs    = _TIER4_SHOP_DESCS.get(lot_planet, _TIER4_SHOP_DESCS["tatooine"])
     private_descs = _TIER4_PRIVATE_DESCS.get(lot_planet, _TIER4_PRIVATE_DESCS["tatooine"])
 
+    # Debit FIRST against the live DB balance (the cache check above is advisory).
+    # allow_negative=False refuses the overdraw atomically and returns None, so a
+    # concurrent drain can't drive credits negative and we never create orphan
+    # rooms for a shopfront that didn't fund. (QA 2026-06-21, housing credit-integrity.)
+    new_balance = await db.adjust_credits(char_id, -cfg["cost"], "shopfront_purchase",
+                                          allow_negative=False)
+    if new_balance is None:
+        return {"ok": False,
+                "msg": f"A {cfg['label']} costs {cfg['cost']:,}cr. "
+                       f"You have {char.get('credits', 0):,}cr."}
+    char["credits"] = new_balance
+
     all_room_ids = []
     shop_room_ids    = []
     private_room_ids = []
@@ -2483,8 +2514,7 @@ async def purchase_shopfront(db, char: dict, lot_id: int,
         await db.create_exit(private_room_ids[i + 1], private_room_ids[i],
                               "out", pdesc_a)
 
-    # Charge credits
-    char["credits"] = await db.adjust_credits(char_id, -cfg["cost"], "shopfront_purchase")
+    # (Credits already debited above, before room creation.)
 
     # Create housing record
     now = time.time()
@@ -2590,29 +2620,38 @@ async def sell_shopfront(db, char: dict) -> dict:
             log.warning("sell_shopfront: unhandled exception", exc_info=True)
             pass
 
-    # Refund
-    refund = h.get("purchase_price", 0) // 2
-    if refund > 0:
-        char["credits"] = await db.adjust_credits(char_id, refund, "shopfront_refund")
+    # Structural teardown FIRST, refund LAST. The refund must not be applied
+    # until the rooms + housing record are actually gone, or a mid-teardown
+    # failure leaves the player holding BOTH the refund and the property
+    # (QA 2026-06-21, sell_shopfront double-accounting blocker).
+    #
+    # FK ordering: rooms.housing_id → player_housing(id) and
+    # player_housing.entry_room_id → rooms(id) are a mutual reference. Clear the
+    # home pointer + rooms.housing_id first, delete the player_housing record,
+    # then delete_room() each room. delete_room cascades exits on the correct
+    # from_room_id/to_room_id columns — the prior hand-rolled DELETE used the
+    # wrong column names (from_room/to_room), raised OperationalError swallowed
+    # by except:pass, left the rooms alive, and the unwrapped player_housing
+    # delete then crashed on the FK *after* the refund had already been paid.
+    if room_ids:
+        try:
+            await db.execute(
+                "UPDATE characters SET home_room_id = NULL "
+                "WHERE id = ? AND home_room_id IN (%s)" % ",".join("?" * len(room_ids)),
+                [char_id] + room_ids,
+            )
+        except Exception:
+            log.warning("sell_shopfront: home_room_id clear failed", exc_info=True)
+    for rid in room_ids:
+        await db.execute("UPDATE rooms SET housing_id = NULL WHERE id = ?", (rid,))
 
-    # Remove exits
-    for exit_id in (h.get("exit_id_in"), h.get("exit_id_out")):
-        if exit_id:
-            try:
-                await db.execute("DELETE FROM exits WHERE id = ?", (exit_id,))
-            except Exception:
-                log.warning("sell_shopfront: unhandled exception", exc_info=True)
-                pass
+    await db.execute("DELETE FROM player_housing WHERE id = ?", (h["id"],))
 
-    # Remove all housing rooms
     for rid in room_ids:
         try:
-            await db.execute("DELETE FROM exits WHERE from_room = ? OR to_room = ?",
-                                  (rid, rid))
-            await db.execute("DELETE FROM rooms WHERE id = ?", (rid,))
+            await db.delete_room(rid)
         except Exception:
-            log.warning("sell_shopfront: unhandled exception", exc_info=True)
-            pass
+            log.warning("sell_shopfront: delete_room(%s) failed", rid, exc_info=True)
 
     # Update lot occupancy
     try:
@@ -2622,22 +2661,12 @@ async def sell_shopfront(db, char: dict) -> dict:
             (h["entry_room_id"],),
         )
     except Exception:
-        log.warning("sell_shopfront: unhandled exception", exc_info=True)
-        pass
+        log.warning("sell_shopfront: lot occupancy update failed", exc_info=True)
 
-    # Delete housing record
-    await db.execute("DELETE FROM player_housing WHERE id = ?", (h["id"],))
-
-    # Clear home_room_id if it pointed here
-    try:
-        await db.execute(
-            "UPDATE characters SET home_room_id = NULL "
-            "WHERE id = ? AND home_room_id IN (%s)" % ",".join("?" * len(room_ids)),
-            [char_id] + room_ids,
-        )
-    except Exception:
-        log.warning("sell_shopfront: unhandled exception", exc_info=True)
-        pass
+    # Refund LAST — only after the structural teardown above has committed.
+    refund = h.get("purchase_price", 0) // 2
+    if refund > 0:
+        char["credits"] = await db.adjust_credits(char_id, refund, "shopfront_refund")
 
     await db.commit()
     log.info("[housing] char %d sold shopfront, refund %dcr, %d droids recalled",
