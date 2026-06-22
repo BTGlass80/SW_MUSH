@@ -352,6 +352,17 @@
   ],
   "tier_2_queued": [
     {
+      "id": "UX.dice_and_animation_polish",
+      "title": "UI/UX animation polish \u2014 animated dice (the signature D6 roll) + a small set of feedback/theme animations",
+      "lane": "web-client",
+      "effort": "M (a `drama` classifier on the dice funnel + the client dice renderer + the toggle/rate-limit gate); a dramatic-only slice is S",
+      "status": "DESIGNED (doc), queued \u2014 polish BEHIND the launch-blockers",
+      "spec": "docs/design/dice_animation_and_ux_polish_2026-06-22.md. Animate the signature D6 roll (REAL pool + the exploding wild die) on DRAMATIC moments only, never gating pace/information; skippable + an Off/Minimal/Full toggle; real dice double as a D6 teaching tool (NPE). 'Dramatic' = a server-computed drama tier (0/1/2) at perform_skill_check + the combat resolver from signals already in hand (wild-die explosion/1, critical_success, outcome state-change, high-stakes category [Force/combat-decider/sabacc/PvP/chargen], difficulty+margin), then CLIENT-side rate-limited + preference-gated. Web-only; telnet unaffected; engine sends the drama field + the existing roll breakdown (EXTEND the funnel, no new system). Other candidates: sabacc card flips, credit/XP tick-up, map room-pan, combat hit/wound flash.",
+      "blocker": null,
+      "related_prelaunch": "a small dramatic-only slice (Force powers + sabacc + the combat finishing blow), fully skippable, is a cheap first-impression differentiator that could land pre-launch; the full set + the other animations are post-launch",
+      "decisions": "RESOLVED in the doc \u2014 Brian asked how 'dramatic' is determined; answer is the SIGNAL-BASED drama-tier scheme (NOT a hardcoded command list): f(wild-die, outcome-significance, criticality, category, difficulty+margin) classified at the funnel, then rate-limited on the client."
+    },
+    {
       "id": "LORE.sourcebook_ingestion",
       "title": "Sourcebook -> lorebook ingestion (paid Haiku batch) + the proxy/credits unblock",
       "lane": "tools + data (lore.yaml) + ai (claude_provider SSL)",
