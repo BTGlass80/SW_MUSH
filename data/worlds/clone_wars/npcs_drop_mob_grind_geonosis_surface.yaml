@@ -1,0 +1,422 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_geonosis_surface.yaml
+#
+# Geonosis Surface Zone Hostile Mob Grind Expansion (2026-06-22)
+#
+# Six roaming hostile NPCs seeded across the six previously-uncovered
+# geonosis_surface zone rooms, extending the solo-PvE mob-grind reward
+# loop (engine/hunting_rewards.py).
+# Complements npcs_drop_mob_grind_geonosis.yaml (Droid Staging Ground,
+# Foundry Upper Level, B2 Assembly, Deep Hive Tunnel, Upper Hive Tunnel,
+# CIS Field Command Post) and npcs_drop_mob_grind_geonosis_foundry.yaml
+# (Foundry Main Floor, Control Center, Secondary Deep Level, Main Hive
+# Chamber, Warrior Caste Barracks, Battle Ruins).
+#
+# Zone spread (geonosis_surface — security: lawless, threat_band: settled):
+#   Separatist Landing Platform x1   (Geonosian entry sentinel)
+#   Surface Approach Road x1         (B1 patrol droid)
+#   Spire Overlook x1                (Trandoshan bounty scout)
+#   Main Hive Entrance x1            (Geonosian hive gate guard)
+#   Arena Gate Road x1               (Nikto arena enforcer)
+#   Foundry Approach Tunnel x1       (Geonosian checkpoint enforcer)
+#
+# All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats grounded in sibling patterns (npcs_drop_mob_grind_geonosis.yaml
+#   Drop-H codebase baselines). Sourcebooks absent in this tree —
+#   stats UNVERIFIED against WEG40120 PDF.
+# Weapons: vibroblade (Geonosian warriors), blaster_rifle (B1 droid),
+#   blaster_carbine (Trandoshan scout), blaster_pistol (Nikto enforcer),
+#   force_pike (Geonosian checkpoint guard — electrostaff equivalent) —
+#   all keys confirmed in data/weapons.yaml.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # SEPARATIST LANDING PLATFORM — 1 NPC (Geonosian entry sentinel)
+  # The platform's Geonosian overseer: territorial, wings-folded,
+  # compound eyes reading every arrival for signs of unauthorized intent.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Geonosian Landing Sentinel
+    room: "Geonosis - Separatist Landing Platform"
+    species: Geonosian
+    description: >-
+      A Geonosian warrior in the heavier thoracic plating worn by
+      platform security — taller than most arrivals expect, wings folded
+      into a tight resting position that gives it the silhouette of a
+      very large insect wearing armor. Its compound eyes track every vessel
+      and every being moving across the platform with the flat, unblinking
+      attention of a creature that processes threat at a fundamentally
+      different speed than most species. The vibroblade strapped to two of
+      its four arms has the worn handle of something used regularly. Arrivals
+      with proper CIS transponder codes get a slow, deliberate nod. Arrivals
+      without them get the vibroblade before the nod completes.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 1D+2
+        mechanical: 1D+1
+        perception: 3D+1
+        strength: 3D
+        technical: 1D+2
+      skills:
+        brawling: 4D
+        melee_combat: 4D+2
+        dodge: 3D+2
+        flying: 4D+1
+        intimidation: 3D+1
+        search: 3D
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        The platform sentinel has run landing security for several
+        rotations. It has developed a read on arrival patterns that
+        is faster than any droid IFF check: a misaligned transponder
+        code, a too-casual movement across the platform, or the
+        wrong kind of eye contact triggers an immediate hostile
+        assessment. It does not speak first. It does not ask for
+        credentials. Its only communication is the vibroblade
+        clearing its harness.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Rapid Geonosian clicks and a single gesture — one upper arm
+        pointing back toward the departure ramp. When the gesture is
+        ignored, the vibroblade is the next communication.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The Geonosian's compound eyes fix on you and it takes one deliberate step forward.*"
+        - "*A rapid series of clicks — then the vibroblade is forward and it moves.*"
+        - "*Wings flick half-open as it drops into fighting stance, vibroblade leading.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # SURFACE APPROACH ROAD — 1 NPC (B1 patrol droid)
+  # One of the droid patrol units moving the road on fixed routes —
+  # this one's patrol interval has drifted, and its threat window
+  # has opened wider than its programming intended.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: B1 Road Patrol Unit
+    room: "Geonosis - Surface Approach Road"
+    species: Droid
+    description: >-
+      A B1 battle droid moving along the carved approach road in
+      the unhurried, slightly-too-regular rhythm of a patrol route
+      it has run several hundred times without variation. The scorch
+      on its left forearm is recent — it exchanged fire with something
+      on the road in the last twenty-four hours and its threat-response
+      threshold has not reset since. It is running wide on its interval,
+      which means it is checking alleys and niches it should be walking
+      past. When it sees you, the "should be walking past" logic drops
+      out entirely.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 1D
+        mechanical: 1D
+        perception: 2D
+        strength: 2D
+        technical: 1D
+      skills:
+        blaster: 3D+2
+        dodge: 2D+1
+        search: 2D+1
+      weapon: blaster_rifle
+      move: 10
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A standard B1 running a patrol loop with an elevated threat
+        response from a recent contact engagement. Its targeting
+        discrimination is still technically functional — it will
+        challenge before firing — but the challenge window is short
+        and the challenge is not really a question. It will pursue
+        along the road and into the adjacent rock walls before
+        reverting to route.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Standard B1 monotone. "HALT. AUTHORIZATION CODE."
+        Three seconds. Then firing.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'HALT. AUTHORIZATION CODE.' *The rifle is already at shoulder level.*"
+        - "*The B1 fires twice on the move, continuing its sweep pattern.*"
+        - "'UNAUTHORIZED CONTACT.' *It pursues along the road wall, firing.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # SPIRE OVERLOOK — 1 NPC (Trandoshan bounty scout)
+  # A Trandoshan using Geonosis's chaotic war-zone status as cover
+  # for independent contract work — the overlook gives him line of
+  # sight to three approach routes simultaneously.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Trandoshan Bounty Scout
+    room: "Geonosis - Spire Overlook"
+    species: Trandoshan
+    description: >-
+      A broad-shouldered Trandoshan in mottled grey-brown field
+      armor, crouched at the overlook's carved stone lip with a
+      carbine across his knees and a scope pressed to one eye.
+      He is not watching the battlefield below — he is watching
+      the approach road, the landing platform, and the hive
+      entrance simultaneously, cycling through each at practiced
+      intervals. He has a contract active on someone who arrived
+      on Geonosis three days ago and has not yet been collected.
+      The someone might be you. When he lowers the scope, his
+      yellow eyes take two seconds to assess before his hands
+      move to a firing grip, which is already faster than most
+      beings can react to.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+2
+        technical: 2D
+      skills:
+        blaster: 4D+2
+        brawling: 4D
+        dodge: 3D+2
+        search: 3D+1
+        streetwise: 2D+2
+        intimidation: 3D
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Trandoshan contract hunter operating independent on
+        Geonosis — the war-zone status means nobody questions
+        his presence and the CIS doesn't ask about his paperwork.
+        He has an active contract and he is not certain whether
+        the person in front of him is the target or a witness.
+        He has found over the years that witnesses are a problem
+        with a clean solution. He fires from cover when possible
+        and closes only when he has the angle.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Trandoshan-accented Basic, flat and slow. "Wrong place."
+        He does not elaborate. The carbine is already moving.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He drops behind the stone lip and fires around it, conserving angle.*"
+        - "*A short burst from the carbine — he rolls left and reacquires.*"
+        - "'Wrong place.' *Two more shots, advancing in a wide circle.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # MAIN HIVE ENTRANCE — 1 NPC (Geonosian hive gate guard)
+  # The primary surface entrance to the Stalgasin Hive; this warrior
+  # has guarded the threshold so long it treats the threshold itself
+  # as an extension of its body.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Geonosian Hive Gate Guard
+    room: "Geonosis - Main Hive Entrance"
+    species: Geonosian
+    description: >-
+      A Geonosian warrior standing directly in the center of the
+      hive entrance — not to one side, not near the wall, but in
+      the exact geometric center where the light from outside
+      gives way to the deeper darkness within. Its thoracic armor
+      is older than most beings on Geonosis and has been maintained
+      with the methodical attention of something that treats personal
+      equipment as a professional obligation. The vibroblade is
+      not drawn but the four arms are positioned for it, and the
+      compound eyes read you as you approach with the particular
+      quality of attention that means it has already decided
+      something and is waiting for you to confirm it.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 1D+2
+        mechanical: 1D+1
+        perception: 3D
+        strength: 3D+1
+        technical: 1D+2
+      skills:
+        brawling: 4D+2
+        melee_combat: 4D+2
+        dodge: 4D
+        flying: 4D
+        intimidation: 3D+2
+        search: 3D
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A senior warrior-caste Geonosian whose entire function is
+        control of the hive entrance. It has done this for years
+        and has refined the job to a single binary: beings with
+        Geonosian escort or verified CIS credentials pass; all
+        others are rejected immediately. The rejection is physical
+        rather than verbal. It does not negotiate and does not
+        back down from the threshold under any circumstances.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        One Geonosian word, repeated if necessary, which translates
+        roughly as "stop." Then the vibroblade. No Basic.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The Geonosian moves to block the entrance entirely, vibroblade rising.*"
+        - "*A sharp Geonosian challenge — then it lunges, all four arms forward.*"
+        - "*Wings spread — a threat posture — then it advances without further warning.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # ARENA GATE ROAD — 1 NPC (Nikto arena enforcer)
+  # The road to the Petranaki Arena draws money and bounty hunters;
+  # the Geonosian arena operation employs its own muscle to control
+  # the approach and discourage unsanctioned fights before the gate.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Nikto Arena Approach Enforcer
+    room: "Geonosis - Arena Gate Road"
+    species: Nikto
+    description: >-
+      A stocky Nikto in arena-house colors — a red-and-black pattern
+      on the chest plate that identifies him as hired muscle for the
+      Petranaki operation — standing at the road's midpoint with his
+      arms crossed and a blaster pistol visible on each hip. He is
+      not watching the distant arena dome. He is watching the road
+      and the people on it. His job is to ensure that disagreements
+      between bounty hunters, gamblers, and interested parties happen
+      inside the arena walls and not on the approach road, where they
+      damage the visitor experience. When someone on the road looks
+      like trouble, his definition of solving the problem involves
+      the pair of pistols.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+1
+        strength: 3D+1
+        technical: 2D
+      skills:
+        blaster: 3D+2
+        brawling: 3D+2
+        intimidation: 3D+1
+        dodge: 2D+2
+        streetwise: 2D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Nikto enforcer with a straightforward brief: keep the
+        approach road commercially functional and physically safe
+        for paying visitors. He is not a fighter by preference —
+        he is a deterrent by function. When deterrence fails, he
+        becomes a fighter, which he is also good at. He does not
+        pursue beyond the road's edge; his jurisdiction ends at
+        the arena gate and he is professional about the boundary.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Nikto-accented Basic, economical and flat. "Road's
+        managed." When pushed: "Step off it." The pistol
+        leaves the holster before the second sentence ends.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'Step off it.' *Both pistols clear the holsters simultaneously.*"
+        - "*He fires once and steps sideways — not retreating, repositioning.*"
+        - "*A second shot, flat and professional. He advances two steps.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # FOUNDRY APPROACH TUNNEL — 1 NPC (Geonosian checkpoint enforcer)
+  # The two-thirds checkpoint deep in the approach tunnel; this
+  # warrior carries a force pike (electrostaff-equivalent) and
+  # treats the checkpoint as the absolute limit of who passes.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Geonosian Foundry Checkpoint Enforcer
+    room: "Geonosis - Foundry Approach Tunnel"
+    species: Geonosian
+    description: >-
+      A Geonosian warrior blocking the tunnel checkpoint at
+      two-thirds descent, force pike held diagonally across the
+      tunnel width in both upper arms. The pike's energy field
+      hums with the low, irregular frequency of something that
+      has seen considerable use. The lower arms are empty but
+      positioned — the warrior is ambidextrous with the weapon
+      and the lower arms are the fast pair. The checkpoint exists
+      because the foundries below this point are the operational
+      heart of Geonosian CIS manufacturing, and the Geonosians
+      do not permit unauthorized access to the operational heart
+      of anything. This enforcer has turned back every unauthorized
+      visitor so far. The ones who argued about it are not visible,
+      which is information.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 1D+2
+        mechanical: 1D+1
+        perception: 3D+1
+        strength: 3D+1
+        technical: 1D+2
+      skills:
+        brawling: 4D+1
+        melee_combat: 4D+2
+        dodge: 3D+2
+        flying: 3D+2
+        intimidation: 3D+2
+        search: 3D
+      weapon: force_pike
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        The checkpoint enforcer is neither hostile nor welcoming —
+        it is procedural. Foundry authorization passes through; all
+        else does not. It has blocked this tunnel for two cycles and
+        its understanding of the authorization criteria is precise
+        and inflexible. When access is denied, the force pike swings
+        as a barrier first and a weapon second. The second follows
+        almost immediately if the barrier is not respected.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        The force pike swings horizontal to block passage. One
+        Geonosian word. If you cannot produce authorization within
+        three seconds, the pike's energy field activates and it
+        attacks.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The force pike's energy field crackles to life. It swings low.*"
+        - "*The Geonosian presses the checkpoint — two strikes in rapid succession.*"
+        - "*It hisses and drives the pike forward, using the tunnel width as a weapon.*"
