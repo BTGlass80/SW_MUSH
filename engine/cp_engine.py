@@ -292,6 +292,13 @@ class CPEngine:
                 char_id, cp,
                 f" ({reason})" if reason else "",
             )
+            # T3.19 telemetry: direct milestone CP (bypasses the tick cap).
+            try:
+                from engine.telemetry import emit_cp_income
+                emit_cp_income("milestone", char_id, cp_gained=cp,
+                               reason=reason or None)
+            except Exception:
+                log.debug("cp_income telemetry emit failed", exc_info=True)
             return {"cp_awarded": cp, "dropped": False}
 
         except Exception:
@@ -451,6 +458,21 @@ async def _award_ticks(
             "(possible farming)",
             char_id, cap_hit_streak,
         )
+
+    # ── T3.19 telemetry: the CP-income funnel for the tick economy ─────────
+    # _award_ticks is the SINGLE chokepoint for all tick income (passive /
+    # scene / kudos / ai_eval), so one emit here captures the whole tick→CP
+    # economy + weekly-cap pressure. Fail-open — a telemetry break must never
+    # disturb the award that already landed above.
+    try:
+        from engine.telemetry import emit_cp_income
+        emit_cp_income(
+            source, char_id, cp_gained=cp_gained, ticks=ticks,
+            ticks_this_week=ticks_this_week_after,
+            at_cap=ticks_this_week_after >= WEEKLY_CAP_TICKS,
+        )
+    except Exception:
+        log.debug("cp_income telemetry emit failed", exc_info=True)
 
 
 async def _get_cp(db, char_id: int) -> int:

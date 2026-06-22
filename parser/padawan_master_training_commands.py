@@ -685,6 +685,16 @@ class SparCommand(BaseCommand):
             await ctx.db.cp_add_character_points(
                 partner["id"], SPAR_CP_REWARD,
             )
+            # T3.19 telemetry: spar-training CP (direct, bypasses the tick cap).
+            # One cp_income event per recipient; fail-open never blocks +spar.
+            try:
+                from engine.telemetry import emit_cp_income
+                emit_cp_income("padawan_training", char["id"],
+                               cp_gained=SPAR_CP_REWARD)
+                emit_cp_income("padawan_training", partner["id"],
+                               cp_gained=SPAR_CP_REWARD)
+            except Exception:
+                log.debug("cp_income telemetry emit failed", exc_info=True)
         except Exception:
             log.warning("+spar: CP award failed", exc_info=True)
             await session.send_line(
