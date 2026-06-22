@@ -5,21 +5,23 @@ The Opus-owned guides quality pass.  Two test-INVISIBLE breakages were found in
 the post-command-syntax-rework guide (the convention-invariant test guards the
 registry, not free-text guide prose):
 
-1. **§13 posing** taught ``> pose <text>`` to submit a combat pose.  But bare
+1. **§14 posing** taught ``> pose <text>`` to submit a combat pose.  But bare
    ``pose`` is the generic room-emote alias (``EmoteCommand`` key ``emote``,
    aliases ``:``/``pose``/``em``) — it broadcasts an ordinary emote and never
    registers as the round's combat pose.  The real command is ``cpose``
    (``CombatPoseCommand``, alias ``combatpose``).  A player following the guide
    would emit a stray room pose and silently get the auto-pose instead.
 
-2. **§16 quick reference** listed ``force-point`` (hyphenated).  The registered
+2. **§17 quick reference** listed ``force-point`` (hyphenated).  The registered
    key is ``forcepoint`` (aliases ``fp``/``+fp``); no hyphenated alias exists,
    so ``force-point`` resolves to nothing.
 
 This test resolves every combat command the guide teaches against the SAME
 registry ``GameServer.__init__`` builds, pins the two fixes, and cross-checks
-the §4/§5/§7/§9/§11/§14 mechanics tables against the live engine constants so a
-future engine retune that desyncs the guide fails loudly here.
+the §4/§5/§7/§9/§11/§15 mechanics tables against the live engine constants so a
+future engine retune that desyncs the guide fails loudly here.  The §12
+mob-grind reward section's hunter-title labels are pinned against
+``engine.titles.EARNED_TITLES`` so an engine rename desyncs the guide loudly.
 """
 import os
 import re
@@ -74,9 +76,10 @@ _COMBAT_FORMS = [
     "range",
     "challenge", "accept", "decline",
     "soak",            # alias of `+soak`
-    "forcepoint",      # §16 (the FIX — was `force-point`)
+    "forcepoint",      # §17 (the FIX — was `force-point`)
     "disengage",
     "look",            # §7 "the room's `look` description"
+    "+hunting",        # §12/§17 — the solo-PvE mob-grind log
 ]
 
 
@@ -183,12 +186,52 @@ class TestMechanicsMatchEngine:
         assert "stackable up to **+3D**" in guide_text
 
     def test_mortal_wound_death_roll(self, guide_text):
-        """§14 death roll: 2D, die if total < rounds mortally wounded."""
+        """§15 death roll: 2D, die if total < rounds mortally wounded."""
         import inspect
         from engine import combat as combat_mod
 
         src = inspect.getsource(combat_mod)
         assert "DicePool(2, 0)" in src and "death_roll.total < rounds_mw" in src, (
-            "mortal-wound death-roll math changed — re-check Guide_03 §14"
+            "mortal-wound death-roll math changed — re-check Guide_03 §15"
         )
         assert "rolls 2D" in guide_text
+
+
+# ── §12 mob-grind reward section: pinned vs the live hunting subsystem ─────────
+class TestMobGrindRewardSection:
+    """The §12 'Rewards for Defeating NPCs' section was added when the solo-PvE
+    mob-grind faucet shipped (2026-06-21) — after Guide_03's prior quality pass.
+    It documents the combat-side view of the hunting reward and points to
+    Guide_06 Economy for the numbers. Guard the claims that matter."""
+
+    def test_section_exists_and_teaches_hunting(self, guide_text):
+        assert "## 12. Rewards for Defeating NPCs" in guide_text
+        # The read-only log command the section teaches.
+        assert "`+hunting`" in guide_text
+
+    def test_zero_cp_advancement_neutral_claim(self, guide_text):
+        """The defining design contract: hunting pays ZERO Character Points so it
+        can never touch advancement. If this prose drops, the guide misleads."""
+        assert "zero Character Points" in guide_text
+        assert "can *never* buy skill growth" in guide_text
+
+    def test_hunter_titles_match_engine(self, guide_text):
+        """The four milestone title LABELS must match engine.titles.EARNED_TITLES
+        so an engine rename desyncs the guide loudly here."""
+        from engine.titles import EARNED_TITLES
+
+        labels = {t["label"] for t in EARNED_TITLES}
+        for expected in ("the Hunter", "the Seasoned Hunter",
+                         "the Master Hunter", "the Apex Hunter"):
+            assert expected in labels, (
+                f"engine.titles no longer defines the {expected!r} earned "
+                f"title — re-check Guide_03 §12"
+            )
+            assert expected in guide_text, (
+                f"§12 mob-grind section missing the {expected!r} hunter title"
+            )
+
+    def test_cross_references_economy_for_numbers(self, guide_text):
+        """§12 is the combat-side summary; the per-kill reward / cap / thresholds
+        live in Guide_06 Economy. The section must link there, not duplicate."""
+        assert "(#/guide/economy)" in guide_text

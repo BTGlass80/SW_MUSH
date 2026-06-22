@@ -348,7 +348,32 @@ The default profile by NPC type in the Clone Wars era:
 
 ---
 
-## 12. Combat Narrative and Flavor
+## 12. Rewards for Defeating NPCs
+
+Not every NPC you kill is a posted contract or a field-dressable creature. The galaxy is full of ordinary **roaming hostiles** — street thugs, swoop-gang muscle, pirate scavengers, rogue droids — seeded across populated and contested zones. Put one down and you collect a small, automatic reward: a **credit trickle** plus **prestige** toward earned hunter titles. There's no board to check and no contract to claim — land the killing blow and the reward fires on its own.
+
+**What counts.** Any generic hostile that doesn't already carry its own reward hook: *not* a bounty target, *not* a space/wilderness anomaly spawn, *not* a field-dressable creature, *not* a Dark-Side-Point hunter's quarry, *not* a tutorial/questline chain enemy, *not* a vendor. Ordinary guards, gangers, and street pirates standing in the world are the typical quarry. Anything that pays through its own system (a [bounty contract](#/guide/economy), a creature's spoils) never double-dips with this trickle.
+
+**The credits are deliberately tiny**, and that's the point. A small flat reward per kill, a daily soft cap, and a token tail once you pass the cap. Here's why it's so small: combat costs money. Any non-trivial fight burns bacta (medical) and degrades your weapon (repair), and for a real mob those costs exceed the per-kill reward — so grinding runs **break-even to slightly negative**. The tougher the quarry, the more you spend healing relative to the trickle. Think of it as a **solo-play income floor** — what you do when no one else is on and you just want to put down NPCs and zone out — not a road to wealth. Missions, bounties, and smuggling (see [Economy](#/guide/economy)) are where the real money lives.
+
+**It pays zero Character Points.** Advancement is roleplay- and time-gated (the weekly CP cap; see [CP Progression](#/guide/cp-progression)). Grinding mobs can *never* buy skill growth — it pays credits and prestige only, and structurally cannot touch your character's progression. Don't grind expecting to "level up." Grind because the fight was fun and the prestige is yours.
+
+**Prestige is the real reward.** Your lifetime kill tally lives in a per-character hunting log, and crossing a milestone earns a permanent, wearable hunter title — *the Hunter*, then *the Seasoned Hunter*, *the Master Hunter*, and finally *the Apex Hunter*. Earned titles show on `+finger` and `+sheet`; wear one with `+title wear <key>`.
+
+Check your standing any time with **`+hunting`** — it shows your lifetime kill tally, today's take against the daily cap, and how many more kills to your next title:
+
+```
+─────────────  HUNTING LOG  ─────────────
+  Quarry felled (lifetime): 38
+  Today's take: 210 / 400 cr
+  Next milestone: 62 more to reach 100 felled.
+```
+
+The exact per-kill reward, the daily cap, and the full title thresholds live in [Economy](#/guide/economy) — this is the combat-side summary; that's the ledger-side detail.
+
+---
+
+## 13. Combat Narrative and Flavor
 
 Combat output uses a deliberate two-line format for every action:
 
@@ -377,7 +402,7 @@ You can scan a combat log purely by color and know who's in trouble.
 
 ---
 
-## 13. The Posing System
+## 14. The Posing System
 
 After resolution, there's a short **pose window** before the next round begins. During this window, type **`cpose <text>`** to write a custom narrative description of what your character did:
 
@@ -404,7 +429,7 @@ The pose window is short on purpose. It's a beat for the narrative to land, not 
 
 ---
 
-## 14. Death, Mortal Wounds, and Recovery
+## 15. Death, Mortal Wounds, and Recovery
 
 **Mortal wound death roll.** Each round you're Mortally Wounded, the game rolls 2D. If the result is less than the number of rounds you've been mortally wounded, you die. Round 1: need to roll ≥ 1 (impossible to die). Round 4: need ≥ 4 (likely fine). Round 7: need ≥ 7 (50/50). The longer you go without medical attention, the worse your odds.
 
@@ -418,7 +443,7 @@ For the corpse system, looting, bacta tank protocols, the −1D debuff details, 
 
 ---
 
-## 15. The Web Client Combat Panel
+## 16. The Web Client Combat Panel
 
 If you're playing through the web client (which most players are), combat gets a dedicated panel that updates in real time:
 
@@ -436,7 +461,7 @@ A particularly important affordance: the panel shows you, in real time, which co
 
 ---
 
-## 16. Command Quick Reference
+## 17. Command Quick Reference
 
 | Command | Syntax | Description |
 |---|---|---|
@@ -459,7 +484,8 @@ A particularly important affordance: the panel shows you, in real time, which co
 | `soak` | `soak <n>` | Pre-declare CP for damage resistance |
 | `forcepoint` | `forcepoint` (or `fp`) | Activate Force Point (Force-sensitives only) |
 | `disengage` | `disengage` | Leave combat once it's over |
+| `+hunting` | `+hunting` | Your mob-hunting log: kill tally, today's take, next title |
 
 ---
 
-*This guide is part of the Parsec Game Guides. See also: [Core Mechanics](#/guide/weg-d6-core-mechanics), [Security Zones](#/guide/security-zones), [Medical & Death](#/guide/medical-death), [Force Powers](#/guide/force-powers), [Encounters & Hazards](#/guide/encounters-hazards).*
+*This guide is part of the Parsec Game Guides. See also: [Core Mechanics](#/guide/weg-d6-core-mechanics), [Security Zones](#/guide/security-zones), [Medical & Death](#/guide/medical-death), [Force Powers](#/guide/force-powers), [Encounters & Hazards](#/guide/encounters-hazards), [Economy](#/guide/economy).*
