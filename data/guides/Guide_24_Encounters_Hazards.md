@@ -29,7 +29,7 @@ This is a new guide. There was no earlier version.
 
 A **space encounter** is a structured event with branching choices, presented to you mid-transit (or while idle in a space zone). Examples:
 
-- An Republic clone patrol decloaks and demands a scan.
+- A Republic clone patrol decloaks and demands a scan.
 - A pirate gang demands tribute or a fight.
 - A distress signal pings — investigate or ignore.
 - A mechanical fault in your ship requires repair.
@@ -92,7 +92,7 @@ Each space zone has a cap on simultaneous active encounters — usually 1. So yo
 
 **Choices:**
 - **Pay.** They demand 500-3,000 cr tribute. You hand it over; they let you go. Reputation hit with the relevant criminal faction (you're paying tribute, you're being marked).
-- **Negotiate.** A Con or Bargain roll vs. Moderate (15). On success, they accept reduced tribute (often 1/3 the demand). On failure, they take the original demand or escalate to combat.
+- **Negotiate.** A Con or Bargain roll vs. Moderate (15). On success, they accept reduced tribute — **half** the demand, dropping to **a quarter** on a critical success. On failure, they take the original demand or escalate to combat.
 - **Fight.** Combat begins. The pirate ship engages you with NPC combat AI. Outcome depends on your ship + skills vs. theirs.
 - **Flee.** Pilot roll to outrun. Same dynamics as Patrol's Run.
 
@@ -175,44 +175,47 @@ A Sensors crew member can `stationact scan` to gather more intel before respondi
 
 ## 4. Anomalies
 
-Distinct from encounters, **anomalies** are persistent space-zone features that you can choose to engage with. Where encounters are *forced* events with deadlines, anomalies are *opt-in* opportunities you can investigate when you want.
+Distinct from encounters, **anomalies** are persistent space-zone features you discover by scanning rather than ones that ambush you on a deadline. Where encounters are *forced* events, anomalies are *opt-in* — you find them, size them up, and decide whether they're worth your time. A zone holds at most a couple at once.
 
-### Types of anomalies
+### What a scan can turn up
 
-| Type | What It Is |
+A deep-space sweep can surface any of these. The scan readout names the type and warns you what it involves:
+
+| Type | What the scan reveals |
 |---|---|
-| **Derelict** | An abandoned ship or station. Salvageable. (Resolved via `salvage` command.) |
-| **Distress** | A stranded ship needing help. (Investigation pays out or reveals a trap.) |
-| **Cache** | A hidden cache of cargo or credits. Find and recover. |
-| **Pirates** | A pirate base hidden in a zone — attack and loot. |
-| **Mineral Vein** | A deep-space resource node for mining. |
-| **Republic Dead Drop** | An encrypted intelligence cache. Slicing check (Difficult); failure triggers a Republic patrol. |
-| **Mynock** | A swarm of mynocks attached to a wreck or asteroid. (Combat-ish encounter.) |
+| **Derelict Ship** | An unpowered vessel adrift, cargo bay buckled open — salvageable components and credits. |
+| **Distress Signal** | A mayday from a damaged ship. Could be a genuine call or bait for an ambush. |
+| **Hidden Cache** | A cold, armored container — small, not a ship. Concealed cargo or credits. |
+| **Pirate Nest** | Two or three vessels running silent, watching traffic. Expect a fight if you close. |
+| **Asteroid Mineral Vein** | High-grade ore exposed by a recent impact — raw resources to extract. |
+| **Republic Dead Drop** | An encrypted dead-letter cache. Decoding it is a Slicing check (Difficult, diff 20); failure triggers a Republic patrol. |
+| **Mynock Colony** | A swarm of hull parasites that attach on proximity (system damage; an Easy piloting roll shakes them). |
 
 ### Discovery
 
-You discover anomalies by scanning:
+You find anomalies by scanning:
 
 ```
-scan                       — Basic scan of the zone
-deepscan                   — Detailed scan; identifies anomalies and threats
+scan                       — Quick read of the zone; lists anomalies already detected
+deepscan                   — Sensor sweep (Sensors vs. Moderate 15) that finds a hidden anomaly
+deepscan <id>              — Focus-scan one anomaly to resolve its details further
 ```
 
-Scanning reveals anomalies present in the zone. The deepscan provides specific identification (vs. just "an anomaly is here"). You can ignore them; you can investigate them.
+A fresh contact reads as a vague signal. Each successful `deepscan <id>` advances its resolution — one step per scan, two on a critical Sensors roll — until it's fully identified (most types need two or three focus-scans; a faint Republic Dead Drop takes four, a mynock colony just one). Botch a deepscan badly and the sensor backscatter scrambles your array for a 60-second cooldown. A Sensors crew member rolls this at a bonus, so a crewed ship resolves anomalies faster than a solo pilot.
 
-### Investigation
+### Salvaging a derelict
+
+Salvage is the live payout path. Once a **derelict** (or a fresh combat wreck) is fully resolved, anyone aboard can work it — no crew station required:
 
 ```
-investigate <anomaly_id>
+salvage
 ```
 
-Begins the anomaly's branching sequence. Each anomaly type has its own flow — derelicts go through `salvage`; distress signals lead to NPC scenes; caches require skill checks to find and access. Outcomes vary from "you found 5,000 credits" to "the trap activates; combat begins."
+A Technical check — Easy (8) for a quiet derelict, Moderate (15) for a battle wreck — pulls metal, energy, composite, or rare resources, and sometimes a few hundred to a couple thousand credits from a derelict. A critical maxes the haul; a fumble jams your gear and you try again. A Reinforced Salvage Arm ship mod (Guide #5) adds to both the roll and the yield. The wreck is consumed once you've stripped it.
 
-### When to investigate
+### When it's worth it
 
-Anomalies are **risk-and-reward**. Most pay out something — credits, salvage, resources, intel. Some carry real risk (the Republic Dead Drop can trigger a patrol if slicing fails). Investigation takes real-time minutes; if you're rushed, skip the anomalies and continue.
-
-For dedicated spacers, anomaly investigation is a regular income stream. Spending 10-15 minutes investigating two or three anomalies in a transit zone is often worth 1,000-3,000 cr plus interesting loot.
+Anomalies are **risk-and-reward**, and resolving one costs real-time minutes of scanning. A derelict is reliable income; a Republic Dead Drop gambles a Republic patrol against the intel; a pirate nest or mynock colony is a threat to weigh, not free loot. If you're carrying valuable cargo and can't afford a delay or a fight, note the contact and move on. For a dedicated salvager, working the derelicts in a busy transit zone is a steady credit stream.
 
 ---
 
@@ -223,30 +226,30 @@ On the ground, certain rooms carry **environmental hazards** that periodically t
 ### The four hazard types
 
 **Extreme Heat.**
-- **Tested by:** Stamina vs. base difficulty 10 (scales with severity).
-- **Mitigation items:** Water canteen, cooling unit (in your inventory).
-- **Debuff applied:** **Dehydration** — −1D Strength, stacks up to 3x. Persistent until you drink water or leave the heat.
+- **Tested by:** Stamina vs. base difficulty 10 (rolls harder in more severe zones). On a desert tile the difficulty also tracks the twin-sun clock — worst under the noon suns, eased after dark (and floored at a Very Easy 5 so a cool night never makes the check trivial).
+- **Mitigation items:** Water canteen or cooling unit, carried in your inventory. Both are **durable** — once crafted they never wear out.
+- **Debuff applied:** **Dehydration** — −1 pip to *both* Strength and Dexterity per stack, stacking up to 3× (so a fully-stacked −1D Strength **and** −1D Dexterity). It does not tick away on its own; carrying water prevents new stacks but does not clear ones you already have, so treat it as prevention-first.
 - **Environments:** Desert wilderness, barren zones, desert fringe.
 - **Found in:** Tatooine Dune Sea, Jundland Wastes, certain desert outposts.
 
 **Toxic Atmosphere.**
-- **Tested by:** Stamina vs. base difficulty 12.
-- **Mitigation items:** Breath mask.
-- **Debuff applied:** **Toxic Exposure** — −1D Strength. Persistent until you equip a breath mask or leave the area.
+- **Tested by:** Stamina vs. base difficulty 12 (harder in more severe zones).
+- **Mitigation items:** Breath mask, carried in inventory (**durable**).
+- **Debuff applied:** **Toxic Exposure** — a flat −1D Strength (it does not stack). Like dehydration, it sticks once it lands; the mask prevents new exposure rather than curing what you've taken, so carry it *before* you enter.
 - **Environments:** Deep underground zones.
 - **Found in:** Coruscant underworld levels, certain industrial zones, the deep Kessel mines.
 
 **Urban Danger.**
-- **Tested by:** Perception vs. base difficulty 10.
-- **Mitigation items:** None — it's a perception test.
-- **Effect:** **Credit theft** — On failure, you lose some credits (10-50 cr) to a pickpocket. Repeated failures escalate.
+- **Tested by:** Perception vs. base difficulty 10 (harder in rougher zones).
+- **Mitigation items:** Anti-theft alarm — a **single-use** device that foils exactly one pickpocket attempt and is then spent. Without one, your Perception roll is your only defense.
+- **Effect:** **Credit theft** — on a failed Perception roll a pickpocket lifts 5% of your credits, capped at the zone's severity × 100 cr (so 100 cr in a standard lawless room, scaling up in the worst). No lingering debuff — you just lose the credits.
 - **Environments:** Lawless urban zones.
 - **Found in:** Nar Shaddaa undercity rough rooms, certain Coruscant lower-level alleys.
 
 **Radiation.**
-- **Tested by:** Stamina vs. base difficulty (varies by source).
-- **Mitigation items:** Radiation suit.
-- **Debuff applied:** **Radiation Sickness** — varies; can include long-term effects.
+- **Tested by:** Stamina vs. base difficulty **15 (Difficult)**, rising in more severe zones.
+- **Mitigation items:** Radiation suit — a **consumable** that averts up to **10** hazard ticks before it falls apart. Unlike the canteen and mask, the suit wears out, so pack a spare for long irradiated jobs.
+- **Debuff applied:** **Toxic Exposure** — radiation applies the *same* −1D Strength debuff as toxic atmosphere; there is no separate "radiation sickness" effect. It persists the same way (prevention over cure).
 - **Environments:** Manually tagged rooms only (e.g., reactor cores, irradiated wreckage, certain Kessel areas).
 
 ### How hazards work
@@ -255,8 +258,10 @@ On the ground, certain rooms carry **environmental hazards** that periodically t
 
 1. The engine identifies all characters in hazard-tagged rooms.
 2. For each character, it checks: do they have the mitigation item (canteen, breath mask, etc.) in their inventory or equipped?
-3. If they have mitigation: the check is bypassed. No roll. No debuff.
+3. If they have mitigation: the check is bypassed. No roll. No debuff. (Consumable gear — the radiation suit and anti-theft alarm — spends a use each time it averts a tick; durable gear does not.)
 4. If they don't: a skill check is rolled. Pass = no debuff. Fail = the relevant debuff applies (or stacks).
+
+**Mitigation prevents; it does not cure.** Carrying the right item makes step 3 fire — the hazard skips your check entirely — but it does *not* clear a debuff you picked up earlier while unprotected. Dehydration and toxic exposure stick once they land, so the gear is a shield to carry *before* you enter, not a remedy to grab after.
 
 The 5-minute cadence means hazards are **slow attrition**, not instant damage. You can spend 5-10 minutes in extreme heat without consequence if your Stamina rolls hot. Stay 30+ minutes without water, and the dehydration stacks add up.
 
@@ -272,17 +277,17 @@ These are your first indication that a hazard applies. Watch for them; carry mit
 
 ### Mitigation items
 
-All four mitigation items are craftable (Guide #7) and stockable at vendor droids (Guide #17):
+The mitigation gear is craftable (Guide #7) and stockable at vendor droids (Guide #17). All five schematics are taught by the survival-gear crafter **Vek Nurren**:
 
-| Hazard | Mitigation Item | Crafted By |
+| Hazard | Mitigation Item | Durability |
 |---|---|---|
-| Extreme heat | Water canteen | Vek Nurren (or any crafter with the schematic) |
-| Extreme heat | Cooling unit | Venn Kator |
-| Toxic atmosphere | Breath mask | Vek Nurren |
-| Radiation | Radiation suit | Vek Nurren |
-| Urban danger | (none — Perception is the test) | — |
+| Extreme heat | Water canteen | Durable — never wears out |
+| Extreme heat | Cooling unit | Durable — never wears out |
+| Toxic atmosphere | Breath mask | Durable — never wears out |
+| Radiation | Radiation suit | Consumable — 10 aversions, then spent |
+| Urban danger | Anti-theft alarm | Consumable — one pickpocket, then spent |
 
-A spacer or wilderness traveler typically carries a water canteen and a breath mask at minimum. The cost is small (a few hundred cr each) and the protection is essentially free across many hours of play. The mitigation items are inventory-light — they don't consume on use.
+A spacer or wilderness traveler typically carries a water canteen and a breath mask at minimum — both are durable, so once crafted they protect you indefinitely for the price of carrying them. The radiation suit and anti-theft alarm are consumed as they work (the suit averts ten ticks before falling apart; the alarm stops one pickpocket), so carry spares when you expect repeated exposure. The cost is small (a few hundred cr each), and the durable gear's protection is essentially free across many hours of play.
 
 ---
 
@@ -320,7 +325,7 @@ Five concrete pictures.
 
 **Scenario 3 — Distress signal investigation.** You're in deep space. Sensors ping: "Distress signal, unknown source." You `respond investigate`. You arrive at the signal — a damaged freighter, captain pleading for help with supplies. You give him 200 cr worth of medpacs. He thanks you, gives you a contact name in Coronet. Two weeks later that contact pays out a 5,000 cr smuggling job. The investigation paid off in indirect ways.
 
-**Scenario 4 — Wilderness heat death.** You're tracking bandits through the Dune Sea. No canteen. After 30 minutes of real-time, you've failed three Stamina checks at 5-minute intervals — Dehydration is now 3-stacked, you're at −3D Strength. Your soak rolls have collapsed. The next bandit fight goes badly; you're Wounded Twice and barely escape. The hazard nearly killed you. Lesson: carry the canteen.
+**Scenario 4 — Wilderness heat death.** You're tracking bandits through the Dune Sea at midday. No canteen. After 30 minutes of real-time, you've failed three Stamina checks at 5-minute intervals — Dehydration is now 3-stacked: −1D Strength *and* −1D Dexterity. Your soak and your blaster rolls have both sagged a full die. The next bandit fight goes badly; you're Wounded Twice and barely escape — and because the dehydration doesn't lift just because you left the sand, you limp home still penalized until you can shake it. Lesson: carry the canteen *before* you set out — prevention, not cure.
 
 **Scenario 5 — Hunter encounter.** A PC bounty was posted on your character (you're worth 25,000 cr to the right hunter). You're transiting Kessel Approach. The encounter fires: "Bounty Hunter — Boba Vinn intercepts your ship." You see the choices. You `respond fight`. The hunter is a Veteran-tier — better-equipped than a pirate. You take significant damage but survive; the hunter's ship is destroyed. The bounty doesn't pay (you didn't kill the hunter cleanly), but you're alive. Lesson: PC bounty Hunter encounters carry real stakes. Travel armed.
 
@@ -347,10 +352,10 @@ Five concrete pictures.
 | `respond <choice>` | Respond to an active encounter |
 | `stationact <action>` | Crew-station-specific encounter action |
 | `encounter` | View current active encounter status |
-| `scan` | Basic sensor scan of current zone |
-| `deepscan` | Detailed scan — identifies anomalies and threats |
-| `investigate <anomaly_id>` | Begin investigation of a discovered anomaly |
-| `salvage` | Search for salvage in current deep-space zone |
+| `scan` | Quick read of the current zone, including detected anomalies |
+| `deepscan` | Sensor sweep that detects a hidden anomaly |
+| `deepscan <id>` | Focus-scan one anomaly to resolve its details |
+| `salvage` | Strip a fully-resolved derelict or wreck for resources |
 
 ---
 
@@ -365,17 +370,21 @@ Five concrete pictures.
 | Hunter cooldown per ship | 30 minutes |
 | Max active encounters per zone | 1 |
 | Hazard check interval | 5 minutes (300 seconds) |
-| Extreme heat difficulty | Stamina vs. 10 (scales with severity) |
-| Toxic atmosphere difficulty | Stamina vs. 12 |
-| Urban danger difficulty | Perception vs. 10 |
-| Radiation difficulty | Stamina vs. 10+ |
+| Extreme heat difficulty | Stamina vs. 10 base (hotter at noon, eased at night; harder in severe zones) |
+| Toxic atmosphere difficulty | Stamina vs. 12 base |
+| Urban danger difficulty | Perception vs. 10 base |
+| Radiation difficulty | Stamina vs. 15 — Difficult |
+| Urban danger theft | 5% of credits, capped at severity × 100 cr |
 | Bluff difficulty — secured zone patrol | Difficult (20) |
 | Bluff difficulty — contested zone patrol | Moderate (15) |
 | Bluff difficulty — lawless zone patrol | Easy (10) |
 | Pirate demand range | 500-3,000 cr |
-| Pirate negotiate difficulty | Moderate (15) |
+| Pirate negotiate | Moderate (15); success = ½ demand, critical = ¼ |
+| Deepscan check | Sensors vs. Moderate (15) |
 | Anomaly types | 7 (derelict, distress, cache, pirates, mineral vein, republic dead drop, mynock) |
-| Dehydration stack cap | 3x |
+| Republic Dead Drop decode | Slicing vs. Difficult (20); failure → Republic patrol |
+| Dehydration | −1 pip STR + −1 pip DEX per stack, max 3 (→ −1D / −1D) |
+| Toxic exposure / radiation debuff | −1D STR, single stack |
 
 ---
 

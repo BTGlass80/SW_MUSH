@@ -8,8 +8,7 @@ tags: ["cp", "progression", "advancement", "improve", "leveling", "milestones"]
 # CP Progression
 
 **Parsec — WEG D6 Revised & Expanded**
-**BTGlass80 — April 2026**
-**Guide Version 1.0**
+**Guide Version 1.1 — updated June 2026**
 
 ---
 
@@ -23,7 +22,7 @@ Character Points (CP) are your advancement currency. You earn CP over time throu
 
 ## 2. Earning CP: The Tick Economy
 
-**200 ticks = 1 Character Point.** There's a weekly hard cap of 400 ticks (max 2 CP/week from tick accumulation alone). Four income sources feed the tick pool:
+**200 ticks = 1 Character Point.** There's a weekly hard cap of 400 ticks (max 2 CP/week from tick accumulation alone). Three income sources feed the tick pool:
 
 **Source 1 — Passive Participation (Floor)**
 - 10 ticks/day just for being logged in
@@ -35,20 +34,18 @@ Character Points (CP) are your advancement currency. You earn CP over time throu
 - 2 ticks per pose above a 3-pose minimum, capped at 60 ticks per scene
 - 10-minute cooldown between scene bonuses
 - A 30-pose scene earns 54 ticks (the 60-tick cap is reached around 33 poses)
+- Awarded automatically when a tracked scene closes — no command needed
 
 **Source 3 — Kudos (Dominant Source)**
-- Other players award you kudos for good roleplay: `+kudos <player>`
+- Other players award you kudos for good roleplay: `+kudos <player> [message]`
 - **35 ticks per kudos** received
 - Max 3 kudos receivable per rolling 7-day window
 - 7-day lockout per giver→target pair (prevents farming)
 - Three kudos = 105 ticks/week — this is the fastest way to earn CP
 
-**Source 4 — AI Evaluator Trickle**
-- The Director AI can award up to 15 ticks per evaluation for quality roleplay
-- Lowest priority; degrades gracefully when GPU is busy
-- Bonus, not something to rely on
+> **Planned:** an AI-evaluator trickle (the Director awarding a few ticks for standout roleplay) is reserved in the engine but **not yet active** — it is not a source you can earn from today. Don't count on it.
 
-**Target progression:** about **1 CP per week** for an actively roleplaying player who receives regular kudos — up to **2 CP/week** if you consistently hit the weekly tick cap.
+**Target progression:** about **1 CP per week** for an actively roleplaying player who receives regular kudos — up to **2 CP/week** if you consistently hit the weekly tick cap. A passive login-only player earns closer to **1 CP every ~3 weeks**.
 
 ---
 
@@ -77,9 +74,9 @@ So going from 4D+1 to 6D costs 23 CP total. At about 1 CP/week that's roughly 5�
 
 **Three pips = one die.** Each pip costs the same (the current dice count), and every third pip rolls up to a new die. The cost increases at each die boundary.
 
-**Guild training discount:** Members of certain guilds receive a **20% discount** on training costs. If your guild reduces a 5 CP cost, you pay 4 CP instead.
+**Guild training discount:** Members of certain guilds receive a **20% discount** on training costs (rounded down, minimum 1 CP). If your guild reduces a 5 CP cost, you pay 4 CP instead.
 
-**Per WEG R&E rules:** Characters need training time and ideally a teacher whose skill is at least equal to the target level. A teacher halves training time (5 days vs. 10 days at the 5D level). NPC trainers exist in the game world for this purpose.
+**Advancement is instant.** `train` spends the CP and raises the skill immediately — there is no training-time wait and no teacher requirement. The slow accrual of CP through the tick economy *is* the abstraction of WEG R&E's "training time" rule, so the long timeline lives in earning CP, not in spending it. (The teacher/time mechanic on the tabletop is folded into the tick pacing; you never have to hunt down an NPC trainer to raise a combat or general skill. Crafting *schematics* are the one exception — those are taught by trainers; see the Crafting guide.)
 
 ---
 
@@ -122,13 +119,23 @@ Kudos are the social recognition mechanic — the primary way players reward eac
 
 ## 6. Milestone CP Bonuses
 
-In addition to the tick economy, certain achievements award CP directly as one-time bonuses. These are **outside the weekly tick cap** — they're instant rewards.
+In addition to the tick economy, certain achievements award CP directly as one-time bonuses. These are **outside the weekly tick cap** — they're instant grants of character points, not ticks.
 
-**Ship's Log milestones** (from Guide #5, section 12): Visiting all 16 zones (50 CP), scanning all 19 ship types (30 CP), resolving all 7 anomaly types (30 CP), landing on all 4 planets (20 CP), 100 pirate kills (50 CP), 50 smuggling runs (50 CP), 50 trade runs (30 CP).
+**Ship's Log milestones** (tracked automatically as you explore; see Guide #5). Each category awards CP **progressively** at several thresholds, not just at the cap:
+
+| Category | Thresholds (CP each) | Capstone Title |
+|----------|----------------------|----------------|
+| Zones visited | 5 (10) · 10 (25) · 16 (50) | Explorer |
+| Ship types scanned | 5 (10) · 10 (10) · 19 (30) | Spotter |
+| Anomaly types resolved | 4 (15) · 7 (30) | Archaeologist |
+| Planets landed | 4 (20) | Galactic Traveler |
+| Pirate kills | 10 (10) · 50 (25) · 100 (50) | Pirate Hunter |
+| Smuggling runs | 5 (10) · 20 (25) · 50 (50) | Ace Smuggler |
+| Trade runs | 10 (10) · 50 (30) | Merchant Prince |
 
 **Profession chain completion** also awards CP bonuses when profession milestones are reached.
 
-These bonuses give active, exploring players a significant CP advantage over passive players — you could earn 260+ bonus CP from completing all milestones, equivalent to 260 weeks of tick accumulation.
+Completing every Ship's Log milestone is worth **410 CP** in total — equivalent to roughly 400 weeks of passive tick accumulation. Because the thresholds are tiered, an active explorer banks meaningful CP early (the first zone/ship/run tier each pays out fast) and keeps earning toward the capstones. This gives exploring players a substantial advantage over those who only grind ticks.
 
 ---
 
@@ -162,12 +169,12 @@ This pacing is designed so that character advancement is meaningful but never a 
 
 ## 9. Commands Quick Reference
 
-| Command | Syntax | Description |
-|---------|--------|-------------|
-| `+cpstatus` | `cpstatus` | View your CP progression dashboard |
-| `train` | `train <skill>` | Spend CP to advance a skill by 1 pip |
-| `+kudos` | `kudos <player> [message]` | Give kudos to a player for good RP |
-| `scenebonus` | `scenebonus` | Claim scene completion bonus (usually automatic) |
+| Command | Description |
+|---------|-------------|
+| `+cpstatus` | View your CP progression dashboard (aliases: `+cp`, `+advancement`) |
+| `train <skill>` | Spend CP to advance a skill by one pip |
+| `+kudos <player> [message]` | Recognise another player's RP — grants them +35 ticks |
+| `+scenebonus <poses>` | Manually claim a scene completion bonus (normally automatic at scene close) |
 
 ---
 

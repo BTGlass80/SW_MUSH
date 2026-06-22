@@ -1,0 +1,428 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_coruscant_southern_underground.yaml
+#
+# Coruscant Southern Underground Hostile Mob Grind Expansion (2026-06-22)
+#
+# Six roaming hostile NPCs filling the six southern_underground rooms that
+# had no hostile-mob coverage after the initial Coruscant batch
+# (npcs_drop_mob_grind_coruscant.yaml, Jun 21 2026).
+# All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone: southern_underground (security: contested, threat_band: settled)
+#
+# Room spread:
+#   Crystal Jewel Alley x1          (Rodian alley-boss)
+#   Bounty Hunters' Guild Chapter House x1 (Human off-books contractor)
+#   Southern Underground - Tenement Block x1 (Zabrak protection enforcer)
+#   Crystal Jewel Cantina x1        (Nikto debt collector)
+#   Crystal Jewel Cantina - Back Rooms x1 (Trandoshan fixer)
+#   Lower City Medical Post x1      (Aqualish contraband runner)
+#
+# Existing ambient NPCs in these rooms (non-hostile — independent):
+#   Crystal Jewel Cantina: Vossin Drass (cantina keeper, npcs_drop_c2_coruscant_lower)
+#   Crystal Jewel Cantina - Back Rooms: Lori-Vesh (booker, npcs_drop_c2_coruscant_lower)
+#   Lower City Medical Post: Drall Korva (volunteer, npcs_drop_c2_coruscant_lower)
+#   (Alley, Guild Chapter House, Tenement Block: previously unseeded)
+#
+# Prior Coruscant batch (npcs_drop_mob_grind_coruscant.yaml) covers:
+#   Invisible Sector - Main Street, The Ice Crypts, Lower City Black Market,
+#   Factory District, Southern Underground (main corridor), Coruscant Works -
+#   Industrial Sublevel. This batch completes southern_underground coverage.
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats. WEG40120 PDF absent from this worktree;
+#   stats UNVERIFIED against PDF. Grounded in sibling CW NPC patterns
+#   (npcs_drop_mob_grind_coruscant.yaml baselines: Twi'lek enforcer DEX 3D+1
+#   blaster 4D+2; Aqualish stalker DEX 2D+2 melee 4D+1; Nikto DEX 3D blaster 4D).
+# Weapons: blaster_pistol, heavy_blaster_pistol, vibroblade, blaster_carbine
+#   — all keys confirmed in data/weapons.yaml.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # CRYSTAL JEWEL ALLEY — 1 NPC (Rodian alley-boss)
+  # The narrow service alley behind the Crystal Jewel cantina.
+  # Independent merc crews and smuggler outfits rent back-room offices
+  # that face the alley. One Rodian has claimed the alley's access points
+  # as his territory — a self-appointed toll-keeper whose revenue is the
+  # street tax on every crew that uses the alley for client meetings.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Rodian Alley Boss
+    room: "Coruscant - Crystal Jewel Alley"
+    species: Rodian
+    description: >-
+      A Rodian in mismatched body armor — half-plate over the shoulder,
+      padded sleeve on the left arm, nothing protecting the right — stands
+      at the alley's mid-point where two of the back-room office doorways
+      face each other. He is watching both ends of the alley simultaneously
+      in the way that suggests he has held this position long enough to
+      map every approach. His blaster is unsnapped and his antennae are
+      tracking you before you have taken three steps down the alley. Whatever
+      you are doing here, he has already decided you owe him a cut of it.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 4D+2
+        dodge: 4D+1
+        sneak: 4D
+        search: 3D+2
+        streetwise: 3D+1
+        intimidation: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A territorial Rodian who has held the Crystal Jewel alley through
+        consistent low-level violence and a reputation for collecting every
+        debt eventually. He does not negotiate the tax — he states the rate
+        once and draws if the answer is wrong. He is patient and good at
+        waiting, and the alley gives him multiple angles to work from.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Clipped Huttese-accented Basic with the flat cadence of someone
+        who has run this script before. "Alley toll. Pay or leave."
+        If the answer is anything other than credits, the blaster comes out.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires and steps back into the office doorway — using it as cover.*"
+        - "*The blaster tracks you down the alley. He does not chase; he cuts off the exit.*"
+        - "*His antennae flatten. The next shot is aimed at your legs.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # BOUNTY HUNTERS' GUILD CHAPTER HOUSE — 1 NPC (Human off-books contractor)
+  # The Guild's Coruscant operations center, disguised as a warehouse.
+  # Posting boards carry Republic and CIS bounties — and a third category
+  # that officially does not exist. One contractor runs that third category
+  # exclusively, taking jobs the official boards cannot carry without
+  # attracting oversight.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Off-Books Hunter
+    room: "Coruscant - Bounty Hunters' Guild Chapter House"
+    species: Human
+    description: >-
+      A Human hunter in the kind of practical dark clothing that is
+      designed to be nondescript in dim light — not armor, not street
+      clothes, something carefully between. He stands near the third
+      posting board, the one that is always less trafficked than the others,
+      reviewing something on a handheld datapad that he angles away from
+      the room when you enter. The carbine slung across his back has been
+      modified in ways that suggest a specific professional history. When
+      he looks up, his expression is the practiced neutrality of someone
+      whose work requires reading strangers quickly and deciding what
+      category they fall into.
+    char_sheet:
+      attributes:
+        dexterity: 3D+2
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D+2
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 5D
+        dodge: 4D+2
+        investigation: 3D+2
+        search: 4D
+        sneak: 4D+1
+        streetwise: 3D+2
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A professional hunter who runs contracts outside the Guild's official
+        boards — the jobs with political complications, classified targets,
+        or clients who cannot appear in the registry. He is precise and
+        economical; violence is a tool he uses at the right moment and not
+        before. When a stranger shows up at the chapter house and looks like
+        they might be the contract, he stops waiting.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Quiet, unhurried Basic with no detectable accent. He does not
+        explain himself. "Wrong building" is the first line; the carbine
+        coming off the sling is the second.
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*He fires and steps behind the posting board, using the column for cover.*"
+        - "*The carbine swings to track — he is already moving toward the back exit.*"
+        - "*He does not follow. He finds a position and holds it.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # SOUTHERN UNDERGROUND - TENEMENT BLOCK — 1 NPC (Zabrak protection enforcer)
+  # Ten towers over a shared courtyard. Power flickers. Lifts work
+  # half the time. But there is a thriving informal economy here, and
+  # a Zabrak enforcer has inserted himself into it as the zone's
+  # unofficial security service — collect, or your stall disappears.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Tenement Block Enforcer
+    room: "Coruscant - Southern Underground - Tenement Block"
+    species: Zabrak
+    description: >-
+      A Zabrak with the sub-dermal facial tattoos of an Iridonian from one
+      of the northern provinces — the geometric lines radiating out from the
+      horns in a pattern that marks which quarter-city he came from. He is
+      standing in the shared courtyard with the ease of someone who belongs
+      here, which is to say, someone who has made everyone else believe he
+      belongs here through a sustained demonstration of consequences for
+      disagreeing. A vibroblade hangs at his thigh. The courtyard merchants
+      have all learned not to look at him when they are paying. When you
+      walk in, they look at him immediately.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D
+        technical: 2D
+      skills:
+        melee_combat: 4D+2
+        brawling: 3D+2
+        dodge: 3D+1
+        intimidation: 4D
+        streetwise: 3D
+        search: 3D
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 3
+    ai_config:
+      personality: >-
+        A protection-racket enforcer who has held the tenement block's
+        informal economy under his thumb for two years through consistent,
+        proportional violence. He does not threaten — he collects, and
+        anyone who refuses stops being able to operate here. Strangers
+        are either marks or threats. He decides which in the first thirty
+        seconds, and acts on that decision before the conversation develops.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Measured Zabrak-accented Basic that carries no volume because it
+        does not need to. "You are not from the block." A statement, not
+        a question. The vibroblade clears the sheath on the first step
+        toward him.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He closes the distance fast, driving toward the center of the courtyard.*"
+        - "*The vibroblade catches the light. He does not slow down.*"
+        - "*He pivots around the nearest merchant stall — using the space he knows.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # CRYSTAL JEWEL CANTINA — 1 NPC (Nikto debt collector)
+  # The most infamous cantina near the Southern Underground. The
+  # clientele is a cross-section of the lower city. A Nikto works
+  # the room collecting debts for a criminal operation — he moves
+  # table to table with a datapad and a specific kind of attention.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Nikto Debt Collector
+    room: "Coruscant - Crystal Jewel Cantina"
+    species: Nikto
+    description: >-
+      A Kajain'sa'Nikto with the characteristic red skin and facial spines
+      of his subspecies, wearing the off-Hutt-world work clothes of someone
+      employed in the Nikto's traditional role in the lower city economy —
+      which is to say, collecting things that other people owe. He moves
+      through the Crystal Jewel with a small datapad, stopping at tables,
+      having brief conversations, receiving either credits or explanations.
+      When he receives explanations, his expression communicates something
+      specific about their value. His heavy blaster is visible. It is meant
+      to be. When you catch his attention, his route through the cantina
+      ends at your table.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D+2
+        dodge: 3D+2
+        intimidation: 4D
+        streetwise: 3D+1
+        search: 3D
+        brawling: 3D+1
+      weapon: heavy_blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 3
+    ai_config:
+      personality: >-
+        A debt collector whose authority comes from a criminal operation
+        that has been running the Crystal Jewel's lending cycle for three
+        years. He is patient in the cantina context — public scenes are bad
+        for business — but his patience has a specific and visible floor.
+        Once that floor is reached, the heavy blaster comes out and the
+        scene happens anyway.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Low, level Nikto-inflected Basic that carries more weight than its
+        volume suggests. "You owe the Jewel book." A pause. "This is the
+        last collection." The heavy blaster comes out on the next wrong word.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires and takes cover behind the nearest table, flipping it.*"
+        - "*The heavy blaster sweeps the room — he is making space between himself and you.*"
+        - "*He moves toward the bar, using Vella's counter as a firing position.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # CRYSTAL JEWEL CANTINA - BACK ROOMS — 1 NPC (Trandoshan fixer)
+  # Behind the cantina's main floor, a row of small letting-rooms
+  # above the bar. One of these rooms has been rented for six months
+  # by a Trandoshan who uses it as a staging point for criminal
+  # coordination — the kind where visitors are not welcome.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Trandoshan Back-Room Fixer
+    room: "Coruscant - Crystal Jewel Cantina - Back Rooms"
+    species: Trandoshan
+    description: >-
+      A Trandoshan in the narrow back-room corridor, carrying himself
+      with the cramped-in energy of a large predator in a small space.
+      He fills more of the hallway than the hallway was designed for.
+      The cot behind him through the open door holds a footlocker, two
+      sealed cargo crates, and nothing that suggests sleeping. He is
+      looking at you with the flat reptilian attention that reads less
+      as curiosity than as calculation — how much of a problem, what
+      kind, what to do about it. The blaster at his hip has been drawn
+      recently enough that the holster is still unsnapped.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+1
+        technical: 2D
+      skills:
+        blaster: 4D
+        brawling: 4D+1
+        dodge: 3D+1
+        intimidation: 3D+2
+        search: 3D
+        streetwise: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Trandoshan fixer who coordinates the movement of stolen goods and
+        criminal work-orders out of his rented room. He is comfortable with
+        violence — it is a cost of the business, not something he finds
+        excessive — and he applies it to strangers in the back corridor on
+        the theory that their being there is already a problem that needs
+        solving. He is bigger than most opponents and knows it; his first
+        move is to close distance.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Trandoshan Basic — clicking consonants, short sentences. "Wrong
+        hall." If you do not immediately leave, the conversation transitions
+        directly to the blaster. He does not threaten; he acts.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires at close range and steps into the corridor, using his size as an obstacle.*"
+        - "*The blaster comes up. He is moving toward you, not away.*"
+        - "*He fires once and sets his back to the room door — not retreating, repositioning.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # LOWER CITY MEDICAL POST — 1 NPC (Aqualish contraband runner)
+  # An underfunded Republic Health Authority clinic. The supply
+  # deliveries — bacta, pharmaceuticals, medical equipment — create
+  # a regular logistics channel that an Aqualish has been exploiting
+  # as a contraband distribution point. He is not here for treatment.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Aqualish Supply Racketeer
+    room: "Coruscant - Lower City Medical Post"
+    species: Aqualish
+    description: >-
+      A Talid Aqualish — the two-eyed subspecies — standing near the
+      medical post's supply intake area, well away from the waiting
+      room's patients. He is holding a manifest datapad that matches
+      nothing in the clinic's actual delivery schedule. He watches the
+      intake corridor with the specific attention of someone who is
+      waiting for a shipment that is not on the clinic's official log.
+      When you walk into his section of the post, he turns with the
+      full-body pivot of someone who does not like to be approached from
+      behind, and the look he gives you establishes clearly that this
+      half of the building is his.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D
+        technical: 2D
+      skills:
+        melee_combat: 4D+1
+        brawling: 3D+2
+        dodge: 3D
+        intimidation: 3D+2
+        streetwise: 3D
+        search: 2D+2
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        An Aqualish who has been running contraband through the medical
+        post's supply chain for eight months by staying low-profile and
+        leaving the clinic staff alone. He does not want violence at the
+        medical post — the clinic staff would report it and the logistics
+        channel would close. But a stranger appearing in his intake zone
+        is a threat to the channel, and the channel is more valuable than
+        the non-violence preference. He draws fast and hits hard.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Minimal Aqualish Basic — the syntax of someone who learned the
+        language for business, not conversation. "Back. Now." If you
+        are still standing there when he finishes the sentence, the
+        vibroblade answers the rest.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He closes fast, driving with the vibroblade toward the supply corridor.*"
+        - "*The blade arcs wide — he is trying to push you back toward the entrance.*"
+        - "*He does not pursue past the intake door. The channel has to stay clean.*"

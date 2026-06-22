@@ -1,0 +1,441 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_geonosis_arena_expansion.yaml
+#
+# Geonosis Petranaki Arena & Gladiator Barracks — Expansion Mob Grind Batch (2026-06-22)
+#
+# Six roaming hostile NPCs filling the six rooms in geonosis_petranaki and
+# geonosis_barracks zones that had no coverage after the initial arena batch
+# (npcs_drop_mob_grind_geonosis_arena.yaml, Jun 21 2026).
+# All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone spread:
+#   Petranaki Arena - Entrance x1       (Zabrak toll-enforcement racketeer)
+#   Petranaki Arena - Stands x1         (Devaronian wager enforcer)
+#   Petranaki Arena - Preparation Room x1 (Weequay pit handler)
+#   Gladiator Barracks - Holding Cells x1 (Nikto cell floor boss)
+#   Gladiator Barracks - Armory x1      (Geonosian armory overseer)
+#   Gladiator Barracks - Work-Party Staging x1 (Trandoshan run overseer)
+#
+# Rooms confirmed non-secured:
+#   Petranaki Arena - Entrance:      security_level: contested (geonosis_petranaki)
+#   Petranaki Arena - Stands:        security_level: contested (geonosis_petranaki)
+#   Petranaki Arena - Preparation Room: security_level: lawless (geonosis_petranaki)
+#   Gladiator Barracks - Holding Cells: security_level: lawless (geonosis_barracks)
+#   Gladiator Barracks - Armory:     security_level: lawless (geonosis_barracks)
+#   Gladiator Barracks - Work-Party Staging: security_level: lawless (geonosis_barracks)
+#
+# Existing NPCs in these rooms: NONE (verified grep across all
+#   data/worlds/clone_wars/npcs_*.yaml files at HEAD).
+#
+# Prior arena batch covers: Arena Floor x2, Creature Pens x1,
+#   Training Pit x1, Muster Yard x1, Slavemaster's Den x1.
+# This batch completes coverage of both zones.
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats. WEG40120 PDF absent from this worktree;
+#   stats UNVERIFIED against PDF. Grounded in sibling CW NPC patterns
+#   (geonosis_arena.yaml baselines: Geonosian DEX 3D blaster 4D+1;
+#   Human gladiator DEX 3D+1 STR 3D+2; Nikto slavemaster blaster 4D+2).
+# Weapons: heavy_blaster_pistol, blaster_pistol, vibroblade,
+#   blaster_carbine — all keys confirmed in data/weapons.yaml.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # PETRANAKI ARENA - ENTRANCE — 1 NPC (Zabrak toll-enforcement racketeer)
+  # The colonnade entrance: carved arches, vendors, betting stalls,
+  # Geonosian warriors working crowd control. A Zabrak has inserted
+  # himself into the informal economy of the entrance as a self-appointed
+  # "security consultant" — which means anyone running a betting stall
+  # or refreshment cart pays him, or they stop running it.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Zabrak Arena Toll-Taker
+    room: "Geonosis - Petranaki Arena - Entrance"
+    species: Zabrak
+    description: >-
+      A Zabrak with the characteristic facial horns of a Iridonian native,
+      wearing the layered sand-cloth of someone who has been on Geonosis
+      long enough to adapt to the heat but never long enough to look like
+      he belongs here. He moves through the entrance colonnade with the
+      proprietary ease of a man collecting rent — a nod to one vendor, a
+      lingering stop at a betting stall, a look at a second stall that
+      communicates something without words. His heavy blaster hangs at
+      the hip in a worn holster that has been drawn from a significant
+      number of times. When he sees you watching him work, he stops
+      nodding to people and starts looking at you with the full attention
+      of someone deciding whether this is a problem.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        dodge: 3D+2
+        intimidation: 4D
+        streetwise: 3D+1
+      weapon: heavy_blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 3
+    ai_config:
+      personality: >-
+        A Zabrak protection-racket enforcer who has carved out a working
+        arrangement with the arena entrance vendors under the Geonosian
+        authorities' indifferent watch — the hive doesn't care about the
+        entrance economy as long as the fights run and the gate take comes
+        in. He is experienced, unhurried, and treats violence as overhead
+        rather than drama. He draws fast and doesn't negotiate once the
+        blaster is out.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Flat, unhurried Basic — the tone of someone who has had this
+        exact conversation before. "You're in the wrong place." He
+        doesn't wait for a reply; the heavy blaster comes up on the
+        third word.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires and steps behind the nearest vendor stall.*"
+        - "*The heavy blaster swings toward the next position — he keeps moving.*"
+        - "*He fires twice without changing expression and angles for the colonnade arch.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # PETRANAKI ARENA - STANDS — 1 NPC (Devaronian wager enforcer)
+  # The tiered spectator perches, today running at half capacity.
+  # A Devaronian moves through the mid-tier rows collecting on
+  # fight bets placed through a criminal syndicate's book — the
+  # official betting stalls are for Geonosians; the syndicate book
+  # handles off-worlders, and payment is not optional.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Devaronian Wager Enforcer
+    room: "Geonosis - Petranaki Arena - Stands"
+    species: Devaronian
+    description: >-
+      A Devaronian with the angular horns and ruddy complexion of his
+      species, working the mid-tier rows of the arena stands with a
+      small datapad and an expression of professional displeasure. He
+      is moving from off-worlder to off-worlder, checking something on
+      the datapad and either accepting credits or having a quiet word
+      about when those credits might be forthcoming. He does not raise
+      his voice. The blaster on his hip communicates everything the
+      raised voice might have, more efficiently. When he reaches the
+      end of his row and finds you sitting there without a ticket, the
+      professional displeasure sharpens into something more specific.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+2
+        intimidation: 3D+2
+        streetwise: 3D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A syndicate debt-collection specialist who has worked the arena
+        betting circuit long enough to read a situation before it develops.
+        He never shouts and never threatens twice — the first statement
+        is the only one he makes before the blaster settles the question.
+        He is comfortable operating in the stands because the Geonosians
+        don't watch the spectator rows — they watch the floor.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Smooth, lightly accented Basic with Devaronian cadence. "You
+        owe the book." A pause. "This is the collection." Then the
+        blaster comes out.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires and drops into the row below, moving through the perches.*"
+        - "*The blaster tracks you across the stands — he uses the tiers for cover.*"
+        - "*He vaults a row and fires again, angling toward the exit arch.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # PETRANAKI ARENA - PREPARATION ROOM — 1 NPC (Weequay pit handler)
+  # The room where combatants wait before the gate opens: stone benches,
+  # weapon racks, a medical station kept stocked because damaged fighters
+  # don't perform. Currently holding two prisoners in separate corners.
+  # A Weequay has taken over the preparation room's informal logistics
+  # — water, medical access, and armor adjustments all cost extra, and
+  # the extra is enforced at close range.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Weequay Pit Handler
+    room: "Geonosis - Petranaki Arena - Preparation Room"
+    species: Weequay
+    description: >-
+      A lean, leathery-skinned Weequay seated on the edge of a stone
+      bench with a vibroblade resting across his knees and the easy
+      posture of someone who has claimed this room and will not be
+      argued out of it. The two prisoners in the far corners are very
+      careful not to look at him. His arrangement with the preparation
+      room is unofficial — the Geonosian handlers deliver fighters here
+      and stop caring what happens between delivery and the gate opening
+      — and he has turned that gap into a working business. Water is a
+      credit. Medical paste is three. He looks at you entering without
+      a Geonosian escort and the vibroblade comes off his knees.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+1
+        technical: 2D
+      skills:
+        melee_combat: 4D
+        dodge: 3D
+        brawling: 4D+1
+        intimidation: 3D+1
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Weequay who has found a sustainable position in the arena's
+        informal economy by controlling the preparation room's resources.
+        He is not sadistic — he is transactional, and his price list is
+        clear. Unauthorized entry disrupts the business model, which he
+        addresses quickly and with the vibroblade rather than the
+        negotiation he reserves for fighters with credits.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Guttural Basic, minimal words. "Cost you." Then the vibroblade
+        comes off his lap. Flat Weequay cadence; no emotional register.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He steps off the bench with the vibroblade already at guard.*"
+        - "*A short Weequay sound — not speech, not anger — and he closes in.*"
+        - "*He drives low, using the benches for cover, blade leading.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # GLADIATOR BARRACKS - HOLDING CELLS — 1 NPC (Nikto cell floor boss)
+  # Two rows of cramped rock cells sealed with iron lattice: debtors,
+  # captured soldiers, and a few long-timers who have survived enough
+  # bouts to be worth feeding. Nobody speaks much. The drones bring
+  # water-paste. Tally marks count bouts survived beside each cell.
+  # One long-timer has survived enough bouts to make himself the
+  # unofficial authority on this floor — which he enforces.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Nikto Cell Block Boss
+    room: "Geonosis - Gladiator Barracks - Holding Cells"
+    species: Nikto
+    description: >-
+      A heavyset Kajain'sa'Nikto — the red-skinned subspecies from the
+      Kintan wastes — with a tally scratched into the wall beside his
+      cell that runs out of room and continues on the floor in front
+      of the door. His cell door is open. The other cell doors are
+      closed. He has been here longer than any other occupant, and the
+      calculus of that survival record is written into every interaction
+      on this floor: his water-paste ration comes first, his privacy
+      is respected, and the vibroblade he took from a guard who made
+      the mistake of getting too close three months ago is very much
+      still in his possession. He watches you enter the cell block with
+      the unhurried assessment of someone who owns the room and does
+      not feel threatened by the interruption — only calculating.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+2
+        technical: 2D
+      skills:
+        brawling: 4D+2
+        melee_combat: 4D
+        dodge: 3D
+        intimidation: 3D+2
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 3
+    ai_config:
+      personality: >-
+        A gladiatorial survivor who has converted extreme longevity
+        in the cell block into social authority. He does not fight
+        unless he decides to — and he decides quickly and without
+        hesitation. He has killed in the pit and on this floor, and
+        there is no residual weight to either. Uninvited presence in
+        the cell block is an intrusion on his territory, and he
+        handles intrusions the way he handles everything: directly,
+        with the blade he earned.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        A look. A pause while he makes the calculation. A single
+        word in flat Basic: "Wrong floor." Then he moves, and he
+        moves fast for a man of his size.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He comes out of the open cell low and fast — the blade already moving.*"
+        - "*No sound. The vibroblade catches the cell block light and swings.*"
+        - "*He uses the narrow aisle, pushing you toward the latticed walls.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # GLADIATOR BARRACKS - ARMORY — 1 NPC (Geonosian armory overseer)
+  # A barred alcove cut into the rock: arena blades and force-pikes
+  # racked by length, restraint-wire, goads, muzzles sized for a
+  # dozen species, handler gauntlets. Nothing issues without the
+  # slavemaster's mark. A quartermaster-drone keeps the count;
+  # this Geonosian keeps it honest and keeps intruders out.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Geonosian Armory Overseer
+    room: "Geonosis - Gladiator Barracks - Armory"
+    species: Geonosian
+    description: >-
+      A Geonosian in the dark-plated carapace of hive administrative
+      staff, standing at the armory alcove entrance with the compact,
+      multi-jointed posture of a species that evolved for close-quarters
+      tunnel work. The quartermaster-drone buzzes at its shoulder,
+      tracking the count. The Geonosian tracks the door. The two tasks
+      are not the same task — the drone counts; the Geonosian decides
+      who enters the count and who does not. Its blaster carbine is
+      slung across the thorax in the carry-position favored by hive
+      armory staff: accessible in one motion, always present, a message
+      in itself. When you approach the alcove entrance without a
+      slavemaster's authorization slate, the carry-position resolves
+      into a ready-position with the unhurried efficiency of a reflex.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 1D+2
+        perception: 3D
+        strength: 2D+2
+        technical: 1D+2
+      skills:
+        blaster: 4D+1
+        dodge: 3D+1
+        flying: 4D
+        melee_combat: 3D+2
+        search: 3D+1
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Geonosian hive administrator assigned to armory access control —
+        a post that requires methodical pattern-recognition more than
+        combat instinct. Unauthorized access attempts are a defined
+        category in its behavioral protocols: the carbine comes up, the
+        wings half-spread for balance, and it fires at range while the
+        quartermaster-drone logs the incident. It does not pursue far
+        from the alcove entrance; it does not have to.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Three sharp Geonosian command-clicks that need no translation.
+        One word of Basic for off-world visitors: "Authorization." If
+        you don't produce a slate, the carbine is already at shoulder.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*Three clicks — and the carbine fires before the echo fades.*"
+        - "*It spreads its wings for balance and fires again, holding the alcove entrance.*"
+        - "*Sharp Geonosian commands — the drone retreats; the carbine does not.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # GLADIATOR BARRACKS - WORK-PARTY STAGING — 1 NPC (Trandoshan run overseer)
+  # The rear loading gate: cable coils, sand-sleds, restraint frames
+  # sized for acklays, long shock-goads for handling live captures.
+  # From here prisoner work-parties march into the desert to net live
+  # acklays from the Ebon Sea. Few who go return. The Trandoshan who
+  # runs these expeditions keeps his own tally, and it is not of bouts.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Trandoshan Hunt-Run Overseer
+    room: "Geonosis - Gladiator Barracks - Work-Party Staging"
+    species: Trandoshan
+    description: >-
+      A large Trandoshan in the hardened work-leathers of a creature-
+      handling contractor, standing at the staging gate with a blaster
+      carbine slung at his shoulder and the unconcerned posture of
+      someone who spends his working days near things far more dangerous
+      than you. Coils of restraint cable circle his forearm. He is
+      checking the gear manifest for the next capture run — harness
+      fittings, shock-goad charge levels, the carrying capacity of the
+      sand-sleds — with the thoroughness of someone who has lost work
+      parties before and learned to be specific about the difference
+      between adequate preparation and the other kind. He hears you
+      enter and does not turn around immediately. Then he does, and
+      the carbine leaves the shoulder-sling in a single practiced motion
+      while his expression communicates that the manifest can wait.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+1
+        technical: 2D+1
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        brawling: 3D+2
+        survival: 4D
+        intimidation: 3D
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Trandoshan creature-handling contractor who has run acklay
+        capture expeditions long enough to think of danger as a
+        logistical variable rather than a threat. Interruption at
+        the staging gate while he is preparing a run is an operational
+        problem he addresses efficiently: the carbine, distance, and
+        the knowledge that he can track anything across Geonosian
+        desert terrain if it runs. He does not chase far — but far
+        enough.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Trandoshan Basic — a growl layered under the words. "Off the
+        gate." He does not elaborate; the carbine is already in his
+        hands by the time the second word lands.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires and steps behind the restraint-frame stack.*"
+        - "*The carbine sweeps across the staging gate — he knows this space.*"
+        - "*A Trandoshan hunting-sound. Then the carbine fires again.*"

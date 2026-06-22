@@ -251,7 +251,7 @@ class KudosCommand(BaseCommand):
         "\n"
         "EXAMPLE: +kudos Tundra Great scene at the cantina!"
     )
-    usage = "kudos <player name>"
+    usage = "kudos <player name> [message]"
 
     async def execute(self, ctx: CommandContext) -> None:
         char = ctx.session.character
@@ -259,28 +259,42 @@ class KudosCommand(BaseCommand):
             await ctx.session.send_line(ansi.error("Not logged in."))
             return
 
-        target_name = (ctx.args or "").strip()
-        if not target_name:
-            await ctx.session.send_line(ansi.error("Usage: kudos <player name>"))
+        raw = (ctx.args or "").strip()
+        if not raw:
+            await ctx.session.send_line(ansi.error("Usage: kudos <player name> [message]"))
             await ctx.session.send_line(
                 ansi.dim(f"Kudos recognise excellent RP.  Each player can receive up to {KUDOS_PER_WEEK} kudos/week.")
             )
             return
 
         # Find target — any online player (v23: removed same-room requirement
-        # to reduce bottleneck at small population sizes)
-        target = None
-        tl = target_name.lower()
-        for s in ctx.session_mgr._sessions.values():
-            if (s.character and
-                    s.character["name"].lower().startswith(tl) and
-                    s.character["id"] != char["id"]):
-                target = s.character
-                break
+        # to reduce bottleneck at small population sizes).
+        def _find_target(prefix: str):
+            pl = prefix.lower()
+            for s in ctx.session_mgr._sessions.values():
+                if (s.character and
+                        s.character["name"].lower().startswith(pl) and
+                        s.character["id"] != char["id"]):
+                    return s.character
+            return None
+
+        # Parse "<player> [message]". Names may be multi-word, so first try the
+        # full argument as a name prefix (no message); only if that resolves to
+        # nobody do we peel the first whitespace token as the name prefix and
+        # treat the remainder as an optional recognition message. This makes the
+        # documented `kudos <player> <message>` form actually resolve the target
+        # (previously a trailing message broke the startswith match).
+        message = ""
+        target = _find_target(raw)
+        if not target and " " in raw:
+            name_part, rest = raw.split(None, 1)
+            target = _find_target(name_part)
+            if target:
+                message = ansi.sanitize_for_display(rest.strip())
 
         if not target:
             await ctx.session.send_line(
-                ansi.error(f"No online player named '{target_name}' found.")
+                ansi.error(f"No online player named '{raw.split()[0]}' found.")
             )
             return
 
@@ -299,13 +313,14 @@ class KudosCommand(BaseCommand):
                 f"+{ticks} ticks awarded to them."
             )
 
-            # Notify target if online
+            # Notify target if online (include the recognition message if given)
             target_sess = ctx.session_mgr.find_by_character(target["id"])
             if target_sess:
+                note = f'  {ansi.DIM}"{message}"{ansi.RESET}' if message else ""
                 await target_sess.send_line(
                     f"  {ansi.BRIGHT_CYAN}[KUDOS]{ansi.RESET} "
                     f"{ansi.player_name(giver_name)} recognised your RP with kudos! "
-                    f"+{ticks} ticks."
+                    f"+{ticks} ticks.{note}"
                 )
 
             # Achievement: kudos_received (for target)

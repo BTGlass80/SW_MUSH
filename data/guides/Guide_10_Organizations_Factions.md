@@ -39,9 +39,11 @@ Beyond those six, there are two **NPC-only factions** that you'll encounter but 
 - **The Sith** — a covert dark-side cabal directing CIS strategy from off-stage. Players never see them as such; they see only Count Dooku publicly leading the CIS, and dark-side events the Director narrates.
 - **The Separatist Council** — the CIS's oligarchic inner circle (Nute Gunray, Wat Tambor, San Hill, et al.). Their decisions surface as CIS faction policy; you don't interact with them directly as a player.
 
-And six **professional guilds** that cut across faction lines — see §5.
+And six **professional guilds** that cut across faction lines — see §4.
 
-You can be a member of one faction at a time. You can additionally hold membership in any number of guilds. So a Republic clone officer who's also in the Medics' Guild is fully valid; a CIS agent who's also in the Slicers' Guild is fully valid; a Hutt enforcer who's also in the Mechanics' Guild is fully valid. Guilds are neutral.
+You can be a member of one faction at a time. Switching factions later carries a **7-day cooldown** and a reputation hit with the cause you abandon, and no account may run two characters in the same faction at once — so the choice has weight, it isn't a hat you swap between sessions.
+
+You can additionally hold membership in **up to three guilds**. So a Republic clone officer who's also in the Medics' Guild is fully valid; a CIS agent who's also in the Slicers' Collective is fully valid; a Hutt enforcer who's also in the Mechanics' Guild is fully valid. Guilds are neutral.
 
 ---
 
@@ -51,9 +53,9 @@ You can be a member of one faction at a time. You can additionally hold membersh
 |---|---|---|---|---|
 | Galactic Republic | Republic / Order | Nar Shaddaa - Corellian Sector Promenade | 7 (Conscript → Commander) | Chargen or anytime |
 | Confederacy of Independent Systems | Separatist | Nar Shaddaa - The Burning Deck Cantina | 6 (Sympathizer → Commander) | Chargen or anytime |
-| Jedi Order | Jedi / Light | Coruscant - Jedi Temple Main Hall | 3 (Padawan → Master) | Village quest completion required |
+| Jedi Order | Jedi / Light | Coruscant - Jedi Temple Entrance Hall | 3 (Padawan → Master) | Village quest completion required |
 | Hutt Cartel | Criminal | Nar Shaddaa - Hutt Emissary Tower - Audience Chamber | 6 (Associate → Vigo) | Chargen or anytime |
-| Bounty Hunters' Guild | Independent / Contract | Nar Shaddaa - Bounty Hunters' Quarter | 5 (Novice → Veteran) | Anytime after dues paid |
+| Bounty Hunters' Guild | Independent / Contract | Nar Shaddaa - Bounty Hunters' Quarter | 6 (Novice → Guildmaster) | Anytime |
 | Independent | None | (no HQ) | 1 (Freelancer) | Default starting affiliation |
 
 Why so many faction HQs on Nar Shaddaa? Because Nar Shaddaa is the Smuggler's Moon — Hutt-controlled, neutral, where everyone has business and no one is officially supposed to. The Republic and CIS both maintain "trade missions" on Nar Shaddaa that function as recruitment offices. The Hutts let them coexist because it's good for business. Coruscant has Republic and Jedi presence but no CIS recruiting (you'd be arrested on sight). The Outer Rim has Hutt and bounty hunter presence but no Republic or CIS infrastructure.
@@ -134,7 +136,7 @@ The Hutts' `hutt_black_market` permission at Operator and above unlocks restrict
 
 ### Bounty Hunters' Guild
 
-The Guild doesn't take sides in the war — it takes contracts. Both Republic and CIS put bounties on each other's agents. The Guild processes them all with professional neutrality. Membership requires demonstrated competence and payment of dues — you can't just walk in and join. The Guild office in the Nar Shaddaa Bounty Hunters' Quarter (a few corridors away from the Hutt Emissary Tower) is the standard intake point; CT-7842 in Mos Eisley brokers offworld contracts; the Hutt Council on Nal Hutta posts the highest-value ones.
+The Guild doesn't take sides in the war — it takes contracts. Both Republic and CIS put bounties on each other's agents. The Guild processes them all with professional neutrality. Anyone can enroll as a **Novice** (`faction join bounty_hunters_guild`), but enrollment is only the doorway: the contract board doesn't open to you until you make **Journeyman** (15 rep), and the right to post bounties on other players is gated higher still, at **Senior Hunter** (55 rep). Competence is proven on the ladder, not at the door. The Guild office in the Nar Shaddaa Bounty Hunters' Quarter (a few corridors away from the Hutt Emissary Tower) is the standard intake point; CT-7842 in Mos Eisley brokers offworld contracts; the Hutt Council on Nal Hutta posts the highest-value ones.
 
 **Ranks:**
 
@@ -145,6 +147,7 @@ The Guild doesn't take sides in the war — it takes contracts. Both Republic an
 | 2 | Hunter | 35 | — | guild_bounty_board |
 | 3 | Senior Hunter | 55 | — | + post_player_bounties |
 | 4 | Veteran | 75 | — | + guild_vote |
+| 5 | Guildmaster | 90 | — | faction_admin |
 
 The most important Guild permission, available at Journeyman and above, is **bounty hunter PvP override** — see [Security Zones](#/guide/security-zones) §4. With an active claimed contract, you can attack your target in a contested zone without going through challenge/accept. The contract is the consent. This is what makes bounty hunting a playable profession rather than a roleplay aesthetic.
 
@@ -177,18 +180,20 @@ Some things to know:
 
 Guilds are era-agnostic professional organizations. They don't take sides in the war; they take members. A guild membership signals competence in a craft and unlocks craft-specific tools, contracts, and discounts. Six guilds are available:
 
-| Guild | Profession | What It Unlocks |
+| Guild | Professional Domain | Weekly Dues |
 |---|---|---|
-| Mechanics' Guild | Vehicle/ship repair | Discounted parts, repair contracts, garage access |
-| Shipwrights' Guild | Starship construction & mod | Hull design templates, mod slot certifications |
-| Medics' Guild | First aid & medicine | Bacta access, surgical permits, medical contracts |
-| Slicers' Guild | Computer programming & security | Software libraries, slicing contracts, dead-drop access |
-| Entertainers' Guild | Performance & gambling | Cantina performance slots, sabacc tournament invites |
-| Scouts' Guild | Survival & wilderness | Map data, scout routes, frontier contracts |
+| Mechanics' Guild | Vehicle & ship repair | 50 cr |
+| Shipwrights' Guild | Starship construction & modification | 75 cr |
+| Medics' Guild | First aid, bacta, combat medicine | 50 cr |
+| Slicers' Collective | Computer intrusion & electronic warfare | 60 cr |
+| Entertainers' Guild | Performance, music, gambling | 25 cr |
+| Scouts' Guild | Survival, pathfinding, wilderness | 40 cr |
 
-You can hold any number of guild memberships. They cost dues (typically 50–100 credits/week per guild) and require demonstrating skill in the relevant area before you'll be admitted. The Mechanics' Guild won't let you in without a Mechanical Repair check above a threshold; the Entertainers' Guild requires a Performance audition.
+**The concrete benefit of guild membership is a flat 20% discount on the CP cost of skill training** (see [CP Progression](#/guide/cp-progression)). It applies the moment you're in *any* guild and does **not** stack — being in three guilds costs no less to train than being in one, so extra memberships are about identity and reach, not deeper discounts. Each guild posts a modest weekly due (the rate shown above, 25–75 credits) as the price of carrying its credentials.
 
-Guild membership is **independent of faction**. A Jedi Knight in the Medics' Guild is fully canonical (some Jedi do specialize in healing). A Hutt Cartel Enforcer in the Slicers' Guild is fine — the Slicers don't care who your patron is, only whether you can crack the encryption.
+You can hold **up to three guild memberships** at once. Joining is immediate — `guild join <code>` enrolls you on the spot; there's no audition or skill check at the door. Beyond the discount, a guild is the professional identity your character wears: the Mechanics' Guild marks you as a hands-on engineer, the Slicers' Collective as someone who lives inside other people's systems. It shapes how you roleplay and how other characters read you, even when it isn't changing a die roll.
+
+Guild membership is **independent of faction**. A Jedi Knight in the Medics' Guild is fully canonical (some Jedi do specialize in healing). A Hutt Cartel Enforcer in the Slicers' Collective is fine — the slicers don't care who your patron is, only whether you can crack the encryption.
 
 For the actual craft systems behind these guilds, see [Crafting](#/guide/crafting), [Sabacc & Entertainer](#/guide/sabacc-entertainer), and the relevant sourcebook-derived material.
 

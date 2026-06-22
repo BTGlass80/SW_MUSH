@@ -205,3 +205,89 @@ def test_era_clean_no_imperial():
     assert "imperial army" not in lower, "B3 era violation: 'Imperial Army' in guide"
     assert "rebel alliance" not in lower, "B3 era violation: 'Rebel Alliance' in guide"
     assert "stormtrooper" not in lower, "B3 era violation: 'stormtrooper' in guide"
+
+
+# ── F. Authoritative quality pass (2026-06-22): data accuracy vs the seed ──────
+# Cross-checks Guide_10 against data/worlds/clone_wars/organizations.yaml and
+# engine/organizations.py ground truth. The prior pass corrected §10 commands;
+# this pass corrected the rank tables, guild model, and phantom-mechanic claims.
+
+def test_bhg_guildmaster_rank_present():
+    """BHG has 6 ranks (0-5); the level-5 Guildmaster (faction_admin) must be
+    documented — the seed defines it and the guide previously stopped at Veteran."""
+    text = read_guide()
+    assert "Guildmaster" in text, (
+        "BHG rank table must include the Guildmaster rank (level 5, min_rep 90) "
+        "per organizations.yaml"
+    )
+    assert "Novice → Veteran" not in text, (
+        "BHG rank-count must read 'Novice → Guildmaster' (6 ranks), not "
+        "'Novice → Veteran' (5)"
+    )
+
+
+def test_guild_cap_is_three_not_unlimited():
+    """join_guild enforces MAX_GUILD_MEMBERSHIPS = 3; the guide must not claim
+    'any number of guilds.'"""
+    text = read_guide()
+    lower = text.lower()
+    assert "any number of guild" not in lower, (
+        "Guild cap is 3 (MAX_GUILD_MEMBERSHIPS), not 'any number of guilds'"
+    )
+    assert "up to three guild" in lower, (
+        "Guide must state the up-to-three-guild membership cap"
+    )
+
+
+def test_guild_dues_range_accurate():
+    """organizations.yaml guild dues are 25–75 cr/week (not the old 50–100 claim)."""
+    text = read_guide()
+    assert "50–100" not in text, (
+        "Stale guild-dues range '50–100' — real seed dues are 25–75 cr/week"
+    )
+    assert "25–75" in text, "Guide must document the real 25–75 cr/week guild-dues range"
+
+
+def test_no_phantom_guild_join_skillgate():
+    """join_guild enforces NO skill check / audition to be admitted — the guide
+    must not claim those phantom gates exist."""
+    text = read_guide()
+    assert "Performance audition" not in text, (
+        "Phantom mechanic: join_guild requires no Performance audition"
+    )
+    assert "Mechanical Repair check above a threshold" not in text, (
+        "Phantom mechanic: join_guild requires no Mechanical Repair skill check"
+    )
+
+
+def test_real_guild_benefit_cp_discount_documented():
+    """The one real mechanical guild benefit is the flat 20% CP training discount
+    (GUILD_CP_DISCOUNT = 0.20, get_guild_cp_multiplier)."""
+    text = read_guide()
+    assert "20%" in text, "Guide must document the 20% CP training discount"
+    assert "#/guide/cp-progression" in text, (
+        "Guide must cross-link CP Progression for the discount mechanic"
+    )
+
+
+def test_slicers_collective_real_name():
+    """The seed display name is 'Slicers' Collective', not 'Slicers' Guild'."""
+    text = read_guide()
+    assert "Slicers' Collective" in text, (
+        "Guild's real name is 'Slicers' Collective' per organizations.yaml"
+    )
+    assert "Slicers' Guild" not in text, (
+        "Stale name 'Slicers' Guild' — real display name is 'Slicers' Collective'"
+    )
+
+
+def test_jedi_hq_real_room_name():
+    """Jedi HQ seed room is 'Jedi Temple - Entrance Hall', not a phantom
+    'Main Hall' room."""
+    text = read_guide()
+    assert "Entrance Hall" in text, (
+        "Jedi HQ room is the Entrance Hall (hq_room_name in organizations.yaml)"
+    )
+    assert "Main Hall" not in text, (
+        "Phantom room: the Jedi HQ is 'Entrance Hall', not 'Main Hall'"
+    )

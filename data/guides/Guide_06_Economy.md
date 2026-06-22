@@ -8,8 +8,8 @@ tags: ["economy", "credits", "money", "missions", "bounty", "smuggling", "trade"
 # Economy: Missions, Bounties, Smuggling & Trade
 
 **Parsec — WEG D6 Revised & Expanded**
-**BTGlass80 — April 2026**
-**Guide Version 1.0**
+**BTGlass80 — June 2026**
+**Guide Version 2.0**
 
 ---
 
@@ -36,24 +36,26 @@ The mission board is the primary reliable income source. It holds **5–8 proced
 | Type | Skill Tested | Pay Range | Partial Pay |
 |------|-------------|-----------|-------------|
 | Delivery | Stamina | 100–300 cr | 100% (always full) |
-| Combat | Blaster | 300–1,000 cr | 50% |
-| Investigation | Search | 200–800 cr | 75% |
-| Social | Persuasion | 500–2,000 cr | 75% |
-| Technical | Space Transports Repair | 300–1,500 cr | 50% |
-| Medical | First Aid | 200–1,000 cr | 75% |
-| Smuggling | Con | 500–5,000 cr | 50% |
-| Bounty | Streetwise | 300–3,000 cr | 50% |
-| Slicing | Computer Prog/Repair | 400–2,000 cr | 50% |
-| Salvage | Search | 200–1,000 cr | 75% |
+| Combat | Blaster | 300–1,000 cr | 40% |
+| Investigation | Search | 200–800 cr | 40% |
+| Social | Persuasion | 500–2,000 cr | 40% |
+| Technical | Space Transports Repair | 300–1,500 cr | 40% |
+| Medical | First Aid | 200–1,000 cr | 40% |
+| Smuggling | Con | 500–5,000 cr | 40% |
+| Bounty | Streetwise | 300–3,000 cr | 40% |
+| Slicing | Computer Prog/Repair | 400–2,000 cr | 40% |
+| Salvage | Search | 200–1,000 cr | 40% |
+
+Every type except Delivery pays a flat **40%** on a partial success (Delivery always pays in full). The number was levelled to 40% across the board in the economy audit so no mission type is a strictly better partial-pay bet than another.
 
 **Space mission types (4):**
 
 | Type | Pay Range | Requirement |
 |------|-----------|-------------|
-| Patrol | 300–1,500 cr | Hold a zone for 120 ticks |
-| Escort | 500–2,000 cr | Protect NPC trader to destination |
-| Intercept | 500–2,500 cr | Destroy N hostile ships in a zone |
-| Survey Zone | 300–1,200 cr | Resolve at least 1 anomaly in a zone |
+| Patrol | 600–1,000 cr | Hold a zone for 120 ticks |
+| Escort | 1,500–2,500 cr | Protect NPC trader to destination |
+| Intercept | 2,000–3,000 cr | Destroy 2–4 hostile ships in a zone |
+| Survey Zone | 1,200–1,800 cr | Resolve at least 1 anomaly in a zone |
 
 **Mission lifecycle:** AVAILABLE → ACCEPTED → COMPLETE/EXPIRED/FAILED. One active mission per character at a time. Unclaimed missions expire after 1 hour; accepted missions expire after 2 hours.
 
@@ -67,7 +69,7 @@ The mission board is the primary reliable income source. It holds **5–8 proced
 ```
 Bare shorthands still resolve: `missions` (= `/board`), `accept <id>`, `complete`/`turnin`, `abandon`/`dropmission`.
 
-**Completion:** When you type `+mission/complete` at the appropriate location, the game rolls the relevant skill against a difficulty scaled by the reward amount. Full success pays full reward. Partial success (miss by ≤4) pays a fraction. Failure pays nothing. Critical success (Wild Die exploded) gives a bonus. Fumble (Wild Die = 1) may impose a penalty.
+**Completion:** When you type `+mission/complete` at the appropriate location, the game rolls the relevant skill against a difficulty scaled by the reward amount (an 8/11/14/16/19/21 ladder — bigger payouts are harder). Full success pays the full reward. A near miss (margin ≥ −2, i.e. you missed by 2 or less) pays the partial fraction above. Missing by more pays nothing. A critical success (the Wild Die explodes) adds a **+20%** bonus on top. A fumble (Wild Die = 1) colors the failure message but imposes **no extra credit penalty** — you simply earn nothing, the same as any other miss.
 
 ---
 
@@ -85,13 +87,13 @@ The bounty board offers **hunting contracts** — targets are actual NPCs spawne
 | Veteran | 1,500–3,000 cr | Uncommon (2) | Dangerous NPC |
 | Superior | 3,000–10,000 cr | Rare (1) | Elite NPC |
 
-**Bounty lifecycle:** POSTED → CLAIMED → COLLECTED/EXPIRED/FAILED. Board holds 3–5 contracts. Refreshes every 45 minutes. Unclaimed bounties expire after 3 hours; claimed bounties expire after 4 hours.
+**Bounty lifecycle:** POSTED → CLAIMED → COLLECTED/EXPIRED/FAILED. The board refills toward 4 contracts (2 minimum). Refreshes every 45 minutes. Unclaimed bounties expire after 3 hours; claimed bounties expire after 4 hours.
 
 **Investigation phase:** Before engaging, you can track your target:
 ```
-+bounty/track             — Use Search/Streetwise to locate your target
++bounty/track             — Use Search, Streetwise, or Tracking to locate your target
 ```
-This reveals the target's current room without requiring direct combat.
+The track rolls the best of your Search, Streetwise, and Tracking against a per-tier difficulty (6 / 10 / 13 / 17 / 21 from Extra up to Superior). Success reveals the target's current room without requiring direct combat.
 
 **Commands** — every bounty verb lives under the `+bounty/<switch>` umbrella:
 ```
@@ -101,9 +103,9 @@ This reveals the target's current room without requiring direct combat.
 +bounty/track             — Locate your target (Search/Streetwise)
 +bounty/collect           — Collect the reward after defeating the target
 ```
-Bare shorthands still resolve: `bounties` (= `/board`), `claimbounty`, `tracktarget`, `collectbounty`. A claimed contract you don't finish in time simply expires — there is no manual abandon.
+Bare shorthands still resolve: `bounties` (= `/board`), `claimbounty`, `tracktarget`, `collectbounty`. Your active contract also shows under `+mybounty`. A claimed contract you don't finish in time simply expires — there is no manual abandon.
 
-**Target archetypes:** Thugs, smugglers, bounty hunters, scouts, B1 droids, CIS agents, Hutt enforcers — procedurally generated with appropriate stats and equipment for their tier.
+**Target archetypes:** Thugs, smugglers, rogue bounty hunters, scouts, deserter clone troopers, ARC renegades, and corrupt Republic officers — procedurally generated with appropriate stats and equipment for their tier (the roster era-maps to the active timeline, so the Clone Wars fields clone/ARC/Republic figures rather than the underlying generic keys).
 
 ---
 
@@ -127,14 +129,14 @@ Smuggling is the high-risk, high-reward income path. You pick up contraband carg
 | Local | Grey | Same planet | 200–500 cr | 0% |
 | Black Market | Black | Same planet | 500–1,500 cr | 20% |
 | Interplanetary | Black | Nar Shaddaa | 1,500–3,000 cr | 30% |
-| Spice Run | Contraband | Kessel | 3,000–6,000 cr | 55% |
-| Core Run | Spice | Corellia | 4,000–8,000 cr | 65% |
+| Spice Run | Contraband | Geonosis | 3,000–6,000 cr | 55% |
+| Core Run | Spice | Coruscant | 4,000–8,000 cr | 65% |
 
-**Patrol encounters:** If intercepted, you roll Con or Sneak (your choice) against the tier's difficulty. Success means you slip past. Failure means cargo confiscated + a fine of 50% of the job reward.
+**Patrol encounters:** If intercepted, you roll Con or Sneak (your choice) against the tier's difficulty. Success means you slip past. Failure means cargo confiscated + a fine. The fine is **50%** of the job reward on the low tiers (Grey/Black Market) but only **25%** on the high tiers (Contraband/Spice Run) — at those tiers the patrol *chance* itself is the deterrent, so a bust stings without wiping you out.
 
-**Director integration:** A LOCKDOWN alert from the Director AI adds +1 tier of patrol risk (making tier 0 behave like tier 1, etc.).
+**Director integration:** A LOCKDOWN alert from the Director AI adds +1 tier of patrol risk (shifting the intercept chance up ~30% and raising the inspection difficulty by +5). A zone-wide security checkpoint stacks on top of any lockdown.
 
-**Planet arrival checks:** Extra patrol check on hyperspace arrival, stacking with launch check. Corellia (Core World) has 60% patrol frequency; Tatooine (Outer Rim) only 10%.
+**Planet arrival checks:** Extra patrol check on hyperspace arrival, stacking with the launch check. Coruscant (Republic capital) runs the heaviest customs presence at 60%, Geonosis (CIS war front) 50%, Nar Shaddaa 15%, and Tatooine (Outer Rim) only 10%.
 
 **Commands** — every smuggling verb lives under the `+smuggle/<switch>` umbrella (you must be near a criminal contact to browse or accept):
 ```
@@ -150,11 +152,13 @@ Bare shorthands still resolve: `smugjobs`/`underworld` (= `/board`), `takerun`, 
 
 ## 5. Cargo Trading
 
-(Detailed in Guide #5, section 8 — summarized here for completeness.)
+(Detailed in Guide #5 *Space Systems* — summarized here for completeness.)
 
-Buy-low-sell-high speculative trading between planets. 8 trade goods with planet-specific source (50% price) and demand (200% price) multipliers. A Bargain skill check modifies the price by ±10%. Cargo stored in ship's hold.
+Buy-low-sell-high speculative trading between planets. **8 trade goods**, each with planet-specific **source** pricing (**70%** of base — the good is produced cheaply there) and **demand** pricing (**140%** of base — it's scarce/needed there). A Bargain skill check modifies the price by ±10%. Cargo rides in your ship's hold.
 
-**Key vulnerability (from audit):** Static price multipliers with no supply limits mean a single run of Luxury Goods from Corellia to Tatooine in a full YT-1300 generates ~240,000 cr/hr — 120x the design target. This is a known issue awaiting dynamic supply pools.
+Every one of the six Clone Wars launch worlds (Tatooine, Nar Shaddaa, Kuat, Coruscant, Kamino, Geonosis) is both a source for something and a demand for something else, so cargo forms a real multi-world web rather than one fat route. For example, **Luxury Goods** are cheap on Nar Shaddaa (source, 70%) and sell high on Coruscant or Tatooine (demand, 140%).
+
+**On the spread:** the source/demand multipliers were deliberately narrowed from an earlier 50%/200% (a 4:1 ratio) to today's 70%/140% (2:1). The old 4:1 spread was an exploit — a full freighter on the single viable luxury route could clear far more per hour than the design targets in §1 allow. The 2:1 spread is still very profitable for an attentive trader but no longer breaks the curve.
 
 ---
 
@@ -204,7 +208,7 @@ Bare `hunting` resolves to the same display. Credits earned this way are tagged 
 
 ## 7. Other Income Sources
 
-**Entertainment:** The `perform` command in cantina zones rolls a Perception-based check. Success earns credits based on performance quality. A niche but risk-free income.
+**Entertainment:** The `perform` command in cantina zones rolls a Persuasion check (or Musical Instrument, if you have that skill — it's preferred when present). Success earns credits scaled by performance quality and audience size, on a 10-minute cooldown. A niche but risk-free income. (See Guide #23 for the full Entertainer track.)
 
 **Medical healing:** Player-to-player healing via `heal <player>` / `healaccept`. The healer rolls First Aid. Credits are exchanged P2P (the patient pays).
 
@@ -218,20 +222,20 @@ Bare `hunting` resolves to the same display. Credits earned this way are tagged 
 
 | Sink | Cost | Frequency |
 |------|------|-----------|
-| Ship fuel (launch) | 50–100 cr | Per launch |
+| Ship fuel (launch) | 60–100 cr | Per launch |
 | Ship fuel (hyperspace) | 100–600 cr | Per jump |
-| Docking fees | 25–38 cr | Per landing |
+| Docking fees | 19–38 cr (base 25, scaled by zone security) | Per landing |
 | Weapon repair | 50–250 cr | When condition degrades |
-| NPC weapon purchases | 275–5,000 cr | One-time per weapon |
+| NPC weapon purchases | 25–7,000 cr | One-time per weapon |
 | NPC crew wages | 30–1,000 cr | Every 4 hours per crew |
 | Vendor droid | 2,000–12,000 cr | One-time purchase |
 | Vendor listing fee | 1–2% | Per sale |
 | Housing deposit | 500 cr | One-time |
 | Housing rent | 50 cr/week (Tier 1) | Weekly |
-| Smuggling fines | 50% of job reward | On patrol failure |
+| Smuggling fines | 25–50% of job reward (tiered) | On patrol failure |
 | Sabacc house rake | 10% of pot | Per game |
 
-**Weapon durability** creates an ongoing repair cycle — every attack degrades weapon condition by 1 point. When condition hits 0, the weapon needs repair from an NPC. This is a well-designed lifecycle sink.
+**Weapon durability** creates an ongoing repair cycle — every attack degrades weapon condition by 1 point (lightsabers by 2). When condition hits 0, the weapon is broken and needs repair from an NPC. This is a well-designed lifecycle sink.
 
 ---
 
@@ -284,7 +288,7 @@ CIS and Hutt Cartel commissaries follow the same pattern — a basic loadout at 
 ```
 +commissary                  — Browse your faction's catalog
 +commissary buy <key>        — Purchase an item (debits credits)
-+commissary sell <key>       — Sell a commissary item back (partial refund)
++commissary sell <key>       — Sell a commissary item back (50% refund)
 ```
 
 Items bought via commissary behave identically to the same items acquired elsewhere. The `key` is shown in the catalog listing.
@@ -314,7 +318,7 @@ Killing certain wilderness creatures triggers an automatic **field-dressing chec
 | Hitcher Crab | Water sacs | Chemical | 8 |
 | Spor Crawler | Spor venom | Chemical | 10 |
 
-Small nuisance creatures (worrt, shredder bat, spor swarms) yield nothing — the field-dressing system rewards big-predator kills by contrast.
+Small nuisance creatures (worrt, shredder bat) yield nothing — the field-dressing system rewards big-predator kills by contrast. (The Spor Crawler in the table above *is* a real harvest target, DC 10 — don't let the name fool you.)
 
 **Economy note:** Spoils are **not credits**. They're crafting resources (organic or chemical) that go into the same inventory pool as wilderness-harvested materials. They're not bought by NPC vendors directly; they either go into your crafting queue or sell P2P via a vendor droid buy-order. This means spoils add no inflation to the credit economy — they feed directly into crafting demand.
 

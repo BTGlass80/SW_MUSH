@@ -30,7 +30,7 @@ Nine playable species are available. Each has different attribute ranges — the
 | **Human** | Various | 2D–4D | 2D–4D | 2D–4D | 2D–4D | 2D–4D | 2D–4D | 10 | None (most versatile) |
 | **Bothan** | Bothawui | 1D+1–3D+2 | 2D–4D+1 | 1D–3D | 2D+1–4D+2 | 1D–2D+2 | 1D–3D+1 | 10 | — |
 | **Duros** | Duro | 1D–3D+2 | 1D+1–4D | 2D+1–4D+2 | 1D–3D+1 | 1D–3D | 1D+1–4D | 10 | Natural Pilots |
-| **Mon Calamari** | Mon Cala | 1D–3D | 1D+1–4D | 1D+1–3D+1 | 1D–3D+1 | 1D–3D | 1D+1–4D+1 | 10 | Amphibious, Moist Environment |
+| **Mon Calamari** | Mon Cala | 1D–3D | 1D+1–4D | 1D+1–3D+1 | 1D–3D+1 | 1D–3D | 1D+1–4D+1 | 9 | Amphibious, Moist Environment |
 | **Rodian** | Rodia | 1D+1–4D | 1D–3D | 1D–3D+1 | 2D–4D+1 | 1D–3D | 1D–3D+1 | 10 | — |
 | **Sullustan** | Sullust | 1D–3D+1 | 1D–3D | 1D+2–4D+1 | 1D–3D+1 | 1D–3D | 1D+1–3D+2 | 10 | Direction Sense, Enhanced Senses |
 | **Trandoshan** | Trandosha | 1D–3D | 1D–2D+2 | 1D–2D+2 | 1D–3D | 2D–4D+2 | 1D–2D+2 | 10 | Regeneration, Claws, Vision |
@@ -43,10 +43,12 @@ Nine playable species are available. Each has different attribute ranges — the
 
 - **Wookiee Berserker Rage:** When wounded or a companion is hurt, gain +2D Strength for brawling damage. Cannot do anything except attack until passing a Moderate Perception check to calm down.
 - **Wookiee Climbing Claws:** +2D to climbing checks. Using claws in combat is dishonorable — results in exile from Wookiee society.
-- **Trandoshan Regeneration:** Can regrow lost limbs over time.
-- **Trandoshan Claws:** Natural weapons that add to brawling damage.
+- **Trandoshan Regeneration:** Can regrow lost limbs over time. Once per day, a Trandoshan may attempt a Moderate Strength check to heal one wound level naturally, without medical aid.
+- **Trandoshan Claws:** Natural weapons that add **+1D to brawling damage** in melee.
+- **Trandoshan Vision:** Sees in the infrared spectrum — can act in total darkness with no penalty.
 - **Duros Natural Pilots:** Innate aptitude with spacecraft and navigation.
-- **Mon Calamari Amphibious:** Can breathe underwater indefinitely.
+- **Mon Calamari Amphibious:** Can breathe both air and water, with no penalties for underwater activity.
+- **Mon Calamari Moist Environment:** The flip side of being amphibious — prolonged time in very dry conditions inflicts **−1D to all actions** until the character can rehydrate.
 - **Sullustan Direction Sense:** Almost never get lost, even in unfamiliar environments.
 - **Sullustan Enhanced Senses:** Exceptional hearing and vision in low light.
 - **Twi'lek Lekku Communication:** Can communicate silently via head-tail movements with other Twi'leks.
@@ -80,15 +82,17 @@ The six attributes and what they govern:
 > set kno 2D+1        (accepts abbreviations: dex, kno, mec, per, str, tec)
 ```
 
-Attribute abbreviations work with any unique prefix — `dex`, `d`, `per`, `p`, `str`, `s`, etc. If the prefix is ambiguous (e.g., `s` could be Strength or Sense), you'll get an error asking you to be more specific.
+Attribute abbreviations work with any prefix of the attribute name. The six attributes each begin with a different letter, so even single-letter shortcuts are unambiguous: `d`→Dexterity, `k`→Knowledge, `m`→Mechanical, `p`→Perception, `s`→Strength, `t`→Technical. (Sense, Control, and Alter are *Force* skills unlocked in play — not chargen attributes — so there is nothing for `s` to collide with here.) A prefix that matches no attribute returns `Unknown attribute`.
 
 ---
 
 ## 4. Skills
 
-You have **7D** (21 pips) of skill dice to distribute among the game's 75 skills. You can add 1D or 2D (or any pip amount) to any skill. Skills you don't invest in default to the raw attribute — there's no penalty for being "untrained."
+You have **7D** (21 pips) of skill dice to distribute among the game's 76 skills. You can add 1D or 2D (or any pip amount) to any skill. Skills you don't invest in default to the raw attribute — there's no penalty for being "untrained."
 
 **Important:** Skill dice are bonuses *above* the parent attribute. If you put 1D into Blaster and your Dexterity is 3D+1, your effective Blaster is 4D+1. The character sheet shows both the bonus and the total.
+
+**The 2D cap:** WEG R&E forbids putting more than **+2D** into any single skill at creation. Both the wizard (which rejects an over-cap entry) and the final `done` check enforce this — you can deepen a skill past 2D later through play, but not in chargen.
 
 You don't have to spend all 7D. Unspent skill pips are lost — they don't convert to anything else.
 
@@ -99,7 +103,7 @@ You don't have to spend all 7D. Unspent skill pips are lost — they don't conve
 > skill space transports 2D (multi-word skill names work)
 > unskill blaster           (remove Blaster skill bonus)
 > list dex                  (browse all Dexterity skills)
-> list all                  (browse all 75 skills)
+> list all                  (browse all 76 skills)
 ```
 
 Partial skill name matching works — `skill blas 1D` will match Blaster if it's unambiguous.
@@ -134,7 +138,7 @@ Don't want to build from scratch? Nine pre-built templates set up reasonable att
 > template smuggler     (apply the Smuggler template)
 ```
 
-Applying a template sets the species to Human, distributes all 18D of attributes, and spends all 7D of skills. You can then change any of these — switch species (which resets attributes to minimums), adjust individual attributes with `set`, or modify skills with `skill`/`unskill`.
+Applying a template sets the species to Human, distributes all 18D of attributes, and spends all 7D of skills. You can then change any of these — switch species (which resets attributes to minimums **and clears all skills**, since the attribute bases change), adjust individual attributes with `set`, or modify skills with `skill`/`unskill`.
 
 ---
 
@@ -145,10 +149,12 @@ Force sensitivity is **not chosen at character creation.** All characters begin 
 The path to Force sensitivity is unlocked entirely through in-play content:
 
 - Travel to the **Jedi Village** on Coruscant and complete the **Village trials** (Path A).
-- Successfully completing the trials flips your Force-sensitive flag, grants access to the Force skills (Control, Sense, Alter), and raises your Force Points to 2.
+- Successfully completing the trials flips your Force-sensitive flag and **seeds 1D in each of the three Force disciplines (Control, Sense, Alter)** — that seed is what marks you as Force-sensitive going forward.
 - Characters who do not pursue the Village path remain non-sensitive indefinitely — there is no chargen toggle.
 
-Force skills (Control, Sense, Alter) are trained and advanced in-play via Character Point spending once Force sensitivity is unlocked. They cannot be allocated at creation.
+Your Force Points stay at **1** through this — Village completion does not hand you a second Force Point; FP are earned and spent through play like any other character's.
+
+Force sensitivity is *derived state* — the game reads it from the presence of those Control/Sense/Alter values, not from a stored flag. Once unlocked, the three disciplines are advanced in play by **spending Character Points through the Master–Padawan `+teach` bond** (see Guides #08 and #14), not the ordinary `train` command. They cannot be allocated at creation.
 
 The WEG R&E rule still applies once unlocked: *"Force-sensitive characters can't be as mercenary as Han Solo is at the beginning of A New Hope. They must be moral, honest and honorable, like Luke Skywalker and Obi-Wan Kenobi, or the dark side will dominate them."* Dark Side Points accumulate from evil or dishonourable actions and can corrupt a Force-sensitive character over time.
 
@@ -176,7 +182,7 @@ When you create a character, the wizard walks you through these steps:
 3. **Attributes** (scratch path only) — Distribute 18D across six attributes with real-time remaining count
 4. **Skills** — Distribute 7D across skills with descriptions from the WEG rulebook
 5. **Background** — Write free-text character background/backstory
-6. **Tutorial Chain** (first character only) — Select your starting storyline; first characters must pick one before advancing
+6. **Tutorial Chain** — Select your starting storyline. This step appears for every character, but it's **mandatory for your first character** (skip is refused — pick a chain by number to advance); alts (your 2nd+ characters) may type `next` to skip and take the fixed skip starter kit instead
 7. **Review & Confirm** — See the complete character sheet and finalize with `done`
 
 At any step, you can:

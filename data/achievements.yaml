@@ -409,3 +409,16 @@ achievements:
     icon: "🛡️"
     cp_reward: 5
     trigger: {event: "chain_graduation", count: 1, chain_id: "master_armorer_armor"}
+
+  # T3.24 generalized-questline arc (2026-06-22): the first ACCESSIBLE
+  # (non-t5, non-tutorial) questline. Earned by solving "The Ghost
+  # Shipment" for the freight broker Yelza Korrin on Nar Shaddaa. Lower
+  # cp_reward than the t5 trainer chains (3 vs 5): this is open freelance
+  # side-content, not a rep-gated end-game trial.
+  - key: ghost_shipment_solved
+    name: "The Ghost Shipment"
+    description: "Tracked down the skimmer bleeding Yelza Korrin's freight runs dry on Nar Shaddaa. A freelance reputation starts with one finished job."
+    category: profession
+    icon: "📦"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "nar_freight_ghost_shipment"}

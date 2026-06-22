@@ -1,0 +1,406 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_nar_shaddaa_promenade_core.yaml
+#
+# Nar Shaddaa Corellian Sector Promenade — Core Rooms Hostile Mob Grind Batch (2026-06-22)
+#
+# Six roaming hostile NPCs seeded across previously-uncovered Corellian Sector
+# Promenade rooms to extend the solo-PvE mob-grind reward loop
+# (engine/hunting_rewards.py).  Companion to npcs_drop_mob_grind_nar_shaddaa_promenade.yaml
+# (which covered Bounty Hunters' Quarter x2, Upper Dock Obs Level, Weapons Cache,
+# Refugee Sector, Old Corellian Quarter).  This batch fills the main-hub rooms that
+# still had no hostile-mob coverage.
+#
+# All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone spread (all nar_shaddaa_promenade, security: lawless, threat_band: settled):
+#   Corellian Sector Promenade x1  (Quarren territory collector)
+#   The Burning Deck Cantina x1    (Aqualish cantina pit boss)
+#   Vertical Bazaar x1             (Nikto protection enforcer)
+#   The Grid x1                    (Rodian data fence)
+#   The Floating Market x1         (Human floating-market corsair)
+#   Promenade - Corporate Tower x1 (Chagrian corporate infiltrator)
+#
+# Existing room occupants avoided in Burning Deck Cantina: Brann Korr (owner),
+# Old Spacer Hosk (regular), Vexen Daro (ambient), Yelza Korrin (questline giver).
+# Existing ambient NPCs in other rooms are non-hostile; hostile mob is additive.
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats. WEG40120 PDF unavailable in this tree;
+#   stats are UNVERIFIED against the PDF. Grounded in sibling CW NPC
+#   patterns (nar_shaddaa promenade grind baseline, Drop H baselines).
+# Weapons: blaster_pistol, heavy_blaster_pistol, vibroblade, blaster_carbine,
+#   hold_out_blaster — all keys confirmed in data/weapons.yaml.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # CORELLIAN SECTOR PROMENADE — 1 NPC (Quarren territory collector)
+  # The main promenade corridor; a criminal enterprise claims a stretch
+  # and extracts transit fees from anyone who looks worth stopping.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Promenade Territory Collector
+    room: "Nar Shaddaa - Corellian Sector Promenade"
+    species: Quarren
+    description: >-
+      A Quarren in a long gray coat, occupying the same five-meter stretch
+      of promenade railing he has worked every shift for seven months. His
+      tentacles shift in the subtle pattern that, among Quarren, signals
+      territorial aggression — most species do not recognize it until it is
+      too late. He takes a percentage of what moves through his stretch on
+      behalf of a Hutt-adjacent operation that he will not name and you will
+      not ask about. He has already clocked your credits by the weight of
+      your jacket, and the number he arrived at is higher than you want to pay.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D
+        intimidation: 3D+1
+        streetwise: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Quarren territorial enforcer working the promenade for a
+        Hutt-adjacent operation. He is methodical and experienced — he
+        has been extracting corridor fees for seven months without
+        serious incident because he picks his moments and his targets
+        precisely. He does not bluff and does not escalate incrementally;
+        when he determines that the interaction is going wrong, he moves
+        directly to violence before the other party has completed their
+        decision. He is calm during combat because he has done this
+        many times.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Flat, precise Basic with a liquid Quarren undertone.
+        "The corridor has a fee. You look like you can afford it."
+        The blaster is already loose in the holster.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The blaster is out before you finish the word.*"
+        - "*He steps into your trajectory and fires, cutting off the angle.*"
+        - "*'Wrong stretch.' He fires again from the railing's cover.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # THE BURNING DECK CANTINA — 1 NPC (Aqualish cantina pit boss)
+  # Runs the illegal sabacc table in the back corner; reacts badly to
+  # accusations of cheating or interference with his arrangement.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Cantina Pit Boss
+    room: "Nar Shaddaa - The Burning Deck Cantina"
+    species: Aqualish
+    description: >-
+      A broad Aqualish with four eyes fixed in a permanent expression of
+      challenge, posted at the back corner of the cantina where four chairs
+      and an unmarked table form the house sabacc game. He does not play —
+      he watches, and he takes the house percentage from every hand. The
+      heavy blaster on his hip is holstered but the grip is worn smooth
+      from use, which is the kind of detail that tells you how the game
+      resolves when someone calls the outcome unfair. He has looked at you
+      since you came through the door, and the look has not improved.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 1D+2
+        mechanical: 2D
+        perception: 2D+1
+        strength: 3D+1
+        technical: 1D+2
+      skills:
+        blaster: 4D+1
+        brawling: 3D+2
+        intimidation: 3D+2
+        dodge: 3D
+      weapon: heavy_blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        An Aqualish enforcer who runs the Burning Deck's illegal sabacc
+        operation. He is not subtle and does not try to be — his method is
+        presence and the credible certainty that any challenge to his
+        arrangement will be resolved physically. He reads threats quickly
+        and acts on them before they develop, using the cantina's low light
+        and close geometry to his advantage. He is not more violent than the
+        situation requires, but the situation usually requires considerably
+        more than most people expect.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Guttural Basic with clipped Aqualish consonants.
+        "House game. House rules. You got a question about the rules?"
+        The hand goes to the blaster without flourish.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The heavy blaster comes up with the speed of long practice.*"
+        - "*He uses a table as cover and fires low, accurate.*"
+        - "*'No questions now.' He advances and fires again.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # VERTICAL BAZAAR — 1 NPC (Nikto protection enforcer)
+  # Multiple levels of stalls on rickety walkways; a protection scheme
+  # runs level-to-level and uses violence against non-payers.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Bazaar Protection Enforcer
+    room: "Nar Shaddaa - Vertical Bazaar"
+    species: Nikto
+    description: >-
+      A Kajain'sa'Nikto in patched thermal armor, working his collection
+      route through the Vertical Bazaar's upper levels — three tiers of
+      stalls connected by walkways too narrow to run on. The vibroblade
+      across his back is not for show; the stall operators know him by
+      name and do not make eye contact when he passes. He has spotted
+      you on the third level landing and has correctly identified you as
+      someone who has not paid. This identification has concluded his
+      interest in doing anything else today.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+1
+        strength: 3D
+        technical: 2D
+      skills:
+        melee_combat: 4D+1
+        brawling: 3D+1
+        dodge: 3D
+        intimidation: 3D
+        streetwise: 2D+2
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Nikto protection enforcer working a Vertical Bazaar route for an
+        unnamed syndicate operation. He prefers melee because blasters draw
+        attention and the narrow walkways make ranged combat awkward for
+        both parties. He is experienced at fighting in confined geometry
+        — he uses the stall frames and walkway rails as barriers to
+        channel opponents rather than avoid them. He does not negotiate;
+        his employer does not pay him to negotiate.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Nikto-accented Basic, minimal and direct.
+        "This level charges." The vibroblade comes off the back mount
+        before you answer.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The vibroblade clears the mount in a single practiced motion.*"
+        - "*He uses the stall frame as cover and closes the distance.*"
+        - "*He corners you against the railing and attacks.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # THE GRID — 1 NPC (Rodian data fence)
+  # Intelligence hub of screens and slicer terminals; a Rodian data
+  # broker resells sliced feeds and turns hostile when cornered.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Sliced Data Runner
+    room: "Nar Shaddaa - The Grid"
+    species: Rodian
+    description: >-
+      A Rodian hunched over a borrowed terminal in the corner of The Grid,
+      cycling through sliced comm feeds with the practiced speed of someone
+      who knows exactly what they are looking for and how long they have
+      before the feed owner notices the tap. The datapad on the seat beside
+      him holds a running ledger of what he has pulled and what it sold for
+      in the last thirty days. He has three buyers waiting on this feed
+      right now. He has noticed you looking at his screen from across the
+      room and his primary concern has shifted from the feed to whether
+      you are Republic, Security Services, or just unfortunate timing. He
+      has decided the safest answer is to assume the worst.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D+1
+        mechanical: 2D+2
+        perception: 3D
+        strength: 2D
+        technical: 2D+1
+      skills:
+        blaster: 3D+2
+        dodge: 3D+2
+        con: 3D+1
+        search: 3D+1
+        streetwise: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Rodian data runner and fence operating a sliced-feed business
+        from The Grid's borrowed terminals. He is smart and reads threats
+        accurately; he also knows that if anyone has identified what he
+        does for a living, his window to walk away is already closed.
+        He attacks fast and uses the screen-banks and terminal clusters
+        as cover, preferring to create distance and fire rather than
+        hold ground. His goal is to create enough chaos to escape with
+        the datapad. He does not achieve it.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Quick, nervous Rodian-accented Basic. "Wrong terminal, traveler."
+        The blaster is already clearing the holster.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He ducks behind a terminal bank and fires from the gap.*"
+        - "*'Not today.' He fires and moves to the next screen cluster.*"
+        - "*He scrambles over a console and shoots back, still moving.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # THE FLOATING MARKET — 1 NPC (Human corsair)
+  # Hovering platforms connected by gangways; a human pirate runs a
+  # smash-and-grab operation targeting isolated merchants between docks.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Floating Market Corsair
+    room: "Nar Shaddaa - The Floating Market"
+    species: Human
+    description: >-
+      A Human in faded spacer's gear with a blaster carbine slung
+      diagonally and a practiced casualness about standing at the edge
+      of the gangway between platforms three and four. He is watching
+      traffic patterns — which merchants are moving product between
+      platforms alone, which docking slots are currently untended, and
+      which visitors have more credits than awareness. He has been
+      running smash-and-grab operations on this floating market for
+      two months and has not yet been caught, largely because the
+      gangways over open air create natural escape corridors that
+      pursuit cannot navigate cleanly. He has decided you are today's
+      transaction, and the carbine is coming off the sling.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D+2
+        perception: 2D+2
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        dodge: 3D+1
+        intimidation: 3D
+        streetwise: 2D+2
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A human corsair who has been running the Floating Market as a
+        hunting ground for two months. He is comfortable with the geometry
+        of the hanging platforms and uses the gangways to control the
+        engagement — he fires, retreats to the next platform, and fires
+        again from a new angle. He is not suicidal; if the fight goes
+        badly he will try to break off over the gap between platforms
+        where no one can follow cleanly. He rarely succeeds.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Flat, regional Basic with a Corellian border-district cadence.
+        "Platform fee. Now." The carbine finishes the argument.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires from the gangway edge and steps back to the next platform.*"
+        - "*The carbine barks twice in quick succession from the platform gap.*"
+        - "*He backs toward the drop and keeps firing, controlling the angle.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # PROMENADE - CORPORATE TOWER — 1 NPC (Chagrian infiltrator)
+  # Fortified corporate offices; an intelligence operative embedded as
+  # a "security consultant" turns hostile when cover is blown.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Corporate Tower Infiltrator
+    room: "Nar Shaddaa - Promenade - Corporate Tower"
+    species: Chagrian
+    description: >-
+      A Chagrian in a precisely fitted corporate suit, seated at a
+      lobby terminal with a data-reader and a visitor badge that says
+      "Security Compliance Specialist — Arakus Group." His lethorns are
+      the deep blue of mature Chagrian males; his expression is the
+      practiced neutrality of someone accustomed to being ignored. He
+      is not a security specialist. He is an intelligence operative
+      embedded in this tower's corporate structure to harvest procurement
+      schedules, supply route data, and contractor identities for a buyer
+      he will not name. He assessed you as a threat two minutes before
+      you assessed him, and the hold-out blaster in his sleeve is already
+      in his grip.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+2
+        con: 3D+2
+        search: 3D
+        streetwise: 3D+1
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Chagrian intelligence operative embedded in the Corporate Tower
+        under a false corporate identity. He is composed, analytical, and
+        operates on the principle that the moment his cover is in doubt, he
+        eliminates the doubt rather than trying to recover it. He uses the
+        tower's divided office floors and corridor geometry as cover, moving
+        to a new firing position after each shot. He does not shout or
+        threaten — he acts, precisely and without hesitation, because his
+        professional survival depends on never letting a threat develop past
+        the point where it could report back.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Clipped, formal Basic with the minimal inflection of someone who
+        has practiced not giving anything away. "You have the wrong floor."
+        The hold-out blaster emerges from the sleeve a half-second later.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The hold-out blaster appears from the sleeve with no warning.*"
+        - "*He moves to a new office doorway and fires from the frame.*"
+        - "*'Incorrect.' Another shot, another position.*"

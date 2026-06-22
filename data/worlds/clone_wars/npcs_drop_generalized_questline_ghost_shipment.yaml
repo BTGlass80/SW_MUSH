@@ -1,0 +1,148 @@
+# Generalized Questline Drop — "The Ghost Shipment" (T3.24 first slice, 2026-06-22)
+#
+# The FIRST generalized (non-t5, non-tutorial) questline. The chain engine
+# (engine/tutorial_chains.py + chain_events.py) was generalized to a
+# `kind: questline` type + an `active_questline` slot during the T5-trainer
+# arc; the five t5 master-trainer questlines proved that path end-to-end.
+# T3.24 (quest_expansion_postlaunch_path_v1.md) is the sanctioned
+# right-of-launch widening: author MORE questlines in chains.yaml that reuse
+# the SAME live engine — no new engine code, no new slot, no new event type.
+#
+# Unlike the t5 questlines (end-game, faction rep >= 50 gated, dangerous
+# Wilds/Contested zones, unlock a t5 schematic), this one is ACCESSIBLE: any
+# post-chargen character can take it (prerequisites: chargen_complete; no rep
+# gate), it runs in normal Nar Shaddaa city rooms, and it pays a modest
+# credit/rep reward + a lower-tier achievement (cp_reward 3 vs the t5 chains'
+# 5). It is a freelance investigation arc, faction-neutral (independent), and
+# proves the generalized-quest path serves ordinary side-content, not just the
+# trainer economy.
+#
+# These NPCs back the `nar_freight_ghost_shipment` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Yelza Korrin   — the broker who offers + closes the quest (step-1 npc =
+#                      the questline's start-NPC, per get_questline_offer).
+#   * Brakkis Vone   — the combat-step antagonist (ai_config.chain_enemy_template
+#                      nar_ghost_shipment_pirate; the step-4 combat_won foil).
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The broker — Yelza Korrin (questline GIVER + closer)
+  # Questline: nar_freight_ghost_shipment ("The Ghost Shipment")
+  # Placement: Nar Shaddaa - The Burning Deck Cantina (burning_deck_cantina,
+  #            zone nar_shaddaa_promenade). Step-1 + step-5 NPC.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Yelza Korrin
+    room: "Nar Shaddaa - The Burning Deck Cantina"
+    species: Twi'lek
+    description: >-
+      A lekku-wrapped Twi'lek woman in a worn but well-kept flight jacket,
+      working a corner booth of the Burning Deck with a datapad, a cold caf,
+      and the tight shoulders of someone counting losses. She runs a small
+      independent freight outfit — three beat-up haulers and a manifest she
+      knows by heart — and lately that manifest keeps coming up short. She
+      sizes up everyone who passes her booth with a quick, tired appraisal:
+      not muscle she can't afford, not Guild she doesn't trust — just someone
+      who might, for a fair cut, find out where her cargo keeps going.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 3D
+        mechanical: 2D+2
+        perception: 3D+1
+        strength: 2D
+        technical: 2D+1
+      skills:
+        bargain: 4D+2
+        persuasion: 4D
+        streetwise: 4D+1
+        business: 4D+1
+        value: 4D
+        space_transports: 4D
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A small independent freight broker, wary and practical, worn thin by
+        a run of vanishing shipments. Not a fighter; she hires those. Honest
+        in her own transactional way — she pays what she promises and
+        remembers who helped her. Trusts slowly, but completely once earned.
+      knowledge:
+        - "She runs a small independent freight outfit out of the Corellian Sector; three of her last runs vanished between pickup and delivery."
+        - "The Guild won't lift a finger for an independent her size, so she's hiring freelance help to find the leak."
+        - "She suspects an inside job at the docks but has no proof and no one she trusts to dig."
+        - "She pays a fair cut and keeps off cartel and faction politics — she just wants her cargo to arrive."
+      faction: independent
+      dialogue_style: >-
+        Tired, direct, spacer-blunt. Talks freight and credits, not war.
+        Drops the occasional dry 'figures' when something goes wrong.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'Three runs gone in a month. Either I'm cursed or someone's skimming me — and I don't believe in curses.'"
+        - "*Yelza taps her datapad, frowning at a manifest that won't add up.*"
+        - "'Find me a name and a place, and there's a fair cut in it for you.'"
+
+  # ── Questline antagonist: Brakkis Vone (combat step 4) ──────────────
+  # Single hostile instance in the Undercity Depths transfer point.
+  # Matches the nar_freight_ghost_shipment step-4 combat_won enemy_template.
+
+  - name: Brakkis Vone
+    room: "Nar Shaddaa - Undercity Depths"
+    species: Weequay
+    description: >-
+      A barrel-chested Weequay in a patched spacer's coat, running a quiet
+      little operation out of a forgotten transfer point in the Undercity
+      Depths: cargo that isn't his, re-tagged and re-sold before its owner
+      ever knows it's gone. He's no syndicate boss — just a crew leader with
+      a bought dock clerk, a cutting torch, and enough muscle to make a
+      problem disappear. When he realizes you've followed his stolen
+      manifests all the way down here, his hand drops to his blaster, because
+      a witness is a loose end and loose ends are bad for a skimming outfit.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D+1
+        perception: 3D
+        strength: 3D+1
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        dodge: 3D+2
+        brawling: 4D
+        intimidation: 4D
+        streetwise: 4D+1
+      weapon: heavy_blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: nar_ghost_shipment_pirate
+      personality: >-
+        A small-time cargo skimmer and crew boss, aggressive when cornered.
+        He'd rather threaten than fight, but he will absolutely shoot a
+        witness who's tracked his operation to its source. Combat foil for
+        the questline's confrontation beat.
+      knowledge:
+        - "He runs a cargo-skimming operation out of an Undercity transfer point, re-tagging stolen freight for resale."
+        - "He pays off a dock clerk for manifests and pickup windows; he kills witnesses rather than risk exposure."
+      faction: criminal
+      dialogue_style: >-
+        Weequay rasp, clipped and menacing. Calls people 'snoop' when they
+        get too close.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'You followed the wrong manifest down here, snoop.'"
+        - "*Brakkis Vone's hand drops to his heavy blaster, eyes flat.*"
+        - "'Nothing personal. Witnesses are just bad for business.'"
