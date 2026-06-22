@@ -1,0 +1,451 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_nar_shaddaa_criminal_hubs.yaml
+#
+# Nar Shaddaa Criminal Hubs Hostile Mob Grind Batch (2026-06-22)
+#
+# Six roaming hostile NPCs seeded across the six previously uncovered
+# Nar Shaddaa criminal hub rooms to extend the solo-PvE mob-grind reward
+# loop (engine/hunting_rewards.py). All prior Nar Shaddaa batches covered
+# the Promenade, Undercity depths, and Warrens; this batch closes the gap
+# on the docking approach, promenade back-rooms, and undercity entry.
+#
+# All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone spread:
+#   Nar Shaddaa - Docking Bay Aurek x1       (Rodian dock extortionist)
+#   Nar Shaddaa - Landing Platform Besh x1   (Human platform mugger)
+#   Nar Shaddaa - Burning Deck Back Room x1  (Zabrak arms broker)
+#   Nar Shaddaa - Smugglers' Guild Hall x1   (Devaronian rogue enforcer)
+#   Nar Shaddaa - Undercity Market x1        (Aqualish market enforcer)
+#   Nar Shaddaa - Black Market Medcenter x1  (Trandoshan witness guard)
+#
+# Thematic premise: Nar Shaddaa's criminal apparatus generates constant
+# ambient violence — dock extortion, platform muggings, deals gone wrong,
+# rogue guild operatives, black-market enforcers, and the unofficial policy
+# that the medcenter's patient list never reaches law enforcement because
+# no patient ever leaves without the guard's say-so. Six distinct angles
+# on the Moon's economy of casual violence.
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats grounded in sibling CW NPC patterns (nar_shaddaa
+#   batch baselines). Sourcebooks absent in this tree — stats UNVERIFIED
+#   against WEG40120 PDF.
+# Species stat modifiers applied per WEG D6 convention:
+#   Rodian:      DEX 3D, PER 3D (hunter species; precise and alert)
+#   Human:       2D baseline all attributes
+#   Zabrak:      STR 3D, KNO 2D+2 (resilient, methodical)
+#   Devaronian:  PER 3D, mechanical 2D+2 (sharp read on social dynamics)
+#   Aqualish:    STR 3D+2, DEX 2D (powerful build, imprecise movement)
+#   Trandoshan:  STR 3D+2, DEX 2D+1 (predatory, melee-optimal)
+# Weapons: blaster_pistol, heavy_blaster_pistol, blaster_carbine,
+#   vibroblade — all keys confirmed in data/weapons.yaml.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # DOCKING BAY AUREK — 1 NPC (dock extortionist)
+  # Fuel-stained bay, no supervision. Cargo droids haul crates
+  # without oversight. The kiosk is 50 credits a day, no questions —
+  # but the Rodian who has claimed the bay collects a second fee
+  # that does not appear on the kiosk's receipt.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Dock Fee Collector
+    room: "Nar Shaddaa - Docking Bay Aurek"
+    species: Rodian
+    description: >-
+      A Rodian in oil-stained coveralls moving between the refueling
+      spires with the proprietary ease of someone who has convinced
+      Bay Aurek's rotation of transient pilots that there is a second
+      fee above the kiosk rate. The suction-cupped fingers hold a
+      datapad displaying a plausible-looking transaction record.
+      The blaster on his hip is more plausible-looking still. He has
+      been running this bay for four months; the Hutt-affiliated dock
+      master takes a cut and looks elsewhere. When you decline to
+      present credentials or credits, the datapad goes away and the
+      blaster comes out with the smooth reflex of someone who has had
+      this specific conversation dozens of times and knows exactly
+      how it ends.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        dodge: 3D+2
+        search: 3D+1
+        streetwise: 3D
+        con: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Rodian dock extortionist who has refined his operation
+        into a routine: present the fake credentials, collect the
+        secondary fee, shoot anyone who resists. He is not ideological
+        about it — it is a revenue model. He is fast on the draw by
+        habit and positions himself against the spire base when he
+        expects resistance, giving him cover if the argument goes the
+        way he plans for it to go.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Heavily accented Basic, businesslike. "Bay surcharge. Transit
+        authority." The datapad is already out. "Two hundred credits."
+        The blaster is out before the price has finished landing.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He steps back against the refueling spire and fires from cover.*"
+        - "*The blaster tracks you across the bay floor. He knows the angles.*"
+        - "*'Wrong answer.' He says it the same way every time. Already moving.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # LANDING PLATFORM BESH — 1 NPC (platform mugger)
+  # A windswept platform hundreds of stories above the undercity.
+  # Mag-clamps and gale-force winds. New arrivals keeping their hands
+  # on their credits haven't met the man watching from the comm tower
+  # strut.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Platform Mugger
+    room: "Nar Shaddaa - Landing Platform Besh"
+    species: Human
+    description: >-
+      A Human in a battered all-weather jacket with the hood up against
+      the constant platform wind, leaning against one of the mag-clamp
+      control struts with the practiced stillness of someone who has
+      learned to wait. He has been working this platform for three
+      months by learning which ships are new arrivals and which are
+      regulars who know him by face. The arrivals come off their ramps
+      with their heads up looking at the view — Nal Hutta in the sky,
+      the city dropping away below — and their hands busy with gear
+      rather than weapons. He gets inside that gap. The knife is gone
+      and a blaster pistol is in his hand when you look at him long
+      enough for him to read your expression correctly.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 3D+2
+        brawling: 3D+1
+        dodge: 3D
+        streetwise: 3D
+        sneak: 3D+1
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Human opportunist who has turned Landing Platform Besh
+        into his hunting ground. He is not brave and he is not
+        experienced — but he has been doing this specific job long
+        enough to know the geometry of the platform, the location
+        of the mag-clamp struts that provide cover, and that the
+        wind means nobody on the platform below can hear what happens
+        at the arrival ramp level. He fires quickly when cornered
+        and uses the platform struts as cover instinctively.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Nar Shaddaa Basic with a Corellian undertone — young,
+        fast, slightly too loud because the wind takes his words
+        away. "Credits. Now. Don't make it complicated." The
+        blaster is already visible by the third word.
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*He drops behind a mag-clamp strut and fires from partial concealment.*"
+        - "*A shot from the far side of the platform — he has repositioned in the wind.*"
+        - "*He fires and runs for the next strut. The platform geometry favors him.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # BURNING DECK BACK ROOM — 1 NPC (arms broker, deal gone wrong)
+  # Soundproofed walls, signal jammer, three locks, scorch marks on
+  # the ceiling from negotiations that did not conclude peaceably.
+  # One of those negotiations is about to resume.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Backroom Arms Broker
+    room: "Nar Shaddaa - Burning Deck Back Room"
+    species: Zabrak
+    description: >-
+      A Zabrak with filed-short cranial horns and the composed expression
+      of someone conducting a business meeting that has been going badly
+      for the last ten minutes and has now entered its final phase. He
+      sits at the circular table with a heavy blaster pistol on the
+      surface in front of him — not raised, not hidden, exactly where
+      both parties can see it — and a sealed case of weapons-grade
+      power cells that was supposed to have changed hands twenty minutes
+      ago. The other party to the transaction is absent. Their seat
+      is overturned. The scorch mark on the wall above the chair is
+      new. He looks at you entering through the locked door with the
+      same flat assessment he applied to the previous visitor, and
+      reaches the same conclusion.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D
+        technical: 2D+2
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        intimidation: 3D+2
+        bargain: 4D
+        streetwise: 3D+2
+      weapon: heavy_blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Zabrak arms broker who has been in the private-sale
+        business long enough to have installed the signal jammer
+        himself and personally knows the person who runs the cantina's
+        maintenance contract. He is not violent by nature — violence
+        is expensive and attracts attention — but the deal is already
+        ruined and the only remaining variable is whether there are
+        witnesses. He picks up the heavy blaster without urgency and
+        fires from a seated position initially, using the table as
+        a partial barrier. He does not shout or threaten; the
+        transaction has entered its closing stage.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Flat, unhurried Zabrak Basic, the kind of voice that has
+        learned to stay quiet in small rooms. "Wrong room. Wrong
+        time." The heavy blaster is already level before the table
+        is between you.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires from behind the circular table, using the sealed case as a secondary barrier.*"
+        - "*A methodical shot — he is not panicking. The room has been designed for exactly this.*"
+        - "*The scorch marks on the ceiling record previous meetings. He is adding to them.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # SMUGGLERS' GUILD HALL — 1 NPC (rogue enforcer, gone independent)
+  # Star charts on the walls. Dispatchers coordinating cargo runs.
+  # A communal armory behind a cage. One of the operatives using the
+  # hall has stopped reporting in and started skimming the take.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Rogue Guild Enforcer
+    room: "Nar Shaddaa - Smugglers' Guild Hall"
+    species: Devaronian
+    description: >-
+      A Devaronian male, horns and teeth and the careful stillness
+      of someone watching everything in his peripheral vision at
+      once, standing near the communal armory cage with a blaster
+      carbine that does not quite belong to him — the cage register
+      says it was checked out by someone who has not been seen in
+      six days. He has been using the Guild Hall as a base while
+      operating independently of the Guild's cut, which means he
+      has been here exactly as long as he can before someone who
+      matters checks the cargo-run logs against the guild income
+      reports. He is watching the dispatcher board, and when you
+      cross into his line of sight he makes the calculation that
+      tells him you are either an investigator or a witness, and
+      the calculation resolves the same in either case.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+1
+        mechanical: 2D+2
+        perception: 3D
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        dodge: 3D
+        intimidation: 3D
+        streetwise: 3D+1
+        search: 3D
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Devaronian who has been skimming a Smugglers' Guild cut
+        and is aware that his time in the Hall is running out.
+        He is not stupid — he is a professional who has made a
+        professional error in risk calculation and is managing the
+        fallout. He identifies threats quickly and acts on them
+        quickly, using the hall's cargo-run stations and the armory
+        cage for cover. He does not want a prolonged engagement in
+        a room full of guild dispatchers; he wants the problem solved
+        before anyone on the dispatcher board looks up.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Devaronian Basic — smooth, precise, with the undertone of
+        someone who has talked their way out of worse situations
+        and learned not to waste time trying when the window is
+        closed. He does not say anything. The carbine is already
+        up before he decides you are a problem.
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*He drops behind the armory cage and fires from cover.*"
+        - "*A carbine burst from behind the cargo-run station — he is using the hall's furniture as a barrier.*"
+        - "*He moves fast between the dispatcher rows, firing without breaking stride.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # UNDERCITY MARKET — 1 NPC (market enforcer, shaking down vendors)
+  # Daylight has never reached these depths. Bioluminescent fungi.
+  # Stalls of scrap metal selling weapons and ship parts. Pickpockets.
+  # The law does not come here — but someone else does to collect.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Market Protection Boss
+    room: "Nar Shaddaa - Undercity Market"
+    species: Aqualish
+    description: >-
+      A large Aqualish moving through the undercity market stalls with
+      the unhurried authority of someone who does not need to rush
+      because the vendors have already resigned themselves. The
+      multiple eyes sweep the stalls without stopping on any one of
+      them; the collection is in process whether the vendors are ready
+      or not. Two claw-hands grip a heavy blaster pistol carried low
+      and visible — the point is that it is visible. When you enter
+      the market and fail to demonstrate the body language of someone
+      who knows to step aside and look at a stall, the collection
+      detours toward you with the same flat inevitability it gives
+      everything else in this market.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+1
+        strength: 3D+2
+        technical: 2D
+      skills:
+        blaster: 3D+2
+        brawling: 4D+1
+        intimidation: 4D
+        dodge: 2D+1
+        streetwise: 3D
+      weapon: heavy_blaster_pistol
+      move: 8
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        An Aqualish market enforcer running a protection circuit
+        through the Undercity Market. He is large, slow, and
+        entirely confident, because confidence is the working
+        principle of his business model: if you are big enough
+        and present enough, most things resolve without the blaster.
+        The blaster resolves the things that don't. He fires with
+        the blunt aim of someone who has learned that at market-
+        stall range, precision is less important than mass.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Deep, wet Aqualish Basic — minimal vocabulary, maximum
+        weight. "Fee." One hand out. The blaster is already raised
+        in the other. He does not explain what happens if the fee
+        is not paid.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He advances — the stall distance doesn't give you much room. The heavy blaster fires at close range.*"
+        - "*A claw-hand sweeps a market stall clear. He is not concerned about bystanders.*"
+        - "*The Aqualish does not retreat. He recalculates the angle and fires again.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # BLACK MARKET MEDCENTER — 1 NPC (witness guard)
+  # Recycled bacta tanks half-full. Stolen medical equipment. The
+  # doctor charges double and asks no questions. The patients, once
+  # treated, do not leave without the guard's acknowledgment.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Medcenter Witness Guard
+    room: "Nar Shaddaa - Black Market Medcenter"
+    species: Trandoshan
+    description: >-
+      A broad Trandoshan stationed inside the medcenter's waiting
+      area with a vibroblade and the patient, proprietary stillness
+      of someone whose specific function is ensuring that the
+      medcenter's patient list does not reach anyone outside this
+      room. The doctor operates a no-questions facility; the patients
+      who come here have often just done something that generated
+      witnesses they would prefer to lose track of before the night
+      is over. The Trandoshan ensures that the witnesses include
+      nobody who walked through this door after their treatment.
+      He does not explain this policy. He stands, and waits, and
+      when you look like you are going to be a problem he confirms
+      that diagnosis and addresses it.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+1
+        strength: 3D+2
+        technical: 2D
+      skills:
+        melee_combat: 4D+2
+        brawling: 4D
+        intimidation: 3D+2
+        dodge: 2D+2
+        search: 2D+2
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Trandoshan professional whose sole function at the
+        medcenter is preventing the patient population from
+        generating loose information. He is not aggressive in
+        disposition — he simply has a very clear job description
+        and executes it without complication. The waiting area
+        is small; he knows every corner of it. He closes to melee
+        range quickly, preferring the vibroblade in confined space,
+        and uses the bacta tank housings for cover when the range
+        creates an opening.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Low Trandoshan Basic with no inflection. "Waiting area is
+        full." He has already moved to cut the exit angle. The
+        vibroblade is engaged.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He drives forward between the bacta tanks, using them to limit your movement.*"
+        - "*The vibroblade swings in the tight space — he has practiced in exactly these dimensions.*"
+        - "*He does not speak again. The medcenter is quiet. He is going to keep it that way.*"
