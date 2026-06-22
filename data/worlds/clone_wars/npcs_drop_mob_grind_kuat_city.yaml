@@ -1,0 +1,417 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_kuat_city.yaml
+#
+# Kuat City Surface — Hostile Mob Grind Expansion (2026-06-22)
+#
+# Six roaming hostile NPCs seeded across Kuat City's surface district and
+# the KDY Ring Transit Hub to populate the solo-PvE mob-grind reward loop
+# (engine/hunting_rewards.py).
+# All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone spread:
+#   Kuat City - Landing Pad x2       (customs bypass fixer + Trandoshan retrieval op)
+#   Kuat City - Main Boulevard x2    (Falleen debt enforcer + Pantoran corporate spy)
+#   Kuat City - The Andris Grand Hotel x1  (concealed assassin)
+#   Kuat Drive Yards - Ring Transit Hub x1 (CIS dead-drop courier)
+#
+# Rooms confirmed NON-secured in planets/kuat.yaml:
+#   Landing Pad, Main Boulevard, The Andris Grand Hotel — no security_level field.
+#   Ring Transit Hub — no security_level field.
+# Secured rooms skipped: Mercantile Forum, Republic Liaison Office, Estate District,
+#   KSF HQ, drydocks, Corporate Offices, Engineer Apartments.
+#
+# Existing civilian NPCs in these rooms: NONE (verified grep across all CW yaml files).
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats. WEG40120 PDF unavailable in this tree;
+#   stats grounded in sibling CW NPC patterns (Drop H / mob-grind baselines).
+#   Stats UNVERIFIED against WEG40120 PDF.
+# Weapons: blaster_pistol, heavy_blaster_pistol, hold_out_blaster —
+#   all keys confirmed in data/weapons.yaml.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # KUAT CITY - LANDING PAD — 2 NPCs
+  # Shuttle checkpoint; KSF surface permits required; criminal transit
+  # point for anyone trying to reach the city without proper clearance
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Customs Bypass Fixer
+    room: "Kuat City - Landing Pad"
+    species: Human
+    description: >-
+      A Human man in a mid-range traveling suit with the specific
+      creases that come from sleeping in it. He works the passenger
+      queue along the landing pad with the practiced ease of someone
+      who does this three times a week — a quiet word here, a data
+      chip passed there, permits that should take three days cleared
+      in two hours through contacts he maintains on the KSF
+      checkpoint rotation. When you step close enough to overhear
+      an exchange you weren't meant to, he clocks it immediately.
+      The smile stays. The hand goes to the jacket.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D
+        sneak: 2D+2
+        con: 3D+2
+        streetwise: 3D+1
+        value: 2D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A professional permit broker who has been running illegal
+        customs facilitation at the Kuat City landing pad for two
+        years. He is not violent by preference — violence attracts
+        KSF attention, and attention ends the operation. But he has
+        been doing this long enough to know when someone has seen
+        enough to put him in front of a surface magistrate, and he
+        does not let those moments pass without acting. He fires
+        quickly and accurately and moves for the shuttle bay
+        immediately after.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Polished Core-world Basic, the kind of accent that was
+        assembled carefully from holodramas. "Can I help you with
+        something?" He is already deciding whether help is the
+        word for it.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The smile drops. He fires once and moves sideways.*"
+        - "*He keeps low and uses the passenger queue as cover.*"
+        - "*'This was not the arrangement.' He fires again.*"
+
+  - name: Trandoshan Retrieval Operative
+    room: "Kuat City - Landing Pad"
+    species: Trandoshan
+    description: >-
+      A large Trandoshan who has been waiting at the edge of the
+      landing pad for ninety minutes — long enough to be noticed by
+      the KSF checkpoint officer, not long enough to be asked about
+      it. He is not licensed, not contracted, and has no permit for
+      surface activity. He is here to intercept a specific arriving
+      passenger and return them — in whatever condition — to a
+      party on the orbital ring who did not want to involve official
+      channels. The passenger has not arrived. You have. He
+      appraises you, makes a calculation, and decides your presence
+      is a variable that needs to be removed.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+1
+        technical: 2D
+      skills:
+        blaster: 4D
+        brawling: 3D+2
+        dodge: 2D+2
+        intimidation: 3D+1
+        search: 3D+2
+        survival: 3D
+      weapon: heavy_blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A freelance retrieval operative — not a licensed bounty
+        hunter, not a sanctioned KSF contractor. He works for
+        private parties with private grievances and does not ask
+        about the details of what he is retrieving or why. He is
+        patient, physically powerful, and has a heavy blaster
+        pistol that he has used more than once. He does not
+        explain himself. He sizes up obstacles and removes them.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Almost no Basic. A low sound from somewhere in the chest.
+        The heavy blaster comes up in one smooth movement.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires without preamble and advances.*"
+        - "*A massive shoulder drives into the checkpoint barrier as
+          cover. He fires from behind it.*"
+        - "*The heavy blaster tracks you. He does not miss twice.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # KUAT CITY - MAIN BOULEVARD — 2 NPCs
+  # High-end commercial district; Kuati aristocratic milieu; off-worlders
+  # stand out; criminal activity dressed in expensive tailoring
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Falleen Debt Enforcer
+    room: "Kuat City - Main Boulevard"
+    species: Falleen
+    description: >-
+      A Falleen in an immaculate charcoal jacket that costs more than
+      most spacers earn in a month, moving through the boulevard with
+      the unhurried confidence of someone who is never in a hurry
+      because the person they are looking for cannot go anywhere.
+      He works for a cartel that has been extending quiet credit to
+      several of the Kuati merchant houses — credit that carries
+      terms those families are now finding difficult. He is here to
+      remind someone of the terms, and the reminder carries a blaster
+      pistol and a willingness to make the conversation very short
+      if he is interrupted by someone who does not understand the
+      situation.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D
+        intimidation: 4D
+        con: 3D
+        streetwise: 3D+1
+        search: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A cartel debt enforcer operating in Kuat City's merchant-house
+        district, leveraging a Falleen's natural charisma as a tool
+        for pressure rather than persuasion. He is controlled, elegant,
+        and genuinely dangerous — the combination that makes the cartel
+        keep sending him to places like this. He does not raise his
+        voice. He fires from a very calm expression and explains
+        afterward, briefly, why it was necessary.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Smooth, low Falleen-accented Basic with a Core-world polish.
+        "I had hoped we wouldn't reach this point." The blaster
+        is already drawn.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He steps backward into a doorway recess and fires with
+          remarkable precision.*"
+        - "*'Quite unfortunate.' He fires again.*"
+        - "*The Falleen's expression does not change. The blaster tracks
+          to center mass.*"
+
+  - name: Corporate Intelligence Agent
+    room: "Kuat City - Main Boulevard"
+    species: Pantoran
+    description: >-
+      A Pantoran woman in the kind of anonymous business attire that
+      is specifically designed not to be remembered — good fabric,
+      no distinguishing marks, nothing that catches the eye. She has
+      been here for four days collecting internal KDY production
+      schedules and the public-facing meeting records of the Kuati
+      merchant houses, relaying them to a buyer who is not the
+      Republic and is not CIS but has a great deal of money and
+      reasons to want to know when the next Venator-class hull will
+      be ready. She burned three hours ago. She is trying to reach
+      the shuttle bay. She does not want company.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+1
+        technical: 2D+2
+      skills:
+        blaster: 4D+1
+        dodge: 3D+1
+        sneak: 3D+2
+        con: 3D
+        streetwise: 3D
+        security: 3D+1
+        investigation: 3D
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A freelance corporate intelligence operative with twelve years
+        of experience and a very clean record — until this week. She
+        does not work for CIS or the Republic; she works for whoever
+        pays for production intelligence, and several parties pay
+        very well. She is professional, skilled, and fully aware that
+        being seen exiting the boulevard right now is not survivable
+        as a free operative. She fires accurately with the hold-out,
+        uses the street architecture as cover, and does not stop
+        moving.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Quiet, precise Core-world Basic with the Pantoran tendency
+        toward slightly formal phrasing. "I need you to look
+        away." She fires before you can decide.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*She fires and immediately steps into a shopfront alcove.*"
+        - "*The hold-out tracks you with practiced accuracy.*"
+        - "*'I am sorry.' Another shot, already moving for the next
+          position.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # KUAT CITY - THE ANDRIS GRAND HOTEL — 1 NPC
+  # High-end hotel for merchant-house guests; Republic officers; rich offworlders;
+  # neutral ground for people who need to be somewhere private
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Hotel Assassin
+    room: "Kuat City - The Andris Grand Hotel"
+    species: Human
+    description: >-
+      A Human woman sitting alone in the hotel lobby with a travel
+      case on the floor beside her and the look of someone waiting
+      for a connection flight — patient, unremarkable, comfortable
+      with silence. She has been in the hotel for six hours. The
+      person she is here for checked in this morning and has a
+      dinner reservation in two hours. The travel case has a false
+      bottom. The false bottom has a disassembled sniper configuration
+      that fits through the hold-out form she carries through security
+      scanners. She does not know who you are, but you have been
+      watching her for long enough that the lobby no longer feels safe.
+    char_sheet:
+      attributes:
+        dexterity: 3D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D+1
+      skills:
+        blaster: 4D+2
+        dodge: 3D+2
+        sneak: 4D
+        search: 3D+1
+        security: 3D
+        con: 3D+1
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 3
+    ai_config:
+      personality: >-
+        A professional assassin who has been taking contracts for
+        twelve years and has never been seen doing it. She is
+        methodical, unhurried, and completely calm in the moments
+        that would unsettle anyone with a conscience. She fires
+        first, with the hold-out she carries through every scanner
+        in the galaxy, and she does not miss at lobby ranges. If
+        cornered she retreats toward the hotel's service corridors,
+        which she mapped on arrival.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Almost nothing. A look that holds for two seconds. Then the
+        hold-out is up and she is already moving.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*She fires once and moves immediately.*"
+        - "*She does not speak. The hold-out tracks with clinical
+          precision.*"
+        - "*She is already in the corridor behind the front desk.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # KUAT DRIVE YARDS - RING TRANSIT HUB — 1 NPC
+  # Central transit hub for the KDY orbital ring; high-volume foot traffic;
+  # cover is easy among the constant flow of workers, contractors, and
+  # Republic logistics personnel
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: CIS Transit Courier
+    room: "Kuat Drive Yards - Ring Transit Hub"
+    species: Zabrak
+    description: >-
+      A Zabrak man in KDY contractor's kit — the standard brown
+      coverall with the KDY ring-access patch on the shoulder,
+      carrying a sealed shipment case with what appears to be a
+      legitimate customs seal. The customs seal is real; the case
+      was cleared by a KSF inspector who has been taking supplements
+      to his salary for six months. The case contains encoded data
+      cores pulled from three of the orbital ring's production
+      scheduling terminals over the past ten days. The Zabrak has
+      been moving through the hub on a regular rotation, timing
+      the transit windows. When you follow him through a third
+      junction without coincidence being a reasonable explanation,
+      he stops and turns around.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+1
+        mechanical: 2D+1
+        perception: 2D+2
+        strength: 2D+2
+        technical: 2D+1
+      skills:
+        blaster: 3D+2
+        dodge: 2D+2
+        sneak: 3D
+        streetwise: 3D+1
+        security: 2D+2
+        investigation: 2D+1
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A CIS intelligence courier running a long-term passive
+        collection operation inside KDY — not a saboteur, not an
+        assassin. He collects, packages, and routes. But he has
+        been doing it long enough to know that a blown courier is
+        worse than a dead courier from the CIS's perspective, and
+        he has given himself standing orders not to be taken alive
+        on the ring. He fires to wound first, hoping you drop the
+        chase; he fires to kill if you don't.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Zabrak-accented Basic, measured and flat. "I think you
+        have me confused with someone else." His hand is already
+        on the case strap. Then it isn't.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires low and ducks into the transit flow.*"
+        - "*He uses the passenger crowd instinctively — you can't
+          shoot through them.*"
+        - "*He has memorized three exit routes. He takes the one
+          toward the freight collars.*"
