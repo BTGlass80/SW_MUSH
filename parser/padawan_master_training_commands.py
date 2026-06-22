@@ -558,14 +558,19 @@ async def _ensure_padawan_skills_one_die(
 
         cp_available -= cost
         cp_spent += cost
-        skills[skill_key] = "1D"
+        # Force skills (control/sense/alter) are ATTRIBUTES, not entries in
+        # the skills blob. from_db_dict derives force_sensitive=True from
+        # non-zero control/sense/alter in the attributes JSON; writing them
+        # into the skills dict creates a phantom that the derivation never
+        # reads. Write to attrs and persist via attributes=.
+        attrs[skill_key] = "1D"
         skills_raised.append(skill_key)
 
     if skills_raised:
         try:
             await ctx.db.save_character(
                 padawan_row["id"],
-                skills=json.dumps(skills),
+                attributes=json.dumps(attrs),
                 character_points=cp_available,
             )
         except Exception:

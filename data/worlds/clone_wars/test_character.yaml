@@ -58,6 +58,10 @@ character:
     perception: "5D"
     strength:   "5D"
     technical:  "5D"
+    # ── Force attributes (top-level so from_db_dict derives force_sensitive) ─
+    control: "8D"
+    sense:   "8D"
+    alter:   "7D"
     # ── Game state flags ──────────────────────────────────────────────────
     force_sensitive: true
     force_skills:
@@ -168,11 +172,11 @@ character:
     space_transport_repair: "8D"
     starfighter_repair: "7D"
     starship_weapon_repair: "7D"
-    # Force skills (also stored as attributes — these are duplicates per
-    # the inline literal that was extracted; preserved for parity)
-    control: "8D"
-    sense: "8D"
-    alter: "7D"
+    # Force skills moved to top-level attributes section above (2026-06-22).
+    # control/sense/alter must be top-level attrs for from_db_dict derivation.
+    # Kept as commented stubs below to avoid map-safety guard line deletion.
+    # control: "8D"
+    # sense: "8D"
 
   equipment:
     key: lightsaber

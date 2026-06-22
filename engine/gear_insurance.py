@@ -142,9 +142,39 @@ async def cancel_gear_insurance(db, char: dict) -> dict:
     No refund - the premium bought an *option*; forfeiting unused coverage
     keeps the premium a pure sink (no buy/cancel wash to farm). Returns a
     result dict the command renders.
+
+    Guards against a stale session-cache "still insured" state: after a death
+    the DB consumer (_consume_gear_insurance_if_active in engine/death.py)
+    flips gear_insured→0 in the DB but does NOT update the session-cache
+    char dict (no session_mgr is available at that call site).  A player who
+    types ``+insure cancel`` immediately after dying would see the cache as
+    gear_insured=1, pass the is_insured(char) guard, and get a spurious
+    "coverage dropped" success.  The DB re-read below catches this: if the
+    live DB row says 0 we return not_insured immediately rather than writing
+    another (no-op) UPDATE.
     """
     if not is_insured(char):
-        return {"ok": False, "reason": "none"}
+        return {"ok": False, "reason": "not_insured"}
+
+    # Authoritative DB check: the session-cache may be stale if the policy
+    # was consumed by an on_pc_death call since the last reload.
+    try:
+        rows = await db._db.execute_fetchall(  # noqa: SLF001
+            "SELECT gear_insured FROM characters WHERE id = ?",
+            (char["id"],),
+        )
+        if not rows or not bool(rows[0]["gear_insured"]):
+            # DB already shows 0 (policy was consumed by a death).
+            # Sync the local cache so future callers don't hit this again.
+            char["gear_insured"] = 0
+            return {"ok": False, "reason": "not_insured"}
+    except Exception:
+        # DB read failed; fall through to the save attempt, which will
+        # catch any real persistence problem on its own.
+        log.debug("[gear_insurance] cancel DB pre-read failed for char %s; "
+                  "proceeding with save attempt", char.get("id"),
+                  exc_info=True)
+
     try:
         await db.save_character(char["id"], gear_insured=0)
         char["gear_insured"] = 0

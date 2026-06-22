@@ -88,7 +88,7 @@ class InsureCommand(BaseCommand):
                 "  Coverage dropped. (No refund - the premium bought the "
                 "option.) Your loose gear will drop on death again.")
             return
-        if res.get("reason") == "none":
+        if res.get("reason") in ("none", "not_insured"):
             await ctx.session.send_line(
                 "  You don't hold a policy. +insure buy starts one.")
         else:

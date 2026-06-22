@@ -151,10 +151,13 @@ class TestCancelBranches(unittest.TestCase):
         self.assertEqual(db.credit_log, [])
 
     def test_cancel_without_policy_is_noop(self):
+        # reason was "none" before the QA-sweep-2 stale-cache fix;
+        # changed to "not_insured" (mirrors the purchase_gear_insurance
+        # "already" reason; call site handles both).
         db = _StubDB()
         res = _run(cancel_gear_insurance(db, _char(insured=0)))
         self.assertFalse(res["ok"])
-        self.assertEqual(res["reason"], "none")
+        self.assertEqual(res["reason"], "not_insured")
         self.assertEqual(db.saves, [])
         self.assertEqual(db.credit_log, [])
 

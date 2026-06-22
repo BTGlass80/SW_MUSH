@@ -577,8 +577,10 @@ class TestTeachCommandSuccess(unittest.TestCase):
             await TeachPowerCommand().execute(ctx)
             # Should succeed, Padawan now has control at 1D
             updated = await db.get_character(padawan["id"])
-            skills = json.loads(updated["skills"])
-            self.assertEqual(skills.get("control"), "1D")
+            # Force skills live in the ATTRIBUTES blob (force_sensitive derives
+            # from control/sense/alter there); +teach writes them to attributes.
+            attrs = json.loads(updated["attributes"])
+            self.assertEqual(attrs.get("control"), "1D")
             # CP deducted: cost = 2D attr default * 3 pips = 6
             self.assertEqual(int(updated["character_points"]), 44)
             # training_log entry created

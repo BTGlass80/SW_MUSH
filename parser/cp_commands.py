@@ -140,6 +140,26 @@ class TrainCommand(BaseCommand):
         from engine.character import canonical_skill_key
         skill_name = canonical_skill_key(skill_name)
 
+        # Force skills (control / sense / alter) are ATTRIBUTES, not
+        # registry skills. They can only be raised through the
+        # master/apprentice bond (+teach command), not ordinary training.
+        if skill_name in ("control", "sense", "alter"):
+            await ctx.session.send_line(
+                ansi.error(
+                    f"Force skills (control / sense / alter) cannot be "
+                    f"trained through ordinary practice."
+                )
+            )
+            await ctx.session.send_line(
+                ansi.dim(
+                    "Force skills are learned through a master/apprentice "
+                    "bond.  Ask a Jedi Master to use +teach to grant you a "
+                    "Force power — the required skill will be raised to 1D "
+                    "automatically."
+                )
+            )
+            return
+
         skill_reg = _get_skill_reg()
         skill_def = skill_reg.get(skill_name)
         if not skill_def:

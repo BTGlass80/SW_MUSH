@@ -579,10 +579,14 @@ class ChargenAPI:
             char_obj.force_sensitive = force_sensitive
             if force_sensitive:
                 char_obj.force_points = 2
-                # Set Force attributes to 0D (unlocked but untrained)
-                char_obj.set_attribute("control", DicePool(0, 0))
-                char_obj.set_attribute("sense", DicePool(0, 0))
-                char_obj.set_attribute("alter", DicePool(0, 0))
+                # WEG R&E: a Force-sensitive character starts at 1D in each
+                # Force skill ("Ana receives control at 1D and learns one
+                # power"). 0D means you do NOT have the skill — the
+                # from_db_dict derivation (pool.is_zero() check) will not
+                # reconstruct force_sensitive=True from 0D entries.
+                char_obj.set_attribute("control", DicePool(1, 0))
+                char_obj.set_attribute("sense", DicePool(1, 0))
+                char_obj.set_attribute("alter", DicePool(1, 0))
 
             # Background → description (coerce + cap to bound the DB write;
             # an unauthenticated POST could otherwise store a 256 KiB blob).
@@ -991,9 +995,10 @@ class ChargenAPI:
             char_obj.force_sensitive = force_sensitive
             if force_sensitive:
                 char_obj.force_points = 2
-                char_obj.set_attribute("control", DicePool(0, 0))
-                char_obj.set_attribute("sense", DicePool(0, 0))
-                char_obj.set_attribute("alter", DicePool(0, 0))
+                # WEG R&E: 1D starting pool (see handle_submit comment above).
+                char_obj.set_attribute("control", DicePool(1, 0))
+                char_obj.set_attribute("sense", DicePool(1, 0))
+                char_obj.set_attribute("alter", DicePool(1, 0))
 
             # Background → description (coerce + cap; mirrors handle_submit).
             background = char_data.get("background", "") or ""

@@ -449,6 +449,21 @@ async def on_pc_death(
         await db.set_wound_state(
             char_id, state="wounded", clear_at=clear_at,
         )
+        # Sync the live session cache so the dying player's NEXT command
+        # (bacta tank/pack, wound-recovery tick, etc.) sees 'wounded'
+        # immediately. set_wound_state writes the DB, but session.character
+        # would otherwise stay stale 'healthy' and the first post-death heal
+        # wrongly refuses ("you're not wounded"). The session returned by
+        # find_by_character is the SAME dict the command path reads, so this
+        # one update closes the whole post-death stale-cache class.
+        if session_mgr is not None:
+            try:
+                _wsess = session_mgr.find_by_character(char_id)
+            except Exception:
+                _wsess = None
+            if _wsess is not None and getattr(_wsess, "character", None):
+                _wsess.character["wound_state"] = "wounded"
+                _wsess.character["wound_clear_at"] = clear_at
     except Exception:
         log.error(
             "[PG.1.death] Failed to apply wound_state to char %d; "
