@@ -263,6 +263,63 @@ def emit_objective(kind: str, phase: str, char_id: Any, *, oid: str = "",
         log.debug("telemetry.emit_objective failed", exc_info=True)
 
 
+def emit_cp_income(source: str, char_id: Any, *, cp_gained: int = 0,
+                   ticks: int = 0, ticks_this_week: Any = None,
+                   at_cap: bool = False, **extra: Any) -> None:
+    """Emit one CP-income-funnel event (T3.19 catalog — progression).
+
+    A SINGLE event type (``cp_income``) tagged by ``source`` collapses every
+    Character-Point faucet into one offline funnel: the per-source CP-income
+    share (kudos vs scene vs passive vs ai_eval vs milestone vs achievement vs
+    padawan_training), the tick→CP conversion rate, and weekly-cap pressure —
+    exactly the signal Brian wants to tune the CP levers (TICKS_PER_CP,
+    WEEKLY_CAP_TICKS, KUDOS_TICKS, SCENE_TICKS_PER_POSE, …) on real post-launch
+    progression data rather than guesses. (Named ``cp_income`` — NOT
+    ``cp_progress`` — to stay clear of the HUD sidebar's ``cp_progress`` key.)
+
+      source   : the CP income source — a tick source ("passive"/"scene"/
+                 "kudos"/"ai_eval") or a direct-CP source ("milestone"/
+                 "achievement"/"padawan_training").
+      char_id  : the receiving character (coerced to int when it parses, so a
+                 str-id system and an int-id system join on the same player).
+      cp_gained: CP credited THIS event (tick→CP conversion, or the direct
+                 grant amount). 0 is valid (ticks accrued, no conversion yet).
+      ticks    : tick-economy ticks awarded this event (0 for direct-CP).
+      ticks_this_week: ticks this rolling week AFTER the award — the cap-
+                 pressure signal. ``None`` (direct-CP bypasses the cap) is
+                 dropped from the record.
+      at_cap   : the award reached / was bounded by the weekly tick cap.
+      extra    : source-specific fields (reason, ach_key, …); ``None`` dropped.
+
+    Sampling honours ``telemetry.cp_income_sample`` (default 1.0 — CP income is
+    low-frequency + high-value, so full capture by default). Fail-open: wraps
+    the already-fail-open ``emit()`` and guards the field assembly + tunable
+    read, so a telemetry break can NEVER disturb a CP award.
+    """
+    try:
+        try:
+            char_id = int(char_id)
+        except (TypeError, ValueError):
+            pass
+        fields: dict[str, Any] = {
+            "source": source, "char_id": char_id,
+            "cp_gained": cp_gained, "ticks": ticks, "at_cap": bool(at_cap),
+        }
+        if ticks_this_week is not None:
+            fields["ticks_this_week"] = ticks_this_week
+        for k, v in extra.items():
+            if v is not None and k not in fields:
+                fields[k] = v
+        try:
+            from engine.tunables import get_tunable
+            sample = float(get_tunable("telemetry.cp_income_sample", 1.0))
+        except Exception:
+            sample = 1.0
+        emit("cp_income", fields, sample=sample)
+    except Exception:
+        log.debug("telemetry.emit_cp_income failed", exc_info=True)
+
+
 def configure(*, path: Optional[str] = None, enabled: Optional[bool] = None,
               max_buffer: Optional[int] = None) -> TelemetrySink:
     """(Re)build the singleton with explicit settings. For boot + tests."""

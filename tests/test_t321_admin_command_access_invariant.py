@@ -128,6 +128,7 @@ def _build_full_registry() -> CommandRegistry:
     from parser.communal_commands import register_communal_commands
     from parser.player_building_commands import register_player_building_commands
     from parser.region_commands import register_region_commands
+    from parser.hunting_commands import register_hunting_commands
 
     registers = [
         register_all, register_d6_commands, register_building_commands,
@@ -153,7 +154,7 @@ def _build_full_registry() -> CommandRegistry:
         register_admin_city_commands, register_admin_weight_commands, register_meditate_command,
         register_wow_counsel_retreat_commands, register_harvest_command, register_attune_command,
         register_anomaly_commands, register_communal_commands, register_player_building_commands,
-        register_region_commands,
+        register_region_commands, register_hunting_commands,
     ]
     reg = CommandRegistry()
     for fn in registers:

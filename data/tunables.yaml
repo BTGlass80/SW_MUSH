@@ -56,6 +56,18 @@ telemetry.gamble_sample: 1.0          # fraction of gambling hands emitted (0..1
 # delta, tier transition, and clamp flag — the progression/affiliation tuning
 # signal. Bounded by player action so 1.0 is fine at launch; lower it if noisy.
 telemetry.faction_rep_sample: 1.0     # fraction of rep changes emitted (0..1]
+# Keep-rate for the player-to-player trade stream (parser/builtin_commands.py).
+# Each completed `trade` emits one 'p2p_trade' event — credit transfers carry
+# gross/net/tax (the p2p.tax_pct + velocity-alert tuning signal); item trades
+# carry the bartered item (a flow credit_flow can't see). Bounded by the 2-min
+# offer TTL + alt-trade block so 1.0 is fine at launch; lower it if noisy.
+telemetry.p2p_trade_sample: 1.0       # fraction of completed P2P trades emitted (0..1]
+# Keep-rate for the faction-commissary requisition stream (engine/commissary.py).
+# Each completed requisition emits one 'commissary_txn' event: a buy carries the
+# cost (sink) + the rank gate it cleared; a sellback carries the refund (faucet).
+# The signal for tuning commissary stock costs + commissary.sellback_rate.
+# Rank-gated + bounded by player action so 1.0 is fine at launch; lower if noisy.
+telemetry.commissary_sample: 1.0      # fraction of commissary requisitions emitted (0..1]
 
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.

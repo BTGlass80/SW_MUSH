@@ -1,0 +1,395 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_coruscant_lower.yaml
+#
+# Coruscant Lower City Hostile Mob Grind Expansion (2026-06-21)
+#
+# Six roaming hostile NPCs filling Coruscant lower-city and underworld
+# rooms that previously lacked a huntable mob. Complements
+# npcs_drop_mob_grind_coruscant.yaml (initial 6: Invisible Sector Main
+# Street, Ice Crypts, Lower City Black Market, Factory District,
+# Southern Underground, Coruscant Works Industrial Sublevel).
+# This batch fills six remaining lower-city rooms.
+#
+# Zone spread:
+#   Invisible Sector Border x1                (Sector Border Toll Taker)
+#   Lower City Descent x1                     (Descent Ambusher)
+#   Lower City Refugee Warren x1              (Warren Enforcer)
+#   Petrax Historic Quarter - Sublevels x1    (Sublevels Stalker)
+#   Coruscant Works - Atmospheric Processing Plant x1  (Plant Holdout)
+#   Coruscant Underworld - Surface Entry x1   (Underworld Entry Warden)
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats grounded in sibling CW NPC patterns.
+#   Sourcebooks absent in this tree — stats UNVERIFIED against WEG40120 PDF.
+# Weapons: blaster_pistol, vibroblade, vibroaxe, heavy_blaster_pistol,
+#   blaster_carbine — all keys confirmed in data/weapons.yaml.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # INVISIBLE SECTOR BORDER — 1 NPC (Sector Border Toll Taker)
+  # The threshold between the mid-city transit grid and the lawless
+  # Invisible Sector; criminal network collects unauthorized entry fees
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Sector Border Toll Taker
+    room: "Coruscant - Invisible Sector Border"
+    species: Weequay
+    description: >-
+      A weathered Weequay with the unhurried patience of someone who
+      has been doing the same job in the same spot for eight years and
+      has run out of reasons to move. He stands at the gap in the
+      ferrocrete barrier where the mid-city transit tiles give way to
+      the Sector's unlicensed streets, a blaster loose on his hip and
+      a data-pad in one hand. The data-pad is theoretically a manifest,
+      but the manifest exists to justify asking people what their
+      business is, and the answer has never once changed what happens
+      next. He decides in three seconds whether you look like a customer,
+      a courier, or a problem. The three-second gap between that decision
+      and its consequences is the only warning you get.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D+1
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        dodge: 3D+1
+        search: 4D
+        intimidation: 3D+2
+        streetwise: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        An Invisible Sector border enforcer who has turned the gap in
+        the barrier into a private checkpoint for the criminal network
+        that controls the Sector. He is experienced, observant, and
+        profoundly unsentimental. He does not hate the people he shoots;
+        he simply identifies which category they fall into and responds
+        accordingly. The toll is real; the data-pad is theater.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Flat Weequay Basic, minimal vocabulary. "Toll's a hundred."
+        The blaster is already off-safety.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The blaster comes up without ceremony.* 'Wrong answer.'"
+        - "*He steps sideways into the gap and fires from partial cover.*"
+        - "'Should've paid.' *He fires again, efficient and steady.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # LOWER CITY DESCENT — 1 NPC (Descent Ambusher)
+  # The narrow stairwell into the lower city; a predator who times
+  # strikes for when both hands are occupied with the railing
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Descent Ambusher
+    room: "Coruscant - Lower City Descent"
+    species: Human
+    description: >-
+      A Human man in clothing chosen entirely for darkness — deep grey
+      on dark grey, nothing reflective. He has been in the alcove at
+      the mid-landing of the descent long enough to find the exact angle
+      that keeps him out of both light patches. He targets people whose
+      attention is on the stairs rather than their surroundings, which
+      is most people, because the descent is steep and the railing loose.
+      By the time a mark realizes the alcove is occupied, the vibroblade
+      is already committed to the first strike and the second is already
+      chosen. He has been working this spot for seven months. The descent
+      has a reputation now. Locals use the longer route.
+    char_sheet:
+      attributes:
+        dexterity: 3D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+2
+        technical: 2D
+      skills:
+        melee_combat: 4D+2
+        brawling: 3D+2
+        sneak: 4D+2
+        hide: 4D+2
+        dodge: 3D+2
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A stairwell ambusher who has refined his technique over seven
+        months. He is not impulsive — he waits for the moment when both
+        of his target's hands are occupied and their eyes are down. He
+        closes distance in the gap between that moment and their reaction,
+        which has always been enough. He does not pursue below the
+        descent's foot; the lower city has its own problems.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        He does not speak. The first warning is when you notice the
+        vibroblade already at work.
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*He materializes from the alcove shadow, vibroblade leading.*"
+        - "*He steps back into the dark and comes from a different angle.*"
+        - "*No words. The vibroblade hums and he moves.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # LOWER CITY REFUGEE WARREN — 1 NPC (Warren Enforcer)
+  # A Trandoshan who runs a protection operation in the refugee warren;
+  # attacks anyone who disrupts the arrangement
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Warren Enforcer
+    room: "Coruscant - Lower City Refugee Warren"
+    species: Trandoshan
+    description: >-
+      A large Trandoshan moving slowly through the warren's crowded
+      passages with the ease of someone who understands his own size
+      relative to everyone around him. The refugees part without looking
+      at him directly. He runs a protection operation here — the last
+      one was found in a maintenance shaft — and has done so for four
+      months with no problems, which he attributes to making the cost
+      low enough that resistance is inconvenient rather than rational.
+      The vibroaxe is slung openly on his back. He does not need to
+      reach for it to make a point. But when disruption arrives, the
+      reaching is very fast.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+2
+        technical: 2D
+      skills:
+        brawling: 4D+2
+        melee_combat: 4D+1
+        dodge: 2D+2
+        intimidation: 4D+2
+        search: 2D+2
+      weapon: vibroaxe
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Trandoshan protection-racket enforcer who has optimized the
+        refugee warren for long-term, low-friction extraction. He does
+        not want attention and does not want protracted fights. When a
+        disruption appears that cannot be ignored, he closes to melee
+        range immediately and uses his size and strength to end it before
+        it can become a prolonged incident. Experienced, patient, and
+        completely devoid of conscience.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Low, deliberate Trandoshan Basic. One word, usually: "Leave."
+        The vibroaxe is coming off his back regardless of the answer.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The vibroaxe swings in a wide horizontal arc — he is fast for his size.*"
+        - "*He shoves a bystander clear of the line of engagement and advances.*"
+        - "*A low, sustained growl. He keeps coming.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # PETRAX HISTORIC QUARTER - SUBLEVELS — 1 NPC (Sublevels Stalker)
+  # A gang lieutenant who secures the old Petrax tunnels used by
+  # criminals as storage and egress; cannot allow unknown faces out
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Sublevels Stalker
+    room: "Coruscant - Petrax Historic Quarter - Sublevels"
+    species: Rodian
+    description: >-
+      A Rodian in battered armor plates bolted to civilian clothing,
+      moving through the old Petrax sublevels with the ease of someone
+      who has memorized every intersection and knows which sections of
+      the ceiling are structurally questionable. The gang uses these
+      tunnels — Republic-era construction, abandoned when the district's
+      lowest level was walled off three centuries ago — as storage and
+      egress. This Rodian knows where the storage is and who is not
+      supposed to know where the storage is. Those two facts mean he
+      cannot allow unknown faces out of the sublevels with their memories
+      intact. He draws before he makes an announcement, because
+      announcements are for people you are not sure about yet, and he
+      is sure about you.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        dodge: 3D+2
+        sneak: 3D+2
+        search: 3D+1
+        streetwise: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Rodian gang lieutenant whose job is to ensure the sublevel
+        network remains undiscovered. He does not threaten, does not
+        negotiate, and does not issue verbal warnings. He identifies
+        unauthorized visitors as security failures and addresses them
+        immediately. He uses the sublevel's complex tunnel geometry to
+        attack from unexpected angles and retreats into corridors he
+        knows intimately to reset position.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Rodian-accented Basic, clipped to nothing useful. The blaster
+        is already drawn. There was no announcement.
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*He fires from the tunnel junction and retreats before you can orient.*"
+        - "*His shadow crosses the ceiling light — then he is somewhere else.*"
+        - "*A shot from behind. He has looped through the service passage.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # CORUSCANT WORKS - ATMOSPHERIC PROCESSING PLANT — 1 NPC (Plant Holdout)
+  # A Devaronian who has occupied a decommissioned atmospheric processing
+  # bay as a smuggling staging area; attacks to protect the operation
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Plant Holdout
+    room: "Coruscant Works - Atmospheric Processing Plant"
+    species: Devaronian
+    description: >-
+      A Devaronian with the wiry build of someone who has been living on
+      whatever the decommissioned plant's vending systems still dispense.
+      He found this atmospheric processing bay six months ago — a Works
+      section listed as offline, power supply limited but present,
+      atmospheric systems still cycling minimally. He occupies the control
+      room, uses the bay floor for staging contraband from the service
+      shaft below, and has not left since the third week, because leaving
+      means someone else finds the location. He has a heavy blaster pistol
+      that he has cleaned compulsively in the months of waiting. When the
+      plant door opens without warning, the compulsive maintenance stops
+      and the application begins immediately.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D+1
+        perception: 3D
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D+2
+        dodge: 3D+2
+        sneak: 3D
+        search: 3D+1
+        streetwise: 2D+2
+      weapon: heavy_blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Devaronian smuggler who has turned a decommissioned Works section
+        into an off-the-books staging facility. He has had six months alone
+        to think through exactly how he will respond to unauthorized entry,
+        and his response is immediate and accurate. He uses the plant's
+        processing equipment as cover and fires to disable first, reasoning
+        that an unconscious intruder can be dumped through the service shaft
+        whereas a body creates complications.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Devaronian-accented Basic, practiced calm that breaks at the edges.
+        "I have been here a long time." He fires mid-sentence.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires from behind the primary processing unit, calm and accurate.*"
+        - "*He drops below the console level and fires from a lower angle.*"
+        - "'Nobody owns this section.' *He fires again.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # CORUSCANT UNDERWORLD - SURFACE ENTRY — 1 NPC (Underworld Entry Warden)
+  # A Quarren who runs a toll operation at the single mapped surface-level
+  # entry to the Coruscant Underworld; attacks those who bypass the gate
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Underworld Entry Warden
+    room: "Coruscant Underworld - Surface Entry"
+    species: Quarren
+    description: >-
+      A Quarren crouching at the rim of the surface entry manhole with
+      the still, predatory patience of the deep-water species on a long
+      schedule. He has been here — or within three meters of here — for
+      the better part of eleven months, maintaining what he describes to
+      himself as a customs operation and what a Republic inspection would
+      call armed robbery. The entry to the underworld is the only mapped
+      access in this section of the Southern Underground. He is the only
+      person at it. The toll he sets is variable and negotiated entirely
+      on the basis of what the person in front of him can be made to
+      believe is standard. When someone reaches for a weapon instead of
+      credits, the blaster carbine is already angled at center mass.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D
+        search: 3D+1
+        streetwise: 3D+1
+        intimidation: 3D
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Quarren toll enforcer who has turned the single surface-level
+        underworld entry into a private checkpoint. He is experienced at
+        reading people quickly — useful when your entire income depends on
+        how much you can credibly demand — and he transitions from toll
+        negotiation to combat smoothly and without distress. He fires from
+        the entry rim, using the descent geometry to his advantage: he is
+        above you, knows the space, and has done this before.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Gurgling Quarren-accented Basic. "Entry toll. Two hundred."
+        The carbine is leveled before he quotes the price.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires from the rim of the entry, using the elevation.*"
+        - "*He steps back from the manhole edge and fires from the side.*"
+        - "'Wrong answer.' *He fires again, steady and controlled.*"

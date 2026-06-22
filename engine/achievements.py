@@ -218,6 +218,14 @@ async def _complete_achievement(db, char_id: int, ach: dict,
             await db.cp_add_character_points(char_id, cp_reward)
             log.info("Achievement CP: char %d +%d CP for '%s'",
                      char_id, cp_reward, ach["key"])
+            # T3.19 telemetry: achievement CP (direct, bypasses the tick cap).
+            # Inside the success branch so a failed award emits nothing.
+            try:
+                from engine.telemetry import emit_cp_income
+                emit_cp_income("achievement", char_id, cp_gained=cp_reward,
+                               ach_key=ach.get("key"))
+            except Exception:
+                log.debug("cp_income telemetry emit failed", exc_info=True)
         except Exception:
             log.warning("Failed to award CP for achievement %s",
                         ach["key"], exc_info=True)

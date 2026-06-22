@@ -5110,6 +5110,44 @@ def _purge_trade_offers():
         _pending_trades.pop(k, None)
 
 
+def _emit_trade_telemetry(*, kind, from_id, to_id, room_id,
+                          amount=0, received=0, tax=0, tax_pct=0, item=""):
+    """T3.19 telemetry: one fail-open ``p2p_trade`` event per completed trade.
+
+    The credit legs already ride ``credit_flow`` (adjust_credits tags
+    ``p2p_transfer`` / ``p2p_tax``), but those three separate ledger rows can't
+    be reconstructed into a single sender→recipient→tax transfer, and an ITEM
+    trade moves NO credits at all so ``credit_flow`` never sees it. This is the
+    only seam that captures (a) the P2P barter economy — item flows, today
+    entirely dark — and (b) the per-trade tax distribution as one event (the
+    direct tuning signal for ``p2p.tax_pct`` and the velocity-alert thresholds).
+    Buffer-only + offline-flushed → it can never disturb the completed trade it
+    observes (fail-open like the velocity alert above it).
+    """
+    try:
+        from engine.telemetry import emit as _tele_emit
+        from engine.tunables import get_tunable
+        fields = {
+            "kind": kind,
+            "from_char": int(from_id or 0),
+            "to_char": int(to_id or 0),
+            "room_id": room_id,
+        }
+        if kind == "credits":
+            fields.update({
+                "amount": int(amount),
+                "received": int(received),
+                "tax": int(tax),
+                "tax_pct": int(tax_pct),
+            })
+        else:  # item
+            fields["item"] = str(item)
+        _tele_emit("p2p_trade", fields,
+                   sample=float(get_tunable("telemetry.p2p_trade_sample", 1.0)))
+    except Exception:
+        log.debug("p2p trade telemetry emit failed", exc_info=True)
+
+
 async def _handle_sell_to_droid(ctx, resource_arg: str, shop_arg: str) -> None:
     """Handle 'sell <resource> to <shop name>' — routes to vendor droid buy-order fill."""
     from engine.vendor_droids import sell_to_droid, find_droid_by_name
@@ -5692,6 +5730,12 @@ class TradeCommand(BaseCommand):
             except Exception:
                 log.warning("_accept: item trade narrative log failed", exc_info=True)
 
+            # T3.19 telemetry: capture the P2P item-barter flow (no credits
+            # move → credit_flow never sees this transfer).
+            _emit_trade_telemetry(
+                kind="item", from_id=offerer["id"], to_id=char["id"],
+                room_id=char.get("room_id"), item=item_name)
+
             return
 
         # ── Credit trade execution (original path) ───────────────────────
@@ -5801,6 +5845,14 @@ class TradeCommand(BaseCommand):
                              {"amount": -amount, "tax": tax, "counterpart": char["name"]})
         except Exception:
             log.warning("_accept: unhandled exception", exc_info=True)
+
+        # T3.19 telemetry: the completed P2P credit transfer as ONE event —
+        # gross/net/tax linked sender→recipient (the three credit_flow legs
+        # can't be rejoined offline) + the tax sink (tunes p2p.tax_pct).
+        _emit_trade_telemetry(
+            kind="credits", from_id=offerer["id"], to_id=char["id"],
+            room_id=char.get("room_id"), amount=amount, received=received,
+            tax=tax, tax_pct=tax_pct)
 
     async def _decline(self, ctx, char, offerer_name):
         _purge_trade_offers()
