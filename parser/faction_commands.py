@@ -127,6 +127,10 @@ class FactionCommand(BaseCommand):
             "resource_outlook": self._cmd_resource_outlook,
             "outlook": self._cmd_resource_outlook,
             "resources": self._cmd_resource_outlook,
+            # SYN.10 wiring completion (2026-06-22): contest view on the
+            # bare `faction` surface, matching `+faction contest`.
+            "contest": self._cmd_contest,
+            "contests": self._cmd_contest,
             "guard": self._cmd_guard,
             "armory": self._cmd_armory,
             "hq": self._handle_hq,
@@ -144,7 +148,7 @@ class FactionCommand(BaseCommand):
         await ctx.session.send_line(
             f"  Unknown faction subcommand '{sub}'.\n"
             f"  Try: list, join, leave, info, roster, missions, channel, "
-            f"requisition, invest, influence, claim, unclaim, "
+            f"requisition, invest, influence, claim, unclaim, contest, "
             f"resource_outlook, guard, armory, hq"
         )
 
@@ -605,6 +609,45 @@ class FactionCommand(BaseCommand):
                 f"worst: {worst_type:<8} {worst_mult:.2f}×"
             )
         return
+
+        # ── faction contest ── (SYN.10 wiring completion, 2026-06-22)
+        # `+faction contest` was wired in SYN.10 (FactionUmbrellaCommand's
+        # _FACTION_SWITCH_IMPL["contest"]) but the bare `faction` dispatch —
+        # the full-featured surface every other territory verb (invest /
+        # influence / claim / unclaim / resource_outlook) lives on — never
+        # got the same subcommand. So `faction contest` returned
+        # "Unknown faction subcommand" while `+faction contest` worked: a
+        # documented-but-dead command form (Guide_11 §7/§9). This method
+        # mirrors the umbrella handler so both prefixes render identically.
+
+    async def _cmd_contest(self, ctx, char, rest):
+        """View active Region Contests involving the player's org.
+
+        Member-accessible read-only view (no leadership rank required),
+        rendered via the same ``engine.territory_display`` surface the
+        ``+faction contest`` umbrella uses.
+        """
+        org_code = char.get("faction_id")
+        if not org_code or org_code == "independent":
+            await ctx.session.send_line(
+                "  You aren't a member of a faction. Join one to "
+                "see contests."
+            )
+            return
+        try:
+            from engine.territory_display import get_faction_contests_lines
+            lines = await get_faction_contests_lines(
+                ctx.db, org_code, ansi=True,
+            )
+        except Exception:
+            log.exception("[faction contest] render failed")
+            await ctx.session.send_line(
+                "  The contests display is offline. Try again."
+            )
+            return
+        await ctx.session.send_line("")
+        for line in lines:
+            await ctx.session.send_line(line)
 
         # ── faction guard ──
         # faction guard          — show guard status in current room
