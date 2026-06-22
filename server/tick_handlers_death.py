@@ -87,7 +87,12 @@ async def wound_recovery_tick(ctx: "TickContext") -> None:
         cached_clear_at = float(char.get("wound_clear_at") or 0.0)
         if cached_state != "wounded":
             continue
-        if cached_clear_at <= 0 or cached_clear_at > now:
+        # B2 fix: if cache says wounded but clear_at is 0, the cache is
+        # stale (on_pc_death updated the DB but didn't write clear_at
+        # into the session dict).  Fall through to the authoritative DB
+        # read so the timer is evaluated correctly.  Only skip when
+        # clear_at is a positive future timestamp.
+        if cached_clear_at > 0 and cached_clear_at > now:
             continue
         # Authoritative DB read, then transition. tick_wound_recovery
         # idempotently returns False if the DB row's state diverges

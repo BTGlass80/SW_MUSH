@@ -440,13 +440,29 @@ class MailCommand(BaseCommand):
             "FROM mail m "
             "JOIN mail_recipients mr ON mr.mail_id = m.id "
             "LEFT JOIN characters c ON c.id = m.sender_id "
-            "WHERE m.id = ? AND mr.char_id = ?",
+            "WHERE m.id = ? AND mr.char_id = ? AND mr.is_deleted = 0",
             (mail_id, char_id),
         )
         if not rows:
             await ctx.session.send_line(f"  Message #{mail_id} not found.")
             return
         orig = rows[0]
+
+        # B3/B4 guard: system mail (sender_id=0) and hard-deleted senders
+        # have no characters row. Attempting _do_send would insert
+        # mail_recipients.char_id = 0/orphan → FK IntegrityError.  Also
+        # avoids the "To: None" cosmetic leak in the compose-editor path.
+        if not orig["sender_id"] or orig["sender_name"] is None:
+            if not orig["sender_id"]:
+                await ctx.session.send_line(
+                    "  This is a system message — you cannot reply to it."
+                )
+            else:
+                await ctx.session.send_line(
+                    f"  Cannot reply: the sender (#{orig['sender_id']}) "
+                    f"no longer exists."
+                )
+            return
 
         re_subject = orig["subject"]
         if not re_subject.lower().startswith("re:"):
@@ -456,7 +472,7 @@ class MailCommand(BaseCommand):
             # Quick reply
             state = {
                 "to": [orig["sender_id"]],
-                "to_names": [orig["sender_name"] or f"#{orig['sender_id']}"],
+                "to_names": [orig["sender_name"]],
                 "subject": re_subject,
                 "lines": [body],
             }
@@ -466,7 +482,7 @@ class MailCommand(BaseCommand):
             sid = id(ctx.session)
             _compose_state[sid] = {
                 "to": [orig["sender_id"]],
-                "to_names": [orig["sender_name"] or f"#{orig['sender_id']}"],
+                "to_names": [orig["sender_name"]],
                 "subject": re_subject,
                 "lines": [],
             }
@@ -512,13 +528,13 @@ class MailCommand(BaseCommand):
         mail_id = int(num_str)
         char_id = ctx.session.character["id"]
 
-        # Get original message
+        # Get original message (B1 scope: is_deleted gate matches _reply)
         rows = await ctx.db.fetchall(
             "SELECT m.*, c.name as sender_name "
             "FROM mail m "
             "JOIN mail_recipients mr ON mr.mail_id = m.id "
             "LEFT JOIN characters c ON c.id = m.sender_id "
-            "WHERE m.id = ? AND mr.char_id = ?",
+            "WHERE m.id = ? AND mr.char_id = ? AND mr.is_deleted = 0",
             (mail_id, char_id),
         )
         if not rows:
