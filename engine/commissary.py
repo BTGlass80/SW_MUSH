@@ -179,6 +179,48 @@ def commissary_status_lines(faction_code, rank_level, balance=0):
     return lines
 
 
+# ── T3.19 telemetry: the requisition economy loop ────────────────────────────
+def _emit_commissary_telemetry(phase, char_id, faction_code, *, item_key="",
+                               item_name="", cost=0, refund=0, rank_level=None):
+    """Emit one fail-open ``commissary_txn`` event per completed requisition.
+
+    The credit legs already ride ``credit_flow`` (adjust_credits tags
+    ``commissary_purchase`` / ``commissary_sellback``), but those ledger rows
+    can't be rejoined into a per-item buy→sellback round trip, carry no faction
+    or item identity, and never reveal the rank gate a purchase cleared. This is
+    the only seam that captures the faction-gated requisition economy as one
+    event — the direct signal for tuning commissary stock costs +
+    ``commissary.sellback_rate`` (is requisition gear priced to move? does the
+    buy→sellback round trip get abused?). A SINGLE event type tagged by ``phase``
+    (``"buy"`` / ``"sell"``) keeps the offline funnel trivial. Buffer-only +
+    offline-flushed → it can never disturb the completed requisition it observes
+    (fail-open, like the credit moves above it).
+    """
+    try:
+        from engine.telemetry import emit as _tele_emit
+        try:
+            char_id = int(char_id)
+        except (TypeError, ValueError):
+            pass
+        fields = {
+            "phase": phase,
+            "char_id": char_id,
+            "faction": str(faction_code or "").strip().lower(),
+            "item_key": str(item_key or ""),
+            "item_name": str(item_name or ""),
+        }
+        if phase == "buy":
+            fields["cost"] = int(cost)
+            if rank_level is not None:
+                fields["rank_level"] = rank_level
+        else:  # sell
+            fields["refund"] = int(refund)
+        _tele_emit("commissary_txn", fields,
+                   sample=float(get_tunable("telemetry.commissary_sample", 1.0)))
+    except Exception:
+        log.debug("commissary telemetry emit failed", exc_info=True)
+
+
 # ── The sink: requisition an item ────────────────────────────────────────────
 async def purchase_commissary(db, char: dict, faction_code, rank_level, key) -> dict:
     """Requisition the commissary item `key` for `char`.
@@ -272,6 +314,9 @@ async def purchase_commissary(db, char: dict, faction_code, rank_level, key) -> 
                       exc_info=True)
         return {"ok": False, "reason": "grant_failed"}
 
+    _emit_commissary_telemetry(
+        "buy", char.get("id"), faction_code,
+        item_key=item["key"], item_name=item["name"], cost=cost, rank_level=rl)
     return {"ok": True, "key": item["key"], "name": item["name"], "cost": cost}
 
 
@@ -370,5 +415,8 @@ async def sell_commissary(db, char: dict, faction_code, key) -> dict:
                           char.get("id"), exc_info=True)
             return {"ok": False, "reason": "credit_failed"}
 
+    _emit_commissary_telemetry(
+        "sell", char.get("id"), fc,
+        item_key=key, item_name=match.get("name", key), refund=refund)
     return {"ok": True, "key": key, "name": match.get("name", key),
             "refund": refund}
