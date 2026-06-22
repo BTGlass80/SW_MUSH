@@ -3333,6 +3333,37 @@ a { color: inherit; text-decoration: none; }
 .map-modal-legend .mml-dot.neutral  { background: var(--cock-amber,  #ffa640); }
 .map-modal-legend .mml-dot.self     { background: var(--cock-cyan,   #6ee8ff); box-shadow: 0 0 6px var(--cock-cyan, #6ee8ff); }
 
+/* TD.CW_M3_CLICK_TO_WALK_LATERAL -- the SAME always-clickable exit strip on the
+   ALWAYS-VISIBLE mini-map (not just the modal): sourced from lastExits, so every
+   exit is clickable even when its destination room renders no marker (street/hub
+   cells draw none). Sits under the mini-map, above the legend. */
+.map-exits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: center;
+  margin: 6px 0 2px;
+}
+.map-exits:empty { display: none; }
+.map-exits .mm-exit-btn {
+  background: rgba(8, 12, 8, 0.82);
+  color: var(--accent-bright);
+  border: 1px solid var(--accent-dim);
+  padding: 4px 9px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.map-exits .mm-exit-btn:hover {
+  background: var(--accent-bright);
+  color: #0b0f08;
+  border-color: var(--accent-bright);
+}
+
 .map-modal-hint {
   position: absolute;
   bottom: 12px;
@@ -4464,6 +4495,7 @@ a { color: inherit; text-decoration: none; }
             <text x="200" y="150" text-anchor="middle" style="fill:var(--accent-dim); font-size:11px; font-family:'IBM Plex Mono',monospace;">No map data</text>
           </svg>
         </div>
+        <div class="map-exits" id="g-map-exits"></div>
         <div class="map-legend">◉ YOU · ◇ EXIT · ◈ CONTESTED · ■ LAWLESS</div>
 
         <div class="section-label spaced">▮▮ RECENT</div>
@@ -6786,6 +6818,7 @@ function handleHudUpdate(data) {
   if (data.exits && data.exits.length > 0) {
     lastExits = data.exits;
     rebuildDirectionButtons(data.exits);
+    _renderMiniExitStrip();
     // Emit exits event only when room actually changed (so we don't spam)
     if (data.room_id !== undefined && data.room_id === lastRoomId &&
         (!poseEvents.length || poseEvents[poseEvents.length - 1].t !== 'exits')) {
@@ -6798,6 +6831,7 @@ function handleHudUpdate(data) {
   } else {
     lastExits = [];
     rebuildDirectionButtons([]);
+    _renderMiniExitStrip();
   }
 
   // Ground-UX context panels: room detail, nearby services, zone influence.
@@ -10717,14 +10751,17 @@ function _renderModalViaM3(body, geom, tier) {
 // close the modal so the player drops into the live view in the new room.
 // (If you'd rather keep the modal open for chained navigation, drop the
 // closeMapModal() call below.)
-function _renderModalExitStrip() {
-  var strip = $('map-modal-exits');
+// Shared exit-strip builder. Fills `strip` with one always-clickable button
+// per current-room exit, sourced from the cached lastExits ([{dir,label}], set
+// on every look/move) -- so EVERY exit is offered regardless of whether its
+// destination room draws a map marker (L_SubstrateRooms skips street/hub cells,
+// which is exactly why on-map click-to-walk left those exits dead). `afterClick`
+// runs after the move is issued (the modal closes itself; the mini does nothing
+// extra). Idempotent: clears the strip first; an empty exit list renders nothing
+// and the :empty CSS hides the container.
+function _buildExitStrip(strip, afterClick) {
   if (!strip) return;
   strip.innerHTML = '';
-  // NB: do NOT guard on mapModalOpen here — openMapModal() calls this from the
-  // ground branch BEFORE it sets mapModalOpen=true, so a guard would bail every
-  // time. The strip simply mirrors the current room's exits; if lastExits is
-  // empty it renders nothing and :empty CSS hides it (the space modal case).
   var exits = Array.isArray(lastExits) ? lastExits : [];
   exits.forEach(function (x) {
     if (!x || !x.dir) return;
@@ -10733,16 +10770,32 @@ function _renderModalExitStrip() {
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'mm-exit-btn';
-    btn.textContent = dir.toUpperCase() + (label ? ' \u00b7 ' + label : '');
+    btn.textContent = dir.toUpperCase() + (label ? ' · ' + label : '');
     btn.setAttribute('data-cmd', dir);
     btn.title = 'Go ' + (x.label || dir);
     btn.addEventListener('click', function () {
       sendCmd(dir);
-      try { closeMapModal(); } catch (e) {}
+      if (typeof afterClick === 'function') { try { afterClick(); } catch (e) {} }
     });
     strip.appendChild(btn);
   });
 }
+
+function _renderModalExitStrip() {
+  // NB: do NOT guard on mapModalOpen here; openMapModal() calls this from the
+  // ground branch BEFORE it sets mapModalOpen=true, so a guard would bail every
+  // time. The strip simply mirrors the current room's exits; if lastExits is
+  // empty it renders nothing and :empty CSS hides it (the space modal case).
+  _buildExitStrip($('map-modal-exits'), function () { try { closeMapModal(); } catch (e) {} });
+}
+
+// The SAME always-every-exit strip on the ALWAYS-VISIBLE mini-map (not just the
+// sector-map modal). Sits under the mini-map; refreshed on every room change
+// (see the rebuildDirectionButtons call sites). No modal to close on click.
+function _renderMiniExitStrip() {
+  _buildExitStrip($('g-map-exits'), null);
+}
+window._sw_renderMiniExitStrip = _renderMiniExitStrip;
 
 // ── 4.2c-modal helper: click-to-travel on the SECTOR MAP modal SVG ──
 // Mirrors the mini's installAreaMapTravelHandler, but bound to the modal's
