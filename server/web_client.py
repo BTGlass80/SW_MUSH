@@ -59,6 +59,31 @@ _SECURITY_HEADERS = {
 }
 
 
+# ── CORS posture (T3.21 decision #6 — same-origin, deliberate no-op) ──────────
+# The SPA, the /ws WebSocket, and the chargen/portal JSON API are ALL served
+# from this one same-origin aiohttp Application (see WebClient.start below). A
+# browser's same-origin policy therefore already permits the SPA's own
+# fetch()/WebSocket calls AND blocks any cross-origin page from reading our
+# responses — exactly the protection we want for an unauthenticated public API.
+# So we add NO Access-Control-Allow-* (CORS) headers and NO CORS middleware:
+# emitting them would only *relax* that default and let a hostile cross-origin
+# page read responses. CORS here is intentionally a no-op. The guard below makes
+# that an enforced invariant: if a future change pastes a permissive CORS header
+# into _SECURITY_HEADERS, the module fails to import (caught at boot / by tests)
+# rather than silently opening the surface.
+def _assert_no_cors_headers(headers) -> None:
+    """Refuse any Access-Control-* (CORS) default on the public surface."""
+    leaked = sorted(h for h in headers if h.lower().startswith("access-control-"))
+    if leaked:
+        raise RuntimeError(
+            "Same-origin CORS posture violated (T3.21 decision #6): refusing the "
+            f"permissive CORS header(s) {leaked} on the public web surface."
+        )
+
+
+_assert_no_cors_headers(_SECURITY_HEADERS)
+
+
 def _resolve_max_request_bytes(default: int = 256 * 1024) -> int:
     """Cap the request body the public endpoints will read. All client bodies
     are small JSON (chargen/login are single-digit KB); aiohttp's own default
