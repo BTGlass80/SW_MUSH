@@ -1,0 +1,388 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_nar_shaddaa_promenade.yaml
+#
+# Nar Shaddaa Promenade District — Hostile Mob Grind Expansion (2026-06-22)
+#
+# Six roaming hostile NPCs seeded across the Corellian Sector promenade belt
+# to populate the solo-PvE mob-grind reward loop (engine/hunting_rewards.py).
+# All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone spread:
+#   Bounty Hunters' Quarter x2     (contract killer + Trandoshan debt enforcer)
+#   Upper Dock Observation Level x1 (Hutt syndicate intelligence operative)
+#   Weapons Cache x1                (Gamorrean vault guard)
+#   Refugee Sector x1               (Weequay extortion racketeer)
+#   Old Corellian Quarter x1        (Human gang territory enforcer)
+#
+# Rooms confirmed non-secured in planets/nar_shaddaa.yaml:
+#   Bounty Hunters' Quarter — security_level: contested
+#   Upper Dock Observation Level — security_level: contested
+#   Weapons Cache — security_level: contested (vendor shop room; NPC itself not vendor)
+#   Refugee Sector — security_level: contested
+#   Old Corellian Quarter — security_level: contested (housing room; NPCs coexist)
+# Secured rooms skipped: none in this zone — all Nar Shaddaa promenade rooms are
+#   contested or lawless by default.
+#
+# Existing ambient NPCs in these rooms (from npcs_drop_g1/g2): non-hostile flavor
+#   NPCs present in several rooms; hostile mobs coexist without conflict.
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats. WEG40120 PDF unavailable in this tree;
+#   stats grounded in sibling CW NPC patterns (G1/G2 / mob-grind baselines).
+#   Stats UNVERIFIED against WEG40120 PDF.
+# Weapons: hold_out_blaster, blaster_pistol, heavy_blaster_pistol, vibroblade,
+#   vibroaxe — all keys confirmed in data/weapons.yaml.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # BOUNTY HUNTERS' QUARTER — 2 NPCs
+  # Contested fortified block; bounty posting boards, equipment shops.
+  # Anyone who enters without the right introduction is potential work.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Rattataki Contract Killer
+    room: "Nar Shaddaa - Bounty Hunters' Quarter"
+    species: Rattataki
+    description: >-
+      A pale, hairless woman with the ritual combat scarring typical of
+      Rattataki warriors — fine white lines across the jaw and the backs
+      of both hands. She sits at a corner table with a datapad she is not
+      reading, positioned to see every door. Her heavy blaster is holstered
+      but the safety is off; you can tell by the way she keeps one thumb
+      resting just above the grip. She has no active contract at the moment.
+      She has decided you might be the next one.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D+2
+        technical: 2D+1
+      skills:
+        blaster: 4D+2
+        dodge: 4D
+        search: 3D+1
+        intimidation: 3D
+        tracking: 3D
+      weapon: heavy_blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Rattataki freelance contract killer between jobs on Nar Shaddaa.
+        She has been in the Bounty Hunters' Quarter for three days; she has
+        assessed every person who entered as either a potential employer or a
+        potential mark. She has decided you are the latter. She is precise,
+        economical, and has no interest in conversation — only in
+        determining what your removal would pay and whether anyone would notice.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Clipped, accented Basic. Minimal. She identifies threat levels by
+        weight and stance before she speaks. She does not introduce herself.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*She comes up out of the chair faster than you expected.*"
+        - "*The heavy blaster tracks you in a two-handed grip, no wasted motion.*"
+        - "*She fires and steps sideways simultaneously — trained reflex.*"
+
+  - name: Trandoshan Debt Enforcer
+    room: "Nar Shaddaa - Bounty Hunters' Quarter"
+    species: Trandoshan
+    description: >-
+      A large Trandoshan in reinforced leather work-gear, carrying a
+      vibroblade strapped across the back of one forearm. His scales are
+      dark green with old scars cutting across the crest; the largest runs
+      from his left eye socket to his chin, souvenir of a collection call
+      that did not go to plan. He is here on behalf of a Hutt creditor who
+      has grown impatient with a debt that is six months overdue. He has
+      not found the debtor yet. He is working through people who might know.
+      You have been identified as one of those people.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 1D+2
+        mechanical: 1D+2
+        perception: 2D
+        strength: 4D+1
+        technical: 1D+2
+      skills:
+        brawling: 5D+1
+        melee_combat: 4D+2
+        intimidation: 4D
+        streetwise: 2D+2
+        search: 2D
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Trandoshan enforcer working debt collection for a Hutt creditor.
+        He is patient and methodical — he has been doing this work for eleven
+        years and knows that bodies rarely recover the principal. He prefers
+        to establish dominance through physical presence and the promise of
+        worse to come. When that fails, he switches quickly and without
+        hesitation. The vibroblade is his preference; he finds blasters
+        impersonal and unsatisfying for collection work.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Low, unhurried Basic with a Trandoshan sibilance. Speaks slowly
+        because he has learned that slow speech implies he is not worried
+        about the outcome. He uses people's names if he knows them. He
+        probably knows yours.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The vibroblade comes off his forearm in a practiced draw.*"
+        - "*He closes the distance in two steps — very fast for his size.*"
+        - "*'You'll need more than that.' He advances through the hit.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # UPPER DOCK OBSERVATION LEVEL — 1 NPC
+  # Contested dock monitoring post; Hutt front company tracks traffic
+  # for profit and to watch for Republic interdiction vessels.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Syndicate Traffic Watcher
+    room: "Nar Shaddaa - Upper Dock Observation Level"
+    species: Devaronian
+    description: >-
+      A Devaronian male in dock-authority coveralls that are one size too
+      large and lack the standard patch at the collar. He stands at a
+      sensor console running queries he is not authorized to run, logging
+      incoming ship transponders against a private manifest. The view from
+      the observation level is spectacular; he has long since stopped seeing
+      it. He notices you noticing him, and the calculation behind his eyes
+      runs faster than his expression changes. You have seen something he
+      cannot afford to let you take off this platform.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 3D+2
+        dodge: 3D+1
+        streetwise: 3D+2
+        con: 3D+1
+        search: 3D
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Devaronian intelligence operative working for a Hutt syndicate
+        front that monitors dock traffic on Nar Shaddaa for arriving Republic
+        vessels and cargo worth intercepting. He is not primarily a fighter —
+        his value is information — but he carries a concealed hold-out blaster
+        precisely for moments like this one. He is alarmed but controlled;
+        he has handled witness problems before. He aims to resolve this quickly
+        and quietly before his cover is further compromised.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Smooth, friendly Basic with just a trace of Devaronian accent — a
+        voice trained to put people at ease. The tone doesn't change when
+        he decides to act. Only the content does.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The hold-out blaster appears from somewhere inside the coverall.*"
+        - "*He fires from behind the sensor console, using it as cover.*"
+        - "*'Nothing personal. Just bad timing.' He fires again.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # WEAPONS CACHE — 1 NPC
+  # Contested black-market arms shop; Gamorrean muscle guards the stock.
+  # Unknown browsers without the right introduction are not welcome.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Cache Vault Guardian
+    room: "Nar Shaddaa - Weapons Cache"
+    species: Gamorrean
+    description: >-
+      A Gamorrean guard posted inside the weapons cache, positioned between
+      the display cases and the back-room vault. Its armor is heavier than
+      standard — chest-and-back plates reinforced with a durasteel layer the
+      armorer probably didn't make himself. The vibroaxe is already in hand;
+      this guard does not put it down during business hours. It has looked
+      at you since you entered and has not yet decided you are legitimate.
+      It is close to deciding you are not.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 1D+1
+        mechanical: 1D+2
+        perception: 2D+1
+        strength: 4D+2
+        technical: 1D+2
+      skills:
+        brawling: 5D+2
+        melee_combat: 4D+2
+        intimidation: 3D+1
+        search: 2D
+      weapon: vibroaxe
+      move: 8
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Gamorrean guard employed to protect the weapons cache stock.
+        It has one standing order: no one enters the vault area without
+        the proprietor's explicit clearance. It does not distinguish between
+        thieves, browsers, and inspectors — unauthorized presence is
+        unauthorized presence. It does not negotiate and does not wait for
+        the threat to become obvious; it eliminates ambiguity by acting first.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Guttural Gamorrean with minimal Basic overlay — mostly grunts and
+        the sound of armor shifting into a combat stance. It does not explain
+        itself. The vibroaxe rising to guard position is the explanation.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The vibroaxe comes up in a two-handed guard position.*"
+        - "*It charges without preamble, using its mass as a weapon.*"
+        - "*A guttural sound that might be a warning — or might not.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # REFUGEE SECTOR — 1 NPC
+  # Contested crowded district; CIS refugees and displaced persons.
+  # Predatory criminals operate here, exploiting the desperate.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Refugee Sector Racketeer
+    room: "Nar Shaddaa - Refugee Sector"
+    species: Weequay
+    description: >-
+      A Weequay in patched work-clothes who has carved out a territory
+      in three corridors of the Refugee Sector, charging the displaced
+      families there a weekly "protection" fee that buys them nothing
+      except not being harmed by the person charging it. He has done this
+      for eight months and found it reliably profitable. He is currently
+      collecting from a woman who cannot pay. He has spotted you watching,
+      and has correctly identified you as a problem that needs to be solved
+      before it develops further.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 3D+2
+        brawling: 3D+2
+        intimidation: 3D+2
+        streetwise: 3D
+        dodge: 2D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Weequay racketeer running a protection scheme on displaced refugees
+        in his sector territory. He is not ideological about it — this is the
+        simplest available revenue stream for someone with his skill set and
+        no Hutt affiliation. He is confident within his territory and reacts
+        with immediate aggression to any challenge to his operations. He
+        shoots first, not because he is panicking but because he has learned
+        that witnesses are expensive.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Flat, unhurried Basic with a Weequay rhythm. "You're in the wrong
+        corridor." Then he decides whether to let you leave that sentence
+        standing on its own or not.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He draws and fires in the same motion — no warning, no preamble.*"
+        - "*He steps between two refugees to complicate your shot. They scatter.*"
+        - "*'Bad timing.' He fires again, still unhurried.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # OLD CORELLIAN QUARTER — 1 NPC
+  # Contested residential block; longtime Corellian expatriate community.
+  # A street gang claims the block and enforces "residency fees."
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Quarter Territory Enforcer
+    room: "Nar Shaddaa - Old Corellian Quarter"
+    species: Human
+    description: >-
+      A Human woman in Corellian work-jacket colors — not as an affiliation
+      statement, just the cheapest available clothing in this block — with
+      a blaster pistol visible at the hip and a second one you can tell is
+      at the small of the back by the way she keeps her jacket clear. She
+      is here on behalf of a street gang that claims the Old Corellian Quarter
+      as their collection territory. The residents are mostly too old or too
+      tired to object. She has noticed you don't live here and are not paying.
+      That is, in her framework, a conversation-ending distinction.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 3D+2
+        brawling: 3D+1
+        streetwise: 3D
+        intimidation: 3D
+        dodge: 2D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A street gang territory enforcer working the Old Corellian Quarter
+        collection beat. She is practical and unsentimental — this is a job,
+        the people in this block are a revenue source, and anyone who
+        threatens either is a problem to be resolved efficiently. She is
+        more dangerous than she looks; the casual posture is professional
+        habit, not relaxation. She has been in seven firefights this year.
+        She escalates fast and without visible emotion.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Mid-Core accent scraped down by years on the Moon. Direct, minimal.
+        "You don't live here." She waits exactly one second for a response
+        before deciding she doesn't need one.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*She draws the hip blaster first — the one you knew about.*"
+        - "*She fires from a standing position, weight forward, no cover.*"
+        - "*'Wrong block.' She fires again, adjusting aim.*"
