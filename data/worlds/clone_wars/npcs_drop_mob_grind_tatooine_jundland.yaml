@@ -1,0 +1,167 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_tatooine_jundland.yaml
+#
+# Tatooine Jundland Wastes Hostile Mob Grind — Interior Rooms (2026-06-22)
+#
+# Two hostile NPCs covering the two Jundland rooms not included in the
+# original tatooine mob grind batch (npcs_drop_mob_grind_tatooine.yaml):
+#   Jundland Wastes - Krayt Dragon Graveyard  (room 51) — juvenile Krayt
+#   Jundland Wastes - Hidden Cave             (room 52) — outlaw cache keeper
+#
+# Both satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# NOTE: the existing mob grind header noted a future "Canyon Krayt-Spawn,
+# chain_enemy_template" for the Graveyard room — that is a separate design
+# (chain event spawned), can coexist with this regular huntable mob entry.
+#
+# Zone spread:
+#   Jundland Wastes - Krayt Dragon Graveyard x1  (young canyon krayt)
+#   Jundland Wastes - Hidden Cave            x1  (outlaw cache keeper)
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats. WEG40120 PDF unavailable in this tree;
+#   stats are UNVERIFIED against the PDF. Grounded in sibling CW NPC
+#   patterns (npcs_drop_mob_grind_tatooine.yaml baselines):
+#     Giant Womp Rat: DEX 2D+2, STR 2D+2, brawling 4D (creature ref)
+#     Tusken Canyon Sentinel: DEX 2D+2, STR 2D+2, melee 3D+2 (humanoid ref)
+#   Juvenile Krayt scaled up from Womp Rat (contested_marches upper band):
+#     DEX 2D+1, STR 3D+2, brawling 4D+2, move 8.
+#   Cache Keeper calibrated to outskirts humanoid band (DEX ~2D+2, blaster 4D).
+# Weapons: blaster_pistol (cache keeper) — key confirmed in data/weapons.yaml.
+#   Krayt uses empty weapon key; combat engine falls back to brawling + STR.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # KRAYT DRAGON GRAVEYARD — 1 NPC (juvenile canyon krayt dragon)
+  # "Something moves in the sand nearby." — the room description
+  # hints at a young Krayt whose sensory range covers the graveyard.
+  # Pearl-hunters risk it every time they come for the pearls.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Young Canyon Krayt
+    room: "Jundland Wastes - Krayt Dragon Graveyard"
+    species: Creature
+    description: >-
+      A canyon Krayt Dragon not yet at its full growth — no more than
+      four meters from snout to tail-tip, though it carries itself as
+      though the number is higher. The bone-white of its underbelly
+      makes it startlingly visible against the dark sand of the
+      graveyard, which does not seem to concern it. It has been
+      watching you since you crested the last dune; the massive jaw
+      dropped slightly when you got within thirty meters, a smell-
+      assessment reflex as old as the species. The pearl-hunters have
+      a name for the young ones that roam the graveyard — the name
+      does not translate into Basic, but the meaning is roughly
+      "the tax."
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 1D
+        mechanical: 1D
+        perception: 2D+2
+        strength: 3D+2
+        technical: 1D
+      skills:
+        brawling: 4D+2
+        search: 3D
+        sneak: 2D
+      weapon: ""
+      move: 8
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A juvenile canyon Krayt Dragon that has claimed the graveyard
+        as its territory — drawn there by the scent of old bone and
+        the promise of pearl-hunters who come regularly and always
+        carry something worth taking. It is not mature enough for the
+        ambush patience of an adult but old enough to be patient in
+        short bursts. It charges when prey is within twenty meters,
+        leads with the jaw, and does not disengage. It cannot be
+        intimidated by anything short of fire.
+      knowledge: []
+      faction: wildlife
+      dialogue_style: >-
+        A low, resonant subsonic grumble felt more than heard, rising
+        to a hiss when it charges. No Basic. The jaw drops open far
+        enough to confirm the teeth are not decorative.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The Krayt surges forward across the bone-littered sand, jaw wide.*"
+        - "*It wheels with surprising speed for its mass and strikes again.*"
+        - "*A guttural hiss — it repositions between you and the dune exit.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # HIDDEN CAVE — 1 NPC (outlaw cache keeper)
+  # The cave's unmarked entrance and CIS contact-mark suggest a
+  # desert dropbox used by independent operators. Someone is in
+  # residence who does not want company.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Outlaw Cache Keeper
+    room: "Jundland Wastes - Hidden Cave"
+    species: Mirialan
+    description: >-
+      A Mirialan woman wedged into the shadow behind the cave's
+      inner rock shelf, hold-out blaster already raised when you
+      came through the entrance. The geometric tattoos on her
+      cheekbones are partially obscured by cave-dust and a thin
+      scarf, but the pattern identifies a Mirialan regional
+      guild affiliation that officially does not run cargo routes
+      through systems like this one. The survival gear stacked
+      against the cave wall is organized with the precision of
+      someone who has been living out of a cache for weeks. She
+      looks at you the way anyone looks at a problem that just
+      walked through the only exit.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        sneak: 3D+1
+        streetwise: 3D
+        survival: 2D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Mirialan smuggling-network operative who has been using
+        this cave as a desert dropbox for six weeks. She is not
+        paranoid — she is correct that anyone who found the cave
+        uninvited is either a threat or evidence of a compromised
+        route, and both outcomes require the same response. She is
+        a precise shooter, uses the cave's interior geometry to
+        control the fight, and does not give warnings she has not
+        already decided to follow through on.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Quiet, flat Basic with a faint Mirialan cadence. No preamble.
+        "Wrong cave." The blaster does not waver.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*She fires from the cave shadow, using the rock shelf as cover.*"
+        - "*'Wrong choice.' She repositions deeper into the cave and fires again.*"
+        - "*A clean shot from the dark interior — she has the angles memorized.*"
