@@ -1,0 +1,434 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_coruscant_underworld_deep.yaml
+#
+# Coruscant Underworld Deep — Wilderness Hostile Mob Grind Batch (2026-06-22)
+#
+# Six roaming hostile NPCs seeded across the six Coruscant Underworld
+# wilderness landmark rooms NOT covered by the first batch
+# (npcs_drop_mob_grind_coruscant_underworld.yaml). Fills complete mob
+# coverage across all 12 quadrant landmarks.
+#
+# First batch covered:
+#   NE: Derelict Loading Docks, Contraband Transfer Point
+#   NW: Tier-Seven Warehouse Row, Sublevel Pump Station Nine
+#   SE: The Collapse Gallery
+#   SW: The Null Gallery
+#
+# This batch covers the remaining six:
+#   NE: Stripped Cargo-Lift Hub x1         (Lift Hub Cache Raider, Rodian)
+#   NW: Overflow Thoroughfare Market x1     (Market Racket Enforcer, Devaronian)
+#   SE: The Last Ward Marker x1             (Ward Marker Scavenger, Quarren)
+#   SE: The Shriek-Dark Sublevel x1         (Sublevel Predator, Creature)
+#   SW: The Ancient Pipe Market x1          (Pipe Market Extortionist, Weequay)
+#   SW: The Foundation Stratum x1           (Stratum Claim-Jumper, Nikto)
+#
+# Rooms are resolved at runtime via engine/npc_loader._resolve_wilderness_room_id
+# (DB lookup by landmark name; wilderness_region_id IS NOT NULL rows only).
+# These are NOT planet-YAML rooms.
+#
+# All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Threat tiers:
+#   NE Cargo-Lift Hub: low (smuggler territory, industrial ruin)
+#   NW Market:         none (civilian market — enforcer is a criminal interloper)
+#   SE Last Ward:      low (approach zone to lethal fringe)
+#   SE Shriek-Dark:    lethal (predator — creature stats, high STR/DEX)
+#   SW Pipe Market:    low (refugee enclave — enforcer preys on residents)
+#   SW Foundation:     low (scavenger/claim dispute, structural hazard)
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats grounded in sibling CW NPC patterns (coruscant lower
+#   batch and first underworld batch baselines). Sourcebooks absent in
+#   this tree — stats UNVERIFIED against WEG40120 PDF.
+# Species stat modifiers applied per WEG D6 convention:
+#   Rodian: DEX 3D+1, PER 2D+2 (hunter lineage)
+#   Devaronian: CHA/soc 3D, STR 2D+1 (nomadic mercantile tradition)
+#   Quarren: KNO 2D+2, STR 2D+2 (amphibious build)
+#   Weequay: STR 2D+2, DEX 2D+1 (hardy desert caste)
+#   Nikto: STR 3D, DEX 2D+2 (varied subspecies, grounded at Human-plus)
+# Creature: threat_tier lethal → elevated STR/DEX vs Human baseline
+# Weapons: blaster_pistol, blaster_carbine, hold_out_blaster, vibroblade
+#   — all keys confirmed in data/weapons.yaml. Creature uses empty key.
+# Loaded by: engine/npc_loader.py::load_wilderness_npcs() via
+#   era.yaml content_refs.wilderness_npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+wilderness_npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # NE — STRIPPED CARGO-LIFT HUB — 1 NPC (Lift Hub Cache Raider)
+  # A smuggler staging area for loads too large for conduit relays.
+  # The Rodian guards the staged crates as if they were his own.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Lift Hub Cache Raider
+    room: "Stripped Cargo-Lift Hub"
+    species: Rodian
+    description: >-
+      A Rodian in a patched work-suit, crouched behind one of the
+      frozen lift shaft openings in the hub's circular floor, watching
+      the entrance with his compound eyes. He arrived three hours ago
+      to pick up a staged crate from the second-tier storage above
+      Lift One and found someone else had already been through it
+      — badly enough that he is still here, waiting. The waiting has
+      made him angry. The blaster pistol is at low-ready and he is
+      not inclined toward conversation, especially with anyone who
+      came from the corridor side.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 4D+2
+        dodge: 3D+2
+        search: 3D+1
+        sneak: 3D
+        streetwise: 2D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Rodian cargo runner who uses the hub as a quiet pickup
+        point and arrived to find someone had already tampered with
+        his staged load. The anger has sharpened his threat-assessment
+        considerably — he reads anyone entering as a possible
+        continuation of the problem and reacts accordingly. Fast with
+        the blaster, uses the shaft geometry for cover, does not shout
+        first.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Short, clipped Basic with a Rodian cadence.
+        "Wrong hub." The blaster comes up clean and steady.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires from behind the shaft opening, using the edge as cover.*"
+        - "*A burst of green bolts from the lip of Lift Two's frozen platform.*"
+        - "*He retreats into the shaft pit's shadow and fires again from below.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # NW — OVERFLOW THOROUGHFARE MARKET — 1 NPC (Market Racket Enforcer)
+  # A refugee transit-corridor market. A Devaronian enforcer runs a
+  # protection racket on vendors; he treats any newcomer as a mark.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Market Racket Enforcer
+    room: "Overflow Thoroughfare Market"
+    species: Devaronian
+    description: >-
+      A Devaronian with filed horns and a slate-grey jacket with
+      corporate-sector trim that he was definitely not issued by
+      whoever originally owned it. He walks the market corridor at
+      irregular intervals, stopping at vendor stalls just long
+      enough for money to move without anything being said. When
+      he spots you he stops, tilts his head once at the far end of
+      the corridor — the exit — and waits to see if you get the
+      message. Most people do. The ones who don't learn why the
+      market vendors go very quiet when he turns their direction.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 3D+2
+        intimidation: 3D+2
+        streetwise: 3D
+        dodge: 2D+2
+        persuasion: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A protection racketeer who has been working the Overflow
+        Thoroughfare Market for months, treating it as his personal
+        revenue stream. He is a professional intimidator who prefers
+        to escalate in stages — message, then threat, then violence
+        — because it keeps the market productive long-term. When a
+        new face doesn't take the hint, he stops with stages and
+        goes straight to the blaster with practiced efficiency.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Smooth, slightly tired Devaronian Basic, the voice of someone
+        explaining something for the tenth time. "You're in my market."
+        The blaster surfaces without haste.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The blaster appears without rushing. 'Wrong answer.' He fires.*"
+        - "*He steps between two vendor stalls, using them as cover, and fires again.*"
+        - "*Vendors scatter. He advances down the corridor, firing deliberately.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # SE — THE LAST WARD MARKER — 1 NPC (Ward Marker Scavenger)
+  # The last signpost before the lethal fringe. A Quarren who waits
+  # at the marker for travelers to stop — then robs them.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Ward Marker Scavenger
+    room: "The Last Ward Marker"
+    species: Quarren
+    description: >-
+      A Quarren sitting against the old Public Works boundary post
+      with the comfortable posture of someone who has been here many
+      times. His face-tentacles are relaxed, and he has a scraped
+      collection of salvage spread on a cloth beside him — a few
+      power cells, a cracked scanner, something that might have been
+      a comlink before something large sat on it. He looks like a
+      scavenger resting. When you stop at the marker — nearly everyone
+      does — he is already on his feet and he is not holding a power
+      cell. He has a hold-out blaster and an exit angle behind the post
+      that he has clearly planned in advance. He robs travelers who
+      pause here long enough to read the kill tallies. The tallies have
+      given him excellent occupational patience.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D+2
+        technical: 2D+1
+      skills:
+        blaster: 3D+2
+        streetwise: 3D+1
+        search: 3D
+        dodge: 2D+2
+        con: 3D
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Quarren scavenger who has found the Ward Marker to be his
+        best revenue site in the deep underworld — travelers stop
+        here, they read the tallies, they are momentarily distracted
+        by the existential implications. He uses that window. He is
+        not a fighter by preference but is completely competent at
+        the kind of short-range robbery-assault he has designed his
+        approach around. He fires first and negotiates never.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Bubbly Quarren-accented Basic, incongruously calm.
+        "You stopped. Most do." The blaster is already out.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires from behind the boundary post, low and accurate.*"
+        - "*'Nobody leaves without contributing.' Another shot from cover.*"
+        - "*He retreats into the dark corridor behind the marker and fires again.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # SE — THE SHRIEK-DARK SUBLEVEL — 1 NPC (Sublevel Predator)
+  # Lethal-tier bottom zone at the Maze threshold. A feral creature
+  # that has adapted to the deep underworld. Creature stats.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Sublevel Predator
+    room: "The Shriek-Dark Sublevel"
+    species: Creature
+    description: >-
+      Something in the geometry of this sublevel does not make sense
+      — a mass of shadow in the far alcove that resolves into a
+      quadrupedal creature when it moves. It is roughly the size of
+      a large speeder-bike, low-slung, with limbs that look wrong
+      at the joints in a way that suggests deep adaptation to the
+      warren-crawl of the deep underworld. Its coloring is the
+      specific flat grey of old ferrocrete, which explains why it
+      was not immediately visible. The shredder-bat colony above
+      will not fly in its direction. This appears to be an entirely
+      rational choice on the bats' part. It noticed you as soon as
+      you entered, and it has not moved since. That waiting stillness
+      is worse than aggression would be.
+    char_sheet:
+      attributes:
+        dexterity: 3D+2
+        knowledge: 1D
+        mechanical: 1D
+        perception: 3D+1
+        strength: 4D
+        technical: 1D
+      skills:
+        brawling: 5D
+        sneak: 4D
+        search: 3D+2
+      weapon: ""
+      move: 14
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A deep-underworld apex predator that has established this
+        sublevel as its territory. It is not aggressive in the
+        conventional sense — it is territorial. Anything that enters
+        its space is prey. It hunts with patience, not speed: it
+        waits until the intruder's threat-assessment is committed in
+        the wrong direction, then closes the distance faster than
+        seems possible for its mass. It does not retreat. It does
+        not negotiate. The shredder-bat colony is correct to avoid it.
+      knowledge: []
+      faction: wildlife
+      dialogue_style: >-
+        No Basic. A sound just below hearing that registers as
+        pressure in the chest. Then it moves.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The shadow moves. Faster than it should. It attacks.*"
+        - "*It circles, using the ferrocrete alcoves. Another approach from a different angle.*"
+        - "*The emergency strip flickers. In the dark interval, it has moved.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # SW — THE ANCIENT PIPE MARKET — 1 NPC (Pipe Market Extortionist)
+  # A refugee enclave in decommissioned coolant mains. A Weequay
+  # gang enforcer runs protection on the market's vendors.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Pipe Market Extortionist
+    room: "The Ancient Pipe Market"
+    species: Weequay
+    description: >-
+      A Weequay standing in the junction of the four coolant mains
+      at the market's center, positioned so he can see all four
+      pipe entrances. He has the posture of someone whose job is
+      to be visible — arms loose, blaster carbine slung at the
+      position that makes it clearly accessible but not explicitly
+      drawn. He is not a vendor. He collects. The market's unwritten
+      manager, Orveth Callo, enforces the no-weapons-inside rule
+      and does not appear to know what to do about him, which means
+      he has been here long enough for her to have made her decision.
+      When he looks at you, it is the assessment of a person
+      calculating whether you are worth the trouble.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        brawling: 3D+1
+        intimidation: 3D+2
+        dodge: 2D+2
+        streetwise: 3D
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Weequay enforcer who has claimed the Pipe Market junction
+        as his collection point. He is systematic: every vendor pays,
+        every newcomer is assessed, and anyone who looks capable of
+        being a problem gets dealt with before they become one. He is
+        not impulsive — impulsive enforcers do not last in the deep
+        underworld — but once he decides you are a problem, the
+        carbine comes off the sling with the efficiency of a person
+        who has done this many times in tight spaces.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Flat Weequay-accented Basic, no wasted words.
+        "This market runs on arrangements. You don't have one."
+        The carbine lifts.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The carbine comes up and he fires across the junction.*"
+        - "*He retreats into one of the pipe entrances and fires from its mouth.*"
+        - "*'Bad calculation.' He fires again, moving between the coolant main openings.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # SW — THE FOUNDATION STRATUM — 1 NPC (Stratum Claim-Jumper)
+  # An archaeological collapse site where Feliss Drayne catalogues
+  # ancient strata. A Nikto claim-jumper attacks anyone near the
+  # artifact seams he considers his personal mine.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Stratum Claim-Jumper
+    room: "The Foundation Stratum"
+    species: Nikto
+    description: >-
+      A Nikto on the far side of the shaft rim, crouched at a seam
+      in the mid-stratum wall with a pry-bar in one hand and a blaster
+      pistol in the other. He is working a fastener that has been
+      embedded in the ferrocrete since before anyone alive can
+      calculate, and he is doing it while watching the approach. He
+      has been working this seam for three weeks and he has a
+      specific theory about what is embedded deeper in it, and he
+      does not intend to share that theory or the proceeds with
+      anyone who appears. The scholar Feliss Drayne catalogues
+      artifacts and does not make legal claims; he makes the other
+      kind. He attacked her once, briefly, before calculating that
+      she was not competition for the deep seams. You are new
+      and therefore competition until proven otherwise.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+1
+        strength: 3D
+        technical: 2D+1
+      skills:
+        blaster: 3D+2
+        brawling: 3D+2
+        dodge: 2D+2
+        search: 3D
+        survival: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Nikto deep-underworld scavenger who has identified a
+        productive artifact seam at the Foundation Stratum and is
+        defending it against all comers. He is not sophisticated —
+        he has a valuable claim, he knows it, and he attacks anyone
+        who approaches the seam before they can assess whether
+        they want the same thing. He uses the shaft rim and the
+        rubble at the collapse edge for cover, is aware of the
+        forty-meter drop behind him, and is not careless about
+        position on its edge.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Rough Basic with a Kajain'sa'Nikto rasp.
+        "That seam's spoken for." The blaster comes up before you answer.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires from behind a stratum outcrop at the shaft rim.*"
+        - "*'Claim's mine.' Another shot from the rubble at the collapse edge.*"
+        - "*He moves along the shaft rim to a new angle and fires again.*"

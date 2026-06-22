@@ -136,6 +136,8 @@ content_refs:
   wilderness_npcs:
     - wilderness_npcs.yaml      # F.6: the Hermit at Hermit's Hut
     - npcs_drop_mob_grind_geonosis_ey_akh.yaml  # Mob-grind (Jun 22 2026): 6 hostile NPCs across E'Y-Akh wilderness landmark rooms (zone: geonosis_ey_akh, threat_band: wilds). Ebon Sea x2 (shore acklay + mutant water hulk), Golbah's Pit x1 (Nikto scavenger), Marmio Mio's Freighter x1 (Trandoshan looter), N'G'Zi Badlands x2 (mature acklay + arena netter). All satisfy is_huntable_mob(). Original characters, era-clean, WEG D6 stats.
+    - npcs_drop_mob_grind_coruscant_underworld.yaml  # Mob-grind (Jun 22 2026, moved to wilderness_npcs: Jun 22 2026): 6 hostile NPCs across Coruscant Underworld WILDERNESS landmark rooms. Covers all 4 quadrants: NE (Derelict Loading Docks / Contraband Transfer Point), NW (Tier-Seven Warehouse Row / Sublevel Pump Station Nine), SE (The Collapse Gallery — lethal tier), SW (The Null Gallery — lethal tier). Zabrak/Weequay/Trandoshan/Human/Gamorrean/Nikto. All satisfy is_huntable_mob(). Original characters, era-clean, WEG D6 stats.
+    - npcs_drop_mob_grind_coruscant_underworld_deep.yaml  # Mob-grind deep expansion (Jun 22 2026): 6 hostile NPCs across the 6 remaining uncovered Coruscant Underworld wilderness landmark rooms (NE: Stripped Cargo-Lift Hub; NW: Overflow Thoroughfare Market; SE: Last Ward Marker + Shriek-Dark Sublevel; SW: Ancient Pipe Market + Foundation Stratum). Rodian/Devaronian/Quarren/Creature/Weequay/Nikto. All satisfy is_huntable_mob(). Original characters, era-clean, WEG D6 stats.
 
   # ── Jedi Village NPCs (Drop F.7.b, May 4 2026) ──────────────────────────
   # NPCs at Village landmark rooms (also wilderness_region_id IS NOT NULL,

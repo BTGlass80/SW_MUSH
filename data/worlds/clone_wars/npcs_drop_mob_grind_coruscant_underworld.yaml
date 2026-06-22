@@ -48,12 +48,15 @@
 #   Nikto (Morgukai): STR 3D+1, DEX 3D+2 (trained warrior tradition)
 # Weapons: heavy_blaster_pistol, blaster_carbine, vibroaxe x2,
 #   blaster_pistol, vibroblade — all keys confirmed in data/weapons.yaml.
-# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# Loaded by: engine/npc_loader.py::load_wilderness_npcs() via
+#   era.yaml content_refs.wilderness_npcs (NOT content_refs.npcs —
+#   these rooms are in the wilderness DB substrate, not the planet
+#   YAML bundle; _resolve_wilderness_room_id does a DB lookup).
 # ──────────────────────────────────────────────────────────────────────
 
 schema_version: 1
 
-npcs:
+wilderness_npcs:
 
   # ══════════════════════════════════════════════════════════════════
   # NE — DERELICT LOADING DOCKS — 1 NPC (Dock Cache Guardian)
