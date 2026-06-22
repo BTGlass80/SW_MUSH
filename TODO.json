@@ -1808,7 +1808,27 @@
       "requested_by": "Brian 2026-06-13"
     }
   ],
-  "design_calls_pending_brian": [],
+  "design_calls_pending_brian": [
+    {
+      "id": "EVENT.communal_rework_staged_scenarios",
+      "status": "OPEN",
+      "title": "Rework communal events (rally/cults) from a menace COUNTER into staged playable SCENARIOS \u2014 the whole system, not just Hollow Sun",
+      "origin": "Brian 2026-06-21 played Cult of the Hollow Sun: 'typing rally / rally strike isn't gameplay'. Events should be: go to a location, cooperate, waves of enemies / locations to traverse, varied skills (slice terminals).",
+      "current_state": "engine/communal_objective.py CULT_ROSTER (all cults mechanically identical) + parser/communal_commands.py rally/'rally strike' = a global menace meter chipped by one auto-rolled best-pool strike per ~10 min. Explicitly an MVP ('design III.3'; 'rally-objective mechanics are design-open').",
+      "plan": "Compose existing primitives \u2014 wilderness-anomaly multi-phase WAVE combat + skill-mode (perform_skill_check) + the tutorial-chain/questline step engine (T3.24) \u2014 into multi-stage SITE scenarios: travel -> wave combat -> multi-skill objectives (slice conduits / free captives / break wards) -> boss -> resolve; cooperative; 'rally' becomes the find/track surface, not the gameplay. Extend, don't add. Vertical-slice Hollow Sun first, tune with Brian, then generalize to the roster.",
+      "doc": "docs/design/event_rework_staged_scenarios_2026-06-22.md",
+      "decision_needed": "(1) TIMING \u2014 pre-launch (lean yes for at least the vertical slice; an unfun headline event is a launch-quality issue) vs right-of-launch? (2) FIRST SCENARIO SHAPE \u2014 which skills feature, how many waves, and solo-viable vs requires a small group (the multi-phase combat assumes 3-5 coordinating players)?"
+    },
+    {
+      "id": "FORCE.chargen_sensitivity_representation",
+      "status": "OPEN",
+      "title": "BLOCKER: choosing Force-Sensitive at web chargen -> player logs in unable to use any Force power; how to represent force-sensitivity is balance/schema-touching",
+      "origin": "QA break-it sweep #2, 2026-06-22, confirmed end-to-end in-harness (BLOCKER + a HIGH + 2 MEDIUM all share this root).",
+      "root_cause": "Producer (server/api.py handle_submit + handle_create_character) stores a Force-sensitive char's control/sense/alter as 0D (the sentinel). Consumer (engine/character.py from_db_dict ~882) derives force_sensitive only from a NON-ZERO Force pool (the L2 fix test_qa_l2_force_0d_lockout, added for the opposite bug). So 0D -> force_sensitive=False -> every Force command rejects the player; the village-path failsafe doesn't fire for a fresh char. SAME ROOT also causes: +teach writing control/sense/alter into the SKILLS json column (force_sensitive stays False after CP spent \u2014 HIGH); 'train control/sense/alter' a silent dead-end (MEDIUM); test_character.yaml seeding Force skills into the skills column (MEDIUM).",
+      "recommendation": "Decouple force-sensitivity from the 0D dice value: persist it explicitly (a typed flag/column or an unambiguous non-dice sentinel) so a Force-sensitive-but-untrained char reads force_sensitive=True AND can attempt Force powers at base, WITHOUT the L2 spurious-sensitivity regression. Verify the correct WEG-D6 starting Force-skill representation (1D base vs 0D) against WEG40120 (the balance-touching part). Then fix the whole cluster (chargen blocker + teach-column + train-dead-end + test_character data) consistently.",
+      "decision_needed": "Approve the explicit-persisted-force-sensitivity approach + the WEG-D6 starting Force-skill value. NOTE: this slightly amends the 'force_sensitive is DERIVED from presence of control/sense/alter keys' invariant and may add a schema column."
+    }
+  ],
   "design_calls_resolved_recent": [
     {
       "id": "ITEM.unified_item_registry",
