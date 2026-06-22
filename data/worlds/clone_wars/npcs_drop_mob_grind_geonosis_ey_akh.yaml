@@ -1,0 +1,361 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_geonosis_ey_akh.yaml
+#
+# Geonosis E'Y-Akh Wilderness Hostile Mob Grind Batch (2026-06-22)
+#
+# Six roaming hostile NPCs seeded across the E'Y-Akh wilderness landmark
+# rooms to populate the solo-PvE mob-grind reward loop
+# (engine/hunting_rewards.py).
+#
+# Zone: geonosis_ey_akh (threat_band: wilds, security: lawless)
+# Rooms are WILDERNESS LANDMARK rooms (wilderness_region_id IS NOT NULL)
+# defined in data/worlds/clone_wars/wilderness/ey_akh.yaml.
+# These resolve via engine/npc_loader._resolve_wilderness_room_id() at
+# runtime (DB lookup by landmark name after the wilderness writer runs).
+# This file uses the `wilderness_npcs:` top-level key and is registered
+# under content_refs.wilderness_npcs in era.yaml — NOT content_refs.npcs.
+#
+# Room spread:
+#   The Ebon Sea x2     (Ebon Shore Acklay + Ebon Water Hulk)
+#   Golbah's Pit x1     (Pit Scavenger — Nikto outlaw in the ruins)
+#   Marmio Mio's Freighter x1  (Wreck Plunderer — Trandoshan looter)
+#   The N'G'Zi Badlands x2     (Badlands Acklay + Arena Netter)
+#
+# All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats grounded in data/npcs_creatures.yaml acklay/mutant_acklay
+#   templates (DEX 3D+1, STR 5D, brawling 6D for acklay; DEX 3D, STR 5D+2
+#   for mutant). Humanoid stats from sibling mob grind baselines.
+#   Sourcebooks absent in this tree — stats UNVERIFIED against WEG40120 PDF.
+# Creatures use weapon: "" (brawling / natural attacks per npc_loader schema).
+# Loaded by: engine/npc_loader.py::load_wilderness_npcs() via
+#   era.yaml content_refs.wilderness_npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+wilderness_npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # THE EBON SEA — 2 NPCs
+  # Shore and water margin; acklays are the apex threat here.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Ebon Shore Acklay
+    room: "The Ebon Sea"
+    species: Creature
+    description: >-
+      A wild acklay that has claimed the cracked mudflats along the Ebon Sea
+      shore as its hunting circuit. Its chitin has taken on a darkened, salt-
+      stained cast from years on the water margin, and the six bladed legs
+      leave a distinctive double-track in the black mud wherever it walks. It
+      hunts the shore by sound — the squelch of a boot, the creak of armour
+      settling, anything that breaks the flat dead stillness that the Ebon Sea
+      produces. Most visitors to the shore do not understand they have been
+      targeted until it is already committed to the run.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 1D
+        mechanical: 1D
+        perception: 2D
+        strength: 5D
+        technical: 1D
+      skills:
+        brawling: 6D
+        dodge: 4D
+        search: 3D
+        sneak: 3D+1
+      weapon: ""
+      move: 16
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        An apex predator with a established territory on the Ebon Sea
+        shore. It does not hesitate, negotiate, or withdraw. When
+        something enters its circuit, it calculates angle and commits.
+        No vocalisation before the attack. The first warning is the
+        drumming of six legs on hardened mud coming at speed.
+      knowledge: []
+      faction: wildlife
+      dialogue_style: "Percussive leg-rhythm on cracked mudflat, and then nothing else to say."
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*Six legs drum the cracked shore — it is already in its approach.*"
+        - "*The acklay's sensory stalks fan wide, fixing on you across the flat mud.*"
+        - "*A low resonant click from somewhere in its thorax. The legs shift position.*"
+
+  - name: Ebon Water Hulk
+    room: "The Ebon Sea"
+    species: Creature
+    description: >-
+      Something rises from the scum film of the Ebon Sea — an acklay, but
+      wrong. Bigger than the shore variety. Shell the colour of tar. The
+      chemical sludge that bled from Golbah's Pit has been at work on this
+      one for longer than most things survive in this water, and what it has
+      produced is a heavier animal that breathes the stagnant water as
+      naturally as air, hunts the lightless deeps beneath the scum by echo,
+      and treats the shore as an extension of its feeding range. It came up
+      out of the black water between you and the exit without a sound.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 1D
+        mechanical: 1D
+        perception: 2D
+        strength: 5D+2
+        technical: 1D
+      skills:
+        brawling: 6D
+        dodge: 4D
+        sneak: 4D
+      weapon: ""
+      move: 14
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A mutant acklay fully adapted to the Ebon Sea — heavier, slower on
+        land than the shore breed, but far harder to damage through its
+        thickened chitin. It ambushes from the water, rising beneath the
+        scum film without displacing it visibly. Territorial of the water
+        margin within a radius it has measured over years of hunting.
+        Unlike its shore kin it tends to push prey BACK into the water
+        before finishing.
+      knowledge: []
+      faction: wildlife
+      dialogue_style: "No sound at all until contact. The water barely ripples when it moves."
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The scum film breaks and it is already half out of the water.*"
+        - "*Thick chitin clicks into combat posture. The Ebon Sea drains off its shell in black sheets.*"
+        - "*It does not rush. It angles. The distance closes at its pace.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # GOLBAH'S PIT — 1 NPC
+  # A poisoned crater where no hive remains; off-worlders scavenge
+  # old Geonosian tech from the ruins. The Geonosians do not come
+  # here. Off-worlders who do not know that sometimes learn too late.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Pit Scavenger
+    room: "Golbah's Pit"
+    species: Nikto
+    description: >-
+      A Nikto in a sealed-collar environment jacket, its face-mask
+      half-cracked at the seam but still doing the minimum required
+      job against the pit's chemical off-gassing. It is picking through
+      the glassed rubble of the Golbah hive's ruins with a long metal
+      probe, cataloguing whatever survived the bombing well enough to
+      be worth carrying out. It does not look up at your approach.
+      When it does, the blaster pistol is already in its free hand, and
+      it has clearly decided that this pit is too profitable to share.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 3D+1
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        brawling: 3D+2
+        dodge: 3D+1
+        search: 4D
+        survival_desert: 3D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A practical scavenger who has decided that finding this crater
+        first means owning it. The chemical fumes have given it a slow
+        headache that has been going for three days; it is past the
+        stage where patience is available to it. It fires first and
+        never asks the follow-up questions.
+      knowledge: []
+      faction: independent
+      dialogue_style: "Short, functional Huttese-accented Basic. Not interested in conversation."
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The Nikto levels the blaster without a word.*"
+        - "'Already found it. Already claimed it. Walk back the way you came — oh, too late.'"
+        - "*It shifts its footing on the loose glassed stone, keeping the angle on you.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # MARMIO MIO'S FREIGHTER — 1 NPC
+  # A wrecked Action IV transport half-buried in the dunes. Ringed
+  # by merdeth shells. Someone was already living in it. Someone else
+  # has now arrived to strip whatever they can find, and they are not
+  # interested in witnesses.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Wreck Plunderer
+    room: "Marmio Mio's Freighter"
+    species: Trandoshan
+    description: >-
+      A large Trandoshan working its way through the Action IV's
+      mid-section with a pry tool and the systematic focus of someone
+      who has done this many times before. The sand-coloured tarp over
+      one of the external bays has been pulled away; a speeder is parked
+      beneath it, which means there was a previous occupant who either
+      left in a hurry or did not leave at all. The Trandoshan glances
+      up, assesses what you are, and sets down the pry tool in favour
+      of the blaster carbine it had hanging across its back.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 4D
+        technical: 2D+1
+      skills:
+        blaster: 4D+2
+        brawling: 5D
+        dodge: 3D+1
+        intimidation: 4D
+        survival_desert: 3D
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A professional wreck-stripper who operates alone for a reason:
+        partners complicate the split. It found the freighter yesterday
+        by following a probe-droid signal and has been stripping it
+        methodically ever since. It treats unwanted visitors as a
+        logistical problem to be resolved with minimum effort. No
+        interest in conversation; the carbine settles the variable.
+      knowledge: []
+      faction: independent
+      dialogue_style: "Near-silence with Trandoshan consonant-heavy Basic. Two syllables are an explanation."
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The Trandoshan raises the carbine in one smooth motion, sighting down the barrel.*"
+        - "*Low hiss through scaled nostrils. The carbine does not waver.*"
+        - "'Mine,' it says, gesturing broadly at the entire wrecked ship. '*Mine.*'"
+
+  # ══════════════════════════════════════════════════════════════════
+  # THE N'G'ZI BADLANDS — 2 NPCs
+  # Shattered red rock where the wild acklays den. The arena sends
+  # capture crews here; the crews do not welcome competitors.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Badlands Acklay
+    room: "The N'G'Zi Badlands"
+    species: Creature
+    description: >-
+      A mature wild acklay at the peak of the size range, at home in
+      the shattered rock of the N'G'Zi in a way that the arena-caught
+      ones never quite managed. The bladed legs move over loose rubble
+      without sound, selecting footholds on the broken stone with a
+      precision that looks wrong for something this large. It came over
+      the ridge at a dead run when it registered you below it, and it
+      had the angle from the moment it crested the top. It knows this
+      ground better than you do.
+    char_sheet:
+      attributes:
+        dexterity: 3D+2
+        knowledge: 1D
+        mechanical: 1D
+        perception: 2D+1
+        strength: 5D
+        technical: 1D
+      skills:
+        brawling: 6D+1
+        dodge: 4D+1
+        search: 3D+1
+        sneak: 4D
+      weapon: ""
+      move: 16
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A fully wild acklay in its own territory, hunting the badlands
+        on its own terms. It is faster than the shore variety and more
+        agile over broken ground, built for the tight-angle approach
+        between standing stones and ravine mouths. It does not hesitate
+        in its territory. The first sign of it is usually that it is
+        already committed to the approach.
+      knowledge: []
+      faction: wildlife
+      dialogue_style: "Leg-percussion on stone and the skitter of loose shale. Then nothing but motion."
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*It drops off the rock shelf and lands on all six legs without breaking stride.*"
+        - "*Sensory stalks fan fully open, tracking. The approach angle is already picked.*"
+        - "*A single deep click resonates from the ravine — the badlands acklay, marking its line.*"
+
+  - name: Arena Netter
+    room: "The N'G'Zi Badlands"
+    species: Human
+    description: >-
+      A Human in reinforced work gear, carrying a capture-net launcher
+      and a heavy blaster pistol as the backup option. One of Acklay
+      Chopper's live-capture crew, here to pull wild acklays for the
+      pens. The work requires two people at minimum; the other one
+      appears to be gone. The Netter does not look like someone who
+      wants to discuss what happened to the other one. It does not look
+      like someone who wants company at all. The net launcher is already
+      up, and in a pinch the heavy blaster does the same work at longer
+      range and simpler paperwork.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 3D
+        technical: 2D+1
+      skills:
+        blaster: 4D+2
+        brawling: 4D
+        dodge: 3D+2
+        survival_desert: 4D
+        search: 3D+1
+      weapon: heavy_blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A capture specialist who has been working live-acklay retrieval
+        for the arena long enough to find everything else too slow.
+        It is not hostile in principle, but it is in the badlands on
+        a tight schedule with a half-quota and no partner, which puts
+        its threat tolerance at essentially zero. An unknown in the
+        capture zone is a variable, and the Netter does not like
+        variables. The heavy blaster is the fastest way it knows to
+        eliminate one.
+      knowledge: []
+      faction: independent
+      dialogue_style: "Clipped work-speak. Occupation-specific jargon ('clear the approach', 'outside the net radius'). No warmth."
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The Netter sweeps the heavy blaster in a short arc, tracking.* 'Outside the approach zone. Now.'"
+        - "*Net launcher drops, blaster comes up in the same motion.* 'Wrong location. Wrong time.'"
+        - "'Solo run. No witnesses. You understand the arithmetic.'"
