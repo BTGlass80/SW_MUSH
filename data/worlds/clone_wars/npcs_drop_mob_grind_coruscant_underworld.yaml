@@ -1,0 +1,431 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_coruscant_underworld.yaml
+#
+# Coruscant Underworld Wilderness Hostile Mob Grind Batch (2026-06-22)
+#
+# Six roaming hostile NPCs seeded across Coruscant Underworld wilderness
+# landmark rooms to extend the solo-PvE mob-grind reward loop
+# (engine/hunting_rewards.py). Complements the existing Coruscant lower-city
+# grind batches (npcs_drop_mob_grind_coruscant.yaml,
+# npcs_drop_mob_grind_coruscant_lower.yaml) which cover the city zone;
+# this batch goes DEEPER — into the coordinate-based wilderness underworld
+# (zone: coruscant_underworld, threat_band: contested_marches).
+#
+# Landmark rooms targeted (all in data/worlds/clone_wars/wilderness/):
+#   coruscant_underworld_ne_smuggler.yaml:
+#     Derelict Loading Docks x1         (Dock Cache Guardian, Zabrak)
+#     Contraband Transfer Point x1      (Transfer Muscle, Weequay)
+#   coruscant_underworld_nw_overflow.yaml:
+#     Tier-Seven Warehouse Row x1       (Row Boss, Trandoshan)
+#     Sublevel Pump Station Nine x1     (Pump Station Holdout, Human)
+#   coruscant_underworld_se_mazefringe.yaml:
+#     The Collapse Gallery x1           (Gallery Ambusher, Gamorrean — lethal tier)
+#   coruscant_underworld_sw_deepwarren.yaml:
+#     The Null Gallery x1               (Void Stalker, Nikto — lethal tier)
+#
+# Rooms are resolved at runtime via engine/npc_loader._resolve_wilderness_room_id
+# (DB lookup by landmark name). These are NOT planet-YAML rooms.
+#
+# All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Threat tiers:
+#   Rooms 1-4: normal contested_marches criminal threat (DEX 2D+2 - 3D)
+#   Rooms 5-6: lethal-tier (The Collapse Gallery, The Null Gallery) —
+#              bumped stats to reflect dangerous deep-underworld predators
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats grounded in sibling CW NPC patterns (coruscant lower
+#   batch baselines). Sourcebooks absent in this tree — stats UNVERIFIED
+#   against WEG40120 PDF.
+# Species stat modifiers applied per WEG D6 convention:
+#   Trandoshan: STR 3D+2, DEX 2D+1 (reptilian build)
+#   Gamorrean: STR 4D, DEX 2D+2 (classic WEG warrior caste)
+#   Nikto (Morgukai): STR 3D+1, DEX 3D+2 (trained warrior tradition)
+# Weapons: heavy_blaster_pistol, blaster_carbine, vibroaxe x2,
+#   blaster_pistol, vibroblade — all keys confirmed in data/weapons.yaml.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # NE — DERELICT LOADING DOCKS — 1 NPC (Dock Cache Guardian)
+  # The last intact bay of the old Dominus supply corridor; a Zabrak
+  # who has filled it with stolen goods and shoots anyone who enters
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Dock Cache Guardian
+    room: "Derelict Loading Docks"
+    species: Zabrak
+    description: >-
+      A lean Zabrak with short, filed horns and dust-grey clothing that
+      was probably black before the underworld's mineral particulate got
+      into every seam. He stands in the mouth of the sixth bay — the only
+      one that has not collapsed — with a heavy blaster pistol carried
+      low and his back to a wall of cached crates stacked to the ceiling.
+      The crates are not his, but possession in the deep underworld is
+      measured in willingness to shoot, and he has been consistently
+      willing for the seven months he has occupied this bay. The
+      previous three claimants managed an average of eleven days. He
+      has not disclosed the mathematical significance of this to
+      newcomers; the blaster makes the argument more efficiently.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D+2
+        dodge: 3D+2
+        search: 3D+1
+        intimidation: 3D
+        streetwise: 2D+2
+      weapon: heavy_blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Zabrak territorial who has held the last intact loading bay
+        through sustained, calibrated violence. He does not negotiate
+        with strangers; he identifies them as threats and acts on that
+        identification before they can demonstrate otherwise. Seven months
+        of sole occupancy has made him confident in the geometry of the
+        bay — he knows the exact angles the collapsed dock arms create,
+        and he uses them as cover without thinking.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Quiet Zabrak Basic. "Wrong bay." The heavy blaster is leveled
+        before the second word lands.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires from behind the frozen dock arm, using the collapsed bay to his left as a barrier.*"
+        - "*He steps back into the crate stacks and fires from partial concealment.*"
+        - "'Seven months.' *He fires again.* 'Nobody lasts.'"
+
+  # ══════════════════════════════════════════════════════════════════
+  # NE — CONTRABAND TRANSFER POINT — 1 NPC (Transfer Muscle)
+  # An active smuggling handoff site; a Weequay hired gun keeping
+  # unauthorized observers from leaving with their observations intact
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Transfer Muscle
+    room: "Contraband Transfer Point"
+    species: Weequay
+    description: >-
+      A broad Weequay with a blaster carbine worn on a tactical sling
+      and the unhurried manner of someone paid specifically not to
+      appear hurried. The contraband transfer happens here because this
+      junction is three corridors from the nearest predictable patrol
+      route and has four exits, which means anyone who interrupts a
+      transfer has to be dealt with quietly before they reach one of
+      them. He is the dealing-with mechanism. The transfer may or may
+      not be in progress behind him — the answer changes the timeline
+      of his response but not the direction it takes.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+1
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        intimidation: 3D
+        search: 2D+2
+        streetwise: 2D+2
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Weequay hired gun whose specific job is preventing witnesses
+        from the transfer junction. He is professional in the sense that
+        his work is not personal and he has no particular investment in
+        anything except completing the contract. When a stranger appears,
+        he assesses the range, adjusts for the corridor geometry, and
+        engages. He does not explain himself.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Minimal Weequay Basic. "Junction's closed." He fires before
+        the echo of the second word reaches the far wall.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires short bursts, carbine leveled at center mass.*"
+        - "*He sweeps the junction exit to his left, blocking the route out.*"
+        - "*No announcement. The carbine is already tracking.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # NW — TIER-SEVEN WAREHOUSE ROW — 1 NPC (Row Boss)
+  # A Trandoshan who has established territorial control over a section
+  # of the warehouse row through reputation and consistent violence
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Row Boss
+    room: "Tier-Seven Warehouse Row"
+    species: Trandoshan
+    description: >-
+      A Trandoshan of significant size moving through his section of
+      the warehouse row with the proprietary ease of someone who has
+      not been challenged in eleven weeks and has forgotten what that
+      felt like. He controls six of the row's warehouses — or rather,
+      he controls whoever is inside them, and the warehouses follow by
+      implication. His authority is maintained by a simple policy: the
+      first objection is verbal, the second is the vibroaxe, and there
+      is no third objection because by that point the question of
+      objections is settled. He has a good memory for faces that have
+      offered the first objection. He holds a vibroaxe loosely in one
+      hand, the blade edge turned outward as he walks his rounds, a
+      claim and a demonstration at once.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+2
+        technical: 2D
+      skills:
+        melee_combat: 4D+2
+        brawling: 4D
+        dodge: 2D+2
+        intimidation: 4D
+        search: 2D+2
+      weapon: vibroaxe
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Trandoshan territorial enforcer who has turned a section of
+        the warehouse row into a private domain. He is experienced enough
+        to fight without anger — it is a management function, not an
+        emotional one. He closes to melee immediately and uses his size
+        to drive opponents into the narrow warehouse gaps where their
+        mobility is compromised and his strength advantage is total.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Low Trandoshan Basic, deliberate. "Wrong section." The vibroaxe
+        is already in motion before the sentence finishes.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The vibroaxe sweeps in a horizontal arc — wide, practiced, covering the full doorway width.*"
+        - "*He drives forward, using his size to push the fight into the narrow warehouse gap.*"
+        - "*A sustained, patient advance. He has done this before and knows how it ends.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # NW — SUBLEVEL PUMP STATION NINE — 1 NPC (Pump Station Holdout)
+  # A Human who occupied a decommissioned pump station long enough to
+  # go territorial; shoots anything that opens the main hatch
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Pump Station Holdout
+    room: "Sublevel Pump Station Nine"
+    species: Human
+    description: >-
+      A Human woman in the late stages of letting the deep underworld
+      change her. She has been in Pump Station Nine for somewhere between
+      five and eight months — she stopped counting at four — and in that
+      time the pump station has become the only environment that makes
+      sense to her anymore. The systems still cycle minimally; she knows
+      every sound they make and every deviation from those sounds. The
+      deviations include footsteps, hatch operation, and the subtle
+      pressure change when the main corridor door opens. By the time
+      you hear any of the above, she has already heard all of them and
+      made her decision. The blaster pistol is a compact model, easy to
+      shoot in tight corridors, and she has had a great deal of time to
+      think about tight corridors.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        dodge: 3D+1
+        search: 3D+2
+        sneak: 3D+1
+        streetwise: 2D+1
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Human squatter who has internalized the pump station completely
+        and treats unauthorized entry as an existential threat. She is
+        not unstable — she is precisely calibrated to a very small
+        environment with very specific rules, and anyone who doesn't
+        follow the rules (stay out) has demonstrated they are a problem.
+        She uses the pump machinery as cover, knows every noise the
+        station makes, and fires on movement rather than confirmation.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        No announcement. The first thing you hear is the pump cycling
+        and then the blaster shot. If she speaks at all, it is after:
+        "You should have knocked."
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*A shot from behind the primary pump housing — she has reset position while you were moving.*"
+        - "*She drops below the manifold and fires from a lower angle.*"
+        - "*No sound until the shot. She knows where all the shadows are.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # SE — THE COLLAPSE GALLERY — 1 NPC (Gallery Ambusher)
+  # LETHAL TIER. A Gamorrean who has made the unstable gallery his
+  # hunting ground, using the broken floor geometry to his advantage
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Gallery Ambusher
+    room: "The Collapse Gallery"
+    species: Gamorrean
+    description: >-
+      A Gamorrean who has been in the Collapse Gallery long enough to
+      stop being afraid of the floor. He is not large even for a
+      Gamorrean — he is simply present in the way that things in the
+      lethal part of the underworld are present, which is to say
+      completely and without permission. The gallery's geometry works
+      in his favor: the collapsed sections create bottlenecks, the
+      tilted floor panels conceal his movement at low posture, and the
+      subsonic structural groaning masks his approach until he is close
+      enough that range is no longer relevant. He carries a vibroaxe
+      and fights at the distance it creates between him and whatever
+      he is fighting. A Gamorrean at that distance in a corridor has
+      a structural advantage that transcends technique. The gallery
+      has provided him with adequate practice to confirm this.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 1D+2
+        mechanical: 1D+2
+        perception: 2D+1
+        strength: 4D
+        technical: 1D+2
+      skills:
+        melee_combat: 5D
+        brawling: 4D+2
+        dodge: 3D
+        intimidation: 3D
+        search: 2D+1
+      weapon: vibroaxe
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Gamorrean ambush predator who has adapted completely to the
+        Collapse Gallery's broken geometry. He is not stupid — he is
+        patient, and patience has taught him which floor sections hold,
+        which create noise, and which angles of approach give him the
+        bottleneck he wants. He closes distance through structural cover
+        and engages at melee range immediately, using his strength and
+        the confined gallery width to maximize the vibroaxe's advantage.
+        He does not pursue far from the gallery.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        No Gamorrean Basic worth mentioning. The sound is the
+        vibroaxe engaging and the subsonic groan of the floor as his
+        weight shifts through it.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He comes through the floor gap, vibroaxe already in the swing.*"
+        - "*He drives forward into the bottleneck, letting the gallery walls do half the work.*"
+        - "*The structural groaning gets louder. He is closer than you calculated.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # SW — THE NULL GALLERY — 1 NPC (Void Stalker)
+  # LETHAL TIER. A Nikto warrior of the Morgukai tradition who
+  # descended to the absolute bottom and never came back up
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Void Stalker
+    room: "The Null Gallery"
+    species: Nikto
+    description: >-
+      A Nikto in a fighting stance that has long since become a resting
+      posture, at the midpoint of the Null Gallery where the pre-city
+      arch is highest and the darkness on both sides is total. He is
+      Morgukai-trained — the Nikto warrior tradition — and the
+      distinction matters in a gallery where the ceiling is two meters
+      and fighting space is at an absolute premium: Morgukai technique
+      was developed for close quarters against opponents who are faster,
+      larger, or better-armed, and the Null Gallery provides him with
+      all three, which is presumably why he chose it. He has been at
+      the absolute bottom of Coruscant's construction strata for a
+      period he does not count. His vibroblade is an artifact of his
+      former life, maintained with the same discipline that shaped his
+      combat form. He does not distinguish between passing through and
+      entering his territory, because the Null Gallery is not a
+      transit corridor for anyone but him.
+    char_sheet:
+      attributes:
+        dexterity: 3D+2
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D+1
+        strength: 3D+1
+        technical: 2D
+      skills:
+        melee_combat: 5D+1
+        dodge: 4D+1
+        sneak: 4D+2
+        intimidation: 3D+2
+        search: 3D
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Nikto Morgukai warrior who has chosen the Null Gallery as
+        his domain. He is technically exceptional — the Morgukai
+        tradition produces melee fighters calibrated for asymmetric
+        opponents — and the gallery's confines suit his style perfectly.
+        He moves in total darkness without difficulty, uses the arch's
+        acoustics to track position by sound, and closes to engagement
+        range before the intruder's eyes adjust to the dark. He is not
+        interested in the world above. He is the only law at the
+        absolute bottom, and this is sufficient.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Ancient Nikto fighting forms, no Basic. The vibroblade hums
+        a frequency that reaches you slightly before he does.
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*He moves through the total dark at the gallery's base, vibroblade tracing the arch.*"
+        - "*He is not where he was. The dark redistributes him. The vibroblade's hum tells you his direction a moment too late.*"
+        - "*The Morgukai form has no wasted motion. He uses the low arch to control the range.*"
