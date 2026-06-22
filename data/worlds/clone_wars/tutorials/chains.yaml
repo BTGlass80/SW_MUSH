@@ -2145,8 +2145,192 @@ chains:
           Trial complete. `talk` to Sabra to learn Master-Grade Armor
           (independent rep 50+ required).
 
-# ═══════════════════════════════════════════════════════════════════════
-# ENGINE INTEGRATION NOTES
+  # ═══════════════════════════════════════════════════════════════════════
+  # GENERALIZED QUESTLINES (kind: questline) — T3.24 quest expansion
+  # ═══════════════════════════════════════════════════════════════════════
+  # quest_expansion_postlaunch_path_v1.md — the sanctioned right-of-launch
+  # widening of the chain engine: MORE `kind: questline` chains that reuse
+  # the SAME live engine (active_questline slot, the 11 existing event
+  # types, the four reward funnels). NO new engine code, NO new slot, NO
+  # new completion type — pure additive content, exactly the "author
+  # questlines in chains.yaml" build step the design doc describes.
+  #
+  # These differ from the t5 master-trainer questlines above: they are
+  # ACCESSIBLE (prerequisites: chargen_complete; no faction rep gate), run
+  # in ordinary city rooms, do NOT unlock a t5 schematic, and pay a modest
+  # reward + a lower-tier achievement (cp_reward 3 vs the t5 chains' 5).
+  # They prove the generalized-quest path serves ordinary freelance
+  # side-content, not just the trainer economy. Same reachability rules
+  # apply (tests/test_chain_corpus_reachability_invariant.py): every
+  # `location` is a REAL world-room slug; NO room_entered / item_acquired
+  # completions; every command literal registered; every skill canonical;
+  # every combat_won enemy_template resolves to a tagged NPC.
+
+  # ─── G1. FREELANCE INVESTIGATION — "The Ghost Shipment" ───────────────
+  - chain_id: nar_freight_ghost_shipment
+    chain_name: "The Ghost Shipment"
+    description: >
+      A small independent freight broker on Nar Shaddaa keeps losing cargo
+      between pickup and delivery, and the Guild won't help someone her
+      size. Track the leak from the docks, work the market for a name, and
+      run the skimmer to ground in the Undercity. A freelance favor — open
+      to anyone, no faction required.
+    archetype_label: "Freelance Investigation"
+    faction_alignment: independent
+    starting_zone: nar_shaddaa_promenade
+    starting_room: burning_deck_cantina
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["ghost_shipment_solved"]
+      drop_room: burning_deck_cantina
+      follow_up_hint: >
+        Yelza will remember this. Independent brokers across the Corellian
+        Sector talk — freelance work tends to find those who finish it.
+
+    steps:
+      - step: 1
+        title: "The Broker's Problem"
+        location: burning_deck_cantina
+        npc: "Yelza Korrin"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Yelza Korrin in the Burning Deck Cantina."
+        npc_intro: >
+          "You look like you can keep your mouth shut and your eyes open.
+          Good — that's the job. I'm Yelza, I run freight, and three of my
+          last runs vanished clean between pickup and delivery. The Guild
+          won't touch it. I'll pay a fair cut to whoever finds out where my
+          cargo's going. Start at the docks — Bay Aurek's where my last run
+          loaded. `search` it for anything that doesn't add up."
+        completion:
+          type: talk_to_npc
+          npc: "Yelza Korrin"
+        npc_complete: >
+          "Bay Aurek. Today. Walk the loading floor and `search` it — a
+          manifest doesn't just evaporate. Somebody moved it, and people
+          who move cargo leave a trail if you know how to look."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Head to Bay Aurek and `search` the loading floor for the cargo trail."
+
+      - step: 2
+        title: "The Trail at the Docks"
+        location: nar_shaddaa_bay_aurek
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["search"]
+        objective: "Search Docking Bay Aurek for the diverted-cargo trail."
+        npc_intro: >
+          [The loading floor is a churn of crates, droids, and shouting
+          stevedores.] Somewhere in this mess is the seam where Yelza's
+          cargo slipped sideways. `search` the bay — check the manifests,
+          the re-tag stickers, the bays nobody's watching.
+        completion:
+          type: skill_check_passed
+          skill: "search"
+          difficulty: 9
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [There — a stack of crates with fresh re-tag stickers slapped
+          over Yelza's outfit codes, routed to a buyer in the Undercity.
+          Someone here is selling her pickup windows. You'll need a name,
+          and the Floating Market is where dock gossip gets sold.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "The trail leads to the Floating Market. Work it for a name — `chain attempt`."
+
+      - step: 3
+        title: "A Name on the Market"
+        location: floating_market
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["streetwise"]
+        objective: "Work the Floating Market for the skimmer's name (streetwise)."
+        npc_intro: >
+          [The Floating Market drifts between the towers, a churn of vendors,
+          fixers, and people who hear everything for the right price.] Re-tag
+          work and stolen manifests get fenced somewhere. Use your
+          `streetwise` — buy a drink, drop the right name, listen.
+        completion:
+          type: skill_check_passed
+          skill: "streetwise"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [A nervous fixer, two drinks in, gives it up: Brakkis Vone — a
+          small-time crew boss skimming cargo through a dead transfer point
+          in the Undercity Depths, with a bought dock clerk feeding him
+          windows. He kills witnesses. He won't expect one to come to him.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "Brakkis Vone runs his operation in the Undercity Depths. Go confront him."
+
+      - step: 4
+        title: "The Transfer Point"
+        location: undercity_depths
+        npc: "Brakkis Vone"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Confront Brakkis Vone and recover the truth — `attack`, `dodge`."
+        npc_intro: >
+          [The transfer point is a forgotten Undercity bay stacked with
+          re-tagged crates — Yelza's codes among them. Brakkis Vone looks up
+          from a manifest, reads the trail on your face, and reaches for his
+          blaster.] "You followed the wrong manifest down here, snoop."
+        completion:
+          type: combat_won
+          enemy_template: "nar_ghost_shipment_pirate"
+          enemy_count: 1
+        npc_complete: >
+          [Vone goes down hard among the stolen crates. On his datapad: the
+          bought dock clerk's name, the buyer, the whole skimming route —
+          everything Yelza needs to shut it down and clear her manifests.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "You have the proof. Return to Yelza at the Burning Deck Cantina."
+
+      - step: 5
+        title: "Squaring the Account"
+        location: burning_deck_cantina
+        npc: "Yelza Korrin"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Yelza Korrin to close the job."
+        npc_intro: >
+          "You came back. With a name, a route, and a datapad full of proof.
+          Figures it was Vone — and a clerk on my own dock." [She lets out a
+          long breath, some of the weight off her shoulders.] "That's my
+          cargo back and my route clean. Here's your cut, and then some."
+        completion:
+          type: talk_to_npc
+          npc: "Yelza Korrin"
+        npc_complete: >
+          "Square. You did honest work for an honest broker — that's rarer
+          than it should be out here. Anyone gives you grief about freelance,
+          you tell them Yelza Korrin vouches for you. Fly safe."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The Ghost Shipment is solved. Yelza's good word travels — freelance
+          work finds those who finish it.
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════
 # When the CW tutorial engine session lands:
 #
