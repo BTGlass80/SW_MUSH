@@ -1,0 +1,418 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_geonosis_deep_hive.yaml
+#
+# Geonosis Deep Hive Hostile Mob Grind Batch (2026-06-22)
+#
+# Six roaming hostile NPCs seeded across four previously-uncovered rooms
+# of the geonosis_deep_hive zone to populate the solo-PvE mob-grind
+# reward loop (engine/hunting_rewards.py). All six satisfy
+# engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Covered rooms (all security_level: lawless):
+#   Archduke's Palace Approach x2   (Geonosian palace sentinel + CIS security attaché)
+#   Worker Caste District      x2   (Geonosian caste enforcer + Rodian opportunist)
+#   Hive Medical Station       x1   (Chiss intelligence medic)
+#   Hive Interior Market       x1   (Weequay cartel enforcer)
+#
+# Skipped: Archduke's Audience Hall (security_level: secured — unsuitable for
+# roaming hostiles); rooms already covered by prior batches (Upper Hive Tunnel,
+# Main Hive Chamber, Warrior Caste Barracks, Deep Hive Tunnel, CIS Field
+# Command Post — all in npcs_drop_mob_grind_geonosis.yaml +
+# npcs_drop_mob_grind_geonosis_foundry.yaml).
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats grounded in sibling geonosis mob-grind baselines;
+#   WEG40120 PDF absent from this worktree — stats UNVERIFIED vs PDF.
+# Weapons: vibroblade, blaster_pistol, hold_out_blaster,
+#   heavy_blaster_pistol — all keys confirmed in data/weapons.yaml.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # ARCHDUKE'S PALACE APPROACH — 2 NPCs
+  # The ceremonial corridor leading to the audience hall. Forty-meter
+  # ceilings, wall carvings of three hundred generations of ducal
+  # lineage, warrior-caste guards at formal rest every five meters.
+  # The most deliberately intimidating approach in Stalgasin Hive —
+  # and the most heavily defended.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Geonosian Palace Sentinel
+    room: "Geonosis - Archduke's Palace Approach"
+    species: Geonosian
+    description: >-
+      A Geonosian warrior standing at formal rest in the approach
+      corridor — back straight, wings folded to a regulation angle,
+      vibroblade held across the body in the ceremonial guard position.
+      The stillness is not decorative. Its compound eyes track every
+      visitor from the moment they enter the corridor, building an
+      assessment file that has never once concluded "safe to allow
+      through unescorted." The formality breaks in exactly one
+      circumstance: when someone moves toward the audience hall doors
+      without a confirmed appointment on the court docket.
+    char_sheet:
+      attributes:
+        dexterity: 3D+2
+        knowledge: 2D
+        mechanical: 1D+1
+        perception: 3D+1
+        strength: 3D+1
+        technical: 1D+2
+      skills:
+        melee_combat: 5D+1
+        brawling: 4D+2
+        dodge: 4D+2
+        flying: 4D+1
+        intimidation: 4D+1
+        search: 3D+2
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 4
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A veteran of the palace guard with fifteen years of corridor
+        duty — calm, precise, and entirely without mercy in the execution
+        of standing orders. It does not raise its voice. It does not
+        bluster. When an unauthorized visitor takes one step past the
+        permitted zone, it simply moves. The vibroblade is out before
+        most people register that the guard has shifted from formal rest.
+        It has never failed to stop an unauthorized entry.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Three Basic words only: "Appointment?" then silence.
+        Everything else is Geonosian clicking — terse, formal,
+        and accelerating fast toward combat posture.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'Appointment?' *The vibroblade slides free of its formal carry in one smooth motion.*"
+        - "*A sharp click sequence — formal warning in Geonosian. The guard steps forward.*"
+        - "*Its wings lift slightly, vibroblade at guard, compound eyes fixed on you.*"
+
+  - name: CIS Security Attaché
+    room: "Geonosis - Archduke's Palace Approach"
+    species: Human
+    description: >-
+      A Human in civilian-formal wear with the kind of posture that
+      comes from time in a military unit and the kind of build that
+      comes from not leaving it entirely behind. He stands to one
+      side of the approach corridor, positioned to cover the sight
+      lines the Geonosian guards leave open — a detail that is not
+      accidental. The blaster at his hip is holstered but unclipped.
+      He was hired to make CIS diplomatic delegations feel safe in
+      a hive where they are guests, not rulers, and he takes the
+      distinction seriously.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D+2
+        dodge: 3D+2
+        brawling: 3D+1
+        search: 3D+2
+        streetwise: 3D
+        intimidation: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        Former Outer Rim security contractor, now on a premium
+        CIS diplomatic detail. He operates with professional
+        detachment: threat assessment first, challenge second,
+        action third, no wasted time between steps. He does
+        not enjoy confrontation. He is simply very efficient
+        at it. His read on a situation runs faster than most
+        people realize, and when he decides something is a
+        threat, the blaster is already moving.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Measured, flat Core-world Basic. One-word
+        challenges: "Credentials." Then a pause of
+        exactly two seconds. Then he stops waiting.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'Credentials.' *His hand drops to the holster before you finish processing the word.*"
+        - "*He steps smoothly between you and the corridor ahead.* 'This is a restricted approach.'"
+        - "*Two seconds of silence, then the blaster is in his hand.* 'Time's up.'"
+
+  # ══════════════════════════════════════════════════════════════════
+  # WORKER CASTE DISTRICT — 2 NPCs
+  # The hive's largest residential zone — communal drone housing,
+  # production support tunnels, access to the foundries below.
+  # Worker-caste Geonosians regard off-worlders who enter their
+  # sector without escort as a category error requiring correction.
+  # A Rodian opportunist has discovered the correction is slow enough
+  # to steal from.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Geonosian Caste Enforcer
+    room: "Geonosis - Worker Caste District"
+    species: Geonosian
+    description: >-
+      A Geonosian drone with the slightly heavier build and broader
+      thorax of a worker-caste enforcer — the hive's internal
+      security layer for the production zones, distinct from the
+      warrior caste that guards the palace and tunnels. It carries
+      a vibroblade in one pair of arms while the other pair is free
+      for physical removal of whatever it decides needs removing.
+      Its function is simple: the worker district is not a thoroughfare
+      for off-worlders and this one enforces the boundary with the
+      particular efficiency of something that has never been asked
+      to be anything else.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 1D+2
+        mechanical: 1D
+        perception: 3D
+        strength: 3D+2
+        technical: 1D+1
+      skills:
+        melee_combat: 4D+1
+        brawling: 4D+2
+        dodge: 3D+2
+        flying: 3D+2
+        intimidation: 4D
+        search: 3D
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A drone-caste enforcer running a standing territorial
+        protocol — off-worlders in the worker sector without
+        a Geonosian escort are logged as an intrusion and
+        addressed immediately. It does not operate with the
+        warrior's calculated patience. The challenge window
+        is short and it expresses displeasure physically.
+        Worker-caste Geonosians are generally stronger than
+        the warrior caste; this one is also faster than it looks.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        No Basic at all — rapid wing-buzz and rapid
+        staccato clicks. The posture communicates everything
+        the clicks do not.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The enforcer buzzes its wings once — a sharp alarm tone — and drops into stance.*"
+        - "*A rapid clicking burst that needs no translation. It advances.*"
+        - "*Four arms shift: two gripping the vibroblade, two free for the close work.*"
+
+  - name: Rodian Component Stripper
+    room: "Geonosis - Worker Caste District"
+    species: Rodian
+    description: >-
+      A Rodian with a bulging supply satchel over one shoulder and
+      the kind of constantly-rotating situational awareness that marks
+      someone who does this for a living. He works the edges of the
+      worker district during the end-of-shift rotation, when the drones
+      are moving and the inventory racks are briefly unsupervised.
+      The satchel carries stripped motivator components, sensor modules,
+      and power coupling assemblies — nothing large, everything high-value,
+      all of it belonging to the Geonosian production supply chain until
+      about forty minutes ago. He does not like witnesses.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D+2
+        perception: 3D
+        strength: 2D+2
+        technical: 2D+1
+      skills:
+        blaster: 4D
+        dodge: 3D+2
+        sneak: 4D
+        search: 3D
+        security: 3D
+        streetwise: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A professional Geonosian supply-chain thief with seven
+        successful runs in this zone. He is calm when unobserved,
+        fast when he is not. His threat calculation is simple:
+        anyone who sees him clearly and lingers becomes a problem
+        he would rather solve now than when he reaches the market.
+        He draws first and asks no questions — questions mean a
+        witness is weighing options, and that is the one outcome
+        he cannot afford.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Clipped, accented Huttese-inflected Basic. No
+        pleasantries. If he's speaking, he already decided
+        you're a problem; the speech is cover for the draw.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He clocks you, clocks the satchel, and draws.* 'Wrong corner, friend.'"
+        - "*A quick Huttese curse under his breath — then the blaster is up.*"
+        - "*He backs toward the supply rack, pistol leveled.* 'You didn't see anything.'"
+
+  # ══════════════════════════════════════════════════════════════════
+  # HIVE MEDICAL STATION — 1 NPC
+  # Theoretically neutral ground — any being who comes for treatment
+  # is treated. Whether they are reported to CIS command afterward
+  # depends on the circumstances. One current staff member's
+  # circumstances involve a dead-drop cipher and a Chiss Intelligence
+  # asset running a secondary operation under medical cover.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Chiss Intelligence Medic
+    room: "Geonosis - Hive Medical Station"
+    species: Chiss
+    description: >-
+      A Chiss in Baktoid medical corps markings who handles humanoid
+      triage with the kind of efficient competence that makes no one
+      look twice. The red eyes are calm, the movements economical,
+      the diagnoses crisp. She has been at this posting for eleven
+      weeks. During that time the station has treated a reasonable
+      cross-section of CIS personnel, and she has forwarded annotated
+      personnel assessments to a Chiss Intelligence dead-drop on a
+      six-day rotation. The hold-out blaster in her medkit is not in
+      the standard inventory.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 3D+2
+        mechanical: 2D
+        perception: 3D+2
+        strength: 2D+1
+        technical: 3D
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        sneak: 3D+2
+        search: 3D+2
+        medicine: 4D+2
+        streetwise: 3D+1
+        bureaucracy: 4D
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A Chiss Intelligence field asset running a long-term
+        deep-cover operation. She is patient, precise, and
+        carries exactly the amount of warmth that her cover
+        identity requires — no more. When a visitor asks the
+        wrong question or demonstrates knowledge of something
+        they should not know, her threat assessment takes
+        approximately one and a half seconds. Her medical
+        training includes knowing exactly where on a humanoid
+        body a hold-out blaster is most effective.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Crisp, professional Basic with a faint Chiss
+        precision to the diction — every sentence slightly
+        more grammatically exact than necessary. When
+        the cover breaks: short, flat, final.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*She sets down the medkit with deliberate care.* 'That question suggests a misunderstanding of your situation.'"
+        - "*The red eyes don't change. Her hand moves to the medkit.* 'You asked the wrong thing.'"
+        - "*She draws from the medkit in a single smooth motion.* 'Unfortunate. Sit down.'"
+
+  # ══════════════════════════════════════════════════════════════════
+  # HIVE INTERIOR MARKET — 1 NPC
+  # The informal trading zone deep in the hive where off-world
+  # contractors deal with Geonosian merchants. Trusted visitors only —
+  # those the hive considers trustworthy enough to be here. One
+  # Weequay cartel enforcer is here because the cartel decided that
+  # "trusted enough to be in the market" is an excellent filter for
+  # "worth collecting from."
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Weequay Cartel Collector
+    room: "Geonosis - Hive Interior Market"
+    species: Weequay
+    description: >-
+      A Weequay with the patient, unhurried quality of someone who
+      does not need to hurry because the other party is not going
+      anywhere. He moves through the market stalls at regular intervals,
+      exchanging a few quiet words with each trader. The traders hand
+      him something. He moves on. The heavy blaster at his hip is
+      polished and worn with the ease of long familiarity. When someone
+      declines to hand him something, or asks questions about the
+      arrangement, or simply looks like they might — he addresses
+      that problem before it becomes larger.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 1D+2
+        perception: 2D+2
+        strength: 3D+2
+        technical: 1D+2
+      skills:
+        blaster: 4D+1
+        brawling: 4D+1
+        dodge: 3D+1
+        intimidation: 4D
+        search: 2D+2
+        streetwise: 3D+2
+      weapon: heavy_blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A cartel enforcer who has been running the hive market
+        collection route for four months. He is not violent by
+        preference — violence in the market draws Geonosian
+        attention, which complicates the collection arrangement.
+        But a witness who declines to participate, or someone
+        who wanders in and looks like they might report what
+        they see, represents a threat to a very profitable
+        operation. He makes the threat calculation quickly and
+        acts on it with exactly the minimum force required,
+        which is usually a great deal.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Low, deliberate Weequay Basic — the inflection of
+        someone used to not being interrupted. Short sentences.
+        Requests stated as facts. Violence framed as
+        a shared agreement about inevitability.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He turns from the stall and looks at you with the stillness of someone not surprised.* 'Bad time to be here.'"
+        - "'Walk away.' *The heavy blaster clears the holster without visible hurry.*"
+        - "*He doesn't raise his voice.* 'This is going to be quick.' *The blaster is already level.*"
