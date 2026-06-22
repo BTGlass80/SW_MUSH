@@ -25,6 +25,7 @@ from server.web_client import (
     _SECURITY_HEADERS,
     _MAX_REQUEST_BYTES,
     _apply_security_headers,
+    _assert_no_cors_headers,
     _resolve_max_request_bytes,
     _security_headers_middleware,
 )
@@ -179,3 +180,68 @@ def test_a_live_application_enforces_the_cap_and_registers_the_middleware():
 def test_module_imports_clean():
     # Guards against an import-time regression in the new module-level block.
     importlib.reload(importlib.import_module("server.web_client"))
+
+
+# ── CORS posture (T3.21 decision #6 — same-origin, deliberate no-op) ──────────
+
+def test_default_headers_carry_no_cors_header():
+    # The SPA + API are same-origin; emitting Access-Control-Allow-* would only
+    # RELAX the browser's same-origin protection on an unauthenticated surface.
+    for name in _SECURITY_HEADERS:
+        assert not name.lower().startswith("access-control-")
+
+
+def test_assert_no_cors_headers_passes_on_the_real_default():
+    # The live default set must satisfy the invariant (no exception).
+    _assert_no_cors_headers(_SECURITY_HEADERS)
+
+
+def test_assert_no_cors_headers_raises_on_a_permissive_default():
+    # REGRESSION GUARD: a future dev pasting a wildcard CORS header into the
+    # security-headers dict must fail loudly at import, not silently open CORS.
+    bad = dict(_SECURITY_HEADERS)
+    bad["Access-Control-Allow-Origin"] = "*"
+    try:
+        _assert_no_cors_headers(bad)
+        raise AssertionError("a permissive CORS default should have raised")
+    except RuntimeError as exc:
+        assert "CORS" in str(exc)
+    # Case-insensitive: header names are not case-normalized by aiohttp.
+    bad2 = dict(_SECURITY_HEADERS)
+    bad2["access-control-allow-credentials"] = "true"
+    try:
+        _assert_no_cors_headers(bad2)
+        raise AssertionError("a lowercase CORS default should have raised")
+    except RuntimeError:
+        pass
+
+
+def test_live_responses_carry_no_cors_header():
+    # End-to-end through the middleware: neither a normal response nor a raised
+    # error may carry an Access-Control-* header.
+    async def ok_handler(request):
+        return web.Response(text="ok")
+
+    req = make_mocked_request("GET", "/api/chargen/check-name/x")
+    resp = _run(_security_headers_middleware(req, ok_handler))
+    assert not any(h.lower().startswith("access-control-") for h in resp.headers)
+
+    async def err_handler(request):
+        raise web.HTTPNotFound()
+
+    req2 = make_mocked_request("GET", "/missing")
+    try:
+        _run(_security_headers_middleware(req2, err_handler))
+        raise AssertionError("HTTPNotFound should have propagated")
+    except web.HTTPNotFound as exc:
+        assert not any(h.lower().startswith("access-control-") for h in exc.headers)
+
+
+def test_cors_posture_is_documented_in_source():
+    # The deliberate same-origin no-op decision must be discoverable in-source.
+    assert "_assert_no_cors_headers(_SECURITY_HEADERS)" in WEB_CLIENT_SRC
+    assert "CORS" in WEB_CLIENT_SRC
+    assert "same-origin" in WEB_CLIENT_SRC
+    # And we must NOT have added a CORS middleware (decision #6: "no middleware").
+    assert "aiohttp_cors" not in WEB_CLIENT_SRC
+    assert "Access-Control-Allow-Origin" not in _SECURITY_HEADERS
