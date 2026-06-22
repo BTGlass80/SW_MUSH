@@ -147,3 +147,100 @@ def test_organic_and_chemical_resource_types():
     assert "Chemical" in spoils_block or "chemical" in spoils_block, (
         "Chemical resource type not mentioned in spoils section (Hitcher Crab/Spor Crawler)"
     )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Mob hunting (the solo-PvE combat trickle) — new income faucet shipped
+# after the guide's rework pass. Pin its numbers to the engine constants
+# so the section can't silently drift (the failure mode that lost the
+# t5_discoverability drop: code without a guard regresses unseen).
+# ──────────────────────────────────────────────────────────────────────
+
+def test_mob_hunting_section_present():
+    text = read_guide()
+    assert "Mob Hunting" in text, "Mob Hunting income section missing from Guide_06"
+
+
+def test_mob_hunting_reward_numbers_match_engine():
+    from engine.hunting_rewards import (
+        BASE_REWARD, DAILY_SOFT_CAP, OVER_CAP_FLOOR,
+    )
+    # The guide is hand-written; pin the constants it documents so a knob
+    # change forces a guide edit.
+    assert (BASE_REWARD, DAILY_SOFT_CAP, OVER_CAP_FLOOR) == (15, 400, 3), (
+        "hunting reward knobs changed — update Guide_06 §6 and this guard"
+    )
+    text = read_guide()
+    hunt_idx = text.find("Mob Hunting")
+    block = text[hunt_idx:text.find("## 7.", hunt_idx)]
+    assert str(BASE_REWARD) in block, "per-kill reward (15 cr) not documented"
+    assert str(DAILY_SOFT_CAP) in block, "daily soft cap (400 cr) not documented"
+    assert str(OVER_CAP_FLOOR) in block, "over-cap floor (3 cr) not documented"
+
+
+def test_mob_hunting_zero_cp_documented():
+    text = read_guide()
+    hunt_idx = text.find("Mob Hunting")
+    block = text[hunt_idx:text.find("## 7.", hunt_idx)]
+    # The system pays deliberately ZERO Character Points — a load-bearing
+    # design promise (grinding can't touch advancement).
+    assert "Zero" in block or "zero" in block, (
+        "Guide must state mob hunting grants zero Character Points"
+    )
+    assert "Character Points" in block or "CP" in block
+
+
+def test_mob_hunting_title_thresholds_match_engine():
+    from engine.hunting_rewards import TITLE_THRESHOLDS
+    from engine.titles import EARNED_TITLES
+    text = read_guide()
+    hunt_idx = text.find("Mob Hunting")
+    block = text[hunt_idx:text.find("## 7.", hunt_idx)]
+    earned_keys = {t["key"] for t in EARNED_TITLES if t.get("earned")}
+    for thresh, key in TITLE_THRESHOLDS:
+        # Each milestone's key must be a real earned title and appear with
+        # its threshold in the guide table.
+        assert key in earned_keys, (
+            f"hunter title '{key}' not a real earned title in engine/titles.py"
+        )
+        assert key in block, f"hunter title '{key}' missing from guide table"
+        # Threshold appears either bare (25/100/500) or comma-grouped (2,500)
+        thresh_str = "{:,}".format(thresh)
+        assert str(thresh) in block or thresh_str in block, (
+            f"milestone threshold {thresh} missing from guide table"
+        )
+
+
+def test_mob_hunting_command_and_ledger_tag():
+    from engine.hunting_rewards import CREDIT_TAG
+    text = read_guide()
+    assert "+hunting" in text, "+hunting command missing from guide"
+    hunt_idx = text.find("Mob Hunting")
+    block = text[hunt_idx:text.find("## 7.", hunt_idx)]
+    assert CREDIT_TAG in block, (
+        f"economy ledger tag '{CREDIT_TAG}' not documented in the section"
+    )
+    # The +title wear alias the in-game milestone nudge tells players to use.
+    assert "+title wear" in block, "+title wear (earned-title equip) not documented"
+
+
+def test_mob_hunting_in_commands_quick_reference():
+    text = read_guide()
+    qref_idx = text.find("Economy Commands Quick Reference")
+    assert qref_idx != -1
+    qref = text[qref_idx:]
+    assert "Hunting" in qref, "Hunting row missing from §12 commands quick reference"
+    assert "+hunting" in qref, "+hunting missing from commands quick reference"
+
+
+def test_mob_hunting_distinct_from_bounty_and_spoils():
+    # Three 'kill things for reward' systems exist; the guide must keep them
+    # distinct so players don't conflate the trickle with posted contracts
+    # or field-dressing spoils.
+    text = read_guide()
+    hunt_idx = text.find("Mob Hunting")
+    block = text[hunt_idx:text.find("## 7.", hunt_idx)]
+    assert "bounty" in block.lower(), "section should contrast with bounty contracts"
+    assert "double-dip" in block.lower() or "double dip" in block.lower(), (
+        "Guide should note huntable mobs never double-dip with other reward hooks"
+    )

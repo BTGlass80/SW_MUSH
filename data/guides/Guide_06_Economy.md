@@ -1,8 +1,8 @@
 ---
 category: economy
 order: 1
-summary: "Credits, missions, bounties, smuggling, commissary, and creature spoils. How money moves."
-tags: ["economy", "credits", "money", "missions", "bounty", "smuggling", "trade"]
+summary: "Credits, missions, bounties, smuggling, mob hunting, commissary, and creature spoils. How money moves."
+tags: ["economy", "credits", "money", "missions", "bounty", "smuggling", "trade", "hunting"]
 ---
 
 # Economy: Missions, Bounties, Smuggling & Trade
@@ -158,7 +158,51 @@ Buy-low-sell-high speculative trading between planets. 8 trade goods with planet
 
 ---
 
-## 6. Other Income Sources
+## 6. Mob Hunting (the Combat Trickle)
+
+Not every fight is a contract. The galaxy is full of **roaming hostiles** — street thugs, swoop-gang enforcers, pirate scavengers, rogue droids — seeded across populated and contested zones. Putting one down pays a small **automatic credit trickle** plus prestige toward earned hunter titles. There is no board to check and no contract to claim: land the killing blow on a huntable mob and the reward fires on its own.
+
+This is the **solo-play income floor** — what you do when no one else is on and you just want to grind out some NPCs and zone out. It sits deliberately *below* the mission and bounty earning curve in §1: a satisfying tick, not a road to wealth.
+
+**What counts as a huntable mob?** Any generic hostile NPC that does **not** already carry its own reward hook — that is, it is *not* a bounty target, a space/wilderness anomaly spawn, a field-dressable creature, a Dark-Side-Point hunter's quarry, a tutorial/questline chain enemy, or a vendor. Ordinary sentient guards, thugs, gangers, and street pirates standing in the world are the typical quarry. (Posted **bounty contracts** in §3 and field-dressable **creatures** in §11 pay through their own systems and never double-dip with this trickle.)
+
+**The reward:**
+
+| | |
+|---|---|
+| **Per kill, under the cap** | 15 cr |
+| **Daily soft cap** | 400 cr/day from grinding |
+| **Per kill, over the cap** | 3 cr — the "extreme trickle" tail |
+| **Character Points** | **Zero, always** |
+| **Daily reset** | Each new UTC day |
+
+Once the day's grind take passes 400 cr the per-kill reward drops to a token 3 cr. You can keep hunting for prestige and titles, but no longer for meaningful income — the faucet is bounded on purpose.
+
+**Why so small?** Combat costs money. A real fight burns bacta (medical, 50–1,000 cr) and degrades your weapon (repair, 50–250 cr). For any non-trivial mob those costs exceed the 15 cr reward, so grinding runs **break-even to slightly negative** on hard targets — the tougher the quarry, the more you spend healing relative to the trickle. The credits are a bonus on top of an activity you were doing anyway; the *real* reward is the prestige track.
+
+**Character Points are deliberately zero.** Advancement is RP- and time-gated (the weekly CP cap; see Guide #9). Grinding mobs can never buy skill growth — it pays credits and prestige only, and structurally cannot touch your character's progression.
+
+**Milestone hunter titles.** Your lifetime kill count lives in a per-character hunting log, and crossing a threshold earns a permanent, wearable title:
+
+| Lifetime kills | Title key | Worn as |
+|----------------|-----------|---------|
+| 25 | `hunter` | the Hunter |
+| 100 | `seasoned_hunter` | the Seasoned Hunter |
+| 500 | `master_hunter` | the Master Hunter |
+| 2,500 | `apex_hunter` | the Apex Hunter |
+
+Earned titles are permanent and show on `+finger` and `+sheet`. Wear one with `+title wear <key>` (e.g. `+title wear hunter`).
+
+**Commands:**
+```
++hunting                  — Your lifetime kill tally, today's take vs the 400 cr cap, and your next milestone
++title wear <key>         — Wear an earned hunter title
+```
+Bare `hunting` resolves to the same display. Credits earned this way are tagged `mob_grind` in the economy ledger.
+
+---
+
+## 7. Other Income Sources
 
 **Entertainment:** The `perform` command in cantina zones rolls a Perception-based check. Success earns credits based on performance quality. A niche but risk-free income.
 
@@ -170,7 +214,7 @@ Buy-low-sell-high speculative trading between planets. 8 trade goods with planet
 
 ---
 
-## 7. Credit Sinks (Where Money Goes)
+## 8. Credit Sinks (Where Money Goes)
 
 | Sink | Cost | Frequency |
 |------|------|-----------|
@@ -191,7 +235,7 @@ Buy-low-sell-high speculative trading between planets. 8 trade goods with planet
 
 ---
 
-## 8. The Bargain Skill
+## 9. The Bargain Skill
 
 Many economic transactions involve a **Bargain skill check** — an opposed roll between your Bargain skill and the NPC vendor's bargain dice. The margin determines a price modifier:
 
@@ -203,7 +247,7 @@ When buying, a positive margin means a cheaper price. When selling, it means a h
 
 ---
 
-## 9. Faction Commissary
+## 10. Faction Commissary
 
 Sworn members of most factions can requisition gear from their faction's commissary — rank-appropriate equipment at below-market prices. This is a **credit sink**: you're spending earned credits on gear issued by the organization rather than buying from the open market.
 
@@ -247,7 +291,7 @@ Items bought via commissary behave identically to the same items acquired elsewh
 
 ---
 
-## 10. Creature Spoils
+## 11. Creature Spoils
 
 Killing certain wilderness creatures triggers an automatic **field-dressing check** when the creature falls. No command needed — if you land the killing blow, the engine rolls Survival (DC 8, or 10 for some tougher creatures) against your character's Survival skill. Success yields a resource stack in your inventory.
 
@@ -278,7 +322,7 @@ Quality is intentionally capped below T5 minimum (75), so creature spoils can su
 
 ---
 
-## 11. Economy Commands Quick Reference
+## 12. Economy Commands Quick Reference
 
 | System | Commands |
 |--------|---------|
@@ -287,6 +331,7 @@ Quality is intentionally capped below T5 minimum (75), so creature spoils can su
 | **Smuggling** | `+smuggle/board`, `+smuggle/accept <id>`, `+smuggle/view`, `+smuggle/deliver`, `+smuggle/dump` |
 | **Trading** | `market`, `buy <good> <qty>`, `sell <good>` |
 | **Commissary** | `+commissary`, `+commissary buy <key>`, `+commissary sell <key>` |
+| **Hunting** | `+hunting` (kill tally + daily take), `+title wear <key>` (wear an earned hunter title) |
 | **General** | `+credits` (check balance), `sell` (sell weapons to NPC), `+repair` (repair an equipped weapon at an NPC) |
 
 ---
