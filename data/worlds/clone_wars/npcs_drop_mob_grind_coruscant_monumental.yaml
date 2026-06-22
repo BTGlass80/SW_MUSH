@@ -1,0 +1,730 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_coruscant_monumental.yaml
+#
+# Coruscant Monumental District Hostile Mob Grind Batch (2026-06-22)
+#
+# Ten roaming hostile NPCs seeded across the Monumental District zone
+# (coruscant::monumental_district, 13 rooms) to populate the solo-PvE
+# mob-grind reward loop (engine/hunting_rewards.py).
+# All ten satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Thematic premise: The Monumental District is the prestige upper-city
+# belt — senatorial towers, luxury entertainment, corporate marketing,
+# the Falleen Syndicate's seat. At ~20 BBY wartime security is stretched
+# thin; war profiteers, corporate intelligence operatives, criminal rings,
+# and contract killers exploit the gap. Ten original hostile operators,
+# none canon figures, seeded one per room.
+#
+# Zone spread:
+#   Coruscant - Upper City Promenade x1         (armed mugger, Human)
+#   Coruscant - Calocour Heights x1             (corporate extraction, Zabrak)
+#   Coruscant - Skydome Botanical Gardens x1    (contract killer, Twi'lek)
+#   Coruscant - Senatorial Tower District x1    (contract eliminator, Nikto)
+#   Coruscant - The Western Sea x1              (dock protection boss, Gamorrean)
+#   Coruscant - Column Commons District x1      (data extortionist, Duros)
+#   Coruscant - Royal Icqui Aquaria x1          (contraband runner, Quarren)
+#   Coruscant - Kallarak Amphitheater x1        (stage racketeer, Rodian)
+#   Coruscant - Petrax Historic Quarter x1      (territory veteran, Aqualish)
+#   Coruscant - Calocour Heights - Boutique Row x1 (theft-ring enforcer, Devaronian)
+#
+# Skipped rooms with existing named NPCs / low-hostility rationale:
+#   The Falleen Syndicate Tower   -> Vigo Sethel Vask (npcs_drop_i_falleen_syndicate.yaml)
+#   Calocour Heights - Marketing Row   -> sparse residential, low-traffic
+#   Calocour Heights - Overlook Terrace -> high-end condos, no grind footprint
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats. WEG40120 PDF unavailable in this tree;
+#   stats UNVERIFIED against WEG40120 PDF — grounded in sibling CW NPC
+#   patterns (coruscant lower/underworld batches, kamino cloning halls).
+# Species stat modifiers applied per WEG D6 convention:
+#   Human: all attributes 2D baseline
+#   Zabrak: STR 3D, KNO 2D+2 (resilient, disciplined)
+#   Twi'lek: DEX 3D+2, PER 3D (agile, perceptive)
+#   Nikto: DEX 3D, STR 2D+2 (hardy desert caste; varied subspecies)
+#   Gamorrean: STR 4D, DEX 2D+1 (brutally strong, physically imposing)
+#   Duros: KNO 3D, MEC 2D+2 (analytical, pilot heritage)
+#   Quarren: KNO 2D+2, STR 2D+2 (amphibious, technically adept)
+#   Rodian: DEX 3D+1, PER 2D+2 (hunter lineage, tracking instinct)
+#   Aqualish: STR 3D+2, DEX 2D+2 (physically imposing, aggressive)
+#   Devaronian: STR 2D+1, PER 3D (nomadic, sharp-eyed)
+# Weapons: blaster_pistol, blaster_carbine, blaster_rifle, heavy_blaster_pistol,
+#   vibrodagger_talon, vibroaxe, hold_out_blaster, vibroblade
+#   — all keys confirmed in data/weapons.yaml.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # UPPER CITY PROMENADE — 1 NPC
+  # The elevated walkway above the smog layer, connecting luxury towers.
+  # Wartime gaps in promenade security have made it productive hunting
+  # ground for an experienced predator who knows how to look like he
+  # belongs until the moment he doesn't.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Promenade Shadowcapper
+    room: "Coruscant - Upper City Promenade"
+    species: Human
+    description: >-
+      A man in expensive clothes that don't quite fit — the collar is right,
+      the cut is wrong, the shoes are good but the wrong scuff pattern for
+      someone who actually works in these towers. He has been standing near
+      the promenade rail for forty minutes watching the foot traffic, and
+      something in the way he weights his attention tells you this is not
+      sightseeing. When your eyes meet his, he does not look away. He has
+      done this enough times that the moment between identification and
+      decision takes about half a second, and the hand going to his jacket
+      is the second half of it.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D+2
+        dodge: 4D
+        intimidation: 3D+2
+        con: 3D+1
+        streetwise: 3D+2
+        search: 3D+1
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A predatory mugger who has spent months refining his operation on
+        the Upper City Promenade. He looks expensive on purpose — wartime
+        tourists do not know the social markers well enough to peg him as
+        wrong. He marks targets who are alone, carries something worth
+        taking, and are not near security cameras. He is not impulsive;
+        he watches and waits and then moves. When challenged before he has
+        chosen to move, he reassesses quickly — he is a professional and
+        knows when to back off. But if the situation has already committed,
+        he sees it through.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Quiet, flat Basic with no regional accent — practiced away.
+        "Your credit chip. Now." No further conversation unless he thinks
+        it buys him something.
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*His hand was inside his jacket before you finished turning around.*"
+        - "*He steps back against the rail, putting the drop behind him. 'Don't.'*"
+        - "*The promenade lights catch the pistol for just a second as it clears the holster.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # CALOCOUR HEIGHTS — 1 NPC
+  # The corporate-sector marketing district, dense with communications
+  # agencies and information brokers. At wartime, the competitive
+  # intelligence market has gone feral — some extraction jobs end
+  # in meetings; some end in violence.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Corporate Extraction Operative
+    room: "Coruscant - Calocour Heights"
+    species: Zabrak
+    description: >-
+      A Zabrak woman with the kind of stillness that comes from training
+      rather than nature — the horns are filed to modest points, the
+      facial tattoos geometric and muted, the carbine slung on a
+      quick-detach rig under a corporate security jacket with an agency
+      logo that checks out on the holonet but hasn't had a real employee
+      for three years. She is between appointments. The appointment before
+      this one did not give up the datastick she needed, which is why
+      she is still in Calocour Heights instead of being on a shuttle
+      somewhere comfortable. When you come too close to her current
+      problem, you become part of it.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D
+        technical: 2D+1
+      skills:
+        blaster: 5D
+        dodge: 4D
+        security: 3D+2
+        con: 3D+1
+        search: 3D+2
+        sneak: 3D+1
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A freelance corporate intelligence operative working a data-extraction
+        contract in the Calocour Heights marketing district. Professional and
+        task-focused — she is not here to hurt anyone beyond what the job
+        requires, but the job has already required more than she expected.
+        She carries the carbine openly under a contractor jacket because
+        open carry in a marketing-sector security role draws less attention
+        than concealed. In combat she uses the carbine's range advantage,
+        keeps distance, and looks for exits. She does not linger.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Precise, clipped Basic with a faint Iridonian cadence.
+        "You're in the wrong corridor." She does not elaborate.
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*The carbine swings up in one practiced motion, braced on her forearm.*"
+        - "*She retreats three steps, puts a column between you, and keeps the barrel level.*"
+        - "*'Contract complicates.' The carbine does not waver.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # SKYDOME BOTANICAL GARDENS — 1 NPC
+  # Two and a half tons of apex predators are fed here daily. The
+  # management does not realize one of them walks on two legs and
+  # booked a reservation under a false name six weeks ago.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Botanical Ambush Specialist
+    room: "Coruscant - Skydome Botanical Gardens"
+    species: "Twi'lek"
+    description: >-
+      A Twi'lek woman in visitor attire, moving along the outer path
+      that runs behind the carnivorous plant terrace — not the popular
+      route, not the one the tour guides use, the one that offers an
+      unobstructed sightline through the high fern canopy to the
+      center path below. Her lekku are wrapped close to her neck and
+      shoulders. She carries nothing visible. That absence is the
+      information: in a place full of people with bags and cams and
+      water bottles, a person carrying nothing is either very calm or
+      very ready, and the blade that appears in her hand from a wrist
+      sheath you did not see is the third kind of answer.
+    char_sheet:
+      attributes:
+        dexterity: 3D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+1
+        technical: 2D
+      skills:
+        melee_combat: 5D+1
+        dodge: 4D+2
+        sneak: 5D
+        hide: 4D+2
+        search: 3D+2
+        brawling: 3D+1
+      weapon: vibrodagger_talon
+      move: 10
+      force_points: 0
+      character_points: 4
+      dark_side_points: 3
+    ai_config:
+      personality: >-
+        A contract killer who uses the Skydome Botanical Gardens as a
+        preferred operating location: crowds of civilians provide cover,
+        the dense vegetation provides concealment, and the acoustic
+        interference from water features muffles close-range work.
+        She is patient, methodical, and holds her position until she
+        is certain of the approach. She does not fight fair — she
+        closes distance fast, uses the fern corridors for concealment,
+        and targets soft points. When a target proves difficult she
+        disengages and recalculates rather than pressing a losing
+        engagement.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Almost nothing. A sharp exhale when she moves. The blade does the
+        talking. If she speaks at all: "*softly* Wrong path."
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*She steps sideways into the fern row and vanishes for a half-second before the blade finds another angle.*"
+        - "*The vibrodagger makes a sound like a whisper. She is already moving.*"
+        - "*She does not retreat. She repositions.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # SENATORIAL TOWER DISTRICT — 1 NPC
+  # Over two thousand planetary embassies, each a target in a
+  # galaxy at war. The security posture is Republic-contracted,
+  # stretched thin, and predictable to anyone who has studied it
+  # long enough. He has studied it for three years.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Senate District Eliminator
+    room: "Coruscant - Senatorial Tower District"
+    species: Nikto
+    description: >-
+      A Nikto in a mid-level Republic contractor's identification badge
+      standing in an alcove between the Outer Rim embassy and the
+      Wroonian delegation tower, watching the pedestrian traffic through
+      the compound's central boulevard. He has the stillness of someone
+      who has been in position for two hours and expects to be in
+      position for two more. The rifle under his coat prints slightly
+      against the fabric. He has read the security rotation enough times
+      to know the gap he is waiting for. You are in the gap now, which
+      means you are a variable he has not planned for, and the way his
+      hand moves inside the coat is his planning process catching up.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 5D+1
+        dodge: 4D+2
+        hide: 4D+1
+        sneak: 4D
+        search: 3D+2
+        intimidation: 3D+1
+      weapon: blaster_rifle
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 3
+    ai_config:
+      personality: >-
+        A contract killer operating in the Senatorial Tower District,
+        selling his services to clients who want political targets
+        eliminated without Republic investigation trace. He operates
+        solo, does patient surveillance before any action, and uses
+        contractor credentials to access the compound's peripheral areas
+        without triggering security. In combat he uses the rifle's range
+        to stay at distance, uses the embassy alcoves for cover, and
+        does not commit to a position that cannot be exited. He has
+        survived this long by knowing when a situation is unwinnable.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Clipped Nikto-accented Basic, minimal.
+        "Wrong block." Then nothing further. The rifle comes out
+        about a second after the last word.
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*He steps back into the embassy alcove and the rifle comes up from under the coat in one clean motion.*"
+        - "*'Variable.' He says it almost to himself, and then the shooting starts.*"
+        - "*He moves to the far corner, keeping the boulevard between you, rifle braced against the archway.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # THE WESTERN SEA — 1 NPC
+  # Coruscant's artificial reservoir, surrounded by boat rentals,
+  # entertainment clubs, and the kind of leisure business that
+  # generates cash flow interesting to people who collect a percentage.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Western Sea Dock Boss
+    room: "Coruscant - The Western Sea"
+    species: Gamorrean
+    description: >-
+      A Gamorrean standing at the main dock rental counter with his
+      arms crossed — not as a customer, and the dock operator behind
+      the counter has the look of someone who has had this conversation
+      before and lost it every time. The Gamorrean's vibroaxe is at
+      his belt, not drawn, because it has not needed to be drawn here
+      in months. The "dock fee" slip on the counter has a credit total
+      that is not an invoice amount, it is a monthly number, and the
+      dock operator's hands are already moving to the register before
+      the conversation has technically finished. The Gamorrean turns
+      when you approach, and his assessment of you takes about two
+      seconds. The axe stays at his belt for another moment after that.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 1D+2
+        mechanical: 2D
+        perception: 2D
+        strength: 4D
+        technical: 2D
+      skills:
+        melee_combat: 5D+1
+        brawling: 5D
+        dodge: 3D
+        intimidation: 4D+2
+        search: 2D+1
+      weapon: vibroaxe
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Gamorrean protection racket enforcer who has run the Western
+        Sea dock district for two years. He is not smart but he is
+        effective — the boat rental operators and entertainment clubs
+        around the reservoir pay a monthly fee because the one who
+        stopped paying had to close for three weeks of repairs. He
+        does not negotiate or threaten. He is already past the
+        threatening phase with everyone in the district. Newcomers
+        get a moment to understand what they have walked into before
+        the axe clears the belt.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Grunted Basic, minimal vocabulary. "Fee." Pause. "Or we talk
+        different." The talking different involves the axe.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The vibroaxe comes off his belt with a practiced ease that says he has done this hundreds of times.*"
+        - "*He does not chase. He advances, relentless, axe low and sweeping.*"
+        - "*The dock boards rattle under him. The axe does not care about your footwork.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # COLUMN COMMONS DISTRICT — 1 NPC
+  # The publishing district, where HoloDrama networks and newsfeed
+  # agencies compete for the wartime information market. A Duros
+  # intelligence broker decided the market was more profitable when
+  # the sources paid him rather than the other way around.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Column Commons Data Extortionist
+    room: "Coruscant - Column Commons District"
+    species: Duros
+    description: >-
+      A Duros woman seated on a public bench in the Commons plaza,
+      a datapad in her lap and a half-finished caf on the armrest,
+      reading something that is not what she is looking at. The
+      bench faces the HoloDrama Consortium's regional office building.
+      She has been here three mornings this week, and the junior
+      producer who comes out of that building at the same time each
+      morning has started varying his route. She has two of his
+      sources. She is waiting to find out if he wants them back or
+      if she sells them to the competing network first. She makes eye
+      contact with you the way a sensor array makes eye contact —
+      full, technical, immediate — and the holdout blaster that
+      appears from her jacket pocket is less a weapon than a
+      clarification of terms.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 3D
+        mechanical: 2D+2
+        perception: 2D+2
+        strength: 2D
+        technical: 2D+2
+      skills:
+        blaster: 3D+2
+        dodge: 3D+2
+        con: 4D+1
+        persuasion: 4D
+        streetwise: 3D+2
+        investigation: 4D+1
+        value: 3D+2
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 0
+      character_points: 4
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Duros intelligence broker who shifted from buying information
+        to coercing it. She operates in the Column Commons publishing
+        district because the concentration of news agencies and
+        HoloDrama networks means everyone has something they prefer
+        not to have published. She is not violent by preference but
+        is prepared to be. The holdout blaster is a statement of
+        limits, not an opening move. In a fight she uses the plaza
+        columns for cover, keeps distance, and is more likely to
+        negotiate an exit than to press an engagement she did not
+        choose.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Precise, unhurried Basic with a Duros cadence — the syllables
+        land exactly where she puts them. "You have interrupted a
+        business conversation. I would like you to reconsider that."
+      hostile: true
+      combat_behavior: defensive
+      fallback_lines:
+        - "*She steps behind the column and the holdout blaster appears at shoulder height.* 'Reconsider.'"
+        - "*The caf goes over. She doesn't watch it fall. The blaster is already up.*"
+        - "*'Business conclusion.' The holdout is braced two-handed against the column edge.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # ROYAL ICQUI AQUARIA — 1 NPC
+  # Millions of creatures across several square kilometers of tank
+  # space. The maintenance access tunnels run beneath all of it,
+  # climate-controlled and unwatched. A Quarren found a use for
+  # that infrastructure that the aquarium's designers did not intend.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Aquaria Contraband Runner
+    room: "Coruscant - Royal Icqui Aquaria"
+    species: Quarren
+    description: >-
+      A Quarren in aquarium maintenance coveralls, moving along the
+      service corridor behind the large pelagic tank with a carry-crate
+      on a repulsor dolly. The aquarium insignia on the coveralls is
+      accurate to the second-tier contractor designation, and he has
+      had the badge long enough to know every checkpoint worker by
+      name. The crate is not carrying feed for the opee. What it is
+      carrying is the reason he pivots when he hears your footsteps
+      in the maintenance tunnel — the reason his tentacles flare
+      slightly and his hand goes to the blaster on his hip before
+      he has finished turning to face you.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D+2
+        technical: 3D
+      skills:
+        blaster: 4D
+        dodge: 3D+2
+        streetwise: 4D
+        security: 3D+2
+        sneak: 3D+1
+        swimming: 4D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Quarren contraband runner who uses the Royal Icqui Aquaria's
+        maintenance tunnel network to move goods through the upper
+        city without passing through standard transit checkpoints.
+        He has been doing this for eighteen months and has not been
+        caught because he is methodical — he times his runs to
+        checkpoint rotation gaps, moves in contractor coveralls,
+        and has memorized every camera angle in the maintenance
+        corridors. He fights only when cornered because fighting
+        ends the operation. When cornered, he uses the tunnel
+        geometry and his familiarity with the access points.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Gravelly Basic with a Quarren undertone that comes from jaw
+        structure rather than accent. "Maintenance access." Two words
+        and a steady blaster. No further explanation offered.
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*He ducks behind the feed-distribution machinery and the blaster comes up from cover.*"
+        - "*'Maintenance.' He says it again, as if repetition changes what happens next. It does not.*"
+        - "*The tunnel curves ahead of him. He knows what's around the curve. You don't.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # KALLARAK AMPHITHEATER — 1 NPC
+  # One million seats, most of them filled on performance nights.
+  # The vendor stalls, performer dressing rooms, and merchandise
+  # concessions generate enough cash flow that someone decided
+  # to tax it informally. That someone sends a Rodian to collect.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Amphitheater Protection Operator
+    room: "Coruscant - Kallarak Amphitheater"
+    species: Rodian
+    description: >-
+      A Rodian moving through the vendor concourse behind the main
+      stage access with the comfortable authority of someone who has
+      collected here every week for a year. The heavy blaster on his
+      thigh is unconcealed — the vendor operators have all seen it
+      and all paid the number on the slip he leaves with each of
+      them. Tonight a new vendor in stall fourteen has apparently
+      raised a philosophical objection to the collection arrangement,
+      and the Rodian is heading to stall fourteen with the expression
+      his face makes when philosophy needs resolution. When you step
+      into his path between the concourse and the stall, his compound
+      eyes cycle through their sweep and he adds you to the problem.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 5D+1
+        dodge: 4D+2
+        intimidation: 3D+2
+        streetwise: 3D+1
+        search: 3D+2
+        sneak: 3D
+      weapon: heavy_blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Rodian collection enforcer running the Kallarak Amphitheater
+        protection circuit — vendor stalls, performer merchandise,
+        concession operators. He has a route, a schedule, and a
+        reputation that preceded him by six months before he started
+        collecting here. He does not enjoy violence; he enjoys the
+        absence of it, which his reputation mostly provides. When
+        someone declines to pay or interposes between him and a
+        collection, his response is calibrated and immediate — the
+        heavy blaster makes the calibration obvious.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Short Rodian-Basic, businesslike. "Collection day." Pause.
+        "Or medical day." The heavy blaster clarifies which day
+        this becomes.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The heavy blaster comes up and the concourse clears in three seconds.*"
+        - "*His compound eyes track you through the crowd without blinking. The pistol finds its angle.*"
+        - "*'Wrong night to be between me and stall fourteen.' The bolt hits before he finishes the sentence.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # PETRAX HISTORIC QUARTER — 1 NPC
+  # Archaeologists believe Coruscant's vertical architecture started
+  # here. The crime did too. The current veteran of that tradition
+  # has held this territory through regime changes, construction
+  # waves, and two planetary crises. He is still here.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Petrax Quarter Territory Veteran
+    room: "Coruscant - Petrax Historic Quarter"
+    species: Aqualish
+    description: >-
+      An Aqualish standing in the gap between two of the Quarter's
+      oldest standing structures — pre-Ruusan construction, the
+      historians say, which means old enough that the maintenance
+      tunnels beneath them run to foundations that nobody has
+      mapped in four hundred years. He knows where they go. He
+      has used that knowledge to hold this block through three
+      municipal reorganizations and the kind of urban renewal
+      that tends to make problematic residents disappear. He
+      is watching the Quarter's afternoon foot traffic with
+      the proprietorial patience of something that has been
+      here a very long time and expects to be here after
+      you are gone. The vibroblade at his hip is old,
+      maintained to a mirror edge, and clearly used.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 2D+1
+        strength: 3D+2
+        technical: 2D
+      skills:
+        melee_combat: 5D+2
+        brawling: 4D+2
+        dodge: 3D+1
+        intimidation: 5D
+        streetwise: 4D+2
+        search: 3D
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 4
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A veteran Aqualish crime figure who has held territory in the
+        Petrax Historic Quarter for decades by being harder to remove
+        than every attempt to remove him. He is not ambitious — he
+        does not want more than what he has. He wants what he has
+        to remain his. Anyone who moves through the Quarter does so
+        because he permits it or because they are about to learn why
+        permission matters. In combat he is economic — the vibroblade
+        in a practiced hand, no wasted movement, no noise beyond what
+        the situation requires.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Grated Basic, slow. He does not raise his voice. "This block
+        has been mine since before your parents met." A pause.
+        "You should leave." If you don't: the vibroblade, unhurried.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The vibroblade comes out without flourish — old technique, clean and direct.*"
+        - "*He does not move fast. He does not need to. The reach is enough.*"
+        - "*'Still here.' He says it between blows, almost calm.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # CALOCOUR HEIGHTS - BOUTIQUE ROW — 1 NPC
+  # An exclusive retail corridor dealing in luxury goods, bespoke
+  # tailoring, and rare collectibles. The goods here move easily
+  # on the Black Sun distribution network once liberated from
+  # their original owners. The liberation is his specialty.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Boutique Row Enforcer
+    room: "Coruscant - Calocour Heights - Boutique Row"
+    species: Devaronian
+    description: >-
+      A Devaronian in a well-cut jacket browsing the artisan
+      display case in the covered shopping arcade, apparently
+      interested in a set of Alderaanian glass sculptures priced
+      at enough credits to run a small freighter for a month.
+      He is not here to buy them. The small earbud and the
+      deliberate positioning — back to the wall, facing both
+      entrances — are the signals a careful observer catches.
+      He is here because two members of his crew are in the
+      back of the flagship boutique three doors down, and he
+      is the warning system. When you look at him too long
+      or move toward the back of the arcade, his hand drops
+      from the display case to his jacket, and the casual
+      interest leaves his face entirely.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        dodge: 3D+2
+        con: 4D+2
+        persuasion: 3D+2
+        streetwise: 4D
+        search: 3D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Devaronian enforcer for a luxury-goods theft ring operating
+        in the Calocour Heights Boutique Row. His role is lookout and
+        crew protector — he maintains a credible civilian presence and
+        calls off or delays security responses while his crew works.
+        He is personable when that is useful and is skilled at reading
+        whether a bystander is genuinely oblivious or a threat.
+        When he identifies a threat, his transition to hostile is fast
+        and professional. He prefers to end confrontations quickly
+        and move his crew out before attention compounds.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Smooth, affable Basic that shifts to flat and direct in
+        under a second. "Beautiful pieces, yes?" Then, if you do
+        not leave: "Different conversation. Walk away."
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*The casual browser is gone. The blaster is out and the crew is already moving.*"
+        - "*He steps back between the display cases, using the narrow aisle for cover.*"
+        - "*'Unfortunate.' The blaster tracks you through the arcade.*"
