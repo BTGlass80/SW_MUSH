@@ -9,13 +9,15 @@ tags: ["chargen", "species", "template", "build", "starting", "skills", "attribu
 
 **Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — April 2026**
-**Guide Version 1.0**
+**Guide Version 1.1**
 
 ---
 
 ## 1. Overview
 
-Character creation in Parsec follows the WEG D6 Revised & Expanded rules. You choose a species, distribute attribute dice within species-defined ranges, spend skill dice on the skills you want, optionally declare Force sensitivity, write a background, and finalize. The entire process happens through typed commands in a dedicated creation mode.
+Character creation in Parsec follows the WEG D6 Revised & Expanded rules. You choose a species, distribute attribute dice within species-defined ranges, spend skill dice on the skills you want, write a background, pick a starting storyline, and finalize. The entire process happens through typed commands in a dedicated creation mode.
+
+Force sensitivity is **not** chosen here. Every character begins non-Force-sensitive; the Force is unlocked later through in-play content (see §6). There is no chargen toggle for it.
 
 Two paths are available: a **guided wizard** that walks you through each step with descriptions and prompts, or a **free-form editor** where you can set any field in any order. Both paths produce the same result — a complete character saved to the database.
 
@@ -46,11 +48,11 @@ Nine playable species are available. Each has different attribute ranges — the
 - **Trandoshan Regeneration:** Can regrow lost limbs over time. Once per day, a Trandoshan may attempt a Moderate Strength check to heal one wound level naturally, without medical aid.
 - **Trandoshan Claws:** Natural weapons that add **+1D to brawling damage** in melee.
 - **Trandoshan Vision:** Sees in the infrared spectrum — can act in total darkness with no penalty.
-- **Duros Natural Pilots:** Innate aptitude with spacecraft and navigation.
+- **Duros Natural Pilots:** **+1D to Astrogation** when plotting a hyperspace route the character has personally traveled before.
 - **Mon Calamari Amphibious:** Can breathe both air and water, with no penalties for underwater activity.
 - **Mon Calamari Moist Environment:** The flip side of being amphibious — prolonged time in very dry conditions inflicts **−1D to all actions** until the character can rehydrate.
-- **Sullustan Direction Sense:** Almost never get lost, even in unfamiliar environments.
-- **Sullustan Enhanced Senses:** Exceptional hearing and vision in low light.
+- **Sullustan Direction Sense:** Always know which way is north and can retrace any path already traveled — **+1D to Astrogation and Search** checks related to navigation.
+- **Sullustan Enhanced Senses:** Exceptional hearing and low-light vision — **+1D to Perception** checks in darkness or when relying on hearing.
 - **Twi'lek Lekku Communication:** Can communicate silently via head-tail movements with other Twi'leks.
 
 To view species details in-game: `info <species>` (e.g., `info wookiee`).
