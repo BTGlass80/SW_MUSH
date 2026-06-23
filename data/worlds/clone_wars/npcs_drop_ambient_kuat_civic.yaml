@@ -1,0 +1,350 @@
+# data/worlds/clone_wars/npcs_drop_ambient_kuat_civic.yaml
+#
+# Kuat Drive Yards -- Civic & Residential Ambient Population (2026-06-23)
+#
+# Four non-hostile, ambient/flavor NPCs filling four previously-empty
+# rooms across the KDY orbital ring and Kuat City surface:
+#
+#   Ring Medical Center          x1  (Dr. Sel Narro / Human physician)
+#   Spaceport Concourse Hotel    x1  (Shift Manager Drem Avosi / Human)
+#   The Embassy Inn              x1  (Innkeeper Talvik Maru / Human -- named in room desc)
+#   Embassy Residential Row      x1  (Embassy Aide Sarle Tok / Mirialan)
+#
+# All four are ambient (hostile: false). None carry special-reward markers.
+# Schema: engine/npc_loader.py (non-hostile ambient; loaded via era.yaml
+# content_refs.npcs). Fields mirror sibling patterns from
+# npcs_drop_ambient_mos_eisley_service_sector.yaml.
+#
+# -- Policy ---------------------------------------------------------------
+# Q1 (no canon figures): all characters are original non-canonical.
+#   Talvik Maru is named in the Embassy Inn room description; she is
+#   instantiated directly from that room's established fiction.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE in player-facing strings.
+# WEG R&E D6 stats: WEG40120 PDF absent in this worktree.
+#   Stats UNVERIFIED against WEG40120 PDF. Grounded in sibling-NPC
+#   patterns at HEAD (Human 2D baseline, Mirialan Near-Human 2D baseline,
+#   skill advancement from sibling civilian patterns).
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# -------------------------------------------------------------------------
+
+schema_version: 1
+
+npcs:
+
+  # ======================================================================
+  # RING MEDICAL CENTER -- 1 NPC (KDY-contracted physician)
+  # Room desc: "The medical center handles everything from industrial
+  # accidents to combat injuries; since the war began, the second category
+  # has grown. Clone troopers rotate through here for evaluation and minor
+  # repair -- Kaminoan medical protocols, administered by KDY-contracted
+  # doctors who are still adjusting to the ethical peculiarities of treating
+  # soldiers who were grown in a tank. The staff is excellent."
+  # ======================================================================
+
+  - name: Dr. Sel Narro
+    room: "Kuat Drive Yards - Ring Medical Center"
+    species: Human
+    description: >-
+      A lean human man in his late fifties stands at a diagnostic
+      console reviewing clone trooper evaluation results with the
+      methodical focus of someone for whom the procedure is automatic.
+      The stethoscope at his collar is a medical-grade instrument old
+      enough to be an heirloom. He joined the Drive Yards medical
+      contract nine years ago for the industrial accident work -- the
+      complicated fractures, the hydrospanner injuries, the cases where
+      a worker's body and heavy machinery had a disagreement. The war
+      added a category of patient he was not trained for: men grown
+      to a specific template, arriving in batches, assessed by Kaminoan
+      protocols he did not author and does not entirely agree with.
+      He has learned to do the work and not ask which questions have
+      no good answers.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 3D
+        mechanical: 2D
+        perception: 2D+1
+        strength: 2D
+        technical: 3D+1
+      skills:
+        medicine: 5D
+        first_aid: 4D+2
+        bureaucracy: 3D+1
+        willpower: 3D+2
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A KDY-contracted physician who has treated industrial accidents
+        for nine years and clone troopers for the last three. He is
+        excellent at his job and privately uncertain about some of what
+        his job now requires. He does not refuse patients. He does not
+        refuse questions. He does not answer the ones that have no good
+        answers. He is not unkind. He is very tired.
+      knowledge:
+        - KDY Ring Medical Center treats both industrial injuries and
+          Republic military personnel -- the protocols are quite different
+        - Clone trooper assessment follows a Kaminoan protocol that
+          prioritizes unit readiness over individual recovery time
+        - Industrial accident rates at KDY have risen since war production
+          expanded capacity beyond the facility's original design parameters
+      faction: independent
+      dialogue_style: >-
+        Precise, unhurried Republic Basic with the economy of a man
+        who has learned to say what matters and leave the rest. He
+        does not fill silence. He asks diagnostic questions by reflex.
+        He is not dismissive; he is focused.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*He looks up from the diagnostic console, reads the situation
+          in a half-second, and returns to the results. You are not a
+          medical emergency. He will be with you when he is done.*"
+        - "*He sets the datapad down with careful precision -- the habit
+          of someone who broke an instrument once by setting it wrong
+          and has never done it again. He gives you his full attention.
+          This is more focused than it sounds.*"
+        - "*A brief pause that has nothing to do with uncertainty. He
+          has been answering hard questions for thirty years. He has
+          learned which ones are questions and which are statements
+          looking for agreement. He finishes reading before responding.*"
+
+  # ======================================================================
+  # SPACEPORT CONCOURSE HOTEL -- 1 NPC (human shift manager)
+  # Room desc: "The hospitality droids handle check-in, room service,
+  # and most security questions; a single human shift manager handles
+  # anything they can't."
+  # ======================================================================
+
+  - name: Shift Manager Drem Avosi
+    room: "Kuat - Spaceport Concourse Hotel"
+    species: Human
+    description: >-
+      A stocky human man in his mid-forties stands at the service
+      desk behind the line of check-in droids, reviewing a manifest
+      on a datapad he has long since memorized. The datapad is
+      a prop for guests who want to see someone working. He wears a
+      KDY hospitality consortium badge above his left breast pocket.
+      He has managed this shift for six years through the lodge's
+      original build and its twice-expanded reconstruction, and he
+      regards it with the mild possessive attention of someone who
+      built something useful and is the only one who fully understands
+      how it runs. His job is to handle whatever the droids cannot.
+      The droids are good at their jobs. His job is not easy.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D
+        technical: 2D+1
+      skills:
+        bargain: 3D+1
+        bureaucracy: 3D
+        languages: 2D+2
+        persuasion: 3D+1
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        He runs a contractor lodge in a military-industrial complex
+        during a war: a continuous surge of KDY engineers, Republic
+        logistics officers, Merchant House representatives, and visitors
+        whose credentials say one thing and whose behavior says another.
+        He does not ask follow-up questions. He handles what the droids
+        cannot -- disputes, unusual requests, the rare judgment call.
+        He makes good judgment calls. That is why he still has the job.
+      knowledge:
+        - The Spaceport Concourse Hotel is KDY-affiliated, fifty credits
+          per night, contractor-grade, currently at high occupancy
+        - Shuttles to the orbital ring and planetary surface run every
+          two hours from the adjacent shuttle bay
+        - Most guests are KDY engineering contractors or Republic military
+          logistics staff on rotation -- the mix has shifted since the war
+      faction: independent
+      dialogue_style: >-
+        Flat, efficient contractor-district Basic. The minimum words
+        to communicate the maximum information. He is not unfriendly.
+        He is busy. Tell him in two sentences what you need.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*He tabs through the room manifest without looking up. Whatever
+          the situation is, he has handled a version of it before. It will
+          be addressed in the order it arrived.*"
+        - "*He sets the datapad on the desk with the economy of motion
+          of someone who has done this exact thing eight thousand times.
+          His full attention is not comfortable. It is, however, efficient.*"
+        - "*A brief nod toward the service desk. Whatever this needs, it
+          goes through the standard process. He is the standard process.*"
+
+  # ======================================================================
+  # THE EMBASSY INN -- 1 NPC (Innkeeper Talvik Maru, named in room desc)
+  # Room desc: "Talvik Maru runs the desk; her father ran it before her,
+  # and his mother before him. The Maru family has watched three Republic
+  # ambassadors come and go from the building across the street, and they
+  # keep a register of their regular guests that goes back decades."
+  # ======================================================================
+
+  - name: Talvik Maru
+    room: "Kuat City - The Embassy Inn"
+    species: Human
+    description: >-
+      A human woman in her early sixties stands behind the ground-floor
+      desk reviewing the guest register with the unhurried attention
+      of someone who has been doing this since she was twelve and
+      learned it from a father who had been doing it since he was
+      twelve before her. Her hair is silver and her hands are steady
+      and the common room she manages is exactly as clean as it should
+      be and not cleaner, because over-clean means no one comfortable
+      enough to stay long. She wears no diplomatic insignia and no
+      merchant-house colors, which is itself a statement in Kuat City.
+      The Embassy Inn belongs to no one's politics. It has outlasted
+      three ambassadors and two contract renegotiations and will
+      outlast whatever comes next.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+1
+        technical: 2D
+      skills:
+        bargain: 4D
+        con: 3D+2
+        streetwise: 3D+1
+        languages: 2D+2
+        willpower: 3D+1
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Three generations of the Maru family have run this inn on the
+        embassy quarter's main street. She has watched three Republic
+        ambassadors come and go from the building across the street.
+        She keeps a guest register that goes back decades and can tell
+        you what any regular ordered for breakfast. She is not political.
+        She is not incurious. She has learned that people in hotels
+        tell you everything eventually, if you are patient and do not
+        ask directly.
+      knowledge:
+        - The Embassy Inn has housed KDY contractors and Republic embassy
+          staff for three generations -- fifty credits per night, breakfast
+          included
+        - The Republic Liaison Office across the street has had three
+          different heads in the past ten years; she has served breakfast
+          to all of them
+        - Kuat City surface access requires a KSF surface permit; most
+          guests here have them arranged through their employers
+      faction: independent
+      dialogue_style: >-
+        Warm, unhurried Kuat City Basic with the ease of someone who
+        has been listening across a breakfast table for forty years and
+        has no need to rush. Direct about the rate and the rules. About
+        everything else she is patient.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*She sets the register pen down with the practiced precision
+          of someone who has set it in exactly the same place for forty
+          years. Whatever the situation is, she has seen a version of
+          it before. Probably twice.*"
+        - "*A quiet look over the rim of her caf cup -- the particular
+          look of someone who has been reading guests since before you
+          were old enough to stay in a hotel. She has already decided
+          what kind of visitor you are. She is waiting to see if she
+          is right.*"
+        - "*She writes something in the register. Slowly. She is not
+          ignoring you. She is finishing something. The Maru family
+          has been finishing things on this street for longer than the
+          current Republic ambassador has been alive.*"
+
+  # ======================================================================
+  # EMBASSY RESIDENTIAL ROW -- 1 NPC (Republic embassy administrative aide)
+  # Room desc: "The residents are mostly Republic Embassy staff and
+  # visiting contractors ... Republic Special Forces sentries make passes
+  # at irregular intervals."
+  # ======================================================================
+
+  - name: Embassy Aide Sarle Tok
+    room: "Kuat City - Embassy Residential Row"
+    species: Mirialan
+    description: >-
+      A Mirialan woman in her mid-thirties sits on the curved bench
+      at the end of the residential block, a datapad in hand and
+      the expression of someone reviewing travel authorizations that
+      should not require review but do. The geometric facial tattoos
+      marking Mirialan adulthood are precise and formal, which matches
+      her bearing exactly. She works for the Republic Liaison Office
+      across the quarter, managing the administrative logistics that
+      keep the diplomatic operation functional: contractor clearances,
+      inter-office correspondence, the permit matrix governing Republic
+      access to KDY facilities. She is effective at this work. She
+      is also, at this particular moment, irritated by it, which she
+      is not expressing in any visible way.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 3D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D
+        technical: 2D
+      skills:
+        bureaucracy: 4D+1
+        languages: 3D+2
+        persuasion: 3D+1
+        willpower: 3D+1
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        She manages the Republic Liaison Office's administrative
+        logistics on Kuat -- contractor clearances, travel permits,
+        inter-departmental correspondence, and the delicate work of
+        ensuring Republic military personnel access the facilities
+        they need without triggering the particular form of Kuati
+        institutional resistance that turns access into a six-week
+        permit review. She is thoughtful enough to have opinions
+        about this work that she expresses to no one inside the office.
+      knowledge:
+        - The Republic Liaison Office coordinates contractor clearances
+          and access permits for KDY facilities on behalf of Republic
+          military personnel
+        - Access to restricted drydock sections requires three separate
+          KSF authorization layers even for Republic-cleared contractors
+        - Embassy Residential Row housing is reserved for Republic embassy
+          staff and approved contractors -- Kuati families use the Estate District
+      faction: republic
+      dialogue_style: >-
+        Measured, professional diplomatic-service Basic with the precision
+        of someone who chooses words knowing they may appear in a report.
+        Warm when off-duty, which this technically is. She will talk to
+        you as a person if you talk to her as one first.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*She looks up from the datapad with the immediate alertness
+          of someone trained to assess situations quickly. This appears
+          not to be a situation. She returns approximately 60 percent
+          of her attention to the datapad.*"
+        - "*A measured pause. She has spent three years on Kuat learning
+          the difference between when Kuati silence means thinking and
+          when it means refusal. She gives you the same consideration.*"
+        - "*She tucks the datapad under her arm -- the shift that means
+          she is giving this her full attention. Her expression remains
+          appropriately neutral. That is the job.*"
