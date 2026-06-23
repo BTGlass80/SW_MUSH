@@ -855,6 +855,17 @@ _CITY_ZONE_KEYWORDS    = {"eisley", "market", "cantina", "docking", "district", 
                           "spaceport", "commercial", "civic", "residential"}
 
 
+def is_outdoor_zone(zone_name: str) -> bool:
+    """True if a zone/room name marks an OUTDOOR survey zone (vs a city zone).
+
+    Single source of truth for survey classification so the resource TYPES
+    (get_survey_resources) and the quality band (survey_quality_from_margin,
+    via the survey command) can never disagree about the same room.
+    """
+    lz = (zone_name or "").lower()
+    return any(kw in lz for kw in _OUTDOOR_ZONE_KEYWORDS)
+
+
 def get_survey_resources(zone_name: str, quality: float = 50.0) -> list[dict]:
     """
     Return a list of resource dicts a character finds by surveying in a zone.
@@ -866,8 +877,7 @@ def get_survey_resources(zone_name: str, quality: float = 50.0) -> list[dict]:
     Amount scales with quality: higher quality → more resources.
     """
     import random
-    lz = zone_name.lower()
-    if any(kw in lz for kw in _OUTDOOR_ZONE_KEYWORDS):
+    if is_outdoor_zone(zone_name):
         types = ["metal", "organic"]
     else:
         types = ["chemical", "energy", "electronic"]
