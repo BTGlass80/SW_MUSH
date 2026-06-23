@@ -21,7 +21,7 @@ import logging
 
 from engine.json_safe import safe_json_loads
 from engine.housing import (
-    get_housing, get_housing_status_lines,
+    get_housing, resolve_active_home, get_housing_status_lines,
     rent_room, checkout_room,
     housing_store, housing_retrieve,
     _storage,
@@ -134,7 +134,7 @@ class HousingCommand(BaseCommand):
         # ── housing checkout ──
 
     async def _cmd_checkout(self, ctx, char, rest):
-        h = await get_housing(ctx.db, char["id"])
+        h = await resolve_active_home(ctx.db, char)
         if not h:
             await ctx.session.send_line("  You don't have a rented room.")
             return
@@ -154,7 +154,7 @@ class HousingCommand(BaseCommand):
         # ── housing storage ──
 
     async def _cmd_storage(self, ctx, char, rest):
-        h = await get_housing(ctx.db, char["id"])
+        h = await resolve_active_home(ctx.db, char)
         if not h:
             await ctx.session.send_line("  You don't have a home with storage.")
             return
@@ -205,7 +205,7 @@ class HousingCommand(BaseCommand):
         if not rest:
             await ctx.session.send_line("  Usage: housing name <new room name>")
             return
-        h = await get_housing(ctx.db, char["id"])
+        h = await resolve_active_home(ctx.db, char)
         if not h:
             await ctx.session.send_line("  You don't have a home to rename.")
             return
@@ -220,7 +220,7 @@ class HousingCommand(BaseCommand):
         # ── housing describe / housing desc ──
 
     async def _cmd_describe(self, ctx, char, rest):
-        h = await get_housing(ctx.db, char["id"])
+        h = await resolve_active_home(ctx.db, char)
         if not h:
             await ctx.session.send_line("  You don't have a home to describe.")
             return
@@ -259,7 +259,7 @@ class HousingCommand(BaseCommand):
 
     async def _cmd_trophies(self, ctx, char, rest):
         from engine.housing import get_housing, _trophies
-        h = await get_housing(ctx.db, char["id"])
+        h = await resolve_active_home(ctx.db, char)
         if not h:
             await ctx.session.send_line("  You don't have a home.")
             return
@@ -361,7 +361,7 @@ class HousingCommand(BaseCommand):
         # ── housing sell ──
 
     async def _cmd_sell(self, ctx, char, rest):
-        h = await get_housing(ctx.db, char["id"])
+        h = await resolve_active_home(ctx.db, char)
         if not h or h.get("housing_type") not in ("private_residence", "shopfront"):
             await ctx.session.send_line(
                 "  You don't own a purchased home to sell. "

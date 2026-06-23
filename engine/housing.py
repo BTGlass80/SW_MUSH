@@ -807,6 +807,28 @@ async def get_housing(db, char_id: int) -> Optional[dict]:
     return dict(rows[0]) if rows else None
 
 
+async def get_homes(db, char_id: int) -> list:
+    """All of a character's homes, most-recent first (multi-home, 2026-06-23)."""
+    rows = await db.fetchall(
+        "SELECT * FROM player_housing WHERE char_id = ? ORDER BY id DESC",
+        (char_id,),
+    )
+    return [dict(r) for r in rows]
+
+
+async def resolve_active_home(db, char: dict) -> Optional[dict]:
+    """The home the player is STANDING IN -- so a multi-home owner's storage,
+    trophies, checkout and sell act on the home around them -- else their
+    most-recent home. A single-home owner is unaffected: the fallback is their
+    only home (Brian 2026-06-23, "4 homes is good")."""
+    rid = char.get("room_id") if isinstance(char, dict) else None
+    if rid is not None:
+        h = await get_housing_for_room(db, rid)
+        if h and int(h.get("char_id", -1)) == int(char["id"]):
+            return h
+    return await get_housing(db, char["id"])
+
+
 async def get_housing_by_id(db, housing_id: int) -> Optional[dict]:
     rows = await db.fetchall(
         "SELECT * FROM player_housing WHERE id = ?", (housing_id,)
@@ -964,7 +986,7 @@ async def rent_room(db, char: dict, lot_id: int) -> dict:
 
 async def checkout_room(db, char: dict) -> dict:
     char_id = char["id"]
-    h = await get_housing(db, char_id)
+    h = await resolve_active_home(db, char)
     if not h:
         return {"ok": False, "msg": "You don't have a rented room."}
     if h["housing_type"] not in ("rented_room", "faction_quarters", "private_residence"):
@@ -1069,7 +1091,7 @@ async def checkout_room(db, char: dict) -> dict:
 
 async def housing_store(db, char: dict, item_key: str) -> dict:
     char_id = char["id"]
-    h = await get_housing(db, char_id)
+    h = await resolve_active_home(db, char)
     if not h:
         return {"ok": False, "msg": "You don't have a home to store things in."}
 
@@ -1107,7 +1129,7 @@ async def housing_store(db, char: dict, item_key: str) -> dict:
 
 async def housing_retrieve(db, char: dict, item_key: str) -> dict:
     char_id = char["id"]
-    h = await get_housing(db, char_id)
+    h = await resolve_active_home(db, char)
     if not h:
         return {"ok": False, "msg": "You don't have any storage."}
 
@@ -1451,7 +1473,7 @@ async def set_room_description(db, char: dict, housing_id: int,
 
 async def trophy_mount(db, char: dict, item_key: str) -> dict:
     char_id = char["id"]
-    h = await get_housing(db, char_id)
+    h = await resolve_active_home(db, char)
     if not h:
         return {"ok": False, "msg": "You don't have a home to display trophies in."}
 
@@ -1489,7 +1511,7 @@ async def trophy_mount(db, char: dict, item_key: str) -> dict:
 
 async def trophy_unmount(db, char: dict, item_key: str) -> dict:
     char_id = char["id"]
-    h = await get_housing(db, char_id)
+    h = await resolve_active_home(db, char)
     if not h:
         return {"ok": False, "msg": "You don't have any trophies."}
 
@@ -1928,11 +1950,11 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
         types_str = ", ".join(f"'{k}' ({v['label']}, {v['cost']:,}cr)" for k, v in TIER3_TYPES.items())
         return {"ok": False, "msg": f"Unknown home type '{home_type}'. Options: {types_str}"}
 
-    # Check existing housing — allow if they have Tier 1 or Tier 2 (upgrade path)
+    # Multi-home (Brian 2026-06-23, "4 homes is good"): we no longer block a 2nd
+    # home. `existing` is the player's most-recent home/rental, used only to roll
+    # up a Tier 1/2 rental on upgrade (NOT to evict another Tier-3). The total cap
+    # is enforced below, after lot validation.
     existing = await get_housing(db, char_id)
-    if existing and existing["tier"] >= 3:
-        return {"ok": False,
-                "msg": "You already own a home. Use 'housing sell' first."}
 
     # Check per-planet limit
     lot = await get_lot(db, lot_id)
@@ -1949,12 +1971,21 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
         return {"ok": False, "msg": "Invalid lot."}
 
     lot_planet = lot["planet"]
-    existing_on_planet = await db.fetchall(
-        "SELECT COUNT(*) as cnt FROM player_housing WHERE char_id = ? AND tier = 3",
+
+    # Total-home cap: own up to MAX_TIER3_TOTAL Tier-3 homes (checked here, after
+    # lot validation, so an invalid lot still returns "Invalid lot." first).
+    # Per-planet capping is intentionally NOT enforced -- player_housing has no
+    # planet column to filter on (the old per-planet query here was an unfiltered
+    # global count, dead behind the since-removed "any 2nd home" block).
+    owned_t3_rows = await db.fetchall(
+        "SELECT COUNT(*) AS cnt FROM player_housing WHERE char_id = ? AND tier = 3",
         (char_id,),
     )
-    if existing_on_planet and existing_on_planet[0]["cnt"] >= MAX_TIER3_PER_PLANET:
-        return {"ok": False, "msg": f"You already own a home on this planet (max {MAX_TIER3_PER_PLANET})."}
+    owned_t3 = int(owned_t3_rows[0]["cnt"]) if owned_t3_rows else 0
+    if owned_t3 >= MAX_TIER3_TOTAL:
+        return {"ok": False,
+                "msg": f"You already own the maximum of {MAX_TIER3_TOTAL} homes. "
+                       f"Use 'housing sell' first."}
 
     # Check lot availability
     if lot["current_homes"] >= lot["max_homes"]:
@@ -2031,8 +2062,10 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
 
     # (Credits already debited above, before room creation.)
 
-    # If they have existing Tier 1/2 housing, evict it first
-    if existing:
+    # If they have an existing Tier 1/2 RENTAL, roll it up first (the upgrade
+    # path). A multi-home owner's existing Tier-3 homes are NOT evicted when
+    # buying another -- only the low-tier rental is consumed.
+    if existing and existing["tier"] < 3:
         await checkout_room(db, char)
 
     # Create housing record
@@ -2095,7 +2128,7 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
 async def sell_home(db, char: dict) -> dict:
     """Sell a Tier 3 private residence. 50% refund, contents returned."""
     char_id = char["id"]
-    h = await get_housing(db, char_id)
+    h = await resolve_active_home(db, char)
     if not h:
         return {"ok": False, "msg": "You don't own a home."}
     if h["housing_type"] != "private_residence":
