@@ -1060,16 +1060,19 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
                                         _reward = _board.total_reward(
                                             _contract, alive=False
                                         )
-                                        # Award credits
+                                        # Award credits UNCONDITIONALLY: the
+                                        # contract was just marked COLLECTED
+                                        # (irreversible), so an OFFLINE hunter
+                                        # is still paid; only the message is
+                                        # gated on an online session.
+                                        # (QA bounty 2026-06-23.)
+                                        _new_bal = await ctx.db.adjust_credits(
+                                            _killer_id, _reward, "bounty")
                                         _sess = ctx.session_mgr.find_by_character(
                                             _killer_id
                                         )
                                         if _sess and _sess.character:
-                                            # Ledger chokepoint (F1): bounty
-                                            # payout as a logged faucet.
-                                            _sess.character["credits"] = (
-                                                await ctx.db.adjust_credits(
-                                                    _killer_id, _reward, "bounty"))
+                                            _sess.character["credits"] = _new_bal
                                             await _sess.send_line(
                                                 f"  \033[1;33m[BOUNTY COLLECTED]\033[0m "
                                                 f"{_contract.target_name} — "
