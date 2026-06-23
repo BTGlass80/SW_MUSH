@@ -31,11 +31,13 @@ Five player-facing commands form the espionage suite. All five also live under t
 
 | Command | What it does |
 |---|---|
-| **`assess`** | Covertly read another character — their stats, gear, mood |
+| **`assess`** | Covertly read another character — their condition, gear, wealth |
 | **`eavesdrop`** | Listen to conversations in an adjacent room |
-| **`investigate`** | Search the current room for hidden information |
+| **`search`** | Search the current room for hidden information |
 | **`intercept`** | Tap nearby comlink and faction comms |
 | **`+intel`** | Compose, seal, and trade intelligence reports |
+
+> **A note on `search` vs. `investigate`.** The room-search command is **`search`** (also `inspect`, or `+spy investigate`). Bare **`investigate <id>`** is a *different* command — it resolves a wilderness anomaly (Guide #24). Don't reach for `investigate` when you mean to search a room.
 
 Each command has its own skill check, cooldown, and discovery risk (the chance the target notices you spying). The risks scale with the action — assessing someone has low discovery risk; intercepting comms is louder.
 
@@ -44,7 +46,7 @@ Each command has its own skill check, cooldown, and discovery risk (the chance t
 | Skill | Where it shows up |
 |---|---|
 | **Perception** | Assess, eavesdrop, intercept |
-| **Search** | Investigate |
+| **Search** | Searching rooms |
 | **Con** | Defending against being assessed |
 | **Sneak** | Defending against being noticed |
 | **Security** | Defending against intercept |
@@ -60,27 +62,28 @@ assess <player>
 (aliases: size)
 ```
 
-Reads another character covertly. The system uses your **Perception** against the target's **Con** in an opposed roll. The result determines how much you learn.
+Reads another character covertly. The system makes an **opposed roll** — your **Perception** against the target's **Con** — and the **margin** (your Perception roll minus their Con roll) determines how much you learn. You succeed when the margin is zero or better; the higher it climbs, the more layers you peel back.
 
-### What you can learn
+### What you can read
 
-The assess result depends on your skill check **margin** (your roll minus their roll). Higher margins reveal more:
+There are **three reveal levels**, not a smooth gradient. Margin 10 and margin 25 read the same — what matters is which thresholds (0, +5, +10) you clear against their Con defense:
 
-| Margin | What you see |
+| Margin | What you read |
 |---|---|
-| < 0 (fail) | Nothing useful — "You observe casually but can't read much" |
-| 0-4 | Basic state: demeanor, wound level |
-| 5-9 | + Equipped weapon, rough faction affiliation hints |
-| 10-14 | + More detailed equipment, posture/attitude reads |
-| 15+ | + Full assessment: gear, faction, recent activity, mood |
+| < 0 (fail) | Nothing useful — *"You observe casually but can't read much from a glance."* |
+| **0+** (success) | **Condition** (their wound level), whether they're **Armed** (and with what weapon), and their **Demeanor** |
+| **+5** | the above **+ Credits** (a wealth band — broke / modest / comfortable / well-off / wealthy), likely **Faction** affiliation, and any **Armor** they wear |
+| **+10** | the above **+ Species** and a **notable scar**, if they carry one |
 
-A skilled assessor catching a wounded character with the right margin sees things like: *"They look tense, hand near their weapon. Wounded — a recent fight. Armed with a blaster pistol, Republic-issue. The way they hold themselves suggests military training."*
+A clean +5 read on a wounded stranger returns something like: *"Condition: Wounded — favoring their left side. Armed: Yes (Blaster Pistol). Demeanor: tense, watchful. Credits: Modest funds. Faction: Likely Republic affiliated."* Push the margin past +10 and you also clock their species and any old scar.
+
+The **wealth read at +5 is the sleeper feature** — assess is how you tell the broke deserter from the well-funded fixer before you decide who's worth your time.
 
 ### Discovery risk
 
-If you **fumble** the Perception roll (wild die complication), the target notices. They get a message: *"You catch [your name] sizing you up."* You get: *"They catch you staring."* This is the social embarrassment — the assess failed *visibly*.
+If you **fumble** the Perception roll (a wild-die complication), the target notices. You get: *"They catch you staring."* They get: *"[your name] was sizing you up — but you caught them."* This is the social embarrassment: the assess failed *visibly*.
 
-If you simply fail (without fumble), no one notices. You just learn nothing useful.
+If you simply fail without fumbling (margin below zero, no wild-die complication), no one notices. You just learn nothing useful.
 
 ### Cooldown
 
@@ -99,26 +102,25 @@ For characters whose identity is to "see everything," assess is a routine comman
 ```
 eavesdrop <direction>
 eavesdrop stop
+(alias: listen)
 ```
 
-Begins listening to conversations in an adjacent room. You must specify a direction (`eavesdrop north`, `eavesdrop east`). The system identifies the room in that direction and starts an eavesdrop session.
+Begins listening to conversations in an adjacent room. You must specify a direction (`eavesdrop north`, `eavesdrop east`). The system finds the room that exit leads to and starts an eavesdrop session. Bare `eavesdrop` (no direction) reports whether you're already listening somewhere.
 
 ### How it works
 
-1. **Skill check on initiation.** Your Perception roll vs. a target difficulty determined by how distant or noisy the adjacent room is. Most cases are Moderate (15).
-2. **On success**: an eavesdrop session is created. Lasts **5 minutes** real-time.
-3. **During the session**: every time someone in the target room speaks (via `say` or pose-dialogue), you receive a **muffled fragment** of what they said.
-4. **On fumble or failure**: nothing happens; cooldown still applies. On critical fumble, the target room hears suspicious sounds from your direction ("a faint shuffling sound from beyond the wall").
+1. **Skill check on initiation.** Your Perception roll vs. a flat **Moderate (15)** difficulty.
+2. **On success**: an eavesdrop session is created on that room. Lasts **5 minutes** real-time.
+3. **During the session**: every time someone in the target room speaks (via `say` or a pose), you receive a **muffled fragment** of what they said.
+4. **On plain failure**: you hear nothing useful; the cooldown still applies. **On a fumble** (wild-die complication), you thud against the wall and the target room is alerted — *"a faint shuffling sound from beyond the wall"* — giving away that someone is listening from your direction.
 
 ### What "muffled" means
 
-You don't get the full transcript. The text is **partially obscured**:
+You don't get the transcript. The relay drops words at a **flat rate — roughly a third survive**, the rest collapse to `...`. Your initiation roll gets you *in*; it doesn't sharpen the fragments. A single fragment reads like:
 
-- High-margin success: you hear most of the words, some lost. *"...the cargo at midnight... bring the [obscured]... meet at the [obscured]..."*
-- Moderate success: you hear fragments. *"...something something cargo... midnight... [obscured]..."*
-- Low success: you hear scattered words. *"...cargo... [obscured]... ...meet..."*
+> *"...cargo ... midnight ... bring the ... ... meet at the ..."*
 
-You're catching pieces, not transcripts. Your character can piece together meaning over the 5-minute window. Some sessions yield clear intel; others yield only suspicion.
+**One quirk worth knowing: anything a speaker wraps in literal quotation marks leaks through intact.** Poses often carry quoted dialogue — `Vex leans in. "The shipment lands at dock nine."` — and that quoted line survives the muffling word-for-word, while the surrounding pose action gets chopped. Over a 5-minute window you stitch the surviving pieces into meaning. Some sessions yield clear intel; others yield only suspicion.
 
 ### Cooldown
 
@@ -136,14 +138,16 @@ It's less useful for fishing — random eavesdropping on busy rooms produces noi
 
 ---
 
-## 4. Investigate — Searching Rooms for Hidden Information
+## 4. Search — Combing Rooms for Hidden Information
 
 ```
-investigate
-(aliases: search, inspect)
+search
+(aliases: inspect; umbrella: +spy investigate)
 ```
 
-Searches the current room for **hidden information** — clues, environmental details, signs of recent activity. Uses your **Search** skill against a difficulty determined by the room's content.
+> The bare word **`investigate`** belongs to the wilderness-anomaly system (`investigate <id>`, Guide #24), so the room-search command is **`search`** (or `inspect`, or `+spy investigate`). If you type `investigate` expecting to comb a room, you'll get the anomaly resolver instead.
+
+Searches the current room for **hidden information** — clues, environmental details, signs of recent activity. Uses your **Search** skill against a difficulty set by the room's character.
 
 ### What you can find
 
@@ -157,21 +161,24 @@ The Director AI and room builders seed rooms with this information — not every
 
 ### How the check works
 
-1. **Cooldown per room: 30 minutes.** You can only investigate a given room twice per real-time hour. The cooldown prevents brute-force re-investigation.
-2. **Search roll vs. room difficulty.** Higher Search + better roll = more findings.
-3. **Findings revealed**: a description of what you discover, often with context for why it matters.
+1. **Cooldown per room: 30 minutes.** You can only search a given room twice per real-time hour. The cooldown prevents brute-force re-searching.
+2. **Search roll vs. room difficulty.** The difficulty depends on where you are:
+   - **Residential / underground** rooms — **Moderate (15)**. Lived-in, cluttered places give up their secrets more easily.
+   - **Public** areas (cantinas, streets, plazas) — **Difficult (20)**.
+   - **Official / military** rooms — **Very Difficult (25)**. Locked-down, swept-clean spaces are the hardest to read.
+3. **Findings layer with your margin.** A bare success surfaces environmental traces and any local hazard; a stronger roll adds **security details** (a hidden compartment, a camera blind spot, a bypassable lock) and, at a high margin, **recent-visitor traces** keyed to which faction passed through. Faction-specific clues are era-themed — a peeled Separatist decal, a scorched Jedi meditation candle, Cartel ledger fragments.
 
 ### Discovery risk
 
-Investigation is **not particularly covert**. If other characters are in the room, they see you searching. The action isn't private. You're not hiding your search; you're conducting it openly.
+Searching is **not covert**. If other characters are in the room, they see you doing it. You're not hiding the search; you're conducting it openly.
 
-If you want to investigate covertly, do it in an empty room (or use `sneak` to enter unnoticed first).
+If you want to search unobserved, do it in an empty room (or `sneak` in unnoticed first).
 
 ### Practical wisdom
 
-Investigation pairs naturally with detective work. After a combat in a room, investigate before leaving — you may find evidence about what happened, who the attackers were, what they were after. After overhearing a conversation through eavesdropping, follow the speakers and investigate where they meet next. Build a case from physical traces.
+Searching pairs naturally with detective work. After a combat in a room, `search` before leaving — you may find evidence about what happened, who the attackers were, what they were after. After overhearing a conversation through eavesdropping, follow the speakers and search where they meet next. Build a case from physical traces.
 
-For investigative journalists, faction intel officers, and detective-style characters, the investigate command is a primary tool. The 30-minute cooldown is generous enough for active investigation; the findings can be substantive.
+For investigative journalists, faction intel officers, and detective-style characters, `search` is a primary tool. The 30-minute cooldown is generous enough for active casework; the findings can be substantive.
 
 ---
 
@@ -214,7 +221,7 @@ The fumble risk is real. A fumbled intercept tells everyone in the room "someone
 
 ## 6. Intel Reports — Information as Currency
 
-The `+intel` command is the **trade layer** for intelligence. You compose reports from information you've gathered, seal them, and trade them with other players (or factions) for credits, rep, or other intel.
+The `+intel` command is the **trade layer** for intelligence. You compose reports from information you've gathered, seal them, and trade them with other players (or hand them to a faction handler) for credits, territory influence, or other intel.
 
 ### Composing a report
 
@@ -225,7 +232,7 @@ The `+intel` command is the **trade layer** for intelligence. You compose report
 +intel discard                  — Discard the current draft
 ```
 
-Reports are built **line-by-line**. You start with a title, add lines as you go, and seal it when you're done.
+Reports are built **line-by-line**. You start with a title, add lines as you go, and seal it when you're done. You can hold up to **10 reports** at once, and a single draft takes up to **20 lines** — though for handler quality only the first 5 lines score (see below), so tight, specific reports beat sprawling ones.
 
 Example:
 ```
@@ -308,7 +315,7 @@ A typical espionage arc combines all five commands.
 
 **Phase 2 — Targeted observation.** One of the strangers heads to a quieter room — possibly to meet someone. You follow at a distance. They enter a meeting room. You position yourself in an adjacent room and `eavesdrop`. Over the next 5 minutes, you catch fragments of their conversation.
 
-**Phase 3 — Physical investigation.** After they leave, you enter the meeting room. You `investigate`. You find the remnants of their meeting — a discarded data chip, a half-eaten meal, a note half-burned in an ashtray.
+**Phase 3 — Physical search.** After they leave, you enter the meeting room. You `search`. You find the remnants of their meeting — a discarded data chip, a half-eaten meal, a note half-burned in an ashtray.
 
 **Phase 4 — Compose the report.** You retreat to a safe location. You `+intel create Meeting at Mos Eisley Backroom`. You add what you learned: who attended, what they discussed (from eavesdrop fragments), what physical evidence remained. You `+intel seal`.
 
@@ -334,7 +341,7 @@ The eavesdrop session has fumble risk for the eavesdropper — if they fumble, y
 
 You can also use **places** (Guide #20) to compartmentalize sensitive conversation. Speaking via `tt` at a private booth is harder to overhear than speaking via `say` to the whole room.
 
-### Defending against investigate
+### Defending against search
 
 Don't leave evidence. If you finish a sensitive meeting, **clean the room** before leaving. Take any objects you placed. Be mindful of what an investigator might find — your half-burned note, your discarded data chip, the unique smell of your alien species lingering after you leave.
 
@@ -344,20 +351,19 @@ Be cautious with comlink and faction-channel speech in public areas. Sensitive c
 
 ### Counter-surveillance commands
 
-Some characters specialize in **counter-intelligence** — actively detecting and disrupting surveillance. They use `assess` on suspected spies. They sweep rooms with `investigate` for surveillance devices. They use `intercept` to catch surveillance comms targeting their faction. The cat-and-mouse dynamic is real.
+Some characters specialize in **counter-intelligence** — actively detecting and disrupting surveillance. They use `assess` on suspected spies. They sweep rooms with `search` for surveillance devices. They use `intercept` to catch surveillance comms targeting their faction. The cat-and-mouse dynamic is real.
 
 ---
 
-## 9. Espionage and Reputation
+## 9. Consequences and Standing
 
-Your espionage activity affects your reputation in subtle ways:
+Espionage doesn't run on a hidden reputation meter. The system tracks no "spy score," applies no automatic faction-rep penalty when you're caught, and pays no reputation points for a good report. What it tracks is concrete:
 
-- **Discovered surveillance** (fumbled commands) damages your social standing if witnessed. Players who get caught spying may face faction-rep penalties from the targeted faction.
-- **Good intel reports** delivered to faction handlers earn rep — typically +2 to +5 per significant report, depending on quality.
-- **Faction informant work** is recognized in some faction's narrative — intelligence-gathering missions show up as faction missions for established intel officers.
-- **The "known spy" identity** is real. A character with many discovered surveillance incidents is treated suspiciously everywhere. Some players embrace this; others avoid it.
+- **Intel handovers pay credits and territory influence — not rep.** A sealed report handed to your faction's handler converts to credits plus an influence delta in the region it names (see §6). That influence *is* the mechanical reward: it moves your faction's foothold, the same currency a garrison hold or a territory action earns.
+- **Getting caught is an in-fiction event, not a stat hit.** A fumbled `assess` tells the target *"[name] was sizing you up — but you caught them."* A fumbled `eavesdrop` thuds the wall; a fumbled `intercept` squeals to the whole room. No number changes — but every witness now *knows*, and what they do with that knowledge (warn allies, retaliate, remember your face) is the real consequence. Surveillance fallout is social and player-driven, which is exactly what makes it sting.
+- **The "known spy" identity is emergent.** There's no system flag marking you as a spy. That reputation gets built the old-fashioned way — out of the scenes where you got caught, the people who talked, the patterns others noticed. Some players cultivate it; others guard their cover precisely because nothing *forces* the label on them.
 
-The system supports both **clean intelligence professionals** (who never get caught and build sterling reputations) and **dirty spies** (whose work is messier but more dramatic).
+The toolkit supports both **clean professionals** (who never fumble at the wrong moment and keep their cover intact) and **dirty spies** (whose work is messier and more dramatic). The difference lives in the fiction and the influence ledger — not in a rep number.
 
 ---
 
@@ -369,7 +375,7 @@ Five concrete pictures.
 
 **Scenario 2 — The eavesdropping operation.** Two Hutt Cartel members enter a private booth in the Nar Shaddaa promenade. You move to the adjacent corridor and `eavesdrop east`. Over 5 minutes, you catch fragments: *"... shipment of glitterstim... arriving Tuesday... at the warehouse on..."* You don't catch every detail, but the patterns suggest a smuggling operation. You report it to your faction handler the next day.
 
-**Scenario 3 — The investigation discovery.** A combat just ended in a Coruscant alley. You arrive after the fighters have left. You `investigate`. You find a torn piece of a uniform with CIS insignia, a blood smear suggesting the loser was wounded, and a small audio recording device (apparently dropped during the fight). The recorder still has data; combined with your read of the scene, you piece together the encounter.
+**Scenario 3 — The room-search discovery.** A combat just ended in a Coruscant alley. You arrive after the fighters have left. You `search`. You find a torn piece of a uniform with CIS insignia, a blood smear suggesting the loser was wounded, and a small audio recording device (apparently dropped during the fight). The recorder still has data; combined with your read of the scene, you piece together the encounter.
 
 **Scenario 4 — The intercept catch.** You're embedded near a CIS safehouse on Nar Shaddaa. You `intercept`. For 5 minutes, you catch fragments of comlink traffic between CIS operatives. One fragment is distinctive: *"... extracted... target acquired... rendezvous at the spaceport..."* You compile this into an intel report and deliver it to Republic Intel. The intel is fresh and actionable; Republic Intel pays 1,500 cr.
 
@@ -383,11 +389,13 @@ Five concrete pictures.
 
 **2. Eavesdropping in a room with no direction information.** `eavesdrop` requires a direction; you can't just "listen" generally. Type `eavesdrop north` or `eavesdrop east` — whichever direction the target room lies.
 
-**3. Burning the investigate cooldown on a thinly-content room.** Once you've investigated a room, the cooldown is 30 minutes. Don't waste it on rooms unlikely to have hidden information. Focus investigation on rooms where significant events recently happened.
+**3. Typing `investigate` when you mean `search`.** The room-search command is **`search`** (or `inspect`, or `+spy investigate`). Bare `investigate <id>` resolves a wilderness anomaly (Guide #24) — a completely different system. New spies trip on this constantly.
 
-**4. Composing intel from common knowledge.** A report saying "the Republic has soldiers" is worthless. Reports must contain information that wasn't already known to the recipient. Don't waste effort on common knowledge.
+**4. Burning the search cooldown on a thin room.** Once you've searched a room, the cooldown is 30 minutes. Don't waste it on rooms unlikely to hold hidden information. Focus your searches on rooms where significant events recently happened.
 
-**5. Trying to be undetectable.** All espionage has fumble risk. Even the best Perception roll occasionally rolls a wild-die complication. Accepting that surveillance gets discovered occasionally is part of the realism. If your character can't accept that risk, espionage may not be their identity.
+**5. Composing intel from common knowledge.** A report saying "the Republic has soldiers" is worthless. Reports must contain information that wasn't already known to the recipient — and to convert to *influence*, the body must name a known wilderness region (see §6). Don't waste effort on vague common knowledge.
+
+**6. Trying to be undetectable.** All espionage has fumble risk. Even the best Perception roll occasionally throws a wild-die complication. Accepting that surveillance gets discovered occasionally is part of the realism. If your character can't tolerate that risk, espionage may not be their identity.
 
 ---
 
@@ -395,10 +403,10 @@ Five concrete pictures.
 
 | Command | What it does |
 |---|---|
-| `assess <player>` | Covertly assess a character (2-min cooldown per target) |
-| `eavesdrop <direction>` | Listen to adjacent room (5-min session, 10-min cooldown) |
+| `assess <player>` | Covertly assess a character (alias `size`; 2-min cooldown per target) |
+| `eavesdrop <direction>` | Listen to adjacent room (alias `listen`; 5-min session, 10-min cooldown) |
 | `eavesdrop stop` | Stop active eavesdrop |
-| `investigate` | Search current room (30-min cooldown per room) |
+| `search` | Search current room (alias `inspect`; 30-min cooldown per room) |
 | `intercept` | Tap nearby comlinks (5-min session, 10-min cooldown) |
 | `intercept stop` | Stop active intercept |
 | `intercept status` | Check active intercept |
@@ -422,21 +430,24 @@ Five concrete pictures.
 | Assess cooldown per target | 2 minutes |
 | Eavesdrop session duration | 5 minutes |
 | Eavesdrop cooldown | 10 minutes |
-| Investigate cooldown per room | 30 minutes |
+| Search cooldown per room | 30 minutes |
 | Intercept session duration | 5 minutes |
 | Intercept cooldown | 10 minutes |
 | Intercept skill check difficulty | Moderate (15) |
 | Intercept scope | Your room + adjacent rooms |
 | Eavesdrop scope | One specified adjacent room |
-| Assess roll | Opposed Perception vs. Con |
-| Eavesdrop roll | Perception vs. distance-scaled difficulty |
-| Investigate roll | Search vs. room-scaled difficulty |
+| Assess roll | Opposed Perception vs. Con (3 reveal tiers: 0+, +5, +10) |
+| Eavesdrop roll | Perception vs. Moderate (15) |
+| Eavesdrop muffling | Flat ~⅓ of words survive; quoted speech leaks intact |
+| Search roll | Search vs. 15 (residential) / 20 (public) / 25 (official-military) |
+| Intel report limits | 10 reports held; 20 lines per draft |
 | Intel handover pay — Low quality | 200–500 cr, 1–3 influence |
 | Intel handover pay — Medium quality | 600–1,500 cr, 4–8 influence |
 | Intel handover pay — High quality | 2,000–5,000 cr, 10–20 influence |
 | Intel handover — influence requirement | Report must name a known wilderness region |
-| Intel handover — freshness window | 24 hours (older reports score lower) |
-| Intel report rep gain | +2 to +5 per significant report (faction handler NPC) |
+| Intel handover — freshness window | 24 hours; reports older than 3 days are docked |
+| Intel handover — Intelligence Thaw | Doubles the credit payout (influence unaffected) |
+| Espionage reputation award | None — no rep points; reward is credits + influence |
 
 ---
 
@@ -444,13 +455,13 @@ Five concrete pictures.
 
 Espionage is the **information game** underneath the more visible combat and economic games. It rewards a specific kind of player: someone who pays attention, who keeps notes, who pieces small clues into bigger pictures, who enjoys the slow build of intel into actionable knowledge.
 
-For most characters, espionage is **occasional** — you assess strangers as part of normal awareness, you investigate combat scenes for context, you eavesdrop when a specific situation calls for it. The commands are tools you reach for when relevant.
+For most characters, espionage is **occasional** — you assess strangers as part of normal awareness, you search combat scenes for context, you eavesdrop when a specific situation calls for it. The commands are tools you reach for when relevant.
 
-For dedicated intelligence characters, espionage is **profession**. You build Perception to 5D+, you specialize in observation and analysis, you compile detailed intel reports, you trade information for credits and reputation, you build a network of contacts who know your work is reliable. Over months, you become the character others come to when they need to know something.
+For dedicated intelligence characters, espionage is **profession**. You build Perception to 5D+, you specialize in observation and analysis, you compile detailed intel reports, you trade information for credits and territory influence, you build a network of contacts who know your work is reliable. Over months, you become the character others come to when they need to know something.
 
 The system rewards both modes. Casual users get useful information about their surroundings; specialists build entire careers around intelligence work.
 
-If you're starting out: try `assess` on the next stranger you see in the cantina. You'll get a result (probably modest), and you'll understand the cadence. Try `investigate` after a combat ends. Try `+intel create` to compose your first report from what you observe in a single session. By month 3, you'll know which command to reach for when. By month 6, you may have a network of recipients who pay you for what you know.
+If you're starting out: try `assess` on the next stranger you see in the cantina. You'll get a result (probably modest), and you'll understand the cadence. Try `search` after a combat ends. Try `+intel create` to compose your first report from what you observe in a single session. By month 3, you'll know which command to reach for when. By month 6, you may have a network of recipients who pay you for what you know.
 
 The galaxy has secrets. Espionage is how you uncover them.
 
