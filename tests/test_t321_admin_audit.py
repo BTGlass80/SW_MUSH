@@ -279,8 +279,13 @@ class TestCheckAccessRevalidation(unittest.TestCase):
             db = await _fresh_db()
             try:
                 acct = await db.create_account("boss", "pw123456")
+                # A pure NON-privileged account (neither builder nor admin) must
+                # be denied builder commands. (is_admin set explicitly too: ADMIN
+                # now inherits BUILDER, so leaving an incidental admin flag set
+                # would make this pass for the wrong reason.)
                 await db.execute_commit(
-                    "UPDATE accounts SET is_builder = 0 WHERE id = ?", (acct,))
+                    "UPDATE accounts SET is_builder = 0, is_admin = 0 WHERE id = ?",
+                    (acct,))
                 snapshot = dict((await db.fetchall(
                     "SELECT * FROM accounts WHERE id = ?", (acct,)))[0])
                 sess = _FakeSession(account=snapshot)

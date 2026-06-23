@@ -840,6 +840,12 @@ class LoreCommand(BaseCommand):
                     "  Separate fields with | character. Title, keywords, and content are required."
                 )
                 return
+            try:
+                _priority = int(params.get("priority", "5"))
+            except (ValueError, TypeError):
+                await ctx.session.send_line(
+                    ansi.error("  Priority must be a number (1-10)."))
+                return
             result = await add_lore(
                 ctx.db,
                 title=params["title"],
@@ -847,7 +853,7 @@ class LoreCommand(BaseCommand):
                 content=params["content"],
                 category=params.get("category", "general"),
                 zone_scope=params.get("zone_scope", ""),
-                priority=int(params.get("priority", "5")),
+                priority=_priority,
             )
             await ctx.session.send_line(
                 ansi.success(f"  {result['msg']}") if result["ok"]

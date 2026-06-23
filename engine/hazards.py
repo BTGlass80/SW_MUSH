@@ -333,9 +333,15 @@ async def check_hazard_for_character(
     hazard_type = hazard_cfg["type"]
     template = HAZARD_TYPES[hazard_type]
     severity = hazard_cfg.get("severity", 1)
-    difficulty = hazard_cfg.get("difficulty", template["base_difficulty"])
-    # Scale difficulty with severity
-    difficulty += (severity - 1) * 3
+    # The stored difficulty (set_room_hazard / _check_wilderness_hazard) is
+    # ALREADY severity-scaled (base + (severity-1)*3); use it as-is. Only the
+    # defensive fallback to the raw base needs the one-time scaling. The old
+    # `difficulty += (severity-1)*3` re-applied it, so a severity-3 hazard hit
+    # DC 22 instead of the intended 16. (QA hazards 2026-06-23.)
+    if "difficulty" in hazard_cfg:
+        difficulty = hazard_cfg["difficulty"]
+    else:
+        difficulty = template["base_difficulty"] + (severity - 1) * 3
 
     # Lane E2b (Secrets of Tatooine §3): the desert heat-and-thirst hazard is
     # graded by the twin-sun clock — at its worst under the noon suns, eased

@@ -160,7 +160,12 @@ class BaseCommand:
         if self.access_level == AccessLevel.PLAYER:
             return ctx.session.is_in_game
         if self.access_level == AccessLevel.BUILDER:
-            return await self._live_account_flag(ctx, "is_builder")
+            # ADMIN > BUILDER: an admin implicitly passes the builder gate,
+            # so a `@grant <char> = admin` account can use the builder tools
+            # (@teleport/@set/@destroy/...) without a separate builder grant.
+            # (QA admin 2026-06-23.)
+            return (await self._live_account_flag(ctx, "is_builder")
+                    or await self._live_account_flag(ctx, "is_admin"))
         if self.access_level == AccessLevel.ADMIN:
             return await self._live_account_flag(ctx, "is_admin")
         return False
