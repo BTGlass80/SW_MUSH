@@ -102,6 +102,67 @@ def _dump_data(data: dict) -> str:
     return json.dumps(data, ensure_ascii=False)
 
 
+# ── T3.19 telemetry: the player-vendor marketplace loop ──────────────────────
+def _emit_vendor_telemetry(phase, char_id, *, seller_id=None, droid_id=None,
+                           item_key="", item_name="", quality=None,
+                           price=0, base_price=None, qty=1, fee=0,
+                           city_tax=0, tier=None):
+    """Emit one fail-open ``vendor_txn`` event per completed marketplace trade.
+
+    The credit legs already ride ``credit_flow`` (``vendor_purchase`` on a buy,
+    ``vendor_buy_order_payout`` on a sell) and ``log_shop_transaction`` keeps a
+    per-droid ledger — but neither rejoins the player-vendor marketplace into a
+    single offline stream tagged with the price-modifier deltas (a Tier 2+
+    Bargain win, a faction-rep discount/markup, the listing fee, the city tax)
+    that decide whether a listing actually moved. This is the seam that captures
+    the player↔player vendor economy as one event type tagged by ``phase``
+    (``"buy"`` = someone bought a stocked item; ``"sell"`` = someone filled a
+    Tier 3 buy order) — the direct signal for tuning the shop price floor,
+    listing-fee decay, and buy-order escrow on real post-launch trade volume
+    (do listings move? does the Bargain/faction modifier swing real money? is
+    the fee eating margins?). Buffer-only + offline-flushed → it can never
+    disturb the completed trade it observes (fail-open, like commissary_txn).
+    """
+    try:
+        from engine.telemetry import emit as _tele_emit
+        try:
+            char_id = int(char_id)
+        except (TypeError, ValueError):
+            pass
+        fields = {
+            "phase": phase,
+            "char_id": char_id,
+            "item_key": str(item_key or ""),
+            "item_name": str(item_name or ""),
+            "price": int(price),
+            "qty": int(qty),
+        }
+        if seller_id is not None:
+            fields["seller_id"] = seller_id
+        if droid_id is not None:
+            fields["droid_id"] = droid_id
+        if quality is not None:
+            fields["quality"] = int(quality)
+        # base_price reveals the modifier delta (bargain + faction) the player
+        # actually paid vs the sticker; only meaningful when it differs.
+        if base_price is not None and int(base_price) != int(price):
+            fields["base_price"] = int(base_price)
+        if fee:
+            fields["fee"] = int(fee)
+        if city_tax:
+            fields["city_tax"] = int(city_tax)
+        if tier is not None:
+            fields["tier"] = tier
+        try:
+            from engine.tunables import get_tunable
+            sample = float(get_tunable("telemetry.vendor_sample", 1.0))
+        except Exception:
+            sample = 1.0
+        _tele_emit("vendor_txn", fields, sample=sample)
+    except Exception:
+        log.debug("vendor telemetry emit failed", exc_info=True)
+
+
 # ── Placement rules ───────────────────────────────────────────────────────────
 
 MAX_DROIDS_PER_ROOM = 2
@@ -746,6 +807,7 @@ async def buy_from_droid(buyer: dict, droid_id: int,
     # remainder reaches the droid escrow. apply_city_tax is a no-op
     # when the droid's room is not in any city or when tax_rate=0.
     city_tax_msg = ""
+    city_tax_taken = 0
     try:
         from engine.player_cities import apply_city_tax
         city_take, _city_id, city_name = await apply_city_tax(
@@ -753,6 +815,7 @@ async def buy_from_droid(buyer: dict, droid_id: int,
         )
         if city_take > 0:
             net_payout -= city_take
+            city_tax_taken = city_take
             city_tax_msg = (
                 f" ({city_take:,}cr city tax to {city_name})"
             )
@@ -832,6 +895,15 @@ async def buy_from_droid(buyer: dict, droid_id: int,
                 )
     except Exception:
         log.warning("[shops] crafting_sale rep hook failed", exc_info=True)
+
+    # T3.19: capture the completed buy for the offline marketplace funnel.
+    _emit_vendor_telemetry(
+        "buy", buyer["id"], seller_id=obj["owner_id"], droid_id=droid_id,
+        item_key=slot.get("item_key", ""), item_name=slot["item_name"],
+        quality=slot.get("quality", 0), price=final_price,
+        base_price=base_price, qty=1, fee=fee, city_tax=city_tax_taken,
+        tier=data.get("tier"),
+    )
 
     shop_name = data.get("shop_name", obj["name"])
     crafter   = slot.get("crafter", "")
@@ -1291,6 +1363,16 @@ async def sell_to_droid(
         unit_price=order["price_per"],
         listing_fee=0,
         txn_type="buy_order_fill",
+    )
+
+    # T3.19: capture the completed buy-order fill for the marketplace funnel.
+    # phase="sell": the acting player is the SELLER; the order owner is the buyer.
+    _emit_vendor_telemetry(
+        "sell", seller["id"], seller_id=obj["owner_id"], droid_id=droid_id,
+        item_key=resource_type,
+        item_name=resource_type.replace("_", " ").title(),
+        quality=int(float(stack.get("quality", 0))),
+        price=payout, base_price=None, qty=sell_qty, tier=data.get("tier"),
     )
 
     shop_name = data.get("shop_name", obj["name"])

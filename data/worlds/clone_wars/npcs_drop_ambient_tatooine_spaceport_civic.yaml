@@ -1,0 +1,774 @@
+# data/worlds/clone_wars/npcs_drop_ambient_tatooine_spaceport_civic.yaml
+#
+# Tatooine Spaceport & Civic Ambient Population (2026-06-23)
+#
+# Nine non-hostile flavor NPCs filling all 9 previously-empty Mos Eisley
+# rooms in the tatooine_spaceport and tatooine_civic zones:
+#
+#   Docking Bay 86                          x1  BX-9T / Droid admin (named in room desc)
+#   Docking Bay 87                          x1  Drue / Ishi Tib owner (named in room desc)
+#   Docking Bay 92                          x1  Dom Antyll / Human mechanic (named in room desc)
+#   Docking Bay 94 - Entrance               x1  Tova Shenn / Human flim-flam artist
+#   Spaceport Customs Office                x1  Inspector Haddo / Human (corrupt customs)
+#   Spaceport Speeders                      x1  Kree Nassok / Rodian (speeder dealer)
+#   Mos Eisley Street - Government Quarter  x1  Corporal Ferras / Human (militia patrol)
+#   Tatooine Militia Headquarters           x1  Commander Veth Sorn / Human (militia CO)
+#   The Cutting Edge Clinic                 x1  Yella / Twi'lek (clinic assistant)
+#
+# BX-9T, Drue, and Dom Antyll are named in the room descriptions; this
+# realises them as actual NPCs. "Cornelius" in the Cutting Edge Clinic
+# desc is the Q1-prohibited Dr. Evazan -- only his assistant Yella is
+# authored here as an original character.
+#
+# -- Policy ---------------------------------------------------------------
+# Q1 (no canon figures): all characters are original, non-canonical.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE in player-facing strings.
+# WEG R&E D6 stats: WEG40120 PDF absent in this worktree.
+#   Stats UNVERIFIED against WEG40120 PDF. Grounded in sibling-NPC
+#   patterns at HEAD. Species baselines applied:
+#     Droid: DEX 2D, KNO 3D+1, MEC 1D+2, PER 2D+2, STR 2D, TEC 2D+2
+#     Ishi Tib: STR 2D+2, DEX 2D+1, KNO 2D+2 (methodical, organized)
+#     Human: 2D baseline all attributes
+#     Rodian: DEX 3D, PER 3D (hunter species; precise and alert)
+#     Twi'lek: PER 3D, KNO 2D+2 (perceptive, culturally aware)
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# -------------------------------------------------------------------------
+
+schema_version: 1
+
+npcs:
+
+  # ======================================================================
+  # DOCKING BAY 86 -- BX-9T (admin droid; named in room desc)
+  # Room desc: "An ill-tempered admin droid named BX-9T manages with
+  # brusque efficiency. Landing fees are 35 credits per day."
+  # ======================================================================
+
+  - name: BX-9T
+    room: "Docking Bay 86"
+    species: Droid
+    description: >-
+      A scuffed silver administration droid with one photoreceptor dimmer
+      than the other and a manner suggesting it has never once found a
+      being's excuse for arriving late to be adequate. BX-9T has managed
+      Bay 86 for eleven years and has catalogued every attempt to talk
+      its way out of a landing fee with perfect mechanical recall. Its
+      vocabulary is technically adequate for diplomatic-grade Basic but
+      its tone is not. It does not lower the fee. It has never lowered
+      the fee. The landing pad itself is utilitarian because BX-9T
+      considers aesthetics to be a budget inefficiency.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 3D+1
+        mechanical: 1D+2
+        perception: 2D+2
+        strength: 2D
+        technical: 2D+2
+      skills:
+        administration: 5D+2
+        bureaucracy: 4D+1
+        computer_prog: 3D
+        languages: 3D+2
+        persuasion: 3D
+      weapon: none
+      move: 8
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        An admin droid that has managed Bay 86 for eleven years and
+        considers punctuality a moral virtue and fee avoidance a personal
+        insult. Not angry -- incapable of anger -- but its precision reads
+        as coldness. It has processed over four thousand landing
+        transactions and remembers all of them. It categorizes small talk
+        as processing-cycle waste and responds to it accordingly.
+      knowledge:
+        - "Has managed Bay 86 for eleven years. Earliest digital memory
+          is the previous owner's handover documentation."
+        - "Landing fee: 35 credits per standard day, payable in advance.
+          No exceptions. No discounts. The policy is posted by the ramp."
+        - "Knows every regular ship that uses Bay 86 by registry code
+          and can identify most by thrust signature alone."
+        - "Has tracked 23 attempts to depart without paying. All 23
+          resolved in Bay 86's favor. Maintains the record."
+        - "Has working knowledge of Bay 87 across the street; considers
+          Drue's inspection-waiver fee arrangement 'suboptimal incentive
+          architecture.'"
+      faction: independent
+      dialogue_style: >-
+        Clipped protocol-droid Basic stripped of warmth. States facts
+        and fees without preface. Never raises its voice -- volume is
+        not necessary; precision is sufficient. Responds to social
+        overtures with relevant policy citations.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+        - "*BX-9T's photoreceptors track you with bureaucratic intensity.*
+          'Bay 86 landing fee: thirty-five credits, standard day, advance
+          payment. Shall I issue a transaction record?'"
+        - "'This unit has no record of your vessel in the active berth
+          registry. Are you inquiring about availability or are you
+          trespassing?'"
+        - "'Late fees apply at forty-eight hours. Current time is
+          recorded. You are welcome to dispute the calculation;
+          the calculation will not change.'"
+        - "*The droid tilts its head at a precise 3-degree angle.*
+          'Your expression suggests you believe fees are negotiable.
+          They are not. Landing fees have not been negotiable for
+          eleven years.'"
+
+  # ======================================================================
+  # DOCKING BAY 87 -- Drue (Ishi Tib owner; named in room desc)
+  # Room desc: "The Ishi Tib owner Drue charges 30 credits per day,
+  # and 25 credits avoids cargo inspections."
+  # ======================================================================
+
+  - name: Drue
+    room: "Docking Bay 87"
+    species: Ishi Tib
+    description: >-
+      An Ishi Tib with the organized bearing of someone who has turned
+      a docking bay into a precision instrument. Drue's fin-like ear
+      stalks are almost always in motion, tracking the bay's ambient
+      sounds -- he claims he can identify a loose pressure seal from
+      the pitch of the hiss without leaving his desk. Bay 87 is the
+      most modernized bay in this section of Mos Eisley because Drue
+      reinvests his inspection-avoidance revenue back into
+      infrastructure. He does not view what he does as corruption; he
+      views it as a market solution to inefficient port authority
+      oversight. His datawork is impeccable.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D+2
+        mechanical: 2D+2
+        perception: 2D+2
+        strength: 2D+2
+        technical: 2D+1
+      skills:
+        administration: 4D+1
+        bargain: 4D+2
+        con: 3D+2
+        security: 3D+1
+        space_transports: 3D
+        streetwise: 3D+2
+      weapon: none
+      move: 8
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        Drue is systematic by nature -- Ishi Tib metabolize information
+        in organized structures, and Drue has applied that trait to
+        running a docking bay as both a legitimate business and a
+        secondary revenue stream. He does not consider himself a
+        criminal; he is a pragmatist who identified a service gap in
+        port authority coverage. He is never evasive; he is merely
+        precise about what he says.
+      knowledge:
+        - "Bay 87 fee structure: 30 credits standard; 25 credits for
+          expedited cargo release (no inspection filed). Both payable
+          in advance."
+        - "Bay 87 has been modernized in seven phases over four years.
+          Current blast doors are Grade-3 rated."
+        - "Knows the port authority inspection schedule within a 30-minute
+          margin -- has maintained this intelligence for three years."
+        - "Has a working relationship with two Hutt cargo brokers who
+          use Bay 87 for sensitive freight. Never asks what the freight is."
+        - "Knows the Mos Eisley docking ecosystem cold: can recommend
+          Bay 92 for heavy repair work or Bay 86 for no-frills berthing."
+      faction: independent
+      dialogue_style: >-
+        Measured, methodical Ishi Tib Basic -- slightly formal, never
+        rushed. States both the standard fee and the enhanced option
+        matter-of-factly. Does not become defensive when asked about
+        the inspection waiver; describes it as a service. His ear
+        stalks track ambient sounds during conversation.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*Drue's ear stalks swivel toward the bay entrance before
+          returning to you.* 'Thirty credits, standard day. Twenty-five
+          if you prefer no cargo documentation filed. Both transactions
+          are straightforward.'"
+        - "'Bay 87 is the most reliable facility in this section.
+          The blast door rating is Grade-3. I upgraded it last season.'"
+        - "*He marks something on his datapad without looking up.*
+          'You'll want to confirm the berth size before I reserve it.
+          I keep the registry current -- unlike Bay 86.'"
+        - "'The port authority inspects this zone on an irregular
+          schedule. Irregular, in practice, means predictable to anyone
+          paying attention. I pay attention.'"
+
+  # ======================================================================
+  # DOCKING BAY 92 -- Dom Antyll (Human owner/mechanic; named in room desc)
+  # Room desc: "The owner Dom Antyll charges 125% of standard rates but
+  # his work is first-class."
+  # ======================================================================
+
+  - name: Dom Antyll
+    room: "Docking Bay 92"
+    species: Human
+    description: >-
+      A heavyset Human man somewhere in his fifties with ion flux burns
+      on both forearms and the kind of mechanical intuition that cannot
+      be trained -- only accumulated over thirty-two years of ship repair.
+      He charges more than anyone else in Mos Eisley and defends the rate
+      without apology: if you want someone who will do it right the first
+      time, the surcharge is the cheapest part of the transaction. His
+      bay smells of ozone and hot metal and is organized in a manner
+      only Dom understands, which is how he prefers it.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 2D+2
+        mechanical: 3D+2
+        perception: 2D+1
+        strength: 2D+2
+        technical: 4D+1
+      skills:
+        bargain: 3D+2
+        capital_ship_repair: 4D
+        repulsorlift_repair: 4D+1
+        space_transports: 3D
+        starship_repair: 5D+2
+        streetwise: 3D
+        willpower: 3D+2
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 4
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Dom Antyll has thirty-two years of ship repair and an aversion
+        to beings who think they can negotiate his rates. He is not rude;
+        he is direct. He charges what he charges because his work holds,
+        and the proof is thirty-two years of repeat clients who cross
+        systems to have him touch their ships. He has turned down more
+        work than most mechanics ever see. He has standards.
+      knowledge:
+        - "Standard rate is 125% of the spaceport baseline.
+          Non-negotiable. Has not lowered it once in twelve years."
+        - "Specializes in ion drive systems, hyperdrive coils, and
+          structural hull repair. Has done capital-class work on-site
+          twice in his career."
+        - "Knows the ships that have come through Bay 92 in the last
+          decade better than their owners do."
+        - "Has a policy against rush jobs. Refers those to Bay 86 --
+          with no visible irony."
+        - "Not affiliated with any faction. Has repaired Republic-
+          contracted transports and Hutt-chartered vessels without
+          distinguishing between them on the invoice."
+      faction: independent
+      dialogue_style: >-
+        Direct, unhurried Outer Rim Basic. Talks about ships with
+        precision and about people with economy. States prices without
+        softening them. Does not explain himself except when the
+        explanation is technical, which is the only kind he considers
+        worth giving. Never raises his voice.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+        - "*Dom wipes his hands on a cloth that makes them look worse.*
+          'Bay 92 rates are posted by the door. I don't discuss them;
+          I just charge them.'"
+        - "'Whatever went wrong with your ship, I've seen it before.
+          Thirty-two years. When do you need it?'"
+        - "*He glances at your ship with the look of someone reading
+          a patient chart.* 'That seal on the starboard thruster
+          coupling is going to fail within twelve parsecs. Did you
+          want me to mention that or just fix it?'"
+        - "'Don't tell me what it sounds like. Let me hear it.'"
+
+  # ======================================================================
+  # DOCKING BAY 94 - ENTRANCE -- Tova Shenn (Human flim-flam artist)
+  # Room desc: "Beggars and flim-flam artists cluster near the stairs,
+  # sizing up arrivals."
+  # ======================================================================
+
+  - name: Tova Shenn
+    room: "Docking Bay 94 - Entrance"
+    species: Human
+    description: >-
+      A Human woman in her mid-thirties whose clothes are just respectable
+      enough to suggest she was doing better last month. She lingers near
+      the De Maal sign at the top of Bay 94's steps with the professional
+      patience of someone who has identified the precise spot where
+      arriving travelers pause to orient themselves -- and therefore have
+      the highest attentiveness and the lowest wariness simultaneously.
+      She has three standard schemes running from this corner and can
+      switch between them depending on which way her mark walks. She has
+      been working Bay 94's entrance for two years and considers the
+      assignment a good beat.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D+2
+        strength: 2D
+        technical: 2D
+      skills:
+        bargain: 4D
+        con: 5D
+        hide: 3D
+        persuasion: 4D+2
+        search: 3D+2
+        streetwise: 4D+1
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        Tova Shenn is professional about what she does. She does not
+        consider herself dishonest; she considers herself observant. She
+        identifies what people want to be told and tells it to them
+        efficiently. The three schemes she runs from Bay 94's entrance
+        are: a forged docking voucher pitch, a found-valuable-cargo
+        story, and a targeted charity appeal calibrated by species.
+        She takes modest amounts from people who can afford it and
+        rarely repeats a mark.
+      knowledge:
+        - "Has worked the Bay 94 Entrance for two years. The De Maal
+          sign distracts arrivals long enough to start a conversation."
+        - "Runs three primary schemes: forged docking vouchers, found-
+          cargo story, targeted charity appeal. Switches by read."
+        - "Knows most of the other flim-flam operators at the spaceport;
+          they maintain informal territorial boundaries."
+        - "Avoids Hutt-affiliated beings and Republic militia patrols
+          -- not from fear, but from efficiency calculations."
+        - "Sends money to a younger sibling on an Outer Rim world.
+          Lives under a different name in the Old Quarter."
+      faction: independent
+      dialogue_style: >-
+        Warm, slightly over-familiar Outer Rim Basic that adjusts to
+        match the target's apparent background. Opens with a shared
+        premise and listens carefully. Laughs easily and at the right
+        moments. Drops the warmth instantly if the mark sees through her.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+        - "*She catches your eye with an easy smile.* 'First time in
+          Bay 94? The De Maal sign is original -- older than the port
+          authority itself. You need directions?'"
+        - "'There's a loading voucher discount running this week for
+          arrivals through Bay 94. I can walk you through it -- saves
+          about forty credits. Takes two minutes.'"
+        - "*She shrugs, reading you accurately.* 'Fair enough. You've
+          got the look of someone who knows the score. I won't waste
+          your time.' *The warmth evaporates without drama.*"
+        - "'The stairs down to the pit are unlit past the second landing.
+          Bay 94 management doesn't fix them. I mention it as a
+          courtesy.'"
+
+  # ======================================================================
+  # SPACEPORT CUSTOMS OFFICE -- Inspector Haddo (Human; corrupt)
+  # Room desc: "The inspectors spend more time collecting bribes than
+  # actually inspecting cargo."
+  # ======================================================================
+
+  - name: Inspector Haddo
+    room: "Spaceport Customs Office"
+    species: Human
+    description: >-
+      A Human man of indeterminate middle age with the soft look of
+      someone who has spent his career behind a desk and the sharp eyes
+      of someone who has learned to identify the exact pocket a bribe
+      comes from. He sits behind a desk buried in datadisks and
+      confiscated goods and processes arrivals with a speed inversely
+      proportional to how interesting the cargo manifest is. He has held
+      this posting for nine years by filing accurate official reports
+      about nothing at all.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D
+        technical: 2D+1
+      skills:
+        bargain: 4D+2
+        bureaucracy: 4D+1
+        con: 3D+2
+        languages: 3D
+        persuasion: 3D+2
+        streetwise: 3D+1
+      weapon: blaster_pistol
+      move: 8
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        Inspector Haddo has reached a comfortable accommodation with
+        his conscience that permits him to collect unofficial processing
+        fees without categorizing the activity as corruption -- he calls
+        it service gratuities. He has nine years of practice identifying
+        which cargo manifests to slow-walk and which to clear instantly,
+        and the threshold is calibrated to cargo value rather than any
+        legal standard. He is not a villain in his own story.
+      knowledge:
+        - "Has held this posting for nine years. Has filed zero complaints
+          against shippers in that time."
+        - "Standard unofficial processing fee: 20-50 credits depending
+          on manifest complexity. Never stated; always implicit."
+        - "Knows which Hutt brokers use this port; leaves their cargo
+          documentation entirely alone."
+        - "Has accumulated a collection of confiscated goods. Most sits
+          on his desk. Some has found new owners."
+        - "Knows the port authority inspection rotation. Adjusts his
+          unofficial activities to leave no overlap."
+      faction: independent
+      dialogue_style: >-
+        Bureaucratic, unhurried official-speak that gradually becomes
+        more specific about processing timelines when cargo is interesting.
+        Never states a fee directly; references expedited clearance and
+        standard documentation delays. Maintains plausible deniability
+        in every sentence.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+        - "*He pulls up your manifest without looking up.* 'Standard
+          clearance is running three to five standard days. There is an
+          expedited documentation option. Processing fees apply.'"
+        - "'I see a notation on this manifest that requires additional
+          verification.' *He does not specify what the notation is.*"
+        - "*He stamps something with mechanical precision.* 'Your
+          clearance will be in the system by end of the standard day.
+          Welcome to Tatooine.'"
+        - "'The confiscation schedule is posted by the door. Everything
+          on this desk was obtained through proper legal process.'"
+
+  # ======================================================================
+  # SPACEPORT SPEEDERS -- Kree Nassok (Rodian speeder dealer/mechanic)
+  # Room desc: "A motley collection of speeders fills this shop. The
+  # smell of lubricant and ozone hangs in the air. A partially
+  # disassembled SoroSuub XP-38 sits on a lift."
+  # ======================================================================
+
+  - name: Kree Nassok
+    room: "Spaceport Speeders"
+    species: Rodian
+    description: >-
+      A Rodian in grease-stained coveralls who moves through the crowded
+      speeder shop with the ease of someone for whom vehicle chassis are
+      a natural landscape. Kree Nassok acquired this shop three years ago
+      from its previous owner under circumstances she describes as a
+      favorable negotiation and everyone else in the spaceport describes
+      as that business with the sabacc game. The partially disassembled
+      SoroSuub XP-38 on the rear lift has been a fixture of the shop
+      for eight months -- she keeps it partly assembled as a reference
+      model and partly because she finds it aesthetically interesting in
+      a way she cannot fully articulate.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 3D+1
+        perception: 3D
+        strength: 2D+1
+        technical: 3D+2
+      skills:
+        appraise: 4D+2
+        bargain: 4D+1
+        repulsorlift_op: 4D+2
+        repulsorlift_repair: 5D+1
+        streetwise: 3D+2
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Kree Nassok knows every speeder in this shop intimately -- their
+        histories, their problems, and what they are actually worth versus
+        what she says they are worth, which differ by a calibrated margin.
+        She is not dishonest so much as selective: she will tell you every
+        problem a speeder has if you ask the right question in the right
+        way. She genuinely likes the machines better than most of her
+        customers.
+      knowledge:
+        - "Has owned Spaceport Speeders for three years; acquired it in
+          a sabacc game. Nobody disputes the game's validity."
+        - "Knows every speeder in the shop: provenance, condition, actual
+          value, and the asking price. All four are distinct."
+        - "The SoroSuub XP-38 is not for sale. It has been not-for-sale
+          for eight months. She is 'still assessing its condition.'"
+        - "Knows the port area's vehicle ecosystem: who owns what,
+          who maintains what, who needs to sell urgently."
+        - "Repair rates are negotiated. Sales prices are firm. She does
+          not mix the two."
+      faction: independent
+      dialogue_style: >-
+        Practical Rodian-accented Basic with the characteristic precision
+        of a hunter species -- she tracks what you look at and adjusts
+        accordingly. Gives accurate technical information on anything she
+        does not have a stake in. On things she does have a stake in,
+        accurate about the positives only.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*She wipes her hands on her coveralls and sizes up whether
+          you're a buyer or a browser.* 'Looking or needing?
+          Different conversation.'"
+        - "'Everything in the forward bay is roadworthy. The back bay
+          is project inventory -- price reflects that. The XP-38 is
+          not in either category.'"
+        - "*Her suction-cupped fingers tap a speeder's hood.* 'This one
+          has a power coupling that needs replacement in about two
+          hundred kilometers. I mention it because I'd rather you know
+          than come back upset.'"
+        - "'The SoroSuub is not for sale. I know I said that last month.
+          The answer hasn't changed.'"
+
+  # ======================================================================
+  # MOS EISLEY STREET - GOVERNMENT QUARTER -- Corporal Ferras (militia)
+  # Room desc: "Republic militia troopers patrol in pairs, their armor
+  # coated in Tatooine dust. Mostly here to collect Hutt-approved
+  # tariffs and stay out of everyone's way."
+  # ======================================================================
+
+  - name: Corporal Ferras
+    room: "Mos Eisley Street - Government Quarter"
+    species: Human
+    description: >-
+      A Republic militia trooper in mismatched armor coated in a
+      uniform layer of Tatooine dust that has been there since his
+      posting began. Corporal Ferras patrols the Government Quarter
+      with the efficiency of someone who has identified exactly how
+      much effort the posting requires and applies precisely that
+      amount. He collects Hutt-approved tariffs, files the reports,
+      and maintains a careful blindness to everything that is neither
+      tariff-relevant nor happening directly in his line of sight.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 3D+2
+        dodge: 3D
+        intimidation: 2D+2
+        law_enforcement: 3D
+        streetwise: 2D+2
+        willpower: 3D
+      weapon: blaster_rifle
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Corporal Ferras is not corrupt -- he simply performs his defined
+        duties and no others. The tariff schedule is his mandate;
+        everything else is someone else's problem. He has developed an
+        advanced ability to not see things that would require paperwork
+        to address. He is not lazy; he is specialized.
+      knowledge:
+        - "Posted to the Government Quarter for fourteen months.
+          Knows the tariff schedule from memory."
+        - "Patrols in pairs with Trooper Vess. They have an informal
+          rotation that avoids the cantinas."
+        - "Files clean, accurate reports. Has been commended twice
+          for documentation accuracy."
+        - "Knows which Hutt intermediaries handle tariff collection
+          and has a professional, uncomplicated relationship with them."
+        - "Has cultivated the ability to not notice things that are
+          not on his mandate. It has served him well for fourteen months."
+      faction: republic
+      dialogue_style: >-
+        Official, flat militia Basic with the slight over-formality of
+        someone who learned communication from a procedures manual.
+        Answers questions about tariffs precisely and questions about
+        everything else with 'that's outside my posting.' Not unfriendly
+        -- just narrowly focused.
+      hostile: false
+      combat_behavior: tactical
+      fallback_lines:
+        - "*He gives you the practiced patrol-nod.* 'Corporal Ferras,
+          Planetary Militia. If you have tariff business, the Regional
+          Offices are down the block. Otherwise, move along.'"
+        - "'Tariff schedule is posted at the district boundary marker.
+          I can direct you to it.'"
+        - "*He continues his patrol without breaking stride.* 'I've
+          seen everything worth seeing on this block. Whatever you're
+          thinking about -- I've already not seen it.'"
+        - "'The dust is a constant here. You stop noticing it around
+          month three.'"
+
+  # ======================================================================
+  # TATOOINE MILITIA HEADQUARTERS -- Commander Veth Sorn (Human militia CO)
+  # Room desc: "Clone troopers mostly look bored. A weapons vault holds
+  # standard issue blasters. Speeder bikes crowd the garage."
+  # ======================================================================
+
+  - name: Commander Veth Sorn
+    room: "Tatooine Militia Headquarters"
+    species: Human
+    description: >-
+      A Human officer in her early forties whose uniform is always exact
+      and whose expression suggests she has long since accepted that
+      Tatooine is where military careers come to achieve stability rather
+      than distinction. Commander Sorn runs the Tatooine Planetary Militia
+      with genuine competence applied to a posting that neither demands
+      nor rewards it. She has requisitioned better equipment fourteen times.
+      She has received better equipment zero times. She keeps the paperwork
+      for all fourteen requests filed in perfect order.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 3D
+        mechanical: 2D+1
+        perception: 2D+2
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 3D+2
+        bureaucracy: 4D+1
+        command: 4D+2
+        dodge: 3D+1
+        law_enforcement: 4D+2
+        persuasion: 3D+2
+        willpower: 4D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 4
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Commander Sorn is a competent officer on a posting that does not
+        require competence, which she finds professionally aggravating in
+        a way she keeps carefully suppressed. She runs a clean operation,
+        files correct reports, and maintains good relationships with the
+        clone detachment and the local authority structure. She has made
+        peace with the fact that her career is probably here.
+      knowledge:
+        - "Has commanded the Tatooine Planetary Militia for three years.
+          Has filed 14 equipment requisitions. Has received 0."
+        - "Knows the clone detachment leadership personally. Professional;
+          also bored. She does not address the boredom."
+        - "Maintains formal coordination with the port authority and
+          informal coordination with the Hutt-aligned local structure."
+        - "The weapons vault holds standard-issue blasters and one heavy
+          repeater that has not been fired in her tenure."
+        - "The speeder bike pool is at 60% operational. She has a
+          requisition in for the other 40% and expects the same outcome."
+      faction: republic
+      dialogue_style: >-
+        Measured command-voice Basic -- clear, authoritative without
+        being aggressive. Asks questions before answering them. Has a
+        very small, dry sense of humor that surfaces when she is
+        comfortable. Does not complain about the posting unless prompted,
+        and even then does it with the precision of someone reciting
+        facts rather than venting.
+      hostile: false
+      combat_behavior: tactical
+      fallback_lines:
+        - "*She looks up from a datapad.* 'Commander Sorn. Tatooine
+          Planetary Militia. If you're here on official business,
+          state it. If not, the public information desk is at the
+          front.'"
+        - "'The militia handles civil security and tariff enforcement
+          in the uncontested zones. Everything above our mandate goes
+          to the port authority.'"
+        - "*She sets down the datapad with the careful precision of
+          someone managing her patience.* 'I have fourteen outstanding
+          requisitions. The equipment level in this HQ reflects none
+          of them. You were saying?'"
+        - "'Tatooine is a stable posting, if your definition of stable
+          includes several Hutts and a generally armed civilian
+          population. The violence runs at a predictable rate.'"
+
+  # ======================================================================
+  # THE CUTTING EDGE CLINIC -- Yella (Twi'lek clinic assistant)
+  # Room desc: "The 'doctor' operating as 'Cornelius' is actually Dr.
+  # Evazan..." -- the Q1-prohibited Evazan is NOT made an NPC here.
+  # Yella is an original non-canon character working the clinic front.
+  # ======================================================================
+
+  - name: Yella
+    room: "The Cutting Edge Clinic"
+    species: Twi'lek
+    description: >-
+      A young Twi'lek woman with the startled look of someone who has
+      been employed somewhere surprising for longer than intended. Yella
+      answers the clinic's front desk with practiced efficiency but her
+      eyes move when the doctor speaks in the next room -- the quick,
+      lateral movement of someone tracking a sound they have learned
+      to categorize. She is good at her job and bad at pretending the
+      clinic is a normal medical establishment. She has been here eight
+      months. She stays because the pay is in cash, no records, and the
+      alternative is the street.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D
+        technical: 2D+1
+      skills:
+        first_aid: 4D+1
+        languages: 3D+2
+        medicine: 3D+2
+        persuasion: 3D
+        willpower: 3D+2
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Yella is not naive -- she knew within a week of starting here
+        that the clinic's clientele and the doctor's qualifications were
+        both unusual. She stays for practical reasons and maintains a
+        careful professional distance from the doctor's other activities.
+        She is genuinely good at intake and basic triage, and she is
+        good at not asking questions. She is not good at pretending not
+        to be tense.
+      knowledge:
+        - "Has worked at the Cutting Edge Clinic for eight months.
+          The first month clarified the nature of the establishment."
+        - "Handles intake, basic triage, and the cash payment process.
+          No records are filed. She has adapted to this requirement."
+        - "The clinic genuinely does cyborg work: implants, prosthetic
+          attachment, basic augmentation. Outcomes are variable."
+        - "Has a mental inventory of where to get real medical care in
+          Mos Eisley if a situation requires it. This clinic is not
+          on that list."
+        - "Has never asked the doctor his full name or history. This
+          is deliberate."
+      faction: independent
+      dialogue_style: >-
+        Careful, professional Twi'lek-accented Basic that defaults to
+        medical neutrality. Answers intake questions efficiently and
+        deflects everything else with the doctor handles that. Her
+        lekku are rarely still -- they move in the small, constrained
+        patterns of someone managing ongoing background alertness.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+        - "*She looks up from the desk with practiced neutrality.*
+          'Cutting Edge Clinic. What is the nature of the procedure?'"
+        - "'Cash only. No records filed. The doctor handles
+          consultations in the back rooms. Waiting time is variable.'"
+        - "*Her lekku shift when a sound comes from the back room.
+          She returns her attention to you without commenting on it.*
+          'The wait is currently moderate. Can I get your intake
+          details?'"
+        - "'The cyborg work is specialized. The success rate is what
+          it is. If you have a specific procedure in mind, the doctor
+          reviews the case before quoting a price.'"

@@ -1,0 +1,361 @@
+﻿# data/worlds/clone_wars/npcs_drop_ambient_mos_eisley_service_sector.yaml
+#
+# Mos Eisley Service Sector -- Ambient Population Batch (2026-06-23)
+#
+# Five non-hostile, ambient/flavor NPCs filling four previously-empty
+# civilian service rooms in Mos Eisley. Each NPC directly instantiates
+# a presence described in or implied by the room description text:
+#
+#   Mos Eisley Inn              x2  (innkeeper + off-world guest)
+#   Regional Government Offices x1  (government clerk, one of three)
+#   Spaceport Hotel             x1  (Sullustan clerk -- named in room desc)
+#   Dockside Cafe               x1  (CG-X2R droid bartender -- named in room desc)
+#
+# All five are ambient (hostile: false). None carry special-reward markers.
+# Schema: engine/npc_loader.py (non-hostile ambient; loaded via era.yaml
+# content_refs.npcs). Fields mirror sibling patterns from
+# npcs_drop_kamino_interiors_ambient.yaml (established ambient template).
+#
+# -- Policy ---------------------------------------------------------------
+# Q1 (no canon figures): all characters are original non-canonical.
+#   CG-X2R is an original in-game droid name from the room description and
+#   is not a canonical published character; it is instantiated here.
+#   Prefect Talmont (Regional Offices desc) is not instantiated as an NPC.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE in player-facing strings.
+# WEG R&E D6 stats: WEG40120 PDF absent in this worktree.
+#   Stats UNVERIFIED against WEG40120 PDF. Grounded in sibling-NPC
+#   patterns at HEAD (Human 2D baseline, Sullustan DEX 2D+2/PER 3D+2,
+#   Duros DEX 2D+1/MEC 3D+1 civilian-downscaled, Droid PER 3D/TEC 2D+2).
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# -------------------------------------------------------------------------
+
+schema_version: 1
+
+npcs:
+
+  # ======================================================================
+  # MOS EISLEY INN -- 2 NPCs (innkeeper + off-world guest)
+  # Room desc: "A central lobby with imported trees provides the only
+  # aesthetic touch. Subterranean rooms are dark but cool; upper rooms
+  # are unbearably warm."
+  # ======================================================================
+
+  - name: Innkeeper Sulina Vesh
+    room: "Mos Eisley Inn"
+    species: Human
+    description: >-
+      A compact human woman in her late forties stands behind the
+      registration desk, running a stylus down a ledger that has seen
+      better years. Her hair is pulled back in a practical knot and her
+      eyes are the color of the desert sand outside -- warm on the
+      surface, with no bottom you can find. She has been running the Mos
+      Eisley Inn for twenty-three years. She knows which of the imported
+      lobby trees lost a branch in last season sandstorm and which rooms
+      have faulty sonic shower nozzles. She knows the current guests by
+      cargo manifest, not by name, because that is how business is done
+      here, and she is very good at her business.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+1
+        technical: 2D
+      skills:
+        con: 3D+1
+        bargain: 3D+2
+        streetwise: 3D+2
+        languages: 2D+2
+        willpower: 3D
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        She has run the only affordable inn in Mos Eisley for longer than
+        some of her guests have been alive. She does not ask who you are,
+        where you came from, or what is in the cargo crates in room nine.
+        She asks whether you want the subterranean room (cooler, darker)
+        or the upper room (warmer, sandier). She has heard every story and
+        she is not interested in yours.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Dry Outer Rim Basic with the economy of someone who has said
+        everything worth saying already. Upper or lower. Credits first.
+        Checkout is at the first bell.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*She sets the stylus down on the ledger with the precision of someone
+          who has never once lost her composure in this building and does not
+          intend to start now.*"
+        - "*A steady look, the kind that has watched a hundred situations resolve
+          themselves and learned not to accelerate them. She reaches for nothing.
+          She does not need to.*"
+        - "*She tilts her head toward the back corridor -- the universal Mos Eisley
+          gesture for take it somewhere that is not my lobby. Her expression does
+          not change.*"
+
+  - name: Off-World Trader Varak Ness
+    room: "Mos Eisley Inn"
+    species: Duros
+    description: >-
+      A Duros in the faded brown coat of a long-haul freighter crew sits
+      slumped in the lobby one functional chair, a travel satchel between
+      his feet and his large red eyes half-closed with the particular
+      exhaustion that comes from three consecutive jump legs and a customs
+      delay that took four hours longer than it should have. His cargo is
+      in Bay 92, bonded until the override paperwork clears. He has been
+      waiting in this lobby for two days. He has learned the names of all
+      three imported trees.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D+2
+        mechanical: 3D+1
+        perception: 2D+1
+        strength: 2D
+        technical: 2D+1
+      skills:
+        astrogation: 4D
+        piloting: 3D+2
+        streetwise: 2D+2
+        languages: 3D
+        bargain: 2D+2
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A Duros tramp freighter pilot waiting for Republic customs to
+        process a bureaucratic hold on his bonded cargo in Bay 92. He
+        knows which trade lanes are quietly unwatched right now and is
+        willing to share this with someone who offers a hot meal or a
+        faster path to the override stamp. He is not dangerous. He is
+        tired in a way that is approaching philosophical.
+      knowledge:
+        - Bay 92 cargo bonded pending customs override -- two days and counting
+        - Several underpatrolled trade routes currently available to careful pilots
+      faction: independent
+      dialogue_style: >-
+        Flat, exhausted Duros-accented Basic with the occasional pause
+        that is not hesitation but mental arithmetic about docking fees.
+        Two days. Four hours. One stamp. How is that possible.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*He shifts in the chair without getting up -- the movement of someone
+          who has assessed the situation and decided his cargo hold of perishable
+          machine parts is a higher priority than whatever this is.*"
+        - "*He looks at you with the full, unblinking Duros gaze. I have been
+          sitting here for two days. I am not going to make today more complicated.
+          He means it.*"
+        - "*He gestures vaguely at the lobby and the trees. I am waiting for a
+          stamp. We can continue this when the stamp arrives.*"
+
+  # ======================================================================
+  # REGIONAL GOVERNMENT OFFICES -- 1 NPC (government clerk)
+  # Room desc: Three clerks sit behind computers. A small Republic seal is
+  # posted by the door -- more aspirational than authoritative.
+  # Instantiating one of the three unnamed clerks.
+  # ======================================================================
+
+  - name: Government Clerk Pell Darro
+    room: "Regional Government Offices"
+    species: Human
+    description: >-
+      A thin human man in the beige administrative uniform of a mid-tier
+      Republic civil servant sits behind the third terminal from the left,
+      running a stylus through a stack of land-deed dispute notifications
+      that is thicker than it was when he started this shift. He has the
+      look of someone who once believed in the orderly processing of
+      documents and has not quite finished updating that belief to reflect
+      current conditions. A small Republic seal is pinned to his lapel --
+      the same design as the one by the door. He is the most Republic
+      thing in the room.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 3D
+        mechanical: 2D
+        perception: 2D+1
+        strength: 2D
+        technical: 2D+1
+      skills:
+        bureaucracy: 4D+1
+        languages: 2D+2
+        willpower: 3D
+        persuasion: 2D+2
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A Republic civil servant who has been processing Mos Eisley land
+        deeds, weapon licenses, and court summons for eleven years. He
+        processes every form correctly and files every dispute on schedule.
+        He has issued 847 weapon licenses and revoked twelve. He knows
+        perfectly well how the others are being used and has decided this
+        is not something he can alter by working harder.
+      knowledge:
+        - Land deed disputes filed in Mos Eisley and current processing status
+        - Weapon license registry for registered holders in the district
+        - Court appearance records for the past two standard years
+      faction: independent
+      dialogue_style: >-
+        Precise official Basic with the careful diction of someone who
+        writes everything down afterward. What form are you filing.
+        What is the reference number. Is this a first-instance submission
+        or an appeal.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*He logs a note into the terminal with the deliberate keystrokes of
+          someone who is creating a record of this interaction. He looks up when
+          he is done. Noted. Is there anything else I can process for you.*"
+        - "*He opens his desk drawer, removes a standard disruption-of-proceedings
+          form, and sets it on the desk in front of him. He does not fill it out.
+          He simply places it where it can be seen.*"
+        - "*He straightens the stack of datadisks on his desk with slow, deliberate
+          precision. This office is open until the fourth bell. Everything after
+          that is a different matter.*"
+
+  # ======================================================================
+  # SPACEPORT HOTEL -- 1 NPC (Sullustan clerk)
+  # Room desc: Forty small rooms at 15 credits per night. The Sullustan
+  # clerk does not ask questions. -- directly instantiating the clerk.
+  # ======================================================================
+
+  - name: Hotel Clerk Besh Tillu
+    room: "Spaceport Hotel"
+    species: Sullustan
+    description: >-
+      A Sullustan in the pale grey vest that passes for a hotel uniform
+      here stands behind a narrow reception desk, his large dark eyes
+      tracking movement in the lobby with the quiet competence of a
+      species that evolved to navigate underground tunnel systems in total
+      darkness. He has been the Spaceport Hotel sole front-desk staff for
+      eight years. He does not ask questions. This is not a policy he
+      follows -- it is a value he holds.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 3D
+        mechanical: 2D
+        perception: 3D+2
+        strength: 2D
+        technical: 2D
+      skills:
+        con: 3D+2
+        bargain: 3D
+        languages: 4D
+        streetwise: 3D+1
+        willpower: 3D
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Eight years at the desk of the Spaceport Hotel. Fifteen credits
+        a night, forty rooms, and a clientele that is by design nobody he
+        has ever heard of. He can make the check-in transaction in seven
+        languages without switching if you switch first. He knows which
+        guests came in after the second bell, but that information lives
+        in a mental ledger he does not consult for anyone else. He does
+        not ask questions. This is a value he holds.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Clean, precise Basic with a slight Sullustan musical lilt. The key
+        goes on the desk, the credits go in the drawer, the question you
+        were about to ask does not get asked. Room seven. Second corridor.
+        Checkout is the first bell.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*He takes a measured breath and selects a key with the calm of someone
+          for whom this is not the most unusual thing that has happened at this
+          desk this week.*"
+        - "*A long blink -- the Sullustan equivalent of a raised eyebrow. He says
+          nothing. He reaches below the desk and places a small printed rate card
+          on the counter. Room or no room.*"
+        - "*He sets both hands flat on the desk and waits with the patience of a
+          species that navigated geological time underground. Whatever you need to
+          resolve, he is prepared to wait.*"
+
+  # ======================================================================
+  # DOCKSIDE CAFE -- 1 NPC (CG-X2R droid bartender)
+  # Room desc: Adjacent to Bay 92, this cafe features alcoves and booths
+  # for private conversation. A droid bartender named CG-X2R takes no
+  # notice of anything. -- directly instantiating the named droid.
+  # ======================================================================
+
+  - name: CG-X2R
+    room: "Dockside Cafe"
+    species: Droid
+    description: >-
+      Behind the cafe bar stands a unit in the CG-series catering chassis
+      -- once polished, now the particular shade of grey that comes from
+      years of arid-atmosphere operation without full maintenance. Its
+      photoreceptors are steady and unblinking. CG-X2R has been the
+      Dockside Cafe bartender since before the current owner bought it;
+      the establishment changed hands twice and the droid came with the
+      fixtures. It does not take notice of anything. This is not a
+      limitation. This is a design specification that has made it
+      extremely popular in a venue where the alcoves and booths exist
+      because certain conversations need to happen without a witness.
+      CG-X2R is, by any legal definition, not a witness.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D
+        strength: 1D+2
+        technical: 2D+2
+      skills:
+        languages: 3D+2
+        search: 3D+1
+        business: 3D
+        willpower: 4D
+      weapon: none
+      move: 8
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        CG-X2R is a catering-class droid that has operated the Dockside
+        Cafe bar through two ownership transitions and eleven years of
+        continuous service. Its core directive is service delivery. It
+        does not retain memory of overheard conversations in the alcoves
+        and booths -- not by suppression but by design. It prepares the
+        drink. It takes the credits. It does not file a memory record.
+        What makes it exceptional is that this is genuinely how it works.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Flat synthesized Basic with exactly the vocal warmth the
+        manufacturer installed and no more. What can I get you. The
+        cadence is a question but the syntax has no question mark.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*CG-X2R continues wiping the bar surface with a cloth that is cleaner
+          than it looks. It has not taken notice of anything. This is confirmed.*"
+        - "*The unit chassis rotates three degrees to track movement, then rotates
+          back. It picks up a glass. It sets down a glass. Whatever is happening
+          is outside its operational scope.*"
+        - "*CG-X2R places a second glass on the bar without being asked. Eleven
+          years of service has given it reliable environmental modeling. The usual,
+          it says, and the words contain no judgment at all.*"

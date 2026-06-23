@@ -339,6 +339,30 @@ async def apply_step_rewards(db, char: dict, step,
                 report["items_failed"].append(item_key)
                 report["errors"].append(f"item[{item_key}]: {e}")
 
+    # ── Telemetry (T3.19, onboarding-economy funnel) ────────────────
+    # Emit ONLY when a reward was actually delivered — most chain steps
+    # carry ``reward: {}`` and would otherwise spam empty events. The
+    # single ``chain_reward`` event type (phase="step"|"graduation",
+    # mirroring the ``objective`` funnel) lets the offline funnel measure
+    # how much credit/item/rep flow the onboarding pipeline injects per
+    # chain. Buffer-only + offline-flushed → zero gameplay behaviour; it
+    # can never disturb the chain advance it observes.
+    if (report["credits_awarded"] or report["items_granted"]
+            or report["rep_awarded"]):
+        try:
+            from engine.telemetry import emit as _tele_emit
+            _tele_emit("chain_reward", {
+                "phase": "step",
+                "chain_id": chain_id,
+                "step": step_num,
+                "char_id": int(char.get("id") or 0),
+                "credits": int(report["credits_awarded"]),
+                "items": len(report["items_granted"]),
+                "rep": len(report["rep_awarded"]),
+            })
+        except Exception as _e:
+            log.debug("chain_reward step telemetry emit failed: %s", _e)
+
     return report
 
 
@@ -532,6 +556,30 @@ async def apply_graduation_rewards(db, char: dict, attrs: dict,
         log.warning("[chain_rewards] chargen_notes save failed: %s",
                     e, exc_info=True)
         report["errors"].append(f"chargen_notes: {e}")
+
+    # ── Telemetry (T3.19, onboarding-completion funnel) ─────────────
+    # ALWAYS emit on graduation — the completion event itself is the
+    # high-value, low-frequency signal (chain completion rate per
+    # chain_id = an NPE health metric) even when credits == 0. Same
+    # ``chain_reward`` event type as the per-step emit, phase tagging the
+    # lifecycle transition so the offline funnel is count(step) vs
+    # count(graduation) per chain plus the reward distribution.
+    try:
+        from engine.telemetry import emit as _tele_emit
+        _tele_emit("chain_reward", {
+            "phase": "graduation",
+            "chain_id": chain_id,
+            "chain_label": chain_label,
+            "char_id": int(char.get("id") or 0),
+            "credits": int(report["credits_awarded"]),
+            "items": len(report["items_granted"]),
+            "achievements": len(report["achievements"]),
+            "rep": len([v for v in report["rep_awarded"].values()
+                        if not (isinstance(v, str) and v.startswith("error"))]),
+            "errors": len(report["errors"]),
+        })
+    except Exception as _e:
+        log.debug("chain_reward graduation telemetry emit failed: %s", _e)
 
     return report
 

@@ -1,0 +1,347 @@
+# data/worlds/clone_wars/npcs_drop_ambient_geonosis_hive_surface.yaml
+#
+# Geonosis Hive & Surface -- Ambient Population Batch (2026-06-23)
+#
+# Four non-hostile, ambient/flavor NPCs filling four rooms in Geonosis
+# that currently have only hostile mobs (mob-grind targets). Each NPC
+# directly instantiates a presence described in or implied by the room
+# description text:
+#
+#   Smuggler's Roost Flophouse     x1  (Vez Garra -- named in room desc as owner)
+#   Hive Interior Market           x1  (Geonosian mineral trader -- implied by desc)
+#   Stalgasin Surface Offworld Qtr x1  (CIS-contracted engineer, long-term resident)
+#   Petranaki Arena - Stands       x1  (CIS observer -- desc: "CIS officers...reserved section")
+#
+# All four are ambient (hostile: false). None carry special-reward markers.
+# Schema: engine/npc_loader.py (non-hostile ambient; loaded via era.yaml
+# content_refs.npcs). Fields mirror sibling patterns from
+# npcs_drop_kamino_interiors_ambient.yaml (established ambient template).
+#
+# -- Policy ---------------------------------------------------------------
+# Q1 (no canon figures): all characters are original non-canonical.
+#   Vez Garra (Weequay flophouse owner) is named in the room description
+#   and is not a canonical published character; she is instantiated here.
+#   No canonical CIS military figures (Dooku, Grievous, etc.) appear.
+#   No canonical Geonosian rulers (Poggle the Lesser, Sun Fac) appear.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE in player-facing strings.
+# WEG R&E D6 stats: WEG40120 PDF absent in this worktree.
+#   Stats UNVERIFIED against WEG40120 PDF. Geonosian stats grounded in
+#   sibling hostile-mob patterns at HEAD (warrior DEX 3D baseline,
+#   drone-caste scaled down: DEX 1D+2, STR 2D+1). Human civilian
+#   baseline 2D across attributes per sibling ambient drops.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# -------------------------------------------------------------------------
+
+schema_version: 1
+
+npcs:
+
+  # ======================================================================
+  # SMUGGLER'S ROOST FLOPHOUSE (room 437)
+  # Room desc: "Vez Garra, a Weequay who has been on Geonosis longer than
+  # the war and longer than most things, runs the building from a stool
+  # by the door." -- directly instantiating the named owner.
+  # Note: the hostile mob Roost Debt Collector (Nikto) is already in this
+  # room, described as "collect[ing] Vez Garra's bed fees" -- she is the
+  # boss behind that NPC.
+  # ======================================================================
+
+  - name: Vez Garra
+    room: "Geonosis - Stalgasin Surface - Smuggler's Roost Flophouse"
+    species: Weequay
+    description: >-
+      A Weequay woman on the far side of middle age, deeply weathered
+      by Geonosis's red dust and the business of keeping a flophouse
+      solvent in one of the galaxy's more inhospitable postings. She
+      sits on a scarred stool beside the door — not a checkpoint, not
+      quite, but close enough — with her arms folded and the specific
+      stillness of someone who has watched too many beings make bad
+      decisions and learned not to comment on most of them. Her hair
+      is bound in the cord-wrapped style common to the Weequay
+      mercantile class. Her eyes are the color of old blaster burn.
+      There is a hold-out blaster in her boot, but she hasn't needed
+      it in three months. Good stretch.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 3D+2
+        strength: 2D+1
+        technical: 2D
+      skills:
+        bargain: 3D+1
+        con: 3D
+        intimidation: 3D+1
+        streetwise: 4D
+        willpower: 3D+2
+        business: 3D+2
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Vez Garra has run the Roost for nineteen years. She arrived on
+        Geonosis ahead of the war, when the Geonosians were already
+        building something in those foundries, and decided the opportunity
+        was worth the climate. The flophouse is profitable because she
+        maintains one rule: no trouble inside the Roost. Trouble outside
+        is your business. She is indifferent to faction, crime, or
+        philosophy, and she charges twenty-five credits a night in
+        advance with no credit extended. She is, by the standards of
+        everyone who has stayed here, entirely fair, and by the standards
+        of Geonosis, practically a civic institution.
+      knowledge:
+        - "Runs the Smuggler's Roost flophouse. Rates are 25 credits a night, in advance. No credit extended."
+        - "Twenty-five credits covers a cot, a footlocker, and running water that works most of the time."
+        - "Has been on Geonosis nineteen years. Arrived before the first Republic campaign, stayed through both of them."
+        - "The Geonosians leave her alone because she runs a stable operation and keeps her residents from causing trouble in the hive."
+        - "The market is outside -- she can point toward vendors for supplies, but the Roost itself sells nothing."
+        - "Arena fights are on most days. The Geonosians run a tight schedule. She doesn't watch them."
+      faction: independent
+      dialogue_style: >-
+        Terse and direct. No pleasantries. Does not make small talk,
+        does not waste words, does not ask why. Occasionally dry in a
+        way that takes a moment to recognize as a joke.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*Vez Garra doesn't look up from her ledger. 'Twenty-five a night. In advance.'*"
+        - "'Room's clean, lock works, water runs cold. Don't ask about the cot — it's the cot.'*"
+        - "*She tilts her chin toward the door. 'If you're going to the market, stay on the main path. Off-path is not your problem to solve.'*"
+        - "'Been here nineteen years. You're not the strangest thing I've seen this month.'"
+        - "*Vez Garra sets down the ledger. 'You want something, or are you just seeing what I look like?'*"
+
+  # ======================================================================
+  # HIVE INTERIOR MARKET (room 416)
+  # Room desc: "Geonosian merchants trade raw mineral resources from the
+  # deep tunnels for off-world components the foundries can't produce
+  # themselves." -- directly instantiating one such merchant.
+  # Note: hostile Weequay Cartel Collector is also in this room (the
+  # protection racket enforcer). The ambient merchant operates alongside
+  # that presence, which is consistent with the room's description of
+  # Geonosian enforcement being informal but certain.
+  # ======================================================================
+
+  - name: Hive Mineral Trader Kass-ett
+    room: "Geonosis - Hive Interior Market"
+    species: Geonosian
+    description: >-
+      A drone-caste Geonosian behind a low stone counter, his chitin
+      the dull orange-brown of a hive worker assigned to extraction
+      rather than construction. He has arranged samples of raw ore on
+      the counter in precise rows — magnetite, cortosis-trace,
+      something unidentified that leaves a faint acidic smell. His
+      wings are folded flat in the at-rest position of a Geonosian
+      with no immediate reason to use them. He communicates in a rapid
+      pattern of clicks and mid-frequency buzzes and has enough Basic
+      to complete a transaction, which is all he appears to need. His
+      pricing is exact; he does not bargain up, and he does not
+      bargain down, and after seven years of operating in this market
+      he has found that this is the most efficient policy.
+    char_sheet:
+      attributes:
+        dexterity: 1D+2
+        knowledge: 2D+2
+        mechanical: 1D
+        perception: 3D
+        strength: 2D+1
+        technical: 2D+1
+      skills:
+        bargain: 3D+2
+        value: 3D+1
+        languages: 2D
+        streetwise: 2D+2
+        mining: 3D
+        willpower: 3D
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Drone-caste Geonosian assigned to external trade. Operates with
+        the focused efficiency of a hive specialist: trade minerals for
+        off-world components, complete the transaction, repeat. Has no
+        interest in small talk or the broader war. Communicates in clicks
+        and minimal Basic; will use a translation device for complex deals.
+        The cartel collector gets a cut -- he doesn't contest this; it is
+        the cost of operating in the market, which has been the cost of
+        operating in the market longer than the war has existed.
+      knowledge:
+        - "Sells raw minerals extracted from the deep hive tunnels -- magnetite, trace cortosis, ore concentrates."
+        - "Buys off-world components the foundries cannot produce: precision circuit boards, specific alloys, calibration tools."
+        - "Pricing is fixed. Does not negotiate. Has been asked to negotiate approximately nine hundred times and has declined all of them."
+        - "The market operates on the hive's own security arrangement. The enforcement is handled by others."
+        - "Has basic functional Basic -- sufficient to quote prices, describe goods, and complete a transaction."
+        - "Off-world buyers are tolerated because they bring components the foundries need. They are not trusted."
+      faction: independent
+      dialogue_style: >-
+        Rapid clicks and buzzes with occasional Basic fragments. Gestures
+        precisely toward samples. Not unfriendly -- purely transactional.
+        When Basic is insufficient, produces a small datapad with a
+        translation interface.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+        - "*Kass-ett clicks twice and slides a mineral sample toward you. 'Magnetite. Quality grade two. Forty credits, block quantity.'*"
+        - "*A short descending buzz. He touches a row of samples in sequence: 'Ore. Concentrate. Trace only. Not cortosis certified.'*"
+        - "*Kass-ett's wings tick half-open and fold again. He produces a small datapad with a price list. The Basic is minimal but precise.*"
+        - "'No. Price fixed.' *He clicks once, a tone that means: this is not a starting position.*"
+        - "*He watches you examine the samples with the focused assessment of something that has never once wondered why it is here.*"
+
+  # ======================================================================
+  # STALGASIN SURFACE -- OFFWORLD QUARTER (room 435)
+  # Room desc: "a mix of CIS contractors, smuggler crews using Geonosis
+  # as a layover, and a handful of independents" -- instantiating a CIS
+  # contractor on long-term residence.
+  # Note: hostile Trandoshan Offworld Quarter Enforcer is also in this room.
+  # ======================================================================
+
+  - name: CIS Engineer Ralan Theis
+    room: "Geonosis - Stalgasin Surface - Offworld Quarter"
+    species: Human
+    description: >-
+      A human male in his mid-forties, wearing foundry-grade technical
+      overalls with three layers of patches over the left shoulder where
+      something sharp made its presence known. He has the kind of
+      compact, deliberate movements of a person who has learned to move
+      carefully in environments designed for things other than humans.
+      His hair has developed the red-dust tint common to long-term
+      Geonosis residents. A datapad with a cracked corner is attached
+      to his forearm. He sits on a cargo crate outside the door of what
+      is presumably his cell, eating something from a container with
+      the resigned patience of a being who has eaten the same thing for
+      seven months and decided that finding it objectionable would not
+      improve it.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 3D+1
+        mechanical: 2D+2
+        perception: 2D+1
+        strength: 2D
+        technical: 3D+2
+      skills:
+        droid_programming: 4D+1
+        droid_repair: 4D
+        computer_programming_repair: 3D+2
+        bureaucracy: 3D
+        languages: 2D+2
+        willpower: 3D
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Droid engineer from Corellia, contracted by a CIS logistics
+        subsidiary to optimize the foundry's B1 assembly-line programming.
+        Seven months into a nine-month contract. Has adapted completely to
+        Geonosis in the way of someone who chose not to spend nine months
+        being miserable: he has learned Geonosian click-patterns for the
+        fifteen phrases he uses most, he knows which vendors in the hive
+        market accept standard credits, and he doesn't ask questions about
+        what happens to the droids after they leave the output bay. The
+        work is technically interesting. That is enough.
+      knowledge:
+        - "Contracted droid engineer, seven months in. Works in the foundry on B1 assembly-line optimization."
+        - "The cell block is functional. The water runs cold, the lock works, the dust gets in anyway."
+        - "Has learned fifteen Geonosian click-patterns. That covers most of what a non-Geonosian needs."
+        - "The hive market accepts standard credits. Mineral samples are cheap; off-world food is expensive."
+        - "The foundry has two shifts. The night shift is quieter. Less supervision."
+        - "Contract runs nine months. Two to go. Does not express an opinion about extending it."
+      faction: cis
+      dialogue_style: >-
+        Flat, technical, precise. Speaks in complete sentences with the
+        slightly-too-literal phrasing of an engineer who defaults to
+        specification language in conversation. Occasionally pauses and
+        corrects a word to a more accurate one. Not unfriendly.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+        - "*Ralan Theis looks up from his datapad without urgency. 'The market takes credits. Minerals are cheapest. Off-world food is marked up about three hundred percent.'*"
+        - "'Seven months.' *He says it the same way he would state a component count. Factual. Non-emotive.* 'Two left on the contract.'"
+        - "*He taps the datapad. 'B1 programming. I optimize the assembly-line cycle. The actual manufacturing is Geonosian -- I just make it run cleaner.'*"
+        - "'You want to know if the foundries are interesting. They are. Very large. Very loud. Surprisingly precise, given the conditions.'*"
+        - "*Ralan Theis closes the container and sets it aside. 'There's not much to do here after shifts. You get used to that too.'*"
+
+  # ======================================================================
+  # PETRANAKI ARENA -- STANDS (room 421)
+  # Room desc: "A group of CIS officers occupies a reserved section near
+  # the top, watching with professional assessment." -- instantiating one
+  # such observer.
+  # Note: hostile Devaronian Wager Enforcer is also in this room.
+  # ======================================================================
+
+  - name: CIS Tactical Observer Drev Sollum
+    room: "Geonosis - Petranaki Arena - Stands"
+    species: Human
+    description: >-
+      A lean human man in his early fifties, wearing the unremarkable
+      dark-grey field uniform of a CIS tactical observer without rank
+      insignia — rank being something you mark on orders, not on
+      your body, in this posting. He occupies a perch in the reserved
+      section near the top of the stands, one row removed from the
+      small knot of other CIS personnel, which is either preference
+      or protocol. He watches the arena floor with the focused,
+      category-sorting attention of someone who is not watching for
+      entertainment. His datapad is open to a recording. He does not
+      cheer. When a combatant does something technically effective, he
+      makes a notation.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 3D
+        mechanical: 3D
+        perception: 3D+1
+        strength: 2D+1
+        technical: 2D+1
+      skills:
+        combat_tactics: 3D+2
+        command: 3D+1
+        search: 3D+2
+        willpower: 3D+1
+        streetwise: 2D+2
+        languages: 2D+1
+      weapon: none
+      move: 10
+      force_points: 1
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        CIS tactical observer, assigned to Geonosis to assess Geonosian
+        warrior effectiveness and study the arena combat data for
+        intelligence use. Views the games as applied biomechanical
+        analysis rather than spectacle. Has been here three months;
+        has filled four data journals. Does not discuss his conclusions
+        with strangers, but will discuss combat technique in clinical
+        terms if engaged, the way a physician might discuss a case study.
+        Professionally neutral toward the combatants themselves -- notes
+        their effectiveness, not their survival.
+      knowledge:
+        - "Tactical observer on a three-month rotation. Studies Geonosian combat patterns and warrior effectiveness."
+        - "The arena runs on a schedule the Geonosians maintain precisely. Games occur most days; the cycles vary."
+        - "The Petranaki fighting style emphasizes endurance and zone control over speed. The creatures are calibrated for spectacle, not lethality -- the Geonosians want the fight to last."
+        - "The reserved section near the top is designated CIS observer space. The Geonosians enforce that designation themselves."
+        - "The acoustics in the arena are designed to concentrate crowd sound into the pit. It is a psychological tool. Very effective."
+        - "Has filled four data journals in three months. The analysis is ongoing."
+      faction: cis
+      dialogue_style: >-
+        Even, precise, slightly removed -- speaks about combat the way
+        a scholar speaks about a research subject. No emotional register
+        for the games themselves. Politely ends conversations that move
+        into opinion rather than analysis.
+      hostile: false
+      combat_behavior: tactical
+      fallback_lines:
+        - "*Drev Sollum makes a notation without looking up. 'The Geonosian fighter in the northwest quadrant. Watch the footwork. Very unusual for the species -- they prefer to use the wings for lateral movement at that range.'*"
+        - "'Observer rotation. Three months.' *He gestures briefly at the arena floor.* 'The data is interesting. The spectacle is not my concern.'*"
+        - "*He clicks his stylus against the datapad once, considering. 'The Petranaki style is older than the Republic. The Geonosians have been refining it for ten thousand years. That shows.'*"
+        - "'The crowd is part of the instrument. The acoustics concentrate the sound. It is a pressure tool. Measurably effective.'*"
+        - "*Sollum finally looks over, his assessment brief and diagnostic. 'Are you here for the games or for something else? The distinction matters for where you should sit.'*"

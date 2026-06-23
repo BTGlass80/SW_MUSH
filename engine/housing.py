@@ -45,6 +45,55 @@ def _safe_json_loads(value, default=None):
         return default
 
 
+def _emit_housing(action: str, char_id, amount: int, **extra) -> None:
+    """T3.19 telemetry: one fail-open ``housing`` event per credit-moving
+    housing-economy transition.
+
+    The ledger already tags each credit leg (``housing_purchase`` /
+    ``housing_rent`` / ``housing_deposit_refund`` / ``home_prestige``), but
+    those isolated ``credit_flow`` rows can't be rejoined offline into the
+    housing *lifecycle* — the acquire → weekly-rent → overdue → forfeit funnel,
+    the voluntary-checkout churn, or the deposit-forfeit rate. That lifecycle is
+    the direct signal for tuning the rent / deposit / eviction levers
+    (``TIER1_WEEKLY_RENT`` / ``TIER1_DEPOSIT`` / ``TIER1_EVICT_WEEKS``). One
+    buffered, sample-tunable emit per transition closes the gap and — because
+    ``emit()`` only appends to a bounded buffer flushed offline — can NEVER
+    disturb the rent collection or checkout it observes.
+
+      action : the lifecycle transition — ``"acquire"`` / ``"rent_paid"`` /
+               ``"rent_overdue"`` / ``"checkout"`` / ``"prestige"``.
+      char_id: the acting character (coerced to int when it parses so a
+               str-id and int-id system join on the same player).
+      amount : signed credit delta — negative for a sink (rent/acquire/
+               prestige), positive for the deposit-refund faucet, 0 when no
+               credits moved (an overdue tick that couldn't collect).
+      extra  : action-specific fields (weekly_rent, deposit, lot_id,
+               weeks_overdue, refund, forfeited, level, housing_type, …);
+               ``None`` values are dropped so the record stays clean.
+
+    Sampling honours ``telemetry.housing_sample`` (default 1.0 — housing
+    transitions are low-frequency + high-value, so full capture by default).
+    """
+    try:
+        try:
+            cid = int(char_id)
+        except (TypeError, ValueError):
+            cid = char_id
+        fields = {"action": action, "char_id": cid, "amount": int(amount)}
+        for k, v in extra.items():
+            if v is not None and k not in fields:
+                fields[k] = v
+        from engine.telemetry import emit as _tele_emit
+        try:
+            from engine.tunables import get_tunable
+            sample = float(get_tunable("telemetry.housing_sample", 1.0))
+        except Exception:
+            sample = 1.0
+        _tele_emit("housing", fields, sample=sample)
+    except Exception:
+        log.debug("housing telemetry emit failed", exc_info=True)
+
+
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 TIER1_DEPOSIT      = 500     # credits; returned on checkout
@@ -795,6 +844,8 @@ async def purchase_home_prestige(db, char: dict, housing: dict) -> dict:
                       char.get("id"), exc_info=True)
         return {"ok": False, "reason": "persist_failed"}
 
+    _emit_housing("prestige", char["id"], -cost, level=new_level, cost=cost)
+
     return {"ok": True, "new_level": new_level, "label": nxt["label"],
             "cost": cost, "descriptor": nxt["descriptor"]}
 
@@ -974,6 +1025,10 @@ async def rent_room(db, char: dict, lot_id: int) -> dict:
     log.info("[housing] char %d rented room %d at lot %d (%s)",
              char_id, new_room_id, lot_id, lot["label"])
 
+    _emit_housing("acquire", char_id, -total_cost,
+                  housing_type="rented_room", deposit=TIER1_DEPOSIT,
+                  weekly_rent=TIER1_WEEKLY_RENT, lot_id=lot_id)
+
     return {
         "ok": True,
         "msg": (f"Room rented at {planet_label}! "
@@ -1016,21 +1071,18 @@ async def checkout_room(db, char: dict) -> dict:
     if refund > 0:
         char["credits"] = await db.adjust_credits(char_id, refund, "housing_deposit_refund")
 
-    # Remove exits
-    try:
-        if h.get("exit_id_in"):
-            await db.delete_exit(h["exit_id_in"])
-        if h.get("exit_id_out"):
-            await db.delete_exit(h["exit_id_out"])
-    except Exception as e:
-        log.warning("[housing] checkout exit removal error: %s", e)
+    # Telemetry rides the economic outcome (the refund is now committed), not
+    # the room teardown below — so a teardown hiccup can't suppress the signal.
+    _emit_housing("checkout", char_id, refund,
+                  housing_type=h.get("housing_type"), refund=refund,
+                  forfeited=bool(h["rent_overdue"] > 0))
 
-    # FK SAFETY (QA housing 2026-06-23): clear the cross-references BEFORE the
-    # deletes, or they hit FOREIGN KEY constraint failures -- characters.home_room_id
-    # -> rooms.id, and rooms.housing_id -> player_housing.id. Previously the room
-    # DELETE failed silently and the player_housing DELETE then crashed UNCAUGHT,
-    # breaking EVERY vacate path (checkout / sell / @evict / faction-revoke /
-    # rent-eviction tick). Mirrors sell_shopfront's ordering.
+    # FK SAFETY + multi-home (QA housing 2026-06-23): clear characters.home_room_id
+    # BEFORE the room teardown -- but ONLY pointers INTO the rooms being deleted, so
+    # a multi-home owner who sells home #2 keeps a recall pointer aimed at home #1.
+    # (home_room_id -> rooms.id; deleting a still-referenced room FK-fails under
+    # PRAGMA foreign_keys=ON. delete_room below is the canonical FK-safe teardown --
+    # it removes every exit referencing the room, then the room.)
     if room_ids:
         try:
             await db.execute(
@@ -1040,18 +1092,11 @@ async def checkout_room(db, char: dict) -> dict:
             )
         except Exception:
             log.warning("checkout_room: home_room_id clear failed", exc_info=True)
-        for rid in room_ids:
-            try:
-                await db.execute(
-                    "UPDATE rooms SET housing_id = NULL WHERE id = ?", (rid,))
-            except Exception:
-                log.warning("checkout_room: rooms.housing_id clear failed",
-                            exc_info=True)
 
-    # Delete rooms
+    # Tear the housing rooms down via the canonical delete_room (FK-safe).
     for rid in room_ids:
         try:
-            await db.execute("DELETE FROM rooms WHERE id = ?", (rid,))
+            await db.delete_room(rid)
         except Exception as e:
             log.warning("[housing] checkout room delete error: %s", e)
 
@@ -1066,9 +1111,9 @@ async def checkout_room(db, char: dict) -> dict:
 
     await db.execute("DELETE FROM player_housing WHERE id = ?", (h["id"],))
 
-    # NOTE: home_room_id is cleared CONDITIONALLY above (only when it pointed at
-    # one of the rooms being deleted). Do NOT null it unconditionally here -- with
-    # multi-home, selling home #2 would wipe a recall pointer aimed at home #1.
+    # (home_room_id was cleared CONDITIONALLY above -- only pointers into the
+    # deleted rooms -- so do NOT null it unconditionally here: with multi-home that
+    # would wipe a recall pointer aimed at a home the player still owns.)
 
     await db.commit()
     log.info("[housing] char %d checked out of housing %d", char_id, h["id"])
@@ -1080,6 +1125,7 @@ async def checkout_room(db, char: dict) -> dict:
         msg += f" {returned_count} item(s) returned to your inventory."
     if h["rent_overdue"] > 0:
         msg += " Deposit forfeited due to overdue rent."
+
     return {"ok": True, "msg": msg}
 
 
@@ -1186,6 +1232,9 @@ async def tick_housing_rent(db, session_mgr) -> None:
                     (now + RENT_TICK_INTERVAL, now, h["id"]),
                 )
                 log.info("[housing] Rent collected: char %d paid %dcr", char["id"], h["weekly_rent"])
+                _emit_housing("rent_paid", char["id"], -h["weekly_rent"],
+                              housing_type=h.get("housing_type"),
+                              weekly_rent=h["weekly_rent"])
                 sess = session_mgr.find_by_character(char["id"])
                 if sess:
                     await sess.send_line(
@@ -1199,6 +1248,9 @@ async def tick_housing_rent(db, session_mgr) -> None:
                     (overdue, h["id"]),
                 )
                 log.warning("[housing] Rent overdue: char %d week %d", char["id"], overdue)
+                _emit_housing("rent_overdue", char["id"], 0,
+                              housing_type=h.get("housing_type"),
+                              weekly_rent=h["weekly_rent"], weeks_overdue=overdue)
                 sess = session_mgr.find_by_character(char["id"])
                 if sess:
                     if overdue >= TIER1_EVICT_WEEKS:

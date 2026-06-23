@@ -92,15 +92,20 @@ class TestCheckoutFKOrdering:
         assert crow["home_room_id"] is None, "checkout must clear home_room_id"
 
     def test_clears_fk_refs_before_deletes(self):
-        # structural guard: the FK NULL-clears must precede the deletes.
+        # structural guard: the FK NULL-clear must precede the room teardown.
+        # The teardown migrated to the canonical db.delete_room() in the housing-
+        # telemetry merge (removes exits + the room FK-safely); the multi-home
+        # change keeps the home_room_id clear CONDITIONAL (WHERE ... IN deleted
+        # rooms), so a multi-home owner selling one home keeps the others' recall.
         i = HOUSING_SRC.index("async def checkout_room")
         j = HOUSING_SRC.index("\nasync def ", i + 1)
         body = HOUSING_SRC[i:j]
         clear = body.find(
             "UPDATE characters SET home_room_id = NULL WHERE home_room_id IN")
-        del_rooms = body.find("DELETE FROM rooms WHERE id = ?")
+        del_rooms = body.find("await db.delete_room(")
         del_ph = body.find("DELETE FROM player_housing WHERE id = ?")
-        assert clear != -1, "checkout_room missing the home_room_id pre-clear"
-        assert del_rooms != -1 and del_ph != -1
+        assert clear != -1, "checkout_room missing the conditional home_room_id pre-clear"
+        assert del_rooms != -1 and del_ph != -1, \
+            "checkout_room must tear rooms down via db.delete_room then delete player_housing"
         assert clear < del_rooms < del_ph, \
-            "FK clears must precede DELETE FROM rooms / player_housing"
+            "FK clear must precede delete_room / DELETE FROM player_housing"

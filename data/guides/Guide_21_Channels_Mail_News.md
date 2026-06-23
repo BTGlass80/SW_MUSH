@@ -9,7 +9,7 @@ tags: ["channels", "mail", "news", "communication", "chat", "message"]
 
 **Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
-**Guide Version 1.0**
+**Guide Version 1.1**
 
 ---
 
@@ -19,7 +19,7 @@ This guide covers the **communication infrastructure** of the game — how playe
 
 These are the social plumbing. You'll touch all three regularly. If you only have ten minutes, read **§1 The Communication Layers** and **§3 Channels in Practice**. Channels are how most cross-room communication happens; the rest is structural depth.
 
-This is a new guide. There was no earlier version.
+*Version 1.1 — every command, syntax, and number reconciled against the live engine: `page` requires `=`, custom frequencies are whole numbers 1–9999, `comlink` reaches all online characters, mail recipients are space-separated, and the world-event effects are stated as the engine actually applies them.*
 
 ---
 
@@ -32,14 +32,14 @@ Nine communication layers, from intimate to galactic:
 | **`say`** | Same room | Instant | Scene log only |
 | **`tt`** (table-talk) | Same place within room (Guide #20) | Instant | Scene log only |
 | **`page`** | Specific player | Instant | None (ephemeral) |
-| **`comlink`** | Planet-wide IC | Instant | None |
+| **`comlink`** | Galaxy-wide IC | Instant | None |
 | **`fcomm`** | Faction-wide IC | Instant | None |
 | **`commfreq`** | Custom frequency | Instant | None |
 | **`ooc`** | Server-wide OOC | Instant | None |
 | **`@mail`** | One or more players | Asynchronous | Persistent |
 | **`+news`** | World bulletin | Asynchronous | Persistent |
 
-Each has its purpose. **`say`** is in-person conversation. **`page`** is one-on-one whisper (always private). **`comlink`** is planet-wide IC voice — your character speaking into their comlink for everyone on the planet to hear (and channel-tuned). **`fcomm`** is your faction's internal channel. **`ooc`** is server-wide chitchat between players (not characters). **`@mail`** is asynchronous letters that persist until the recipient reads them. **`+news`** is the world bulletin showing recent Director-driven events.
+Each has its purpose. **`say`** is in-person conversation. **`page`** is one-on-one whisper (always private). **`comlink`** is in-character comlink voice — your character speaking into their comlink for *every online character* to hear; treat it as an open galaxy-wide frequency (it is not planet-scoped). **`fcomm`** is your faction's internal channel. **`ooc`** is server-wide chitchat between players (not characters). **`@mail`** is asynchronous letters that persist until the recipient reads them. **`+news`** is the world bulletin showing recent Director-driven events.
 
 The right choice depends on **who you want to reach** and **whether it should be IC or OOC**.
 
@@ -67,13 +67,17 @@ If you're sitting at a place (Guide #20), `tt` is heard only by others at the sa
 ### `page` — Private whisper (IC or OOC)
 
 ```
-page <player> <message>
-page #<player_id> <message>
+page <player> = <message>                (alias: p)
+page <player1> <player2> = <message>     — multiple recipients
+page <message>                           — re-page your last target
+page <player> = :waves                   — pose form (": " / "; ")
 ```
 
-A direct, private message to one player. Goes to whoever you specify regardless of where they are in the world. Often used IC for comlink-style "your character whispers to mine"; often used OOC for "OOC: hey, let me know when you're back."
+A direct, private message — note the **`=`** between the target(s) and the text. It reaches the named player(s) wherever they are in the world. List several recipients **space-separated** before the `=`. After your first page, a bare `page <message>` re-pages whoever you last paged. Begin the message with `:` or `;` to pose it ("From afar, Trill waves."). If a target is idle, you're told how long.
 
-Pages are **ephemeral** — they go to the screen and disappear; there's no persistent log. If you want to ensure they read it, you may need to repeat or follow up.
+Often used IC for comlink-style "your character whispers to mine"; often used OOC for "OOC: hey, let me know when you're back."
+
+Pages are **ephemeral** — they go to the screen and disappear; there's no persistent log. If you want a message to stick, use `@mail`.
 
 ---
 
@@ -87,7 +91,7 @@ The channel system handles **real-time IC and OOC chat across distance**. Five n
 |---|---|---|---|
 | **`ooc`** | OOC | Server-wide | All player chitchat |
 | **`newbie`** | OOC | Server-wide | New-player help (alias for ooc) |
-| **`comlink`** (`cl`) | IC | Planet-wide | Cross-room comlink conversation |
+| **`comlink`** (`cl`) | IC | Galaxy-wide (all online) | Cross-room comlink conversation |
 | **`fcomm`** (`fc`) | IC | Faction-wide | Faction internal channel |
 | **`commfreq`** (`cf`) | IC | Custom frequency | Tuned-frequency comm |
 
@@ -113,24 +117,24 @@ OOC speech is bracketed clearly in display:
 
 The brackets and prefix make OOC unambiguous from in-character speech.
 
-### `comlink` — Planet-wide IC
+### `comlink` — Galaxy-wide IC
 
 ```
 comlink <message>      (alias: cl)
 ```
 
-Your character speaks into their comlink. Everyone on the same planet who's listening to comlink (default-tuned by all characters) hears the transmission. Cross-room — you don't have to be in the same room as your conversation partner.
+Your character speaks into their comlink. **Every online character** hears the transmission — comlink is the in-character broadcast channel. Cross-room (and currently cross-planet): you don't have to be anywhere near your conversation partner.
 
 Common uses:
 - Coordinating with allies in different rooms.
-- Asking around the planet for someone.
+- Asking around the galaxy for someone.
 - IC "broadcast" announcements that aren't faction-secret.
 
 ```
 [Comlink] Trill: Anyone seen Mara recently? I need to talk to her about the convoy.
 ```
 
-The comlink transmission is **public** to anyone tuned in — Republic, CIS, Hutt, neutral. Treat it as the IC equivalent of a public radio frequency. Sensitive operational chatter shouldn't go here.
+The comlink transmission is **public** — Republic, CIS, Hutt, neutral, everyone online hears it, and an enemy slicer running an intercept (Guide #22) can catch fragments. Treat it as the IC equivalent of an open radio frequency. Sensitive operational chatter shouldn't go here.
 
 ### `fcomm` — Faction-internal IC
 
@@ -160,9 +164,9 @@ untune <freq>                 — Untune
 freqs                         — List your tuned frequencies
 ```
 
-For private groups that aren't aligned to a faction, custom frequencies let you create your own channel. Anyone can tune into a frequency by knowing its number; communication on that frequency goes only to tuned listeners.
+For private groups that aren't aligned to a faction, custom frequencies let you create your own channel on **any whole number from 1 to 9999**. Anyone can tune into a frequency by knowing its number; communication on that frequency goes only to tuned listeners. (You must `tune` a frequency before you can transmit on it.)
 
-Frequencies are **shared knowledge among tuned players** — there's no ownership. If you tell someone "tune frequency 12.7," they can listen. If they tell their friend "tune frequency 12.7," that friend can also listen.
+Frequencies are **shared knowledge among tuned players** — there's no ownership. If you tell someone "tune frequency 1138," they can listen. If they tell their friend "tune frequency 1138," that friend can also listen.
 
 Common uses:
 - A small group of allies coordinating across factions.
@@ -170,7 +174,7 @@ Common uses:
 - One-shot operational channels for a specific mission.
 
 ```
-cf 12.7 Position is secured. Holding for instructions.
+cf 1138 Position is secured. Holding for instructions.
 ```
 
 ### `channels` — Channel overview
@@ -179,7 +183,7 @@ cf 12.7 Position is secured. Holding for instructions.
 channels (or +channels)
 ```
 
-Shows you what channels you're listening on, plus the online count for each.
+Shows the channels available to you, your current faction, any custom frequencies you're tuned to, and the online player count.
 
 ### `+who` — Online players
 
@@ -204,6 +208,7 @@ The standard compose flow:
                                       (then enter the body line by line)
 - (dash on a blank line)            — Send it
 @mail/send                          — Alternative send command
+~q (on its own line)                — Cancel the draft
 @mail/quick <player>/<subj> = <body>  — Quick one-line send
 ```
 
@@ -221,12 +226,12 @@ You: -
 [Mail sent to Mara.]
 ```
 
-The blank-dash line ends the compose; the message is sent.
+The blank-dash line ends the compose; the message is sent. (A very long letter is truncated at 8,000 characters when it sends — generous, but not unlimited.)
 
-**Multiple recipients** can be specified by listing them with commas:
+**Multiple recipients** are listed **space-separated** before the `=`:
 
 ```
-@mail Mara,Garth = Convoy investigation update
+@mail Mara Garth = Convoy investigation update
 ```
 
 All listed recipients get the message. Their replies go back to the sender alone.
@@ -307,7 +312,7 @@ A typical `+news` display:
   • 3 hours ago:      Distress signal detected from Kessel system.
                       Source unconfirmed.
 
-  • yesterday:        Trade boom hits Coronet starport.
+  • yesterday:        Trade boom hits Coruscant trade hub.
                       Demand for moisture-farming equipment spikes.
 
   • 2 days ago:       Hutt auction announced — rare relics on offer.
@@ -321,13 +326,13 @@ Each entry shows a relative-time stamp ("just now," "X minutes ago," "X hours ag
 The news bulletin is your window into **what's happening in the world**. Events listed in `+news` typically have real mechanical effects:
 
 - **Republic checkpoint**: customs scans intensify at the affected spaceport (see [Security Zones](#/guide/security-zones) — patrol risk on transit increases).
-- **Pirate surge**: more pirate encounters spawning in deep space (Guide #24).
-- **Cantina brawl**: NPC combat is more active in that cantina; sabacc payouts may double.
-- **Distress signal**: a specific anomaly spawns somewhere in the galaxy.
-- **Trade boom**: cargo prices spike at the affected port (Guide #6).
-- **Sandstorm**: visibility reduced in the affected zone; certain hazards increase.
+- **Pirate surge**: pirate encounters spawn ~3× as often in deep space (Guide #24).
+- **Cantina brawl**: hostile brawl encounters spike in that cantina (Guide #24).
+- **Distress signal**: the mission board pays a distress bonus while the signal is live (Guide #6).
+- **Trade boom**: vendor sell prices rise 25% in the affected zone for an hour — sell goods there for more (Guide #6).
+- **Sandstorm**: a −3 penalty to Perception and ranged attacks in the affected zone (−2D in a gravel storm, −3D in a sandwhirl; Guide #24).
 
-Reading the news before you act on a plan is **smart spacing**. If there's a Republic crackdown on Mos Eisley spaceport, maybe defer your contraband run. If there's a trade boom at Coronet, maybe push your cargo run forward.
+Reading the news before you act on a plan is **smart spacing**. If there's a Republic crackdown on Mos Eisley spaceport, maybe defer your contraband run. If there's a trade boom on Coruscant, maybe go sell your stockpile there before the convoy departs.
 
 ### How the news populates
 
@@ -361,7 +366,7 @@ A worked example. You log in for an evening session. The news bulletin shows:
 
 Three current world events. You parse:
 
-- **Sandstorm** in the Outer Rim Tatooine: your planned hunt in the Dune Sea (lawless wilderness) just got harder. Move it to tomorrow or risk Stamina checks from the hazard.
+- **Sandstorm** in the Outer Rim Tatooine: your planned hunt in the Dune Sea (lawless wilderness) just got harder. Move it to tomorrow or push through the −3 Perception and ranged-attack penalties.
 - **Hutt Auction** at the cantina: there are rare goods being sold for credits. You can bid if you have the wallet. Worth checking out.
 - **Republic crackdown** on Tatooine: patrols are doubled. Your contraband run to Mos Eisley has heightened patrol risk. Defer or accept the risk.
 
@@ -385,9 +390,9 @@ Some norms that emerge across active servers.
 
 ### Comlink etiquette
 
-- Comlink is **planet-wide and IC**. Treat it like an open broadcast channel.
+- Comlink is **galaxy-wide and IC**. Treat it like an open broadcast channel.
 - Don't use comlink to RP intimate scenes — comlink is public.
-- Don't spam comlink. The planet has limited attention.
+- Don't spam comlink. The channel has limited attention.
 - Sensitive operational coordination should go to `fcomm` or `commfreq`, not `comlink`.
 
 ### Faction comm etiquette
@@ -416,7 +421,7 @@ Five concrete pictures.
 
 **Scenario 4 — The asynchronous letter.** You finished a great cantina scene with a player who plays at very different hours. You compose `@mail` to them: "Last night's scene was excellent. I have a follow-up arc in mind — happy to brainstorm by mail if you're game." They read it the next morning; they reply with their thoughts; the arc starts to take shape across multiple mail exchanges before you ever play another scene together.
 
-**Scenario 5 — The news-driven decision.** You log in. `+news` shows: "Trade boom at Coronet starport." You realize your moisture-farming equipment cargo, normally worth 8,000 cr at Coronet, may now sell for 12,000 cr. You drop everything to make the Coronet run. The news shaped your evening's play; you make a 4,000-cr profit you wouldn't have made otherwise.
+**Scenario 5 — The news-driven decision.** You log in. `+news` shows: "Trade boom hits Coruscant trade hub." You realize the stockpile of goods you've been meaning to offload, normally worth about 8,000 cr to sell, now fetches roughly 10,000 cr while the convoy is in (vendor sell prices are up 25% for the hour). You drop everything to make the sale before prices normalize. The news shaped your evening's play; you bank a 2,000-cr bonus you wouldn't have made otherwise.
 
 ---
 
@@ -426,11 +431,11 @@ Five concrete pictures.
 
 | Command | What it does |
 |---|---|
-| `say <msg>` (or `" <msg>`) | Same-room IC speech |
-| `tt <msg>` | Place-only IC speech (Guide #20) |
-| `page <player> <msg>` | Private whisper to one player |
+| `say <msg>` (or `" <msg>` / `' <msg>`) | Same-room IC speech |
+| `tt <msg>` | Place-only IC speech; room hears a muffled version (Guide #20) |
+| `page <player> = <msg>` (alias: p) | Private whisper; use `=`, space-separate multiple targets |
 | `ooc <msg>` (aliases: newbie, oocsay) | Server-wide OOC |
-| `comlink <msg>` (alias: cl) | Planet-wide IC |
+| `comlink <msg>` (alias: cl) | Galaxy-wide IC (all online) |
 | `fcomm <msg>` (alias: fc) | Faction-wide IC |
 | `commfreq <freq> <msg>` (alias: cf) | Custom frequency IC |
 | `tune <freq>` | Tune into a custom frequency |
@@ -470,22 +475,26 @@ Five concrete pictures.
 | Communication layers | 9 (`say`, `tt`, `page`, `comlink`, `fcomm`, `commfreq`, `ooc`, `@mail`, `+news`) |
 | Channel scope — `say` | Same room |
 | Channel scope — `tt` | Same place within room |
-| Channel scope — `comlink` | Planet-wide |
+| Channel scope — `comlink` | All online characters (galaxy-wide IC) |
 | Channel scope — `fcomm` | Faction-wide |
 | Channel scope — `commfreq` | Tuned-frequency listeners |
 | Channel scope — `ooc` | Server-wide |
-| Mail persistence | Permanent (until deleted by recipient or purged by sender) |
-| Inbox sort | Unread first, then by date |
+| Custom frequency range | 1–9999 (whole numbers) |
+| Mail persistence | Permanent (until the recipient deletes, then purges, it) |
+| Mail body cap | 8,000 characters (truncated on send, not rejected) |
+| Inbox display | Up to 30 messages, unread first |
+| Sent display | Up to 20 messages |
 | News bulletin | 10 most recent events |
-| Time-ago formatting | "just now" / "X minutes ago" / "X hours ago" / "yesterday" / "X days ago" |
+| Time-ago formatting | "just now" / "X minutes ago" / "1 hour ago" / "X hours ago" / "yesterday" / "X days ago" |
+| World event types | 17 (security crackdown/checkpoint, bounty surge, merchant arrival, sandstorm, gravel storm, sandwhirl, cantina brawl, distress signal, pirate surge, Hutt auction, krayt sighting, separatist agitation, trade boom, intelligence thaw, spice demand, flood) |
 | Faction prefixes in fcomm | Republic / Separatist / Hutt / Bounty Hunter / Jedi / etc. |
-| `+who` displays | Player name + location + status |
+| `+who` displays | Name, species, location, status, worn title |
 
 ---
 
 ## 11. Common Pitfalls
 
-**1. Using `comlink` for sensitive operational chatter.** Everyone on the planet hears it. Sensitive coordination belongs on `fcomm` (faction-only) or `commfreq` (tuned-only).
+**1. Using `comlink` for sensitive operational chatter.** Everyone online hears it — and enemy spies can intercept it. Sensitive coordination belongs on `fcomm` (faction-only) or `commfreq` (tuned-only).
 
 **2. Treating `page` as persistent.** Pages disappear from the screen. If you need a message to stick, use `@mail`. If you need it logged, RP it in a scene.
 
@@ -503,7 +512,7 @@ The communication infrastructure of Parsec is what turns the room-graph into a *
 
 For most players, the communication layers become **invisible infrastructure** — you use `ooc` to chat, `comlink` to coordinate, `@mail` to follow up, `+news` to check the world. The commands are second nature within a few sessions.
 
-For social roleplayers, comms become **the medium of relationship** — long-distance RP through mail, planet-wide presence through comlink, faction belonging through fcomm. Characters whose lives play out partly across distance use these systems heavily.
+For social roleplayers, comms become **the medium of relationship** — long-distance RP through mail, galaxy-wide presence through comlink, faction belonging through fcomm. Characters whose lives play out partly across distance use these systems heavily.
 
 For plotrunners and faction leaders, comms are **the organizational layer** — the fcomm channel where you coordinate, the mail you send to assemble teams, the news bulletin that shapes the world your plot operates in.
 

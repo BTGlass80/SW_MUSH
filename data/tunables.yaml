@@ -68,6 +68,22 @@ telemetry.p2p_trade_sample: 1.0       # fraction of completed P2P trades emitted
 # The signal for tuning commissary stock costs + commissary.sellback_rate.
 # Rank-gated + bounded by player action so 1.0 is fine at launch; lower if noisy.
 telemetry.commissary_sample: 1.0      # fraction of commissary requisitions emitted (0..1]
+# Keep-rate for the player-vendor marketplace stream (engine/vendor_droids.py).
+# Each completed vendor-droid trade emits one 'vendor_txn' event: a buy carries
+# price + the bargain/faction base_price delta + listing fee + city tax (so the
+# seller's net is derivable); a buy-order sell carries the per-unit payout and
+# quantity. The signal for tuning the shop price floor, listing-fee decay, and
+# buy-order escrow. Bounded by player action so 1.0 is fine at launch; lower if noisy.
+telemetry.vendor_sample: 1.0          # fraction of completed vendor trades emitted (0..1]
+# Keep-rate for the player-housing economy stream (engine/housing.py). Each
+# credit-moving housing transition emits one 'housing' event tagged by action:
+# acquire (deposit+first-week sink), rent_paid (weekly-rent sink), rent_overdue
+# (a tick that couldn't collect — weeks_overdue), checkout (deposit-refund
+# faucet + a forfeited flag), and prestige (the cosmetic-tier sink). The signal
+# for tuning TIER1_WEEKLY_RENT / TIER1_DEPOSIT / TIER1_EVICT_WEEKS — the
+# acquire→rent→overdue→forfeit funnel + voluntary-checkout churn. Low-frequency
+# (bounded by player action + the weekly tick) so 1.0 is fine; lower if noisy.
+telemetry.housing_sample: 1.0         # fraction of housing transitions emitted (0..1]
 
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.

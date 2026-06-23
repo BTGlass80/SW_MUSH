@@ -9,7 +9,7 @@ tags: ["medical", "death", "wounds", "bacta", "respawn", "loot", "healing", "gea
 
 **Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
-**Guide Version 1.0**
+**Guide Version 1.1**
 
 ---
 
@@ -43,7 +43,7 @@ You move up the ladder when you take damage; you move down when you heal. Each s
 
 **Healthy.** Default state. No penalties to your dice rolls. Your `+sheet` shows "Healthy."
 
-**Stunned.** Temporary fog from a glancing blow or shock. Each stun-result against you adds a stun timer that lasts a few rounds (typically 2). While the timer is active, you have **−1D per timer** on all rolls. Multiple stuns stack: three concurrent stun timers means −3D for the duration. Stun timers expire one at a time as rounds tick; they're the only wound-level penalty that automatically lifts without intervention.
+**Stunned.** Temporary fog from a glancing blow or shock. Each stun-result against you adds a stun timer that lasts 2 rounds (the rest of the current round plus the next). While the timer is active, you have **−1D per timer** on all rolls. Multiple stuns stack: three concurrent stun timers means −3D for the duration. Stun timers expire one at a time as rounds tick; they're the only wound-level penalty that automatically lifts without intervention. One catch: if your **simultaneous stuns ever equal or exceed your Strength in dice**, the shock overwhelms you and you're knocked **unconscious** for a couple of minutes (the WEG R&E stun-KO rule) — a low-Strength character can be stunned into a blackout without ever taking a "real" wound.
 
 **Wounded.** Real injury. A blaster bolt through the leg, a heavy melee strike, a serious fall. **−1D to all rolls** until healed. Lasts until removed by treatment.
 
@@ -91,8 +91,8 @@ If you have **First Aid or Medicine skill**, you can offer to heal another playe
 
 The mechanics:
 - **Roll**: Your First Aid (or Medicine) skill vs. a difficulty based on the target's wound level.
-- **Pay**: The target pays your **heal rate** (set with `+healrate`, default 200 cr). You collect the credits on success.
-- **Effect**: On success, the target's wound level drops by one step.
+- **Pay**: The target pays your **heal rate** (set with `+healrate`, default 200 cr). You collect the credits on success — and the target must actually be able to afford the rate, or the offer is refused up front.
+- **Effect**: On a clean success, the target's wound level drops by one step. A **critical success** (a hot Wild Die) drops it **two** steps. A near-miss — a roll that falls short but within 4 of the difficulty — **stabilises the bleeding but doesn't take**: no wound change, and **no charge** to the patient. A real failure heals nothing and costs nothing.
 
 Difficulty by wound level:
 
@@ -130,22 +130,42 @@ stim <player> with focus_stim                — Focus stim variant
 
 The target consents via `stimaccept`.
 
-| Stim | Skill | Difficulty | Effect |
-|---|---|---|---|
-| **Stimpack** | First Aid | Easy (10) | +1D Strength for one roll |
-| **Adrenaline Shot** | Medicine | Moderate (15) | +1D Strength, sustained |
-| **Combat Stim** | Medicine | Difficult (20) | +1D Dexterity for 5 min |
-| **Focus Stim** | Medicine | Moderate (15) | +1D Knowledge for one roll |
+| Stim | Skill | Difficulty | Effect | Duration |
+|---|---|---|---|---|
+| **Stimpack** | First Aid | Easy (10) | +1D Strength | 5 min |
+| **Adrenaline Shot** | Medicine | Moderate (15) | **+2D** Strength | 5 min |
+| **Combat Stim** | Medicine | Difficult (20) | +1D Dexterity | 5 min |
+| **Focus Stim** | Medicine | Moderate (15) | +1D Knowledge | 5 min |
 
-**Stimpack** is the everyday combat utility — administered before a fight to push the soak roll. Easy to get right.
+Every stim is a timed buff — it lasts five minutes of real time, not "one roll." A target can only carry **one active stim at a time** (see *Overdose* below).
 
-**Adrenaline shot** is harder. On failure (not fumble), it **inflicts a wound** on the target. Don't try adrenaline shots with low Medicine skill. Self-administration is blocked.
+**Stimpack** is the everyday combat utility — administered before a fight to push the soak roll. Easy to get right, and you *can* stim yourself (at a penalty — see *Self-administration*).
 
-**Combat stim** is the most powerful but the hardest. +1D Dexterity is significant for a combat character. On failure, the target gets the Intimidated debuff (jitter) instead. Self-administration is blocked.
+**Adrenaline shot** is harder, but it's the heavy hitter: **+2D** Strength, not +1D. On failure (not fumble), it **inflicts a wound** on the target — the chemistry went wrong. Don't try adrenaline shots with low Medicine skill. Cannot be self-administered.
 
-**Focus stim** is the social/intel application — boosts Knowledge for negotiations, slicing, investigations. Self-administration is allowed (you can focus-stim yourself before a key roll).
+**Combat stim** is the priciest to land — Difficult (20). +1D Dexterity is significant for a combat character. On failure, the target gets the Intimidated debuff (jitter) instead of the kick. Cannot be self-administered.
+
+**Focus stim** is the social/intel application — boosts Knowledge for negotiations, slicing, investigations. Self-administration is allowed (you can focus-stim yourself before a key roll, at the self-stim penalty).
+
+**Self-administration.** Stimpacks and focus stims can be applied to yourself — type `stim me` (or `stim me with focus_stim`). Self-stimming is fiddlier than treating someone else: it takes a **−1D penalty** on the roll. Adrenaline shots and combat stims **cannot** be self-administered at all — you need a second pair of hands.
+
+**You need the stim in your kit.** A medic can only administer a stim they actually hold (crafted, bought, or transferred). The kit is checked when you offer, and the stim is **consumed on every attempt** — success *or* failure burns it. An empty kit means no stim.
+
+**Overdose (`stim/force`).** By default a second stim is refused while one is still active. If you must push another through, `stim/force <player>` overlays it at overdose risk: **+5 difficulty**, and a *failed* overdose **incapacitates** the target (a recoverable wound level, not death). Use it only when the extra dice are worth the gamble.
 
 Stims **stack with** healing. A medic can heal a wound and apply a stimpack in the same exchange — the patient walks away wounded-less and Strength-buffed.
+
+### Medpacs (`stim ... with medpac`) — field healing
+
+Medpacs ride the same `stim` command as buffs, but they do the opposite job: instead of a temporary boost, they **reduce the target's wound level** — a no-credit alternative to the paid `heal` for anyone with First Aid and a medpac in their kit.
+
+```
+stim <player> with medpac            — heals 1 wound level (Easy 10)
+stim <player> with medpac_advanced   — heals 2 wound levels (11)
+stim <player> with medpac_fastflesh  — heals 1 wound level (Easy 8, easiest to apply)
+```
+
+All three use **First Aid**, are **self-administrable** (`stim me with medpac`, at the −1D self penalty), and are consumed on use. A medpac over an active stim is *not* an overdose — bandaging doesn't conflict with a buff. Medpacs are crafted consumables (Doc Vashar's line, Guide #7); a crafter or medic-shopfront keeps them in supply. The trade-off vs. paid `heal`: a medpac costs an item instead of credits and leans on *your* First Aid, so a non-medic with a stack of fastflesh packs can self-patch between fights without finding a healer.
 
 ### Bacta tank (`bacta`)
 
@@ -180,7 +200,7 @@ force accelerate_healing
 
 **Accelerate Healing** at Moderate (15) difficulty reduces your wound level by one step. Once per day of rest. The narrow application: when you're alone, wounded, and no medic is available, Accelerate Healing is your way out.
 
-**Control Pain** doesn't heal — it masks the pain (and the −1D penalty) for the scene. Useful for finishing the fight you're in; not useful for actual recovery. The wound returns when the scene ends.
+**Control Pain** at Easy (10) doesn't heal — it masks the pain (and the wound penalties) for the scene. Useful for finishing the fight you're in; not useful for actual recovery. The wound returns when the scene ends.
 
 ---
 
@@ -196,8 +216,8 @@ When you take enough damage to die, the **death loop** activates.
 4. **Your loose inventory snapshots onto a corpse.** Unequipped carried items move from your character to a corpse row at the death location. Your credits **stay with you** (they're not transferred to the corpse). If you hold active gear insurance, your loose loadout stays on you instead (see §4.5 Gear Insurance).
 5. **A corpse is created at the death location** — unless you died in a secured zone, in which case no corpse and you instant-respawn with all gear. An insured death still creates a corpse, but it holds no gear.
 6. **Your `wound_state` is set to `wounded`** for 1 hour real-time. This is the **post-death debuff**: −1D to all rolls, separate from the in-combat wound ladder.
-7. **You're moved to a safe respawn location** — typically the nearest cantina or medical center. The engine picks the destination based on where you died.
-8. **A "blackout" message displays.** Then the respawn message. You're alive again, in a new location, wounded, and your loose gear is back at the death site (unless you were insured).
+7. **You stay dead until you choose to come back.** Death doesn't whisk you away automatically — your body lies at the scene and you type **`respawn`** (alias **`revive`**) when you're ready. Until then you're a corpse.
+8. **`respawn` wakes you in a bacta tank at a fixed safe location** (the Mos Eisley landing pad / med bay) — the *same* destination no matter where you died, not "the nearest cantina." A blackout, then the bacta-tank narration, then you're alive: your in-combat wound ladder resets to **Healthy**, but you're carrying the `wound_state` −1D debuff, and your loose gear is back at the death site (unless you were insured). If a corpse of yours exists, the respawn message reminds you your body and gear are still at the scene.
 
 ### The corpse persistence
 
@@ -209,21 +229,23 @@ Corpses persist for a security-dependent duration:
 | Contested | 2 hours |
 | Lawless | 4 hours |
 
-During the persistence window, the corpse exists as a lootable object at the death location. Anyone in the room can:
+During the persistence window, the corpse exists as a lootable object at the death location. A corpse is addressed by **the dead character's name**, not the literal word "corpse." Anyone in the room can:
 
 ```
-look corpse                   — Examine the corpse and see what's on it
-loot <item> from corpse       — Take a specific item
-loot all from corpse          — Take everything
+look                          — The room lists any bodies: "The body of Kessa lies here (8 minutes ago)."
+loot <name>                   — Take EVERYTHING from that body (the owner returning to their own corpse)
+loot <name> <item>            — Take just one item, e.g.  loot kessa blaster_pistol
 ```
 
-The looting check has some friction. Character-bound items that can't be looted return to the owner automatically. Unbound items can be taken by anyone — fighters who killed you, third-party looters, your own friends who arrive to retrieve your gear.
+There is no separate "examine the corpse" command and no way to inventory a body before you loot it — `look` only tells you a body is present and how long ago they died. Bare `loot <name>` simply scoops up whatever is there. Character-bound items that can't be permanently taken return to the owner automatically on decay. Unbound items can be taken by anyone — fighters who killed you, third-party looters, your own friends who arrive to retrieve your gear.
+
+**Anti-griefing.** If the *same* killer puts down the *same* victim repeatedly inside a 30-minute window, the corpse's killer-lootable spoils diminish fast — full on the first kill, then 50%, then 25%, then nothing. Your gear still snapshots to the body (so a third party, or you, can recover it); what decays is the griefer's payoff for farming you. And after any PvP death you get a **60-second respawn grace** — you can't be re-killed for a minute once you're back.
 
 **After the decay window**, the corpse and any unlooted items are gone permanently. Items bound to you may return automatically (the system tracks owner-bound items and tries to deliver them on decay).
 
 ### The respawn
 
-You respawn at a **safe location** — never in combat, never in a hostile zone. The engine picks the closest safe room. From Mos Eisley combat zones, you typically respawn at the cantina. From Nar Shaddaa, you respawn at the BHG chapter house or the safehouse. From wilderness, the closest connected town's cantina.
+You respawn at a **fixed safe location** — the Mos Eisley landing-pad med bay — and it's the same room every time, whether you died in the Dune Sea, the Coruscant underworld, or deep wilderness. (The bacta-tank narration is the same wherever you fell.) It's never in combat and never in a hostile zone; what it is *not* is "the nearest cantina." If you died far from Mos Eisley, factor the trip back into your gear-recovery math.
 
 **You retain:** your credits, your bank balance, your character data, your faction reputation, your skills, your CP, your achievements, your active quests. Death doesn't erase progress.
 
@@ -244,8 +266,8 @@ Most active players bacta-tank within minutes of respawning. The cost is small r
 
 ```
 travel <to-death-location>          — Get back to where you died
-look corpse                         — See what's still there
-loot <items>                        — Take them back
+look                                — The body shows in the room if it's still there
+loot <your-name>                    — Take everything back from your own body
 ```
 
 If you can reach the corpse before decay (2 hours contested, 4 hours lawless), and if other players haven't looted it, your gear is yours. The race against time and against potential looters is the gear-recovery game.
@@ -272,7 +294,9 @@ Gear insurance is a **one-shot policy** that protects your loose loadout through
 
 **Secured zones:** Insurance doesn't fire in secured zones — there's no corpse to drop gear to anyway. You instant-respawn with everything.
 
-**Not insurance against credits:** You never lose credits on death, insured or not. Credits stay with your character. Insurance only affects loose item drops.
+**Not insurance against credits:** A normal death never touches your credits, insured or not — your wallet and bank stay with you, and gear insurance only affects loose item drops.
+
+**The one exception — a bounty on your head.** If you die with an **active bounty** posted against you *and* your killer is a **Bounty Hunters' Guild member**, the kill triggers a **bounty insurance hit**: a flat 250 cr plus 10% of the posted bounty, debited from your credits. If you can't cover it, the shortfall becomes insurance debt you carry until you pay it down. This is the one way death costs you credits, and gear insurance does *not* shield it — it's a bounty-system consequence, not a medical one (see the bounty/espionage material for how to clear a bounty before it's collected).
 
 ```
 Example: you're heading into lawless wilderness carrying 4,000 cr in
@@ -318,7 +342,7 @@ For players who want to specialize as medics — the doctor / field medic / Forc
 
 **Skills:** First Aid at 4D+ for routine work. Medicine at 5D+ for the harder stims. Stamina for personal survivability. Persuasion for negotiating with patients.
 
-**Force-sensitive medics** add Control 4D+ for Accelerate Healing (self-heals + others through extended scene work). This is the most powerful medic build — Force healing + technical First Aid covers all wound tiers.
+**Force-sensitive medics** add Control 4D+ for Accelerate Healing — which heals only *yourself*, once per day of rest. The power of the build isn't healing others with the Force; it's **self-sufficiency**: you patch everyone else with First Aid, Medicine, and medpacs, and keep your *own* body up with Accelerate Healing and Control Pain when no one's around to treat you. Technical skill covers the patients; the Force covers the medic.
 
 ### The economics
 
@@ -342,9 +366,9 @@ Five concrete pictures.
 
 **Scenario 2 — Mid-fight stim.** You're in a tough fight against three bandits. Your medic friend, in the same room, casts `stim <you> with combat_stim`. You consent via `stimaccept`. She rolls Medicine 5D+1 vs. Difficult 20 — passes with margin. You gain +1D Dexterity for 5 minutes. The fight tilts in your favor with the extra dice; you finish without taking another wound.
 
-**Scenario 3 — Death in the Dune Sea.** You're hunting bandits in the Dune Sea (lawless). They're tougher than expected. You get Wounded → Wounded Twice → Incapacitated → dead. Corpse drops at your tile (`(20, 15)` in the Dune Sea). 2,000 cr of glitterstim cargo on your corpse. You respawn at Mos Eisley cantina with `wound_state = wounded`. You travel back to the Dune Sea (45 minutes real-time of overland traversal). When you arrive, your corpse is still there — no other player found it — and you loot all your items. The 2,000-cr cargo is yours. Total loss: 2 hours of play and 500 cr for a bacta tank (you don't carry packs). Not great, but recovered.
+**Scenario 3 — Death in the Dune Sea.** You're hunting bandits in the Dune Sea (lawless). They're tougher than expected. You get Wounded → Wounded Twice → Incapacitated → dead. Corpse drops at your tile (`(20, 15)` in the Dune Sea). 2,000 cr of glitterstim cargo on your corpse. You type `respawn` and wake in the Mos Eisley landing-pad med bay with `wound_state = wounded`. You travel back to the Dune Sea (45 minutes real-time of overland traversal). When you arrive, your corpse is still there — no other player found it — and you loot all your items. The 2,000-cr cargo is yours. Total loss: 2 hours of play and 500 cr for a bacta tank (you don't carry packs). Not great, but recovered.
 
-**Scenario 4 — Death in Coruscant Underworld with looters.** You're in a contested room of the underworld. Two PvP-flagged hunters challenge you and accept. You die in the fight. Corpse drops at the underworld room. Your blaster and 8,000 cr of equipment are on the corpse. The hunters loot it immediately. You respawn at the Coruscant central hub, wounded-state debuffed. The hour passes; the debuff clears. But your blaster is gone — you'll need to buy a new one (3,000 cr) and resign yourself to the cargo loss. Total impact: 11,000 cr in actual loss. The hunter takes a payout from your death; the system enforces the consequence.
+**Scenario 4 — Death in Coruscant Underworld with looters.** You're in a contested room of the underworld. Two PvP-flagged hunters challenge you and accept. You die in the fight. Corpse drops at the underworld room. Your blaster and 8,000 cr of equipment are on the corpse. The hunters loot it immediately. You type `respawn` and wake in the Mos Eisley landing-pad med bay — a whole planet away from your body — wounded-state debuffed. The hour passes; the debuff clears. But your blaster is gone, your corpse is on another world, and even a trip back wouldn't help: the hunters already stripped it. You'll need to buy a new blaster (3,000 cr) and resign yourself to the cargo loss. Total impact: 11,000 cr in actual loss. The hunter takes a payout from your death; the system enforces the consequence. (If you'd had a bounty on your head and one of those hunters was Guild, you'd have eaten a credit insurance hit on top — see §4.5.)
 
 **Scenario 5 — The Force healer.** You're a Padawan with Control 4D and Accelerate Healing learned. After a tough day-night cycle, you're Wounded Twice. You retreat to a safe Tier 3 home for rest. You use `force accelerate_healing` on yourself. The roll succeeds; you drop to Wounded. The "once per day of rest" gate prevents you from healing further today. You sleep through the next day-rest cycle and wake up Wounded; next session, you Accelerate Healing again to Healthy. Force healing is slow but cost-free.
 
@@ -358,20 +382,22 @@ Five concrete pictures.
 | `healaccept` | Accept a pending heal offer |
 | `+healrate <amount>` | Set your healing rate (default 200 cr) |
 | `stim <player>` | Administer stimpack (default) |
-| `stim <player> with adrenaline_shot` | Administer adrenaline shot |
+| `stim <player> with adrenaline_shot` | Administer adrenaline shot (+2D Strength) |
 | `stim <player> with combat_stim` | Administer combat stim |
 | `stim <player> with focus_stim` | Administer focus stim |
+| `stim <player> with medpac` | Apply a medpac — heals 1 wound level (also `medpac_advanced` / `medpac_fastflesh`) |
+| `stim me [with <consumable>]` | Self-administer (stimpack / focus / medpac only, −1D) |
+| `stim/force <player> ...` | Push a second stim at overdose risk (+5 difficulty) |
 | `stimaccept` | Accept a pending stim offer |
 | `bacta` | Pay 500 cr at a med-droid; clears wound-state debuff |
 | `use bacta_pack` | Use a bacta pack from inventory; clears wound-state debuff |
 | `respawn` (or `revive`) | Return from death (works only when dead) |
-| `loot <item> from corpse` | Take a specific item from a nearby corpse |
-| `loot all from corpse` | Take everything from a corpse |
-| `look corpse` | Examine a corpse without taking anything |
+| `loot <name>` | Take everything from a body in the room (keyed by the dead character's name) |
+| `loot <name> <item>` | Take one item, e.g. `loot kessa blaster_pistol` |
 | `force accelerate_healing` | Force-sensitive: heal one wound level (1/day) |
 | `force control_pain` | Force-sensitive: mask wound penalties for the scene |
-| `+sheet` | View character sheet (includes wound level and wound_state) |
-| `+medical` | Medical dashboard / status |
+| `+sheet` | View character sheet (shows your wound-level Condition line) |
+| `+medical` | Medical verb umbrella: `+medical heal\|accept\|rate\|stim\|stimaccept` |
 | `+insure` | Show gear insurance coverage status |
 | `+insure buy` | Buy a one-shot gear insurance policy (500 cr) |
 | `+insure cancel` | Drop coverage (no refund) |
@@ -384,10 +410,15 @@ Five concrete pictures.
 |---|---|
 | Wound levels | 7 (Healthy through Dead) |
 | Default heal rate | 200 cr |
-| Stimpack difficulty | Easy (10) |
-| Adrenaline shot difficulty | Moderate (15) |
-| Combat stim difficulty | Difficult (20) |
-| Focus stim difficulty | Moderate (15) |
+| Stimpack difficulty / effect | Easy (10) / +1D Strength |
+| Adrenaline shot difficulty / effect | Moderate (15) / **+2D** Strength |
+| Combat stim difficulty / effect | Difficult (20) / +1D Dexterity |
+| Focus stim difficulty / effect | Moderate (15) / +1D Knowledge |
+| Stim buff duration | 5 minutes (all stims) |
+| Medpac heal (medpac / advanced / fastflesh) | 1 / 2 / 1 wound levels (First Aid 10 / 11 / 8) |
+| Self-stim penalty | −1D (stimpack / focus / medpac only) |
+| Overdose (`stim/force`) | +5 difficulty; failed overdose incapacitates |
+| Heal critical / near-miss | crit heals 2 levels; miss within 4 = no charge |
 | Heal difficulty — Stunned | Easy (8) |
 | Heal difficulty — Wounded | Moderate (11) |
 | Heal difficulty — Wounded Twice | 14 |
@@ -399,9 +430,13 @@ Five concrete pictures.
 | Corpse decay — Secured | (no corpse, instant respawn) |
 | Corpse decay — Contested | 2 hours |
 | Corpse decay — Lawless | 4 hours |
+| Respawn location | fixed — Mos Eisley landing-pad med bay (anywhere you die) |
+| Respawn grace (after a PvP death) | 60 seconds un-killable |
+| Repeat-kill loot decay (same killer, 30 min) | 100% → 50% → 25% → 0% |
 | Gear insurance premium | 500 cr (one-shot) |
 | Insurance triggers | lawless or contested zone deaths |
 | Insurance protects | loose inventory (not credits; equipped gear always kept) |
+| Bounty insurance hit (die bountied, killed by a Guild BH) | 250 cr + 10% of bounty (shortfall → debt) |
 | Accelerate Healing cooldown | once per day of rest |
 | Adrenaline shot failure consequence | +1 wound level on target |
 | Hazard check interval | 5 minutes (300 seconds) |
@@ -414,7 +449,7 @@ Five concrete pictures.
 
 **2. Adrenaline shot at low Medicine.** Adrenaline shot at Medicine 2D vs. difficulty 15 fails 60-70% of the time, and each failure inflicts a wound on the target. Don't try adrenaline shots until your Medicine is 4D+.
 
-**3. Bacta-tanking when the debuff is about to clear.** Bacta-tanking at minute 55 of a 60-minute timer for 500 cr is wasteful. Check `+sheet` to see how much wound-state time is left; if it's under 10 minutes, wait it out.
+**3. Bacta-tanking when the debuff is about to clear.** Bacta-tanking at minute 55 of a 60-minute timer for 500 cr is wasteful. There's no on-screen countdown for the wound-state debuff — it just auto-clears one real-time hour after death — so judge by how long ago you died: fresh death, bacta is worth it; been most of an hour, ride out the last of the −1D for free.
 
 **4. Carrying expensive gear into lawless without backup.** Death in lawless = 4-hour decay window. If you can't return within that window (you live elsewhere, you need to log off, you're traveling far), other players may loot the corpse. Carry only what you can afford to lose.
 

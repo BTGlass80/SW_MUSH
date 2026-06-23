@@ -116,7 +116,7 @@ the ship is carrier-deployed or rides an external booster.
 | V-19 Torrent | 2D+2 | 1D | 11 | 3D+1 | 2 Laser (front, 4D) + Concussion Missiles (7D) | None |
 | Eta-2 Actis (Jedi Interceptor) | 2D+1 | 0D | 13 | 4D | 2 Laser (front, 4D) + 2 Ion Cannons (3D) | None* |
 | LAAT/i Gunship | 3D+2 | 1D | 6 | 2D | Mass-driver + AP turrets + Missiles + Rockets | None |
-| Y-Wing Starfighter | 4D | 1D+2 | 7 | 2D | 2 Laser (front, 5D) + 2 Proton Torpedoes (9D) + Ion (4D) | x1 |
+| BTL-B Y-Wing | 4D | 1D+2 | 7 | 2D | 2 Laser (front, 5D) + 2 Proton Torpedoes (9D) + Ion (4D) | x1 |
 
 \* The Eta-2 jumps only with an external hyperdrive booster ring (a separate vehicle).
 
