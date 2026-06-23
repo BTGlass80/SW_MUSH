@@ -67,6 +67,7 @@ class DirectorCommand(BaseCommand):
             "log":       self._log,
             "reset":     self._reset,
             "narrative": self._narrative,
+            "trickle":   self._trickle,
             "cult":      self._cult,
         }
         handler = dispatch.get(subcmd)
@@ -487,6 +488,77 @@ class DirectorCommand(BaseCommand):
             )
 
 
+    async def _trickle(self, ctx: CommandContext, args: str) -> None:
+        """@director trickle [on|off|status|award <player> [ticks]] — the AI CP
+        evaluation trickle. DORMANT by default (no metered spend); when ENABLED,
+        the Director/admin grants a small CP bonus for standout RP via
+        engine.cp_engine.award_ai_trickle, clamped by the cp.ai_trickle_ticks knob
+        and the per-eval / weekly caps. (Auto-LLM RP scoring is a future flip; this
+        keeps the award a deliberate grant.)"""
+        from engine.cp_engine import (
+            set_cp_ai_trickle, is_cp_ai_trickle_enabled, get_cp_engine,
+            AI_MAX_TICKS_PER_EVAL,
+        )
+        from engine.tunables import get_tunable
+        parts = (args or "").strip().split()
+        sub = parts[0].lower() if parts else "status"
+
+        if sub in ("enable", "on"):
+            set_cp_ai_trickle(True)
+            await ctx.session.send_line(ansi.success(
+                "  CP AI trickle: ENABLED. `@director trickle award <player> [ticks]` "
+                "to grant standout-RP CP. (Resets to dormant on restart.)"))
+            log.info("[director] CP AI trickle enabled by %s", ctx.session.char_name)
+            return
+
+        if sub in ("disable", "off"):
+            set_cp_ai_trickle(False)
+            await ctx.session.send_line(ansi.success("  CP AI trickle: DISABLED (dormant)."))
+            log.info("[director] CP AI trickle disabled by %s", ctx.session.char_name)
+            return
+
+        if sub == "award":
+            if not is_cp_ai_trickle_enabled():
+                await ctx.session.send_line(ansi.error(
+                    "  CP AI trickle is dormant. `@director trickle on` to enable it first."))
+                return
+            if len(parts) < 2:
+                await ctx.session.send_line("  Usage: @director trickle award <player> [ticks]")
+                return
+            pname = parts[1]
+            default_ticks = int(get_tunable("cp.ai_trickle_ticks", 3))
+            try:
+                ticks = int(parts[2]) if len(parts) > 2 else default_ticks
+            except ValueError:
+                await ctx.session.send_line("  Ticks must be a number.")
+                return
+            ticks = max(0, min(ticks, AI_MAX_TICKS_PER_EVAL))
+            target = await ctx.db.get_character_by_name(pname)
+            if not target:
+                await ctx.session.send_line(f"  No character named '{pname}'.")
+                return
+            res = await get_cp_engine().award_ai_trickle(ctx.db, target["id"], ticks)
+            awarded = int(res.get("ticks_awarded", 0)) if isinstance(res, dict) else 0
+            await ctx.session.send_line(ansi.success(
+                f"  Awarded {awarded} CP tick(s) to {pname} for standout RP."
+                + ("" if awarded else "  (Weekly cap reached, or 0 ticks.)")))
+            log.info("[director] CP trickle %d ticks -> %s by %s",
+                     awarded, pname, ctx.session.char_name)
+            return
+
+        enabled = is_cp_ai_trickle_enabled()
+        state = ansi.green("ENABLED") if enabled else ansi.yellow("DORMANT (default)")
+        knob = int(get_tunable("cp.ai_trickle_ticks", 3))
+        await ctx.session.send_line(
+            f"\n  CP AI trickle:    {state}\n"
+            f"  Default award:    {knob} tick(s)  (tunable: cp.ai_trickle_ticks)\n"
+            f"  Per-award cap:    {AI_MAX_TICKS_PER_EVAL} ticks; the weekly cap applies per char\n"
+            f"  Trigger:          Director/admin discretion via "
+            f"`@director trickle award <player> [ticks]`\n"
+            f"  (Auto-LLM RP scoring is a future enablement; dormant avoids metered spend.)\n\n"
+            f"  Usage: @director trickle enable|disable|award <player> [ticks]")
+
+
 class EconomyCommand(BaseCommand):
     """@economy — Admin economy dashboard: shop stats, credit flow, zone prices."""
     key = "@economy"
@@ -840,6 +912,12 @@ class LoreCommand(BaseCommand):
                     "  Separate fields with | character. Title, keywords, and content are required."
                 )
                 return
+            try:
+                _priority = int(params.get("priority", "5"))
+            except (ValueError, TypeError):
+                await ctx.session.send_line(
+                    ansi.error("  Priority must be a number (1-10)."))
+                return
             result = await add_lore(
                 ctx.db,
                 title=params["title"],
@@ -847,7 +925,7 @@ class LoreCommand(BaseCommand):
                 content=params["content"],
                 category=params.get("category", "general"),
                 zone_scope=params.get("zone_scope", ""),
-                priority=int(params.get("priority", "5")),
+                priority=_priority,
             )
             await ctx.session.send_line(
                 ansi.success(f"  {result['msg']}") if result["ok"]

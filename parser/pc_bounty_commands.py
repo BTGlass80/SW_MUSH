@@ -769,6 +769,15 @@ class BountyCommand(BaseCommand):
                 contributors = []
         except (ValueError, TypeError):
             contributors = []
+        # FALLBACK (QA bounty 2026-06-23): a corrupt or empty contributors
+        # record would make _proportional_refunds return [] -> the cancel
+        # issued NO refund and NO error, silently swallowing the entire
+        # escrow. Refund the whole pool to the poster who is canceling.
+        if not contributors:
+            contributors = [{
+                "poster_id": ctx.session.character["id"],
+                "amount": total_amount,
+            }]
 
         refunds = _proportional_refunds(contributors, refund_pool)
 

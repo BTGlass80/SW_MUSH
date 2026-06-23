@@ -1038,6 +1038,27 @@ class MoveCommand(BaseCommand):
             await session.send_line("Move where? Specify a direction.")
             return
 
+        # Combat pins you: the designed exit from a fight is `flee` (an opposed
+        # roll), not walking. Without this gate a player could walk a normal exit
+        # out of an active fight, orphaning the combat instance (NPCs left in a
+        # zombie combat, `who` showing stale 'In Combat', a slow _active_combats
+        # leak). A FINISHED combat (a co-op kill's leftover) does NOT pin --
+        # _combat_finished is False only while a mutually-hostile pair can still
+        # act. (QA combat-exit 2026-06-23.)
+        try:
+            from parser.combat_commands import (
+                _active_combats, _combat_key_for, _combat_finished,
+            )
+            _cmb = _active_combats.get(_combat_key_for(char))
+            if (_cmb and _cmb.get_combatant(char["id"])
+                    and not _combat_finished(_cmb)):
+                await session.send_line(
+                    "  You're in combat -- you can't just walk away. "
+                    "Use `flee` to attempt escape.")
+                return
+        except Exception:
+            log.warning("move combat-gate check failed", exc_info=True)
+
         # ── W.2 phase 2: wilderness fork ────────────────────────────────
         # If character is already in wilderness, branch entirely to the
         # wilderness handler — it owns in-tile movement, edge exits,
@@ -5014,6 +5035,53 @@ class GiveCommand(BaseCommand):
         return None
 
 
+class DrinkCommand(BaseCommand):
+    """Drink from your water canteen to recover from dehydration.
+
+    ENV recovery (2026-06-23): the desert-heat dehydration debuff used to be
+    permanent with no in-game cure. Drinking from a carried water_canteen now
+    clears it instantly; both env hazard debuffs also decay on their own once you
+    leave the hazard (engine.buffs duration), so you are never permanently stuck.
+    """
+    key = "drink"
+    aliases = ["hydrate"]
+    help_text = "Drink from your water canteen to recover from dehydration."
+    usage = "drink"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        if not char:
+            await ctx.session.send_line("  You must be logged in.")
+            return
+        from engine.buffs import has_buff, remove_buff
+        from engine.hazards import _has_mitigation
+        has_water = _has_mitigation(char, ["water_canteen"])
+        if not has_buff(char, "dehydration"):
+            if has_water:
+                await ctx.session.send_line(
+                    "  You take a pull from your canteen. Refreshing, "
+                    "though you were not thirsty.")
+            else:
+                await ctx.session.send_line(
+                    "  You are not dehydrated. (Carry a water canteen to "
+                    "recover from desert thirst.)")
+            return
+        if not has_water:
+            await ctx.session.send_line(
+                "  You have no water. Find a water canteen, or leave the heat, "
+                "to recover from dehydration.")
+            return
+        remove_buff(char, "dehydration")
+        await ctx.db.save_character(char["id"], attributes=char["attributes"])
+        await ctx.session.send_line(
+            ansi.success("  You drink deeply from your canteen. "
+                         "The dehydration fades."))
+        try:
+            await ctx.session.send_hud_update(db=ctx.db, session_mgr=ctx.session_mgr)
+        except Exception:
+            log.debug("[drink] HUD push failed", exc_info=True)
+
+
 def register_all(registry):
     """Register all built-in commands with the registry."""
     commands = [
@@ -5031,6 +5099,7 @@ def register_all(registry):
         WeatherCommand(),
         InventoryCommand(),
         UseCommand(),
+        DrinkCommand(),
         SheetCommand(),
         HelpCommand(),
         QuitCommand(),
@@ -5278,16 +5347,23 @@ async def _handle_sell_cargo(ctx) -> None:
     total_revenue = haggle["adjusted_price"]
     per_ton = max(1, total_revenue // quantity)
 
-    # Remove cargo and compute profit
+    # Remove cargo and compute profit. remove_cargo is PURE (no DB write);
+    # nothing is committed until update_ship below.
     new_cargo, avg_cost = remove_cargo(cargo, good.key, quantity)
     profit_per_ton = per_ton - avg_cost
     total_profit = profit_per_ton * quantity
 
+    # Credit the revenue FIRST and commit the cargo removal only after the
+    # credit write is confirmed -- otherwise a failed credit write left the
+    # cargo gone with no payment (QA space 2026-06-23; the buy path likewise
+    # moves credits before goods).
+    _bal = await ctx.db.adjust_credits(char["id"], total_revenue, "trade_goods")
+    if _bal is None:
+        await ctx.session.send_line(
+            "  The sale could not be completed; your cargo is unchanged.")
+        return
+    char["credits"] = _bal
     await ctx.db.update_ship(ship["id"], cargo=_j.dumps(new_cargo))
-
-    new_credits = char.get("credits", 0) + total_revenue
-    char["credits"] = new_credits
-    await ctx.db.adjust_credits(char["id"], total_revenue, "trade_goods")
 
     # Record the sale so demand depresses for the next seller, and persist both
     # pools (economy audit v2 §1.5). Without this, depression never accumulated

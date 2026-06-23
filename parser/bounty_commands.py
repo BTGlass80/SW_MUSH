@@ -360,6 +360,7 @@ class BountyCollectCommand(BaseCommand):
             npc = await ctx.db.get_npc(contract.target_npc_id)
 
         target_down = False
+        captured_alive = False  # wound==5 (mortally wounded, not dead) = captured
 
         if not npc:
             # NPC was deleted (killed in combat and cleaned up)
@@ -369,9 +370,11 @@ class BountyCollectCommand(BaseCommand):
             try:
                 cs = json.loads(npc.get("char_sheet_json", "{}"))
                 wound = cs.get("wound_level", 0)
-                # WoundLevel: 5=mortally wounded, 6=dead
+                # WoundLevel: 5=mortally wounded (incapacitated -> captured
+                # ALIVE), 6=dead.
                 if wound >= 5:
                     target_down = True
+                    captured_alive = (wound == 5)
             except Exception:
                 log.warning("execute: unhandled exception", exc_info=True)
                 pass
@@ -393,12 +396,16 @@ class BountyCollectCommand(BaseCommand):
                 return
 
         # Collect it — skill check represents claim quality
-        collected = await board.collect(contract.id, False, ctx.db)
+        # Pass alive=True when the target was CAPTURED alive (mortally
+        # wounded, not killed) so the advertised reward_alive_bonus is
+        # actually paid -- previously every collect hardcoded alive=False,
+        # so the bonus the board displayed was a phantom. (QA bounty 2026-06-23.)
+        collected = await board.collect(contract.id, captured_alive, ctx.db)
         if not collected:
             await ctx.session.send_line("  Error collecting bounty. Try again.")
             return
 
-        base_reward = board.total_reward(collected, alive=False)
+        base_reward = board.total_reward(collected, alive=captured_alive)
         from engine.skill_checks import perform_skill_check
         # Bounty hunters roll Streetwise; others roll Search
         import json as _bj

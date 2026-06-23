@@ -3918,6 +3918,20 @@ class Database:
         )
         return rows[0]["cnt"] if rows else 0
 
+    async def kudos_count_received_lifetime(self, target_id: int) -> int:
+        """Count ALL kudos a target has ever received (lifetime total).
+
+        Used by the popular_figure achievement (threshold 10): the weekly
+        count is capped at KUDOS_PER_WEEK=3, so it can never reach a lifetime
+        threshold -- the achievement needs the lifetime total.
+        (QA achievements 2026-06-23.)
+        """
+        rows = await self._db.execute_fetchall(
+            "SELECT COUNT(*) as cnt FROM kudos_log WHERE target_id = ?",
+            (target_id,),
+        )
+        return rows[0]["cnt"] if rows else 0
+
     # -- Organization Operations --
 
     async def get_organization(self, code: str) -> Optional[dict]:

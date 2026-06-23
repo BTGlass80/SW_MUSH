@@ -66,3 +66,6 @@ docs/sourcebooks/
 # Nano map-paint candidate batches — generated test output; only the SELECTED
 # substrate (static/maps/*_substrate.png) is committed, never the candidate runs.
 static/tools/batches/
+
+# Playwright E2E screenshots + server log — regenerated on every run, never committed
+tests/e2e/_screens/

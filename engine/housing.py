@@ -858,6 +858,28 @@ async def get_housing(db, char_id: int) -> Optional[dict]:
     return dict(rows[0]) if rows else None
 
 
+async def get_homes(db, char_id: int) -> list:
+    """All of a character's homes, most-recent first (multi-home, 2026-06-23)."""
+    rows = await db.fetchall(
+        "SELECT * FROM player_housing WHERE char_id = ? ORDER BY id DESC",
+        (char_id,),
+    )
+    return [dict(r) for r in rows]
+
+
+async def resolve_active_home(db, char: dict) -> Optional[dict]:
+    """The home the player is STANDING IN -- so a multi-home owner's storage,
+    trophies, checkout and sell act on the home around them -- else their
+    most-recent home. A single-home owner is unaffected: the fallback is their
+    only home (Brian 2026-06-23, "4 homes is good")."""
+    rid = char.get("room_id") if isinstance(char, dict) else None
+    if rid is not None:
+        h = await get_housing_for_room(db, rid)
+        if h and int(h.get("char_id", -1)) == int(char["id"]):
+            return h
+    return await get_housing(db, char["id"])
+
+
 async def get_housing_by_id(db, housing_id: int) -> Optional[dict]:
     rows = await db.fetchall(
         "SELECT * FROM player_housing WHERE id = ?", (housing_id,)
@@ -1019,7 +1041,7 @@ async def rent_room(db, char: dict, lot_id: int) -> dict:
 
 async def checkout_room(db, char: dict) -> dict:
     char_id = char["id"]
-    h = await get_housing(db, char_id)
+    h = await resolve_active_home(db, char)
     if not h:
         return {"ok": False, "msg": "You don't have a rented room."}
     if h["housing_type"] not in ("rented_room", "faction_quarters", "private_residence"):
@@ -1055,27 +1077,23 @@ async def checkout_room(db, char: dict) -> dict:
                   housing_type=h.get("housing_type"), refund=refund,
                   forfeited=bool(h["rent_overdue"] > 0))
 
-    # Clear the character's home pointer BEFORE the room teardown.
-    # characters.home_room_id is an FK to rooms(id) (set by rent_room), so
-    # deleting the housing room while home_room_id still points at it fails the
-    # constraint (PRAGMA foreign_keys=ON in production). The pre-fix order
-    # nulled it AFTER the room delete: the delete FK-failed, the room survived
-    # FK-pinned, and the unwrapped `DELETE FROM player_housing` below then
-    # crashed on the rooms.housing_id FK — a checkout/eviction crash surfaced by
-    # the housing-telemetry suite (2026-06-23). The sibling sell_shopfront was
-    # already migrated to the canonical delete_room (2026-06-21); checkout now
-    # follows suit (clear-then-teardown, FK-safe).
-    try:
-        await db.execute(
-            "UPDATE characters SET home_room_id = NULL WHERE id = ?", (char_id,)
-        )
-    except Exception:
-        log.warning("[housing] checkout home_room_id clear error", exc_info=True)
+    # FK SAFETY + multi-home (QA housing 2026-06-23): clear characters.home_room_id
+    # BEFORE the room teardown -- but ONLY pointers INTO the rooms being deleted, so
+    # a multi-home owner who sells home #2 keeps a recall pointer aimed at home #1.
+    # (home_room_id -> rooms.id; deleting a still-referenced room FK-fails under
+    # PRAGMA foreign_keys=ON. delete_room below is the canonical FK-safe teardown --
+    # it removes every exit referencing the room, then the room.)
+    if room_ids:
+        try:
+            await db.execute(
+                "UPDATE characters SET home_room_id = NULL WHERE home_room_id IN (%s)"
+                % ",".join("?" * len(room_ids)),
+                room_ids,
+            )
+        except Exception:
+            log.warning("checkout_room: home_room_id clear failed", exc_info=True)
 
-    # Tear the housing rooms down via the canonical delete_room — it removes
-    # EVERY exit referencing the room (from_room_id OR to_room_id) and then the
-    # room, in FK-safe order. (Replaces the old manual two-tracked-exit delete +
-    # raw room DELETE.)
+    # Tear the housing rooms down via the canonical delete_room (FK-safe).
     for rid in room_ids:
         try:
             await db.delete_room(rid)
@@ -1092,6 +1110,11 @@ async def checkout_room(db, char: dict) -> dict:
             )
 
     await db.execute("DELETE FROM player_housing WHERE id = ?", (h["id"],))
+
+    # (home_room_id was cleared CONDITIONALLY above -- only pointers into the
+    # deleted rooms -- so do NOT null it unconditionally here: with multi-home that
+    # would wipe a recall pointer aimed at a home the player still owns.)
+
     await db.commit()
     log.info("[housing] char %d checked out of housing %d", char_id, h["id"])
 
@@ -1110,7 +1133,7 @@ async def checkout_room(db, char: dict) -> dict:
 
 async def housing_store(db, char: dict, item_key: str) -> dict:
     char_id = char["id"]
-    h = await get_housing(db, char_id)
+    h = await resolve_active_home(db, char)
     if not h:
         return {"ok": False, "msg": "You don't have a home to store things in."}
 
@@ -1148,7 +1171,7 @@ async def housing_store(db, char: dict, item_key: str) -> dict:
 
 async def housing_retrieve(db, char: dict, item_key: str) -> dict:
     char_id = char["id"]
-    h = await get_housing(db, char_id)
+    h = await resolve_active_home(db, char)
     if not h:
         return {"ok": False, "msg": "You don't have any storage."}
 
@@ -1498,7 +1521,7 @@ async def set_room_description(db, char: dict, housing_id: int,
 
 async def trophy_mount(db, char: dict, item_key: str) -> dict:
     char_id = char["id"]
-    h = await get_housing(db, char_id)
+    h = await resolve_active_home(db, char)
     if not h:
         return {"ok": False, "msg": "You don't have a home to display trophies in."}
 
@@ -1536,7 +1559,7 @@ async def trophy_mount(db, char: dict, item_key: str) -> dict:
 
 async def trophy_unmount(db, char: dict, item_key: str) -> dict:
     char_id = char["id"]
-    h = await get_housing(db, char_id)
+    h = await resolve_active_home(db, char)
     if not h:
         return {"ok": False, "msg": "You don't have any trophies."}
 
@@ -1975,11 +1998,11 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
         types_str = ", ".join(f"'{k}' ({v['label']}, {v['cost']:,}cr)" for k, v in TIER3_TYPES.items())
         return {"ok": False, "msg": f"Unknown home type '{home_type}'. Options: {types_str}"}
 
-    # Check existing housing — allow if they have Tier 1 or Tier 2 (upgrade path)
+    # Multi-home (Brian 2026-06-23, "4 homes is good"): we no longer block a 2nd
+    # home. `existing` is the player's most-recent home/rental, used only to roll
+    # up a Tier 1/2 rental on upgrade (NOT to evict another Tier-3). The total cap
+    # is enforced below, after lot validation.
     existing = await get_housing(db, char_id)
-    if existing and existing["tier"] >= 3:
-        return {"ok": False,
-                "msg": "You already own a home. Use 'housing sell' first."}
 
     # Check per-planet limit
     lot = await get_lot(db, lot_id)
@@ -1996,12 +2019,21 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
         return {"ok": False, "msg": "Invalid lot."}
 
     lot_planet = lot["planet"]
-    existing_on_planet = await db.fetchall(
-        "SELECT COUNT(*) as cnt FROM player_housing WHERE char_id = ? AND tier = 3",
+
+    # Total-home cap: own up to MAX_TIER3_TOTAL Tier-3 homes (checked here, after
+    # lot validation, so an invalid lot still returns "Invalid lot." first).
+    # Per-planet capping is intentionally NOT enforced -- player_housing has no
+    # planet column to filter on (the old per-planet query here was an unfiltered
+    # global count, dead behind the since-removed "any 2nd home" block).
+    owned_t3_rows = await db.fetchall(
+        "SELECT COUNT(*) AS cnt FROM player_housing WHERE char_id = ? AND tier = 3",
         (char_id,),
     )
-    if existing_on_planet and existing_on_planet[0]["cnt"] >= MAX_TIER3_PER_PLANET:
-        return {"ok": False, "msg": f"You already own a home on this planet (max {MAX_TIER3_PER_PLANET})."}
+    owned_t3 = int(owned_t3_rows[0]["cnt"]) if owned_t3_rows else 0
+    if owned_t3 >= MAX_TIER3_TOTAL:
+        return {"ok": False,
+                "msg": f"You already own the maximum of {MAX_TIER3_TOTAL} homes. "
+                       f"Use 'housing sell' first."}
 
     # Check lot availability
     if lot["current_homes"] >= lot["max_homes"]:
@@ -2078,8 +2110,10 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
 
     # (Credits already debited above, before room creation.)
 
-    # If they have existing Tier 1/2 housing, evict it first
-    if existing:
+    # If they have an existing Tier 1/2 RENTAL, roll it up first (the upgrade
+    # path). A multi-home owner's existing Tier-3 homes are NOT evicted when
+    # buying another -- only the low-tier rental is consumed.
+    if existing and existing["tier"] < 3:
         await checkout_room(db, char)
 
     # Create housing record
@@ -2142,7 +2176,7 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
 async def sell_home(db, char: dict) -> dict:
     """Sell a Tier 3 private residence. 50% refund, contents returned."""
     char_id = char["id"]
-    h = await get_housing(db, char_id)
+    h = await resolve_active_home(db, char)
     if not h:
         return {"ok": False, "msg": "You don't own a home."}
     if h["housing_type"] != "private_residence":
@@ -2989,7 +3023,10 @@ async def get_housing_for_private_room(db, room_id: int) -> Optional[dict]:
 def is_on_guest_list(h: dict, char_id: int) -> bool:
     """Check if a character is on a housing record's guest list."""
     guests = _guest_list(h)
-    return char_id in guests
+    # guest_add stores {"id": int, "name": str} dicts, so a bare `char_id in
+    # guests` (int in a list of dicts) was ALWAYS False -- invited guests were
+    # permanently locked out. (QA housing 2026-06-23.)
+    return any(isinstance(g, dict) and g.get("id") == char_id for g in guests)
 
 
 async def can_enter_housing_room(db, char: dict, room_id: int) -> tuple[bool, str]:

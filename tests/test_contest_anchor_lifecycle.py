@@ -139,9 +139,13 @@ class TestResolutionDespawnsAndCAS(unittest.TestCase):
             await _resolve_defender_win(db, _contest(anchor_npc_id=777))
             self.assertEqual(db.deleted_npcs, [],
                              "a no-op CAS must NOT despawn (the other writer owns it)")
-            # only the status UPDATE ran; no cooldown/penalty follow-up
-            self.assertEqual(len(db.executed), 1,
-                             "must bail right after the no-op CAS")
+            # DELETE (clear stale same-status resolved row) + the CAS UPDATE
+            # both run, then the no-op CAS (rowcount 0) bails before any
+            # cooldown/penalty/transfer follow-up. The pre-UPDATE DELETE was
+            # added by the QA contest-second-resolution fix (2026-06-22); that
+            # is the +1 statement vs the old single-UPDATE count.
+            self.assertEqual(len(db.executed), 2,
+                             "must bail right after the no-op CAS (DELETE + UPDATE)")
         _run(_t())
 
     def test_challenger_win_despawns_anchor(self):
@@ -159,7 +163,9 @@ class TestResolutionDespawnsAndCAS(unittest.TestCase):
             db = _FakeDB(rowcount=0)
             await _resolve_challenger_win(db, _contest(anchor_npc_id=777), "czerka")
             self.assertEqual(db.deleted_npcs, [])
-            self.assertEqual(len(db.executed), 1)
+            # DELETE + CAS UPDATE run, then bail on the no-op CAS (see the
+            # defender-win twin above for the QA-2026-06-22 rationale).
+            self.assertEqual(len(db.executed), 2)
         _run(_t())
 
 

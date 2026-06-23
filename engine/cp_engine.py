@@ -80,6 +80,24 @@ def get_cp_engine() -> "CPEngine":
     return _cp_engine
 
 
+# ── CP.ai_trickle (2026-06-23): a dormant-by-default runtime toggle for the
+# Director/admin AI-evaluation CP trickle. award_ai_trickle was built but had
+# ZERO callers; this gates a real caller (the @director trickle command) so the
+# faucet is OFF at launch (no metered spend) and Brian can flip it on. Mirrors
+# engine.narrative._narrative_ai_enabled (module flag, default off, resets on
+# restart -- an intentional grant, not an auto-LLM scorer).
+_cp_ai_trickle_enabled: bool = False
+
+
+def set_cp_ai_trickle(enabled: bool) -> None:
+    global _cp_ai_trickle_enabled
+    _cp_ai_trickle_enabled = bool(enabled)
+
+
+def is_cp_ai_trickle_enabled() -> bool:
+    return _cp_ai_trickle_enabled
+
+
 # ── Engine ────────────────────────────────────────────────────────────────────
 
 class CPEngine:

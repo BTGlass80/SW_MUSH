@@ -42,6 +42,27 @@ class RallyCommand(BaseCommand):
     )
     usage = "rally [strike]"
 
+    async def _emit_staged_tracker(self, ctx, active):
+        """EVENT staged scenario: for a STAGED uprising (hollow_sun), print the
+        stage tracker -- which stage, the objective, progress -- so `rally` reads
+        as a multi-stage operation, not a flat counter. No-op for menace cults."""
+        try:
+            from engine import staged_event as SE
+            from engine import communal_objective as CO
+            ckey = active.get("cult_key", "") if active else ""
+            if not SE.is_staged(ckey):
+                return
+            import json as _j
+            raw = active.get("contributions_json")
+            contribs = raw if isinstance(raw, dict) else _j.loads(raw or "{}")
+            cult = CO.CULT_BY_KEY.get(ckey)
+            for ln in SE.stage_tracker_lines(
+                    cult.name if cult else "the cult", ckey,
+                    SE.get_stage_state(contribs)):
+                await ctx.session.send_line(ln)
+        except Exception:
+            log.debug("[rally] staged tracker failed", exc_info=True)
+
     async def execute(self, ctx: CommandContext) -> None:
         try:
             import engine.communal_objective_runtime as COR
@@ -92,6 +113,7 @@ class RallyCommand(BaseCommand):
             await ctx.session.send_line(
                 _INDENT + "Menace: " + CO.menace_bar(result.menace)
             )
+            await self._emit_staged_tracker(ctx, await COR.get_active(ctx.db))
             if result.state == CO.STATE_WON:
                 await ctx.session.send_line(
                     _INDENT + ansi.dim("The cult is broken — watch the holonet.")
@@ -119,6 +141,8 @@ class RallyCommand(BaseCommand):
         await ctx.session.send_line("")
         for ln in lines:
             await ctx.session.send_line(_INDENT + ln)
+
+        await self._emit_staged_tracker(ctx, active)
 
         # the viewer's own stake + strike-cooldown (blank for onlookers who
         # haven't joined in yet)

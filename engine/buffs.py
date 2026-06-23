@@ -126,7 +126,9 @@ BUFF_TEMPLATES: dict[str, dict] = {
     "dehydration": {
         "display_name": "Dehydration",
         "stat_modifiers": {"strength": -1, "dexterity": -1},
-        "duration_seconds": 0,  # Permanent until mitigated
+        "duration_seconds": 1200,  # 20min: decays once you LEAVE the heat
+        # (the hazard tick refreshes it while exposed); `drink` clears it
+        # instantly. (ENV recovery 2026-06-23.)
         "max_stacks": 3,
         "positive": False,
         "source": "env:extreme_heat",
@@ -134,7 +136,9 @@ BUFF_TEMPLATES: dict[str, dict] = {
     "toxic_exposure": {
         "display_name": "Toxic Exposure",
         "stat_modifiers": {"strength": -3},  # -1D STR
-        "duration_seconds": 0,  # Until breath mask
+        "duration_seconds": 1200,  # 20min: decays once you LEAVE the toxic
+        # air (the hazard tick refreshes it while exposed). (ENV recovery
+        # 2026-06-23.)
         "max_stacks": 1,
         "positive": False,
         "source": "env:toxic_air",

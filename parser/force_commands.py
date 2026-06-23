@@ -101,6 +101,19 @@ async def _save_target_after_force(ctx: CommandContext,
         target_dict["id"],
         wound_level=target_obj.wound_level.value,
     )
+    # Sync the TARGET's own session cache + HUD: a Force injure lands from the
+    # attacker's command, so without this the victim's HUD/sheet kept showing
+    # them HEALTHY until their NEXT command refreshed the session from the DB.
+    # The live combat object is correct; only the victim's display lagged.
+    # (QA Force 2026-06-23.)
+    try:
+        _tsess = ctx.session_mgr.find_by_character(target_dict["id"])
+        if _tsess is not None and _tsess.character is not None:
+            _tsess.character["wound_level"] = target_obj.wound_level.value
+            await _tsess.send_hud_update(db=ctx.db, session_mgr=ctx.session_mgr)
+    except Exception:
+        log.warning("_save_target_after_force: target session sync failed",
+                    exc_info=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -345,10 +358,21 @@ async def _apply_disarm(ctx: CommandContext, char_dict: dict, target_dict: dict,
         try:
             tsess = ctx.session_mgr.find_by_character(target_dict["id"])
             if tsess is not None:
+                # Sync the victim's session cache + HUD so their equip/sheet
+                # drops the weapon immediately, not only after their next
+                # command refreshes the session. (QA Force 2026-06-23.)
+                if tsess.character is not None:
+                    tsess.character["equipment"] = target_dict["equipment"]
+                    tsess.character["equipped_weapon"] = ""
                 await tsess.send_line(
                     f"  {ansi.BRIGHT_BLUE}[FORCE]{ansi.RESET} Your weapon is "
                     f"ripped from your hands and clatters away!"
                 )
+                try:
+                    await tsess.send_hud_update(
+                        db=ctx.db, session_mgr=ctx.session_mgr)
+                except Exception:
+                    log.debug("[force] disarm HUD push failed", exc_info=True)
         except Exception:
             log.debug("[force] disarm notify failed", exc_info=True)
     else:

@@ -43,7 +43,7 @@ Character Points (CP) are your advancement currency. You earn CP over time throu
 - 7-day lockout per giver→target pair (prevents farming)
 - Three kudos = 105 ticks/week — this is the fastest way to earn CP
 
-> **Planned:** an AI-evaluator trickle (the Director awarding a few ticks for standout roleplay) is reserved in the engine but **not yet active** — it is not a source you can earn from today. Don't count on it.
+> **Dormant (admin-discretion):** an AI-evaluator trickle (a small CP bonus for standout roleplay) exists in the engine but is **not yet active** by default — it fires only if an admin enables it and grants it by hand (`@director trickle`). It is **not** an automatic source you earn from today, and no AI scores your prose. Don't count on it.
 
 **Target progression:** about **1 CP per week** for an actively roleplaying player who receives regular kudos — up to **2 CP/week** if you consistently hit the weekly tick cap. A passive login-only player earns closer to **1 CP every ~3 weeks**.
 

@@ -697,10 +697,18 @@ class ChargenAPI:
     # If the era has no chains.yaml (e.g. GCW), returns an empty
     # chains list; the SPA should treat that as "skip this step."
     async def handle_chains(self, request: web.Request) -> web.Response:
-        # Token from query param so the SPA can use a plain GET.
+        # Token from query param so the SPA can use a plain GET. STANDALONE
+        # chargen (the portal's "Create Character" link) has no account/token
+        # yet, so a TOKENLESS request is treated as a FIRST-character picker --
+        # the chain list is public chargen content (built from the
+        # __chargen_any__ sentinel below, not account data). Only a SUPPLIED but
+        # invalid/expired token (the embedded alt-creation flow) is rejected;
+        # otherwise the standalone wizard showed "Failed to load chains (HTTP
+        # 401)" and a new player could not pick a tutorial chain. (QA: standalone
+        # chains 401, found by the Playwright E2E harness 2026-06-23.)
         token = request.query.get("token", "")
-        account_id = verify_login_token(token)
-        if account_id is None:
+        account_id = verify_login_token(token) if token else None
+        if token and account_id is None:
             return web.json_response(
                 {
                     "success": False,
@@ -711,7 +719,8 @@ class ChargenAPI:
 
         # Compute is_first_character. Server is the authority — the
         # SPA's UI hint is convenience.
-        existing_chars = await self.db.get_characters(account_id)
+        existing_chars = (await self.db.get_characters(account_id)
+                          if account_id is not None else [])
         is_first_character = len(existing_chars) == 0
 
         # Load the chain corpus for the active era.

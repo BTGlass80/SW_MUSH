@@ -35,6 +35,7 @@ from engine.crafting import (
     check_resources,
     resolve_craft,
     get_survey_resources,
+    is_outdoor_zone,
     survey_quality_from_margin,
     add_resource,
     _get_resource_list,
@@ -139,7 +140,8 @@ class SurveyCommand(BaseCommand):
                     f"  [Search: {result.pool_str} vs 8 — fumble]"
                 )
                 return
-            quality = survey_quality_from_margin(result.margin)
+            quality = survey_quality_from_margin(
+                result.margin, is_outdoor=is_outdoor_zone(room_name))
             margin_note = f"[Search: {result.pool_str} vs 8 — roll {result.roll}, margin {result.margin}]"
         except Exception:
             quality = 50
@@ -873,6 +875,18 @@ class TeachCommand(BaseCommand):
         if schematic is None:
             await ctx.session.send_line(
                 f"  You don't know a schematic matching '{schem_arg}'."
+            )
+            return
+
+        # T5-questline arc: teaching must NOT bypass the questline/rep gate
+        # that `learn` enforces (LearnCommand checks _schematic_gate_met) -- the
+        # target must have EARNED a gated recipe before it can be taught to them.
+        # An ungated schematic always passes, so normal teaching is unaffected.
+        if not await _schematic_gate_met(target_char, schematic, ctx.db):
+            await ctx.session.send_line(
+                f"  The {schematic['name']} schematic is master-gated -- "
+                f"{target_char.get('name', 'they')} must earn it themselves "
+                f"(complete the required trial and standing) before it can be taught."
             )
             return
 

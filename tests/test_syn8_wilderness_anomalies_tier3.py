@@ -282,10 +282,10 @@ class TestTier3TemplateCatalog(_Tier3TestCase):
         from engine.wilderness_anomalies import TIER3_TEMPLATES
         self.assertEqual(set(TIER3_TEMPLATES.keys()), self.EXPECTED_KEYS)
 
-    def test_dune_sea_t3_template(self):
+    def test_tatooine_dune_sea_t3_template(self):
         from engine.wilderness_anomalies import TIER3_TEMPLATES
         self.assertEqual(
-            TIER3_TEMPLATES["krayt_dragon"]["regions"], ["dune_sea"],
+            TIER3_TEMPLATES["krayt_dragon"]["regions"], ["tatooine_dune_sea"],
         )
 
     def test_coruscant_t3_template(self):
@@ -467,7 +467,7 @@ class TestTier3RegionFiltering(_Tier3TestCase):
         rng = random.Random(0)
         t1_keys = set(TIER1_TEMPLATES.keys())
         for _ in range(100):
-            picked = _pick_template(rng, region_slug="dune_sea", tier=3)
+            picked = _pick_template(rng, region_slug="tatooine_dune_sea", tier=3)
             self.assertNotIn(picked, t1_keys)
 
     def test_t3_disjoint_from_t2(self):
@@ -477,16 +477,16 @@ class TestTier3RegionFiltering(_Tier3TestCase):
         rng = random.Random(0)
         t2_keys = set(TIER2_TEMPLATES.keys())
         for _ in range(100):
-            picked = _pick_template(rng, region_slug="dune_sea", tier=3)
+            picked = _pick_template(rng, region_slug="tatooine_dune_sea", tier=3)
             self.assertNotIn(picked, t2_keys)
 
-    def test_region_any_picks_in_dune_sea(self):
+    def test_region_any_picks_in_tatooine_dune_sea(self):
         """REGION_ANY templates are valid candidates in any region."""
         from engine.wilderness_anomalies import _pick_template
         rng = random.Random(0)
         picks = set()
         for _ in range(500):
-            picks.add(_pick_template(rng, region_slug="dune_sea", tier=3))
+            picks.add(_pick_template(rng, region_slug="tatooine_dune_sea", tier=3))
         # Both REGION_ANY templates should appear in the picks AND
         # the Dune Sea-specific template.
         self.assertIn("krayt_dragon", picks)
@@ -523,10 +523,10 @@ class TestTier3SpawnCadence(_Tier3TestCase):
         mdb = _MiniDB()
         mdb.seed_zone(zone_id=1)
         mdb.seed_room(room_id=10, zone_id=1,
-                      wilderness_region_id="dune_sea")
+                      wilderness_region_id="tatooine_dune_sea")
         now = time.time()
         a = _run(spawn_anomaly_for_region(
-            mdb, "dune_sea", rng=random.Random(0),
+            mdb, "tatooine_dune_sea", rng=random.Random(0),
             now=now, force=True, tier=3,
         ))
         self.assertIsNotNone(a)
@@ -543,15 +543,15 @@ class TestTier3SpawnCadence(_Tier3TestCase):
         mdb = _MiniDB()
         mdb.seed_zone(zone_id=1)
         mdb.seed_room(room_id=10, zone_id=1,
-                      wilderness_region_id="dune_sea")
+                      wilderness_region_id="tatooine_dune_sea")
         a1 = _run(spawn_anomaly_for_region(
-            mdb, "dune_sea", rng=random.Random(0), force=True, tier=1,
+            mdb, "tatooine_dune_sea", rng=random.Random(0), force=True, tier=1,
         ))
         a2 = _run(spawn_anomaly_for_region(
-            mdb, "dune_sea", rng=random.Random(1), force=True, tier=2,
+            mdb, "tatooine_dune_sea", rng=random.Random(1), force=True, tier=2,
         ))
         a3 = _run(spawn_anomaly_for_region(
-            mdb, "dune_sea", rng=random.Random(2), force=True, tier=3,
+            mdb, "tatooine_dune_sea", rng=random.Random(2), force=True, tier=3,
         ))
         self.assertIsNotNone(a1)
         self.assertIsNotNone(a2)
@@ -559,7 +559,7 @@ class TestTier3SpawnCadence(_Tier3TestCase):
         self.assertEqual(a1.tier, 1)
         self.assertEqual(a2.tier, 2)
         self.assertEqual(a3.tier, 3)
-        active = get_anomalies_for_region("dune_sea")
+        active = get_anomalies_for_region("tatooine_dune_sea")
         self.assertEqual(len(active), 3)
 
     def test_t3_per_region_cap_is_one(self):
@@ -570,12 +570,12 @@ class TestTier3SpawnCadence(_Tier3TestCase):
         mdb = _MiniDB()
         mdb.seed_zone(zone_id=1)
         mdb.seed_room(room_id=10, zone_id=1,
-                      wilderness_region_id="dune_sea")
+                      wilderness_region_id="tatooine_dune_sea")
         first = _run(spawn_anomaly_for_region(
-            mdb, "dune_sea", rng=random.Random(0), force=True, tier=3,
+            mdb, "tatooine_dune_sea", rng=random.Random(0), force=True, tier=3,
         ))
         second = _run(spawn_anomaly_for_region(
-            mdb, "dune_sea", rng=random.Random(1), force=True, tier=3,
+            mdb, "tatooine_dune_sea", rng=random.Random(1), force=True, tier=3,
         ))
         self.assertIsNotNone(first)
         self.assertIsNone(second)
@@ -587,7 +587,7 @@ class TestTier3SpawnCadence(_Tier3TestCase):
         mdb = _MiniDB()
         mdb.seed_zone(zone_id=1)
         mdb.seed_room(room_id=10, zone_id=1,
-                      wilderness_region_id="dune_sea")
+                      wilderness_region_id="tatooine_dune_sea")
 
         class _AlwaysSpawn:
             def random(self): return 0.0
@@ -599,7 +599,7 @@ class TestTier3SpawnCadence(_Tier3TestCase):
         ))
         self.assertEqual(stats["spawned"], 1)
         from engine.wilderness_anomalies import _anomalies
-        a = _anomalies["dune_sea"][0]
+        a = _anomalies["tatooine_dune_sea"][0]
         self.assertEqual(a.tier, 3)
 
 
@@ -618,7 +618,7 @@ class TestTier3InvestigateSpawn(_Tier3TestCase):
         mdb = _MiniDB()
         mdb.seed_zone(zone_id=1)
         regions = TIER3_TEMPLATES[template_key]["regions"]
-        region_slug = "dune_sea" if regions[0] == "*" else regions[0]
+        region_slug = "tatooine_dune_sea" if regions[0] == "*" else regions[0]
         mdb.seed_room(room_id=room_id, zone_id=1,
                       wilderness_region_id=region_slug)
         now = time.time()
@@ -668,7 +668,7 @@ class TestTier3PhaseAdvancement(_Tier3TestCase):
         mdb = _MiniDB()
         mdb.seed_zone(zone_id=1)
         regions = TIER3_TEMPLATES[template_key]["regions"]
-        region_slug = "dune_sea" if regions[0] == "*" else regions[0]
+        region_slug = "tatooine_dune_sea" if regions[0] == "*" else regions[0]
         mdb.seed_room(room_id=10, zone_id=1,
                       wilderness_region_id=region_slug)
         now = time.time()
@@ -728,7 +728,7 @@ class TestTier3KillCountTracking(_Tier3TestCase):
         mdb = _MiniDB()
         mdb.seed_zone(zone_id=1)
         regions = TIER3_TEMPLATES[template_key]["regions"]
-        region_slug = "dune_sea" if regions[0] == "*" else regions[0]
+        region_slug = "tatooine_dune_sea" if regions[0] == "*" else regions[0]
         mdb.seed_room(room_id=10, zone_id=1,
                       wilderness_region_id=region_slug)
         now = time.time()
@@ -791,7 +791,7 @@ class TestTier3FinalPayout(_Tier3TestCase):
         mdb = _MiniDB()
         mdb.seed_zone(zone_id=1)
         regions = TIER3_TEMPLATES[template_key]["regions"]
-        region_slug = "dune_sea" if regions[0] == "*" else regions[0]
+        region_slug = "tatooine_dune_sea" if regions[0] == "*" else regions[0]
         mdb.seed_room(room_id=10, zone_id=1,
                       wilderness_region_id=region_slug)
         now = time.time()
@@ -1042,7 +1042,7 @@ class TestTier3ScaledT5Distribution(_Tier3TestCase):
         mdb.seed_character(char_id=1)
         mdb.seed_character(char_id=2)
         a = WildernessAnomaly(
-            id=1, region_slug="dune_sea", zone_id=1,
+            id=1, region_slug="tatooine_dune_sea", zone_id=1,
             template_key="krayt_dragon", anchor_room_id=10,
             tier=3,
         )

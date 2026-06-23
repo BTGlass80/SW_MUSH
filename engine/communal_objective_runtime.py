@@ -238,6 +238,15 @@ async def record_strike(db, session_mgr, char: dict,
     skills = _parse_json(char.get("skills"), {})
     attrs = _parse_json(char.get("attributes"), {})
     pips = CO.best_strike_pool_pips(skills, attrs)
+    # EVENT staged scenario (2026-06-23): a STAGED cult resolves the CURRENT
+    # stage with THAT stage's relevant skills, so playstyle matters; its win is
+    # stage-completion and the menace stays as the failure timer. The other cults
+    # are untouched (the _staged guards below).
+    from engine import staged_event as _SE
+    _staged = _SE.is_staged(cult.key)
+    _stage_state = _SE.get_stage_state(contribs) if _staged else None
+    if _staged:
+        pips = _SE.stage_pool_pips(cult.key, _stage_state, skills, attrs, pips)
     difficulty = CO.strike_difficulty(float(active.get("menace") or 0))
 
     try:
@@ -257,7 +266,17 @@ async def record_strike(db, session_mgr, char: dict,
         mine["points"] = int(mine.get("points") or 0) + int(round(outcome.reduction))
     contribs[cid] = mine
 
-    new_menace = outcome.menace_after
+    _all_cleared = False
+    if _staged:
+        # The strike advances the stage; the menace is left to the escalation
+        # tick (the timer). A staged uprising is WON by clearing the stages and
+        # LOST only if the timer runs out.
+        _stage_state, _stage_cleared, _all_cleared = _SE.advance(
+            cult.key, _stage_state, bool(outcome.success))
+        _SE.set_stage_state(contribs, _stage_state)
+        new_menace = float(active.get("menace") or 0)
+    else:
+        new_menace = outcome.menace_after
     try:
         await db.execute(
             "UPDATE communal_objective SET menace = ?, contributions_json = ? "
@@ -291,7 +310,14 @@ async def record_strike(db, session_mgr, char: dict,
     except Exception as _e:
         log.debug("communal_strike telemetry emit failed: %s", _e)
 
-    state = CO.resolve_state(new_menace, now, int(float(active.get("deadline_at") or 0)))
+    if _staged:
+        _t = CO.resolve_state(new_menace, now,
+                              int(float(active.get("deadline_at") or 0)))
+        state = CO.STATE_WON if _all_cleared else (
+            CO.STATE_LOST if _t == CO.STATE_LOST else CO.STATE_ACTIVE)
+    else:
+        state = CO.resolve_state(new_menace, now,
+                                 int(float(active.get("deadline_at") or 0)))
     if state == CO.STATE_WON:
         await _finalize(db, session_mgr, active, contribs, won=True, now_ms=now)
 

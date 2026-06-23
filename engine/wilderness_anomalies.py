@@ -15,7 +15,7 @@ Tier 1 substrate scope:
   * Each anomaly has an anchor room (one of the region's landmarks),
     an expiry timestamp, a template_key, and (after fix) a resolution
     mode (``skill`` or ``combat``).
-  * Templates are region-tagged. ``regions=["dune_sea"]`` only spawns
+  * Templates are region-tagged. ``regions=["tatooine_dune_sea"]`` only spawns
     in Dune Sea; ``regions=["coruscant_underworld"]`` only in the
     underworld; ``regions=["*"]`` is universal.
   * ``investigate <id>`` resolves the anomaly. ``skill`` templates roll
@@ -195,7 +195,7 @@ TIER1_TEMPLATES = {
     # ════════════════════════════════════════════════════════════════
 
     "stranded_clone_scout": {
-        "regions": ["dune_sea"],
+        "regions": ["tatooine_dune_sea"],
         "resolution": "skill",
         "display_name": "Stranded Clone Scout Patrol",
         "short_desc": "A Republic clone patrol separated from their unit, low on water.",
@@ -230,7 +230,7 @@ TIER1_TEMPLATES = {
     },
 
     "salvage_cache": {
-        "regions": ["dune_sea"],
+        "regions": ["tatooine_dune_sea"],
         "resolution": "skill",
         "display_name": "Recently-Uncovered Salvage Cache",
         "short_desc": "A weathered cache, exposed by recent storm or cave-in.",
@@ -264,7 +264,7 @@ TIER1_TEMPLATES = {
     },
 
     "wounded_animal": {
-        "regions": ["dune_sea"],
+        "regions": ["tatooine_dune_sea"],
         "resolution": "combat",
         "display_name": "Wounded Beast",
         "short_desc": "Tracks lead to a desperate, wounded creature — it will attack on sight.",
@@ -306,7 +306,7 @@ TIER1_TEMPLATES = {
     },
 
     "tusken_party": {
-        "regions": ["dune_sea"],
+        "regions": ["tatooine_dune_sea"],
         "resolution": "combat",
         "display_name": "Roving Tusken Hunting Party",
         "short_desc": "Three Tusken raiders, gaderffii ready — they have seen you.",
@@ -366,7 +366,7 @@ TIER1_TEMPLATES = {
     },
 
     "crashed_cis_probe": {
-        "regions": ["dune_sea"],
+        "regions": ["tatooine_dune_sea"],
         "resolution": "skill",
         "display_name": "Crashed CIS Probe Droid",
         "short_desc": "A Separatist probe droid, smashed but partly intact.",
@@ -673,7 +673,7 @@ TIER2_TEMPLATES = {
 
     "downed_republic_acclamator": {
         "tier": 2,
-        "regions": ["dune_sea"],
+        "regions": ["tatooine_dune_sea"],
         "resolution": "combat",
         "display_name": "Downed Republic Acclamator",
         "short_desc": (
@@ -796,7 +796,7 @@ TIER2_TEMPLATES = {
 
     "hutt_smuggling_convoy": {
         "tier": 2,
-        "regions": ["dune_sea"],
+        "regions": ["tatooine_dune_sea"],
         "resolution": "combat",
         "display_name": "Hutt Smuggling Convoy",
         "short_desc": (
@@ -891,7 +891,7 @@ TIER2_TEMPLATES = {
 
     "cis_commando_deployment": {
         "tier": 2,
-        "regions": ["dune_sea"],
+        "regions": ["tatooine_dune_sea"],
         "resolution": "combat",
         "display_name": "CIS Commando Deployment",
         "short_desc": (
@@ -1266,7 +1266,7 @@ TIER3_TEMPLATES = {
 
     "krayt_dragon": {
         "tier": 3,
-        "regions": ["dune_sea"],
+        "regions": ["tatooine_dune_sea"],
         "resolution": "combat",
         "display_name": "Krayt Dragon",
         "short_desc": (

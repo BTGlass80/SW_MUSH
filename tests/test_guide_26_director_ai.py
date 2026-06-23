@@ -258,18 +258,22 @@ class TestRpRewardFacts:
         true while ``award_ai_trickle`` has NO production caller.  If any
         engine/parser module ever calls it, the live RP-scoring claim must be
         revisited — fail here so Guide_26 §7 is updated in the same change."""
-        offenders = []
+        import engine.cp_engine as _ce
+        assert _ce.is_cp_ai_trickle_enabled() is False, (
+            "the CP AI trickle must default DORMANT")
+        callers = []
         for d in ("engine", "parser"):
             for path in glob.glob(os.path.join(PROJECT_ROOT, d, "*.py")):
                 if os.path.basename(path) == "cp_engine.py":
                     continue  # the definition lives here
                 if "award_ai_trickle" in _read(path):
-                    offenders.append(os.path.relpath(path, PROJECT_ROOT))
-        assert not offenders, (
-            "award_ai_trickle now has a caller "
-            f"({offenders}) — an AI RP-scoring source may be live; re-check "
-            "Guide_26 §7 (which states no AI currently grades your prose)"
-        )
+                    callers.append(os.path.basename(path))
+        # §7 still holds: the only caller is the MANUAL @director admin grant
+        # (a human Director's discretion), NOT an AI scoring poses, and it is
+        # dormant by default. (CP fork 2026-06-23.)
+        assert callers == ["director_commands.py"], (
+            "award_ai_trickle must only be called by the @director admin grant "
+            "(not an auto/AI prose scorer); got %r" % (callers,))
 
 
 # ── §2 NPC-only narrative factions must match director_config.yaml ────────────

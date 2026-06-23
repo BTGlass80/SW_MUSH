@@ -326,7 +326,10 @@ class KudosCommand(BaseCommand):
             # Achievement: kudos_received (for target)
             try:
                 from engine.achievements import on_kudos_received
-                total_kudos = await ctx.db.kudos_count_received_this_week(target["id"])
+                # LIFETIME total, not weekly: popular_figure needs 10 but the
+                # weekly count is capped at 3, so it was unreachable.
+                # (QA achievements 2026-06-23.)
+                total_kudos = await ctx.db.kudos_count_received_lifetime(target["id"])
                 await on_kudos_received(ctx.db, target["id"], total_kudos,
                                         session=target_sess)
             except Exception as _e:

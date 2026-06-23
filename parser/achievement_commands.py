@@ -77,7 +77,11 @@ class AchievementsCommand(BaseCommand):
             await ctx.session.send_line("  You must be logged in.")
             return
 
-        db = ctx.session.game_server.db if hasattr(ctx.session, "game_server") else None
+        # The whole `+achievements` command was dead: ctx.session.game_server
+        # is not an attribute on Session, so this was always None and every
+        # player got "Achievement system unavailable". ctx.db is the wired
+        # handle every other command uses. (QA achievements 2026-06-23.)
+        db = ctx.db
         if not db:
             await ctx.session.send_line("  Achievement system unavailable.")
             return

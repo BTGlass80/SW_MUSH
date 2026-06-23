@@ -388,6 +388,33 @@ reduces to the old single-slot behavior when only the tutorial slot is
 populated. This is the substrate the in-flight T5 master-trainer questline
 (§1.4-N) rides on.
 
+### §3.7 Client engagement / UX-surfacing layer (NEW design track, 2026-06-23)
+
+A NEW design track — **design-only, no code yet** — capturing the client-side
+**engagement / depth-surfacing** layer. The unifying thesis: most of SW_MUSH's
+systemic depth (Director faction turns, territory influence, the D6 combat
+wound/cover/initiative model, the questline engine, scenes/plots, the sheet) is
+real but **invisible in scrollback**, so the cheapest large engagement win is UI
+that *renders systems the engine already runs* rather than adding systems —
+"extend, don't add" applied at the client layer. Eight web-client features are
+queued in `TODO.json` `tier_2_queued` as `UX.*`:
+`context_affordances_clickable_entities`, `combat_hud`,
+`living_world_situation_board`, `presence_and_scene_ui`,
+`goals_objectives_tracker`, `command_palette_autocomplete` (core-experience
+near-launch slices), plus `living_character_sheet` and `sound_atmosphere`
+(polish) — joining the earlier `dice_and_animation_polish`. All are **web-only**
+(telnet graceful-degrades) and held to a shared add-vs-detract bar (never gate
+pace/information; optional/toggleable; no phantom producers/verbs; lean payload
+on the existing HUD cadence). Each surfaces verified producers via small
+`_hud_*` / `to_hud_dict` / digest extensions — never a parallel system. Behind
+the hard launch blockers (map-nav, rally/communal rework, QA tail). Every
+"surfaces X" claim was grounded against HEAD (producers verified; gaps flagged
+as new work). One **latent bug surfaced** en route: `_hud_room_contents`
+(`server/session.py:~1277`) imports a non-existent `get_combat` inside a
+`try/except`, so `in_combat` is silently always `False` — filed for QA, not a
+design gap. Design-of-record: `ux_engagement_roadmap_2026-06-23.md` (+
+`dice_animation_and_ux_polish_2026-06-22.md`).
+
 ---
 
 ## §4. Architecture invariants — the reconciled block
@@ -618,6 +645,7 @@ v51 §7 carries forward. Changed/added rows:
 | Vendor sell surface | `vendor_system_design_v1.md` | **V1 Part A SHIPPED** (`sell <item>`); Part B (web panel) post-launch |
 | World events (effects) | `sw_mush_remediation_and_fun_additions_design_v1.md` + §4.29 | E1/E2 SHIPPED; 6 FLAG effects open → `T2.E3` (§8.19) |
 | Communal objective | design III.3 | **SHIPPED**; §4.33 |
+| Client engagement / UX-surfacing layer | `ux_engagement_roadmap_2026-06-23.md` + `dice_animation_and_ux_polish_2026-06-22.md` | **DESIGNED, queued** (tier_2 `UX.*`, §3.7); web-only, behind launch blockers |
 
 ---
 
@@ -663,6 +691,11 @@ wilderness/chain phantom refs) slip past the surgical curated-list tests.
 
 ## §9. Version history
 
+- **v52.4 (Jun 23 2026)** — UX-engagement design track queued (no code): eight
+  web-client depth-surfacing features (§3.7) added to `tier_2_queued` as `UX.*`,
+  with design-of-record `ux_engagement_roadmap_2026-06-23.md`. Docs + TODO only;
+  schema unchanged; surfaced one latent QA bug (dead `get_combat` hook in
+  `_hud_room_contents`).
 - **v52.3 (Jun 14 2026)** — Jun 13–14 hardening + Director-scope wave (≈30 drops, multi-session
   parallel). Five themes, all schema-additive (`SCHEMA_VERSION 43→44`, migration-gated):
   **(1) Director scope expansion — COMPLETE, resolves the v52.2 finding.** The "Director runs
