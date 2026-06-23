@@ -100,11 +100,13 @@ Migrated from the claude.ai Project knowledge base on 2026-06-12. This folder is
 
 - `MAP_NAV_OVERLAY_DROP_20260529.md`
 - `Map_Redesign_v2.html`
+- `dice_animation_and_ux_polish_2026-06-22.md`
 - `ground_ux_overhaul_design_v1.md`
 - `sheet_redesign_design_v1.md`
 - `sourcebook_enrichment_roadmap_v1.md`
 - `tinymux_comparison_design_v1.md`
 - `ui_bugfix_sprint_design_v1.md`
+- `ux_engagement_roadmap_2026-06-23.md`
 - `web_chargen_design_v1.md`
 - `web_client_ux_overhaul_v1.md`
 - `web_client_vision_and_protocol_v1_2.md`
