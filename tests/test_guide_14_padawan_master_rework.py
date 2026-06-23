@@ -142,8 +142,9 @@ def test_quick_reference_has_authorize():
 
 def test_guide_version_bumped():
     text = read_guide()
-    assert "Version 1.1" in text, (
-        "Guide version must be bumped to 1.1 for this update"
+    # Bumped to 1.2 by the 2026-06-23 authoritative quality pass.
+    assert "Version 1.2" in text, (
+        "Guide version must be at 1.2 (authoritative quality pass)"
     )
 
 

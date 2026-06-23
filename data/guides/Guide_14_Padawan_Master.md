@@ -9,7 +9,7 @@ tags: ["padawan", "master", "apprentice", "bond", "jedi", "training", "mentor"]
 
 **Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
-**Guide Version 1.1**
+**Guide Version 1.2**
 
 ---
 
@@ -31,7 +31,7 @@ A **Padawan-Master bond** is a persistent mechanical relationship between two ch
 
 The bond does several things:
 
-1. **It establishes a teaching channel.** Force powers can be transferred from Master to Padawan via `+teach`, often at reduced or zero cost. The Padawan learns from the Master in a way they couldn't learn alone.
+1. **It establishes a teaching channel.** Force powers can be transferred from Master to Padawan via `+teach`. The Padawan pays the normal Character-Point cost to raise the underlying Force skill to its 1D foundation — or learns for free if they already meet it. Either way, the Padawan learns from the Master in a way they couldn't learn alone.
 2. **It establishes a training loop.** The bonded pair can `+spar` — a structured training duel that grants CP to both characters and counts toward the Padawan's combat experience for trials.
 3. **It establishes the Trials path.** The Padawan can attempt the five Jedi Trials (Skill, Courage, Flesh, Spirit, Insight) only with their Master's endorsement. Without endorsement, attempts auto-fail.
 4. **It establishes the Knight promotion mechanism.** The Padawan becomes a Knight when all five Trials are recorded and the Master invokes the promotion ceremony.
@@ -112,15 +112,15 @@ Bright cyan for Master, bright green for Padawan. These render in any room where
 +padawan   (Master: see your Padawan(s)' status)
 ```
 
-These show name, location, current wound level (so a Master knows if their Padawan is hurt), and other status. Useful for "where's my Padawan, are they OK?" check-ins.
+Each shows the other party's name, whether they're **online or offline**, and how long you've been **bonded**. For Jedi pairs, it also shows the partner's **Weight-of-War state sensed through the bond** — a line like "Through the bond: Burdened — *(descriptor)*" — and a running **Trials passed: N of 5** count. The Weight-sense is deliberate: the bond *is* the sensing channel, so there's no separate `+forcebond` command. Useful for "where's my Padawan, how are they carrying the war?" check-ins. (These commands report status and online presence, not a live location or wound readout — to see a Padawan's injuries, be in the room with them.)
 
 **The teaching channel opens.** The Master can `+teach <power>` to grant Force powers to the Padawan. The Padawan can `+learn <power> from <master>` to formally request instruction. See §5.
 
 **The training channel opens.** Either bonded character can initiate `+spar` to begin a training duel — grants 1 CP per spar to both, capped at one spar per 24 real-time hours per pair. See §6.
 
-**The trials path opens.** The Padawan can begin attempting the five Trials. Without a bond, Trial attempts auto-fail. See §7.
+**The trials path opens.** The Padawan can begin working toward the five Trials. Without a bond there's no Master to attest them, so a Trial can't be recorded at all. See §7.
 
-**The bond appears in `+sheet`.** Your sheet now lists your bond status: "Padawan to Kael Voren since (date)," or "Master to Sila Vannik since (date)."
+**Your bond status is always one command away.** A Padawan runs `+master`, a Master runs `+padawan`, and the relationship — partner, online status, bond age, Weight-sense, Trials progress — is right there. The public-facing markers in `look` output do the rest: anyone sharing a room with you can see at a glance that you're bonded.
 
 **The pre-authorization channel opens.** Several Padawan actions are considered "approval-gated" by design — leaving Coruscant on unsanctioned missions, using Force powers in the field, and attempting the Trials without a fresh per-session endorsement. Rather than requiring per-action Master sign-off (which would create friction in real-time play), the system uses **standing pre-authorization**. The Master grants a category once; thereafter, routine activity in that category no longer needs approval. See §5 for the `+authorize` command.
 
@@ -168,11 +168,10 @@ If the Master has multiple bonded Padawans (rare — `master_cap` defaults to 1)
 
 The engine validates:
 - The Master has a Padawan bond (or the specified Padawan is theirs).
-- The Master actually knows the power (has 1D or higher in it).
+- The Master can actually use the power — they hold at least 1D in every Force skill it requires (Control, Sense, and/or Alter). You can't pass on what you can't do.
 - The Padawan is in the same room as the Master (you can't teach across a galaxy).
-- The Padawan meets the prerequisites (attribute thresholds, prior power requirements).
 
-On success, the Padawan **gains the power at 1D**, paid for by their CP if their existing Force skill in that power is below 1D. If they already have it at 1D or higher, the `+teach` is a free narrative/audit event — the lesson reinforces what they already know but doesn't mechanically upgrade.
+On success, the engine brings each Force skill the power requires up to a **1D foundation** for the Padawan, spending the Padawan's CP for any skill that was below 1D. A power becomes usable the moment you hold 1D in its required skill(s) — so establishing that foundation *is* learning the power. If the Padawan already meets the foundation, the `+teach` is a free narrative/audit event — the lesson reinforces what they already know but spends nothing.
 
 **The Padawan-initiated path.**
 
@@ -188,9 +187,9 @@ The Master types `+teach Telekinesis` and the teaching completes. The request ex
 
 **Why two paths?** The Master-initiated path is the proactive lesson — "today we work on Saber Throw, my Padawan." The Padawan-initiated path is the curiosity prompt — "Master, I've been thinking about Mind Trick, can we work on it?" Both fit different narrative beats.
 
-**The CP cost.** If the Padawan has no rating in the power at all, `+teach` brings them up to 1D using their own CP (with a small discount per design, applied automatically). If they already have 1D+, the teaching is free — they don't need CP for what they already know; the bond just deepens the existing skill.
+**The CP cost.** Raising a Force skill from 0 to its 1D foundation costs the Padawan the standard rate — three pips at the skill's per-pip price, the same cost the `train` command charges. The Padawan must be able to afford it; if they can't, the teaching is refused with a clear "needs N CP" message. If they already hold the required skills at 1D or higher, the teaching is free — they don't pay for what they already know; the bond just deepens the existing skill.
 
-**Force-power prerequisites are still enforced.** A power that requires Control 4D won't be teachable to a Padawan whose Control is 2D, regardless of how willing the Master is. The Padawan needs the underlying attribute and skill foundation. The Master can teach the *next* thing, not the *future* thing.
+**The Master teaches the next thing, not the future thing.** `+teach` always establishes the 1D foundation — it doesn't vault a Padawan to a high rating. Higher Control, Sense, or Alter makes a power *more reliable* (a better roll), but it isn't a gate on learning: any power is teachable once the Padawan has the foundation. To grow a power beyond 1D, the Padawan trains it up the normal way over time. The bond opens the door; the practice walks through it.
 
 ---
 
@@ -248,7 +247,7 @@ The flow:
 +endorse trials <padawan>
 ```
 
-This signals to the system that the Master vouches for the Padawan's readiness. **Without endorsement, Trial attempts auto-fail.** This is the Master's gate: they're saying "yes, this Padawan has done the work, I attest."
+This records the Master's standing vouch for the Padawan's readiness — the engine writes the endorsement onto the Padawan (and the next attested Trial consumes it). At launch the operative gate is the attestation itself: **only the bonded Master, or staff, can record a Trial pass at all** (step 3). The endorsement is the Master saying, on the record, "yes — this Padawan has done the work." The Padawan can confirm it landed: `+trials` then shows **Endorsement: ready** (or **Endorsement: standing** if the Master pre-authorized the whole category via `+authorize`; see §4.1). A future Padawan-side attempt surface will read this flag and turn an unsanctioned attempt into an automatic failure; for now, the Master's `+trial` *is* the gate.
 
 **3. The Master attests the pass.** After the Trial has been completed in roleplay (the mission succeeded, the temptation was refused, the Padawan held under fire), the Master types:
 
@@ -390,9 +389,9 @@ The bond interacts with several other game systems.
 
 **Player cities.** A bond's geography matters when the Master has citizenship. A Padawan can be added to their Master's city's guest list (Guide #12) so they have free movement. Some Padawans become full citizens of their Master's faction as part of the bond's commitment.
 
-**Death.** When a Padawan dies, the Master gets notified — the bond is a strong enough link that the news travels. The death loop's recovery (Guide #3) applies normally. The Master might choose to provide bacta, heal, or otherwise support the Padawan's recovery; this isn't enforced, but it's the natural RP move.
+**Death.** The death loop's recovery (Guide #3) applies to a Padawan exactly as it does anyone. The engine doesn't push an automatic death alert down the bond, but a Master watching `+padawan` sees their student drop offline, and the Weight-sense line tells its own story over time. The Master might choose to provide bacta, heal, or otherwise support the Padawan's recovery; none of that is enforced, but it's the natural RP move.
 
-**The Director AI.** The Director recognizes bonded pairs and tends to surface bond-aware content — narrative events that involve both characters together, rumors about the Master that the Padawan should hear, opportunities for joint missions. Bonded characters often find their scenes are more interconnected than unbonded characters' scenes.
+**The Director AI.** Bond-aware Director content — events that pull both characters in, rumors about the Master a Padawan should hear, openings for joint missions — is a design direction the system is built toward, not a wired feature today; the Director doesn't yet read bond state. In practice, bonded characters' scenes interconnect anyway, because the two players seek each other out and the bond gives them a standing reason to share a stage.
 
 ---
 
@@ -476,7 +475,7 @@ The bond is meant to be permanent within its arc. The fact that it sometimes end
 | Master marker color | bright cyan `[Master]` |
 | Number of Trials | 5 (Skill, Courage, Flesh, Spirit, Insight) |
 | Trials required for Knight | All 5 (soft gate; staff can override with `@knight`) |
-| Endorsement requirement | Master must `+endorse trials <padawan>` before attempts |
+| Endorsement | Master vouch recorded via `+endorse trials <padawan>`; consumed by the next `+trial` |
 
 ---
 
