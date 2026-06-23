@@ -21,7 +21,7 @@ import logging
 
 from engine.json_safe import safe_json_loads
 from engine.housing import (
-    get_housing, resolve_active_home, get_housing_status_lines,
+    get_housing, get_homes, resolve_active_home, get_housing_status_lines,
     rent_room, checkout_room,
     housing_store, housing_retrieve,
     _storage,
@@ -43,6 +43,7 @@ class HousingCommand(BaseCommand):
         "Manage your housing or go home.\n"
         "\n"
         "  housing              — show status and available locations\n"
+        "  housing list         — list all the homes you own (up to 4)\n"
         "  housing rent <id>    — rent a Tier 1 room at location <id>\n"
         "  housing checkout     — vacate your rented room (deposit returned)\n"
         "  housing storage      — list items in home storage\n"
@@ -76,6 +77,7 @@ class HousingCommand(BaseCommand):
             return await self._cmd_status(ctx, char, rest)
 
         _dispatch = {
+            "list": self._cmd_list,
             "rent": self._cmd_rent,
             "checkout": self._cmd_checkout,
             "storage": self._cmd_storage,
@@ -108,6 +110,49 @@ class HousingCommand(BaseCommand):
             await check_spacer_quest(ctx.session, ctx.db, "use_command", command="housing")
         except Exception as _e:
             log.debug("silent except in parser/housing_commands.py:78: %s", _e, exc_info=True)
+        return
+
+        # ── housing list (all owned homes) ──
+
+    async def _cmd_list(self, ctx, char, rest):
+        """List every home the player owns (multi-home). Marks the recall home
+        and the one they're standing in, so they know which one the management
+        sub-commands (storage/store/...) will act on."""
+        homes = await get_homes(ctx.db, char["id"])
+        if not homes:
+            await ctx.session.send_line(
+                "  You don't own any homes yet. Type 'housing' to find a lot.")
+            return
+        recall = char.get("home_room_id")
+        here = char.get("room_id")
+        await ctx.session.send_line(f"  \033[1mYour homes ({len(homes)}):\033[0m")
+        for i, h in enumerate(homes, 1):
+            try:
+                room_ids = json.loads(h["room_ids"]) if h.get("room_ids") else []
+            except Exception:
+                room_ids = []
+            name = None
+            try:
+                rows = await ctx.db.fetchall(
+                    "SELECT name FROM rooms WHERE id = ?", (h["entry_room_id"],))
+                if rows:
+                    name = rows[0]["name"]
+            except Exception:
+                name = None
+            label = name or str(h.get("housing_type", "home")).replace("_", " ").title()
+            stored = len(_storage(h))
+            smax = h.get("storage_max", 0)
+            tags = []
+            if recall is not None and (recall in room_ids or recall == h["entry_room_id"]):
+                tags.append("recall")
+            if here is not None and here in room_ids:
+                tags.append("you are here")
+            tag = f"  \033[2m[{', '.join(tags)}]\033[0m" if tags else ""
+            await ctx.session.send_line(
+                f"    {i}. {label} — storage {stored}/{smax}{tag}")
+        await ctx.session.send_line(
+            "  \033[2mStand inside a home, then 'housing storage/store/sell' acts "
+            "on that home.\033[0m")
         return
 
         # ── housing rent <id> ──

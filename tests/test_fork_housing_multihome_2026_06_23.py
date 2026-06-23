@@ -94,6 +94,17 @@ class TestNoEvictionOnSecondBuy:
         assert first_id in ids, "the first home was evicted — multi-home regression"
 
 
+class TestGetHomesHasConsumer:
+    """get_homes() must have a real production consumer (no phantom producer):
+    the `housing list` subcommand."""
+
+    def test_housing_list_consumes_get_homes(self):
+        src = (PROJECT_ROOT / "parser" / "housing_commands.py").read_text(encoding="utf-8")
+        assert "get_homes" in src, "housing_commands must import/use get_homes"
+        assert '"list": self._cmd_list' in src, "`housing list` must be dispatched"
+        assert "async def _cmd_list" in src, "the list handler must exist"
+
+
 class TestResolveActiveHome:
 
     async def test_targets_the_home_you_are_standing_in(self, harness):

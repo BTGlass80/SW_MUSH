@@ -3531,8 +3531,12 @@ class CourseCommand(BaseCommand):
         try:
             result = perform_skill_check(char, spec["skill"], spec["diff"], sr)
         except Exception:
+            log.warning("anomaly engage: skill check raised; failing closed",
+                        exc_info=True)
             result = None
-        success = (result is None) or (result.success and not result.fumble)
+        # Fail CLOSED: a skill-check error must NOT award credits (this is a
+        # faucet). Only a real, non-fumbled success pays out.
+        success = (result is not None) and result.success and not result.fumble
         if not success:
             await ctx.session.send_line(
                 f"  {ansi.BRIGHT_YELLOW}[ANOMALY]{ansi.RESET} {spec['fail']} "
@@ -3553,7 +3557,7 @@ class CourseCommand(BaseCommand):
         try:
             await ctx.session.send_hud_update(db=ctx.db, session_mgr=ctx.session_mgr)
         except Exception:
-            pass
+            log.debug("anomaly engage: HUD refresh failed", exc_info=True)
 
     async def _validate_helm(self, ctx):
         """Check ship, pilot seat, hyperspace, ion — return (ship, systems, zone, arg) or (None,)*4."""

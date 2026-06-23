@@ -1066,13 +1066,9 @@ async def checkout_room(db, char: dict) -> dict:
 
     await db.execute("DELETE FROM player_housing WHERE id = ?", (h["id"],))
 
-    try:
-        await db.execute(
-            "UPDATE characters SET home_room_id = NULL WHERE id = ?", (char_id,)
-        )
-    except Exception:
-        log.warning("checkout_room: unhandled exception", exc_info=True)
-        pass
+    # NOTE: home_room_id is cleared CONDITIONALLY above (only when it pointed at
+    # one of the rooms being deleted). Do NOT null it unconditionally here -- with
+    # multi-home, selling home #2 would wipe a recall pointer aimed at home #1.
 
     await db.commit()
     log.info("[housing] char %d checked out of housing %d", char_id, h["id"])
