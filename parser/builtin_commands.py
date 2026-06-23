@@ -5299,16 +5299,23 @@ async def _handle_sell_cargo(ctx) -> None:
     total_revenue = haggle["adjusted_price"]
     per_ton = max(1, total_revenue // quantity)
 
-    # Remove cargo and compute profit
+    # Remove cargo and compute profit. remove_cargo is PURE (no DB write);
+    # nothing is committed until update_ship below.
     new_cargo, avg_cost = remove_cargo(cargo, good.key, quantity)
     profit_per_ton = per_ton - avg_cost
     total_profit = profit_per_ton * quantity
 
+    # Credit the revenue FIRST and commit the cargo removal only after the
+    # credit write is confirmed -- otherwise a failed credit write left the
+    # cargo gone with no payment (QA space 2026-06-23; the buy path likewise
+    # moves credits before goods).
+    _bal = await ctx.db.adjust_credits(char["id"], total_revenue, "trade_goods")
+    if _bal is None:
+        await ctx.session.send_line(
+            "  The sale could not be completed; your cargo is unchanged.")
+        return
+    char["credits"] = _bal
     await ctx.db.update_ship(ship["id"], cargo=_j.dumps(new_cargo))
-
-    new_credits = char.get("credits", 0) + total_revenue
-    char["credits"] = new_credits
-    await ctx.db.adjust_credits(char["id"], total_revenue, "trade_goods")
 
     # Record the sale so demand depresses for the next seller, and persist both
     # pools (economy audit v2 §1.5). Without this, depression never accumulated

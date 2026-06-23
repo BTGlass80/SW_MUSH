@@ -718,9 +718,15 @@ class DisembarkCommand(BaseCommand):
         crew = _get_crew(ship)
         char_id = char["id"]
         changed = False
-        if crew.get("pilot") == char_id:
-            crew["pilot"] = None
-            changed = True
+        # Clear EVERY single-occupancy station this player holds (pilot,
+        # copilot, engineer, navigator, commander, sensors) -- not just pilot.
+        # A disembarking copilot/engineer/etc. otherwise left their seat stuck
+        # occupied, and a cleared slot surfaced a stale "#None" to the next
+        # claimant (QA space 2026-06-23).
+        for _station in _SINGLE_STATIONS:
+            if crew.get(_station) == char_id:
+                crew[_station] = None
+                changed = True
         # Clear any gunner station this player occupies. Schema-aware:
         # _get_crew() migrates legacy crew["gunners"] into
         # crew["gunner_stations"], so this writes to the canonical
@@ -6218,7 +6224,7 @@ class SalvageCommand(BaseCommand):
                 ship["bridge_room_id"],
                 f"  {ansi.BRIGHT_CYAN}[SALVAGE]{ansi.RESET} "
                 f"{char['name']} strips the wreck and hauls in salvage.",
-                exclude_session=ctx.session,
+                exclude=ctx.session,
             )
 
         # Consume the anomaly — it's been salvaged
@@ -6696,7 +6702,7 @@ class MineCommand(BaseCommand):
                 ship["bridge_room_id"],
                 f"  {ansi.BRIGHT_CYAN}[MINE]{ansi.RESET} "
                 f"{char['name']} initiates a mining run on a nearby cache node.",
-                exclude_session=ctx.session,
+                exclude=ctx.session,
             )
 
 
@@ -6875,7 +6881,7 @@ async def handle_space_harvest(ctx) -> bool:
             ship["bridge_room_id"],
             f"  {ansi.BRIGHT_CYAN}[HARVEST]{ansi.RESET} "
             f"{char['name']} recovers a faction cache.",
-            exclude_session=ctx.session,
+            exclude=ctx.session,
         )
     return True
 
