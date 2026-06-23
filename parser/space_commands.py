@@ -31,6 +31,11 @@ async def _ach_space_hook(db, char_id, event, session=None):
 
 log = logging.getLogger(__name__)
 
+# Cached, pre-loaded skill registry for all space skill checks (avoids
+# re-parsing skills.yaml on the event loop per command). See
+# engine.character.get_cached_skill_registry.
+from engine.character import get_cached_skill_registry  # noqa: E402
+
 
 async def _get_ship_for_player(ctx):
     room_id = ctx.session.character["room_id"]
@@ -1769,8 +1774,7 @@ class ShipCommand(BaseCommand):
         install_difficulty = max(5, component.get("craft_difficulty", 16) - 4)
         from engine.skill_checks import perform_skill_check
         from engine.character import SkillRegistry
-        skill_reg = SkillRegistry()
-        skill_reg.load_default()
+        skill_reg = get_cached_skill_registry()
         from engine.starships import get_repair_skill_name, get_weapon_repair_skill
         if stat_target == "fire_control":
             repair_skill = get_weapon_repair_skill(template.scale)
@@ -2049,8 +2053,7 @@ class ScanCommand(BaseCommand):
             pass
         try:
             char_obj = Character.from_db_dict(char)
-            sr = SkillRegistry()
-            sr.load_default()
+            sr = get_cached_skill_registry()
             base_pool = char_obj.get_skill_pool("sensors", sr)
             # Station bonus: +2D if sitting at sensors
             # Stealth bonus: target ship harder to detect (sensor_mask, silent running)
@@ -2271,8 +2274,7 @@ class DeepScanCommand(BaseCommand):
 
         try:
             char_obj  = Character.from_db_dict(char)
-            sr        = SkillRegistry()
-            sr.load_default()
+            sr = get_cached_skill_registry()
             base_pool = char_obj.get_skill_pool("sensors", sr)
             if crew.get("sensors") == char_id:
                 bonus   = _DP(2, 0)
@@ -2293,8 +2295,8 @@ class DeepScanCommand(BaseCommand):
             result = None  # graceful-drop
 
         fumble   = result.fumble   if result else False
-        critical = result.critical if result else False
-        success  = (not fumble) and (result is None or result.total >= _DIFF)
+        critical = result.critical_success if result else False
+        success  = (not fumble) and (result is not None and result.roll >= _DIFF)
 
         # ── Fumble: scramble signal, apply cooldown ───────────────────────
         if fumble:
@@ -4027,8 +4029,7 @@ class HyperspaceCommand(BaseCommand):
             pass
         try:
             char_obj = Character.from_db_dict(char)
-            sr = SkillRegistry()
-            sr.load_default()
+            sr = get_cached_skill_registry()
             crew = _get_crew(ship)
             # Navigator bonus: +1D if someone is at sensors station
             if crew.get("sensors"):
@@ -5279,8 +5280,7 @@ class OrderCommand(BaseCommand):
         # Command skill check (Easy difficulty 8)
         from engine.skill_checks import perform_skill_check
         from engine.character import SkillRegistry
-        sr = SkillRegistry()
-        sr.load_default()
+        sr = get_cached_skill_registry()
         result = perform_skill_check(ctx.session.character, "command", 8, sr)
 
         if result.fumble:
@@ -5570,8 +5570,7 @@ async def _run_customs_check(ctx, ship, planet: str) -> None:
         # Base customs roll: Perception 3D for customs officer
         from engine.skill_checks import perform_skill_check
         from engine.character import SkillRegistry
-        sr = SkillRegistry()
-        sr.load_default()
+        sr = get_cached_skill_registry()
 
         infraction_class = None
         infraction_reason = ""
@@ -5770,8 +5769,7 @@ class TransponderCommand(BaseCommand):
             # Con or Forgery skill check (Easy 8)
             from engine.skill_checks import perform_skill_check
             from engine.character import SkillRegistry
-            sr = SkillRegistry()
-            sr.load_default()
+            sr = get_cached_skill_registry()
             char = ctx.session.character
             # Use whichever is higher: con or forgery
             con_r    = perform_skill_check(char, "con",      8, sr)
@@ -6257,8 +6255,7 @@ class SalvageCommand(BaseCommand):
         diff = 15 if target.is_wreck else 8
         diff_label = "Moderate" if target.is_wreck else "Easy"
         try:
-            sr     = SkillRegistry()
-            sr.load_default()
+            sr = get_cached_skill_registry()
             result = perform_skill_check(
                 char, "technical", diff, sr,
                 lead_bonus=_salv_bonus_pips if _salv_bonus_pips else None,
@@ -6267,8 +6264,8 @@ class SalvageCommand(BaseCommand):
             result = None  # graceful-drop → treat as success
 
         fumble   = result.fumble   if result else False
-        critical = result.critical if result else False
-        success  = (not fumble) and (result is None or result.total >= diff)
+        critical = result.critical_success if result else False
+        success  = (not fumble) and (result is not None and result.roll >= diff)
 
         if fumble:
             await ctx.session.send_line(
