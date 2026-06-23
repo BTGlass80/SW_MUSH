@@ -482,11 +482,12 @@ async def unstock_droid(char: dict, droid_id: int,
 
     # ── Return item(s) to character inventory ──
     try:
-        char_inv = char.get("inventory", "{}")
-        if isinstance(char_inv, str):
-            char_inv = json.loads(char_inv) if char_inv else {}
-        if not isinstance(char_inv, dict):
-            char_inv = {}
+        # coerce_inventory normalizes a bare-list inventory (schema default
+        # '[]') into the canonical dict shape WITHOUT dropping its items -- the
+        # old inline json.loads+isinstance-dict guard wiped a bare list to {}
+        # (QA: unstock/buy inventory-corruption; same fix stock_droid uses).
+        from engine.items import coerce_inventory
+        char_inv = coerce_inventory(char.get("inventory", "[]"))
 
         # Determine if this is a resource (check crafting RESOURCE_TYPES)
         is_resource = False
@@ -769,11 +770,10 @@ async def buy_from_droid(buyer: dict, droid_id: int,
 
     # ── Add purchased item to buyer's inventory ──
     try:
-        buyer_inv = buyer.get("inventory", "{}")
-        if isinstance(buyer_inv, str):
-            buyer_inv = json.loads(buyer_inv) if buyer_inv else {}
-        if not isinstance(buyer_inv, dict):
-            buyer_inv = {}
+        # Same bare-list fix as unstock_droid/stock_droid: coerce preserves
+        # an existing bare-list inventory instead of wiping it to {}.
+        from engine.items import coerce_inventory
+        buyer_inv = coerce_inventory(buyer.get("inventory", "[]"))
         items = buyer_inv.get("items", [])
         items.append({
             "key":     slot.get("item_key", ""),
