@@ -45,9 +45,15 @@ def test_ai_trickle_not_presented_as_live_source():
         assert "not yet active" in text.lower() or "planned" in text.lower()
 
 
-def test_ai_trickle_producer_is_still_unwired():
-    """If a producer for award_ai_trickle ever lands, revisit the guide."""
-    callers = 0
+def test_ai_trickle_is_admin_gated_and_dormant():
+    """The AI-evaluator trickle is now WIRED -- but only to the MANUAL @director
+    admin grant, and DORMANT by default -- so it is NOT an automatic income
+    source. (CP fork 2026-06-23 added the admin-gated caller; the guide still
+    says it is not a source you can earn from by default.)"""
+    import engine.cp_engine as _ce
+    assert _ce.is_cp_ai_trickle_enabled() is False, (
+        "the AI CP trickle must default DORMANT (off at launch)")
+    callers = []
     for d in ("engine", "parser", "server", "ai"):
         for p in pathlib.Path(d).glob("**/*.py"):
             if p.name == "cp_engine.py":
@@ -57,11 +63,10 @@ def test_ai_trickle_producer_is_still_unwired():
             except Exception:
                 continue
             if "award_ai_trickle(" in src:
-                callers += 1
-    assert callers == 0, (
-        "award_ai_trickle now has a producer — Guide_09 §2 should be updated "
-        "to present the AI-evaluator trickle as a live income source."
-    )
+                callers.append(p.as_posix())
+    assert callers == ["parser/director_commands.py"], (
+        "award_ai_trickle's ONLY caller must be the @director admin command "
+        "(a manual grant, not an auto/AI prose scorer); got %r" % (callers,))
 
 
 def test_training_is_instant_no_phantom_teacher():
