@@ -874,6 +874,17 @@ async def _resolve_defender_win(
     # resolved (the second writer sees rowcount 0 and bails before applying a
     # duplicate penalty/cooldown/despawn).
     try:
+        # Mirror of the challenger path: clear the prior same-status resolved row
+        # first, or the (region_slug, status) UNIQUE constraint makes a region's
+        # SECOND defender-win collide with the leftover 'resolved_defender' row,
+        # raising IntegrityError so the successful defense is silently not
+        # recorded (QA 2026-06-22).
+        await db.execute(
+            "DELETE FROM region_contests "
+            "WHERE region_slug = ? AND status = 'resolved_defender' "
+            "AND id != ?",
+            (region_slug, contest_id),
+        )
         cur = await db.execute(
             "UPDATE region_contests SET status = 'resolved_defender' "
             "WHERE id = ? AND status = 'active'",
@@ -1606,6 +1617,20 @@ async def _resolve_challenger_win(
     # (the second writer sees rowcount 0 and bails). The Anchor +
     # reinforcements are despawned at the end via _despawn_contest_anchor.
     try:
+        # The (region_slug, status) UNIQUE constraint keeps one ACTIVE contest
+        # per region, but it ALSO forbids a second resolved row of the same
+        # status -- so a region's SECOND challenger-win collided with the first
+        # one's leftover 'resolved_challenger' row, the UPDATE raised
+        # IntegrityError, and ownership silently never transferred (QA
+        # 2026-06-22). Resolved rows are stale history (cooldowns have their own
+        # table), so clear the prior same-status resolved row for this region
+        # first; this also self-heals a region already stuck from the old bug.
+        await db.execute(
+            "DELETE FROM region_contests "
+            "WHERE region_slug = ? AND status = 'resolved_challenger' "
+            "AND id != ?",
+            (region_slug, contest_id),
+        )
         cur = await db.execute(
             "UPDATE region_contests SET status = 'resolved_challenger' "
             "WHERE id = ? AND status = 'active'",
