@@ -251,12 +251,19 @@ def test_strike_pushes_menace_and_enforces_cooldown():
                 "attributes": json.dumps({"dexterity": 12})}
         before = float((await COR.get_active(db))["menace"])
         res = await COR.record_strike(db, None, char, now_ms=1_000_000)
-        after = float((await COR.get_active(db))["menace"])
+        active = await COR.get_active(db)
+        after = float(active["menace"])
         if res.ok:
-            assert after < before
-            # points recorded for the contributor
-            row = await COR.get_active(db)
-            contribs = json.loads(row["contributions_json"])
+            from engine import staged_event as _SE
+            if _SE.is_staged(active["cult_key"]):
+                # EVENT staged-scenario rework: a staged cult's strike advances
+                # the STAGE; the menace is the timer, untouched by strikes.
+                contribs = json.loads(active["contributions_json"])
+                assert "_stage" in contribs
+            else:
+                assert after < before
+            # points recorded for the contributor (both paths)
+            contribs = json.loads(active["contributions_json"])
             assert contribs["7"]["points"] > 0
         # immediate second strike is on cooldown regardless of hit/miss
         res2 = await COR.record_strike(db, None, char, now_ms=1_000_001)
