@@ -1038,6 +1038,27 @@ class MoveCommand(BaseCommand):
             await session.send_line("Move where? Specify a direction.")
             return
 
+        # Combat pins you: the designed exit from a fight is `flee` (an opposed
+        # roll), not walking. Without this gate a player could walk a normal exit
+        # out of an active fight, orphaning the combat instance (NPCs left in a
+        # zombie combat, `who` showing stale 'In Combat', a slow _active_combats
+        # leak). A FINISHED combat (a co-op kill's leftover) does NOT pin --
+        # _combat_finished is False only while a mutually-hostile pair can still
+        # act. (QA combat-exit 2026-06-23.)
+        try:
+            from parser.combat_commands import (
+                _active_combats, _combat_key_for, _combat_finished,
+            )
+            _cmb = _active_combats.get(_combat_key_for(char))
+            if (_cmb and _cmb.get_combatant(char["id"])
+                    and not _combat_finished(_cmb)):
+                await session.send_line(
+                    "  You're in combat -- you can't just walk away. "
+                    "Use `flee` to attempt escape.")
+                return
+        except Exception:
+            log.warning("move combat-gate check failed", exc_info=True)
+
         # ── W.2 phase 2: wilderness fork ────────────────────────────────
         # If character is already in wilderness, branch entirely to the
         # wilderness handler — it owns in-tile movement, edge exits,

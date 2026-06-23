@@ -155,6 +155,39 @@ def _get_or_create_combat(char, cover_max: int = 0) -> CombatInstance:
     return _active_combats[key]
 
 
+def _combat_finished(combat) -> bool:
+    """True when the fight is actually over.
+
+    The engine's CombatInstance.is_over only counts heads (<=1 active
+    combatant), so a CO-OP PvE kill -- 2+ allied PCs drop the last NPC --
+    reads as 'still active' forever: disengage refuses and flee resolves an
+    opposed roll vs an ALLY, stranding both players (QA 2026-06-23). A fight
+    is over unless two MUTUALLY HOSTILE combatants can both still act: NPCs
+    are hostile to every PC; two PCs are hostile only under a live PvP pact
+    (_pvp_active).
+    """
+    active = combat.active_combatants
+    if len(active) <= 1:
+        return True
+    npcs = [c for c in active if c.is_npc]
+    pcs = [c for c in active if not c.is_npc]
+    if npcs and pcs:
+        return False                      # NPC(s) vs PC(s) -- a real fight
+    if len(pcs) <= 1:
+        return True                       # only NPCs, or a lone PC
+    # Only PCs remain: continues iff some PvP pact between them is still live.
+    now = _time.time()
+    cutoff = now - _PVP_CHALLENGE_TTL
+    ids = [c.id for c in pcs]
+    for i in range(len(ids)):
+        for j in range(i + 1, len(ids)):
+            a, b = ids[i], ids[j]
+            if (_pvp_active.get((a, b), 0) > cutoff or
+                    _pvp_active.get((b, a), 0) > cutoff):
+                return False              # live PvP -- a real fight
+    return True                           # only allied PCs remain -- finished
+
+
 def _remove_combat(char_or_combat):
     """W.2.4: remove the combat instance for this char (or combat).
 
@@ -358,10 +391,10 @@ async def _try_auto_resolve(combat, ctx):
         # the fight (attacker-of-citizen or bountied-target triggers
         # per design v1.2 §7.2). Skip if combat is over — no point
         # adding guards to a finished fight.
-        if not combat.is_over:
+        if not _combat_finished(combat):
             await _check_city_guard_triggers(combat, ctx)
 
-        if combat.is_over:
+        if _combat_finished(combat):
             # Combat ended — broadcast final events directly, no posing
             _src = combat.broadcast_source()
             await _broadcast_events_paced(events, ctx.session_mgr,
@@ -2564,10 +2597,10 @@ class ResolveCommand(BaseCommand):
         # Phase 7c: city-guard combat-round triggers (also fires
         # on admin resolve so the behavior is consistent across
         # both resolution paths).
-        if not combat.is_over:
+        if not _combat_finished(combat):
             await _check_city_guard_triggers(combat, ctx)
 
-        if combat.is_over:
+        if _combat_finished(combat):
             _src = combat.broadcast_source()
             await _broadcast_events_paced(events, ctx.session_mgr,
                                           combat.room_id, source_char=_src)
@@ -2602,7 +2635,7 @@ class DisengageCommand(BaseCommand):
             await ctx.session.send_line("  You're not in this combat.")
             return
 
-        if combat.is_over or len(combat.active_combatants) <= 1:
+        if _combat_finished(combat):
             combat.remove_combatant(char["id"])
             if len(combat.combatants) == 0:
                 _remove_combat(combat)
