@@ -80,6 +80,8 @@ Your stake is never escrowed — a hand resolves as a single net swing. **Win an
 
 A **critical** (an exploding wild die on a winning hand — the "Idiot's Array") pays a small premium over an ordinary win: the house **waives its 10% cut**, so a crit pays the **full bet** (Bet × 1.0) instead of a win's Bet × 0.9. On a 200 cr bet that's **+200 cr** versus a win's +180 — a modest bonus that honors the rarest hand in the game. You also get the recognition: the dramatic `[CRITICAL]` line, the rare flavor text, and the win counts toward the sabacc achievement. The hand is both the story *and* a small jackpot.
 
+> **A note on the `[CRITICAL]` tag.** The tag marks an *exploding wild die*, which is separate from winning the hand. A crit only **pays** as a crit if that lucky roll also beats the dealer's total — a wild explosion that still falls short of the dealer is an ordinary **loss** (you'll see `[CRITICAL]` on the roll line, but the credits move against you). The wild die gives you the chance; you still have to clear the table.
+
 > **Den & city note.** If the cantina is a Hutt-cartel **den**, the house's 10% rake flows to the cartel's treasury (the criminal-empire loop); if a player **city** taxes the room, the city takes a slice of that rake first. Either way your net winnings are unchanged — the rake is the *house's* edge, not money out of your pocket.
 
 ### Cooldowns
@@ -137,7 +139,7 @@ A skill-check entertainment performance. You roll your **Persuasion** skill (or 
 
 A skilled entertainer (4D+ Persuasion) almost always succeeds. The difficulty is 10 (Easy); a 4D character averages 14 on their roll. Failures are uncommon.
 
-**Margin matters for pay**. The amount you get on a success is randomized but scales with how cleanly you passed. Roll of 12 vs. difficulty 10: 50 cr-ish payout. Roll of 25 vs. 10: 200 cr-ish payout. Crits jump to 250-500.
+**Margin matters for pay**. On a success the payout scales linearly with how far you cleared the bar. A roll right at the difficulty pays near the **50 cr floor**; a roll **10 or more over** the bar caps at the **200 cr ceiling**; a roll halfway there (margin 5 — say a 15 vs. 10) lands around the middle, ~125 cr. Crits jump to 250-500.
 
 ### Cooldowns
 
@@ -148,7 +150,7 @@ The 10-minute cooldown applies after a **success and after a partial** (the "pol
 
 ### Play to the room — the audience bonus
 
-A performance for a **live crowd of other online players** in the room pays better than busking to an empty bar. Each additional player present adds **+15% to the payout**, counted up to **4 heads** — so a packed house lifts a performance by up to **+60%** (a ×1.6 multiplier). The bonus applies to successes and partials, and it's capped on purpose: a solo grinder can't conjure an audience, so this rewards *being a social hub* rather than a timer-tap. The performer is excluded from their own head-count.
+A performance for a **live crowd of other online players** in the room pays better than busking to an empty bar. Each additional player present adds **+15% to the payout**, counted up to **4 heads** — so a packed house lifts a performance by up to **+60%** (a ×1.6 multiplier). The bonus applies to any performance that lands as a **success — ordinary or critical** — but **not** to a near-miss partial: the flat 25 cr "polite applause" pays the same to a packed house as to an empty one. It's capped on purpose: a solo grinder can't conjure an audience, so this rewards *being a social hub* rather than a timer-tap. The performer is excluded from their own head-count.
 
 This is why the best entertainers perform when the cantina is busy — a crit to a packed house is the single biggest single-performance payday in the cantina layer.
 
@@ -196,7 +198,7 @@ For example: a 5D entertainer plays a heroic performance (magnitude 5 aura). In 
 
 ### Duration
 
-30 minutes per performance. Auras **do not stack** — a room holds one aura at a time, and the **strongest performance wins**: a new performance only replaces the active aura if its magnitude is equal or higher, so a weaker act can't downgrade a great one already in the room. (Walking out of the room ends your exposure; the aura is room-scoped.)
+30 minutes per performance — but the aura also **ends early the moment the performer leaves the room** (it's tied to the act, not just the clock; when the entertainer walks out, their aura goes with them). Auras **do not stack** — a room holds one aura at a time, and the **strongest performance wins**: a new performance only replaces the active aura if its magnitude is equal or higher, so a weaker act can't downgrade a great one already in the room. Anyone present can see the active aura on `look` — a line of flavor at the foot of the room description ("An engaging performance lifts the mood here."). Walking out ends your own exposure too, since the aura is room-scoped.
 
 ### Why this matters
 
@@ -268,7 +270,7 @@ Five concrete pictures.
 
 **Scenario 1 — Casual cantina visit.** You stop by the Mos Eisley Cantina between missions. You play three hands of sabacc. Two wins (390 cr total after house cuts), one loss (100 cr). Net +290 cr for 15 minutes of cantina-RP time. Not big money, but you played a few hands like a real cantina regular. The fiction is intact.
 
-**Scenario 2 — The lucky night.** Your first sabacc hand at 200 cr comes up an Idiot's Array — a crit. The table goes silent; the bartender stops to watch. Credit-wise it pays like any win (+180 cr), but the *moment* is the story. You ride the streak: two more wins (+180 each), then lose the fourth (−200). Net: **+340 cr** across ~20 minutes (the 5-minute post-win cooldown paces you). The crit didn't pad your wallet — it gave you the night's best beat — and you walk away ahead.
+**Scenario 2 — The lucky night.** Your first sabacc hand at 200 cr comes up an Idiot's Array — a crit. The table goes silent; the bartender stops to watch. The house **waives its cut** to honor the rarest hand, so it pays the full **+200 cr** (a normal win would have been +180). You ride the streak: two more ordinary wins (+180 each), then lose the fourth (−200). Net: **+360 cr** across ~20 minutes (the 5-minute post-win cooldown paces you). The crit paid a touch more than a regular win *and* gave you the night's best beat — and you walk away ahead.
 
 **Scenario 3 — The dedicated entertainer.** You're a Twi'lek dancer working the Mos Eisley Cantina. You spend two hours in the cantina performing. You roll perform 8 times across the two hours. Six successes (averaging 130 cr each = 780 cr), one crit (350 cr), one failure (0). Total income: 1,130 cr per session. Plus you've buffed the cantina's social atmosphere with several aura instances — other characters' Persuasion rolls trended better; they appreciate the cover.
 
@@ -299,6 +301,8 @@ Five concrete pictures.
 | `sabacc [bet]` | Play a hand of sabacc (50-2,000 cr bet, cantina only) |
 | `perform` | Perform for credits in a cantina zone |
 
+`sabacc` also answers to `gamble` and `cards`; `perform` also answers to `entertain` and `play`.
+
 ---
 
 ## 11. Numbers At A Glance
@@ -313,7 +317,7 @@ Five concrete pictures.
 | Sabacc dealer roll | Dealer NPC's Gambling (default 3D), flat — no wild die |
 | Sabacc tie | Dealer wins (house edge) |
 | Sabacc win payout | Bet × 0.9 (10% house cut, floored at 5 cr) |
-| Sabacc crit payout | Bet × 0.9 — same as a win; recognition only, no cash bonus |
+| Sabacc crit payout | Bet × 1.0 — the house waives its 10% cut (a small premium over a win's Bet × 0.9) |
 | Perform difficulty | Easy (10), +3 per prior perform in the fatigue window |
 | Perform payout — Partial | 25 cr |
 | Perform payout — Standard | 50-200 cr (scaled by margin) |

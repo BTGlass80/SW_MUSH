@@ -5,11 +5,13 @@ The Opus-owned guides quality pass.  Guide_23 carried a dense set of mechanical
 claims the green suite never saw (the convention invariant guards the registry,
 not guide prose).  This pass corrected — and this test pins — the following:
 
-* **Sabacc criticals pay NO cash bonus.**  The guide claimed a crit pays
-  "Bet x 2, no house cut".  In code (``parser.sabacc_commands``) the ``win`` and
-  ``critical`` outcomes share ONE payout branch (``if outcome in
-  ("win", "critical")``): both net ``Bet x 0.9``.  A crit is recognition +
-  flavor + the achievement, not a jackpot.
+* **Sabacc criticals WAIVE the house cut** (SABACC.crit_payout_bonus, Brian
+  2026-06-21).  The rare Idiot's Array sets ``house_rake = 0`` in
+  ``parser.sabacc_commands`` — a crit nets the **full bet** (Bet x 1.0) versus a
+  win's Bet x 0.9.  It is a small cut-waive on the rarest hand, NOT a payout
+  multiplier/doubling.  (This authoritative pass reconciled the stale §8/§11
+  prose, which still read "same as a win" after the §3 outcome table had already
+  been corrected to the cut-waive.)
 * **The Cantina Brawl does NOT double sabacc payouts** — only the bet *ceiling*
   doubles (``bet_max = BET_MAX_DEFAULT * 2``).  Only ``perform`` payouts double
   (``brawl_mult = 2.0`` in ``parser.entertainer_commands``).  The old "All
@@ -115,10 +117,19 @@ class TestSabaccNumbers:
                 f"crit pays the same credits as a win"
             )
 
-    def test_guide_states_crit_is_recognition_only(self, guide_text):
-        assert "same credits as a win" in guide_text or \
-               "same as a win" in guide_text, (
-            "Guide_23 should state a sabacc crit pays the same as a win"
+    def test_guide_states_crit_waives_house_cut(self, guide_text):
+        # Post-2026-06-21: a crit WAIVES the 10% cut (full bet), so the guide
+        # must NOT carry the old "same as a win" claim anywhere, and MUST
+        # describe the cut-waive.  This pins the §8/§11 reconciliation.
+        for stale in ("same as a win", "same credits as a win",
+                      "pays like any win", "recognition only, no cash bonus"):
+            assert stale not in guide_text, (
+                f"Guide_23 still carries the stale crit claim {stale!r} — a "
+                f"sabacc crit now waives the house cut (Bet x 1.0)"
+            )
+        assert "waives" in guide_text and "Bet × 1.0" in guide_text, (
+            "Guide_23 should describe the sabacc crit as waiving the house cut "
+            "(Bet × 1.0)"
         )
 
 
@@ -184,6 +195,22 @@ class TestPerformNumbers:
             "Guide_23 must document the audience bonus (+15%/head, cap +60%)"
         )
 
+    def test_audience_bonus_is_success_only_not_partial(self, guide_text):
+        """The audience multiplier is applied only inside ``perform``'s success
+        branch — the partial pays a flat ``_PARTIAL_PAY * brawl_mult`` with no
+        audience lift.  The guide must not claim partials benefit."""
+        src = _read(ENTERTAINER_SRC)
+        # Structural pin: the partial branch pays flat (no audience_multiplier).
+        assert "payout = int(_PARTIAL_PAY * brawl_mult)" in src, (
+            "the partial perform payout is no longer a flat _PARTIAL_PAY — "
+            "re-check whether the audience bonus now reaches partials"
+        )
+        # The guide must not over-promise the bonus on partials.
+        assert "successes and partials" not in guide_text, (
+            "Guide_23 claims the audience bonus applies to partials, but the "
+            "engine applies it only to successes (ordinary and critical)"
+        )
+
 
 # ── Morale aura: WIRED consumer + correct semantics ──────────────────────────
 class TestMoraleAura:
@@ -219,6 +246,21 @@ class TestMoraleAura:
         for skill in ("persuasion", "command", "con", "bargain",
                       "willpower", "gambling"):
             assert skill in MORALE_FLAVORED_SKILLS
+
+    def test_aura_clears_when_performer_leaves_room(self, guide_text):
+        """The aura is cleared early when the PERFORMER leaves the room (the
+        builtin_commands move hook), not only on the 30-minute timer.  The guide
+        must reflect that early-clear, not just "your exposure ends"."""
+        move_src = _read(os.path.join(PROJECT_ROOT, "parser",
+                                      "builtin_commands.py"))
+        assert "clear_morale_aura" in move_src and "performer_id" in move_src, (
+            "the performer-departure aura-clear hook regressed in "
+            "builtin_commands move handling — the guide promises it ends early"
+        )
+        assert "ends early" in guide_text and "leaves the room" in guide_text, (
+            "Guide_23 should note the aura ends early when the performer "
+            "leaves the room"
+        )
 
     def test_guide_says_no_stacking(self, guide_text):
         assert "do not stack" in guide_text or "does not stack" in guide_text, (
