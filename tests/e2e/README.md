@@ -37,12 +37,26 @@ NODE_OPTIONS=--use-system-ca python -m playwright install chromium chromium-head
 
 (Same root cause as the Python-side `truststore` fix; this is its Node analogue.)
 
+## Regression gate (pytest)
+
+`test_e2e_new_player.py` wraps the PoC as a runnable gate. It's marked `slow` +
+`e2e` and **skip-guarded on `RUN_E2E=1`**, so it never boots a browser inside the
+default dev run, the threaded triage, or `run_all_tests.bat` (it skips there).
+Run it explicitly as the web-client regression gate:
+
+```
+RUN_E2E=1 python -m pytest tests/e2e -m e2e
+```
+
+It asserts the PoC exits 0, prints `E2E FLOW PASSED`, and that click-to-move
+actually fired (`map exit fired`).
+
 ## Notes / next steps
 
-- This is the PoC. To grow it into the standing suite: parametrize per-screen
-  assertions, add a curated screenshot baseline for visual-regression diffing,
-  and a pytest wrapper (kept out of the default xdist run — it boots a real
-  server + browser).
+- The gate runs the single full new-player flow. To deepen it: parametrize
+  per-screen assertions, add a curated screenshot baseline for visual-regression
+  diffing, and add focused flows (combat, shop buy/sell, housing) as separate
+  `e2e`-marked tests.
 - Known finding it already surfaced: the **standalone** `/chargen` wizard shows
   *"Failed to load chains (HTTP 401)"* at the CHAIN step — `/api/chargen/chains`
   requires an account token that only the **embedded** (in-client) chargen flow
