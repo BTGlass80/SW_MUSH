@@ -1,0 +1,350 @@
+# data/worlds/clone_wars/npcs_drop_ambient_tatooine_civic_outskirts.yaml
+#
+# Mos Eisley Civic & Outskirts -- Ambient Population Batch (2026-06-23)
+#
+# Four non-hostile, ambient/flavor NPCs filling four previously-empty
+# Tatooine rooms (two civic, one private residence, one outskirts market):
+#
+#   Police Station - Main Floor   x1  (desk officer watching the cells)
+#   Dim-U Monastery - Main Gate   x1  (Gran gatekeeper monk)
+#   House of Momaw Nadon          x1  (Twi'lek botanical assistant)
+#   City Outskirts - Scavenger Market  x1  (Jawa market-runner)
+#
+# All four are ambient (hostile: false). None carry special-reward markers.
+# Schema: engine/npc_loader.py (non-hostile ambient; loaded via era.yaml
+# content_refs.npcs). Fields mirror sibling patterns from
+# npcs_drop_ambient_mos_eisley_service_sector.yaml (established template).
+#
+# -- Policy ---------------------------------------------------------------
+# Q1 (no canon figures): all characters original.
+#   - Momaw Nadon (canon Ithorian owner) is Phase 4 planned -- NOT added
+#     here. Noor Blen is a hired assistant, not the owner.
+#   - Dim-U monks are unnamed in canon; Brother Selaith Vorn is original.
+#   - Jawa Urrt-kak is distinct from Ruzz-tha (Jawa Traders, Drop B).
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE in player-facing strings.
+#   Police Station is nominal Republic-affiliate; Dim-U Monastery's
+#   transponder-forgery trade is background lore, not stated to the PC.
+# WEG R&E D6 stats: WEG40120 PDF absent in this worktree.
+#   Stats UNVERIFIED against WEG40120 PDF. Grounded in sibling-NPC
+#   patterns at HEAD plus canonical WEG species templates from memory:
+#   (Human 2D baseline; Gran PER-social 3D+1; Jawa STR 1D/DEX 3D+1/
+#   TEC 3D+2; Twi'lek DEX 3D/PER 3D).
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# -------------------------------------------------------------------------
+
+schema_version: 1
+
+npcs:
+
+  # ======================================================================
+  # POLICE STATION - MAIN FLOOR -- 1 NPC (desk officer)
+  # Room desc: "A desk clerk monitors holding cells from banks of monitors.
+  # Patrol officers use personal datapads. The roof has a marked landing
+  # pad. A Republic advisory liaison stops by twice a week to file reports
+  # nobody reads."
+  # Instantiating the desk clerk -- the constant human presence in the room.
+  # ======================================================================
+
+  - name: Officer Darvesh Orr
+    room: "Police Station - Main Floor"
+    species: Human
+    description: >-
+      A heavyset man in the grey-and-tan uniform of the Mos Eisley city
+      watch sits at a console that maps every holding cell in the building,
+      six feeds tiled across a screen that sees more activity after the
+      second bell than the first. His badge is polished and his posture is
+      not. He has been desk officer at this station for fourteen years and
+      has developed a philosophy about the gap between laws and outcomes
+      that he does not articulate out loud. The Republic advisory liaison
+      visits twice a week and files reports he does not read. Darvesh does
+      not tell him this.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+2
+        technical: 2D
+      skills:
+        bureaucracy: 3D+2
+        streetwise: 4D
+        search: 3D+2
+        willpower: 3D+1
+        blaster: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Fourteen years behind the Mos Eisley precinct desk have given
+        Darvesh Orr a comprehensive map of which laws are enforced, which
+        ones exist only on paper, and which ones would get him killed if
+        he tried. He keeps order in the ways he can and files the rest
+        under things he has no opinion on. He is not corrupt in the way
+        that profits anyone but himself; he simply understands the
+        ecosystem. The cartel does not bother him and he does not bother
+        the cartel. He answers questions that are safe to answer and
+        redirects the rest without visible discomfort.
+      knowledge:
+        - Who is currently in holding and why (officially)
+        - Which incidents in the past week were reported vs. resolved quietly
+        - Which parts of Mos Eisley the patrol covers and which it avoids
+        - How the Republic liaison's reports differ from what actually happened
+      faction: independent
+      dialogue_style: >-
+        Flat Coruscanti-provincial Basic, slow and considered. He thinks
+        before he answers. He will answer most questions about public
+        record and deflect others so smoothly you might not notice.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*Orr glances at the cell monitors without turning away from you, a
+          habit that has become reflex after fourteen years. His hand does not
+          move toward his holster. He simply waits.*"
+        - "*He adds a note to his log with the deliberate economy of someone
+          who has been making notes for a very long time. He looks up when he
+          is finished. If you want to file something, he says, there is a form.*"
+        - "*He rotates the console screen a fraction of a degree away from you
+          -- not aggressively, just as a statement of where the line is -- and
+          goes back to watching the feeds.*"
+
+  # ======================================================================
+  # DIM-U MONASTERY - MAIN GATE -- 1 NPC (Gran gatekeeper monk)
+  # Room desc: "Huge doors rarely opened. The building was once a
+  # greenhouse. Monks move about quietly. What visitors don't know: the
+  # monastery is a front for forging transponder codes for wanted ships."
+  # The monastery's criminal trade is background lore, not stated to PCs.
+  # Gran chosen for Tatooine Outer Rim plausibility (Gran settlers common).
+  # ======================================================================
+
+  - name: Brother Selaith Vorn
+    room: "Dim-U Monastery - Main Gate"
+    species: Gran
+    description: >-
+      A Gran in undyed meditation robes stands near the heavy doors that
+      rarely open, his three eyestalks moving in a slow, independent scan
+      that covers the full arc of the entry court. He is not large and
+      he carries nothing visible, but he has the unhurried stillness of
+      someone who does not particularly need to be large or armed. The
+      Dim-U order's teachings involve contemplating cycles -- arrival and
+      departure, concealment and revelation -- and Brother Selaith has
+      been the monastery's gatekeeper long enough that the philosophy has
+      become habit. He greets almost no one. He turns away almost no one
+      either, which is a distinction visitors rarely think to notice.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 3D+1
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D
+        technical: 2D+1
+      skills:
+        perception: 4D+1
+        languages: 3D+2
+        willpower: 4D
+        persuasion: 3D+1
+        scholar: 3D+2
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Brother Selaith has staffed the Dim-U gate for eleven years. He
+        is genuinely devout in the meditative practices the order teaches;
+        he is also, in a compartmentalized way he does not examine too
+        carefully, aware that the monastery provides a service to beings
+        who need their origins to be less legible. He does not involve
+        himself in that second thing. He meets visitors, he answers
+        questions about the order's teachings, and he tells those who
+        arrive without an introduction that the brothers are in morning
+        contemplation and will receive guests after the third bell. He has
+        said this so many times that it no longer feels like a deflection.
+      knowledge:
+        - Dim-U spiritual teachings involving arrival, departure, and cycles
+        - The monastery's history as a converted greenhouse
+        - Which hours the brothers receive visitors and which they do not
+        - The faces of regular arrivals, whom he remembers without comment
+      faction: independent
+      dialogue_style: >-
+        Measured Gran Basic with the unhurried rhythm of a species that
+        evolved social consensus over speed. Each answer is complete and
+        considered. He does not rush and cannot be rushed.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*All three eyestalks converge on you with a calm, evaluating focus that
+          manages to be neither welcoming nor alarming. He does not move. He is
+          simply present in the way that doors are present.*"
+        - "*He considers the question for a moment -- not because he does not know
+          the answer but because he is deciding which part of the answer serves
+          both of you. Then he responds, simply.*"
+        - "*Brother Selaith inclines his head in a gesture that is clearly
+          courteous and just as clearly final. The brothers are in contemplation.
+          The third bell is not long.*"
+
+  # ======================================================================
+  # HOUSE OF MOMAW NADON -- 1 NPC (Twi'lek botanical assistant)
+  # Room desc: "Inside, humidity hits immediately. Insulated walls drip
+  # with condensation. An artificial pond feeds a lush garden spilling
+  # into a forested subterranean level. The Ithorian owner prefers
+  # privacy and receives few uninvited visitors."
+  # NOTE: Momaw Nadon (canon Ithorian owner) is Phase 4 planned and
+  # NOT added here. Noor Blen is a hired caretaker/botanical assistant.
+  # ======================================================================
+
+  - name: Noor Blen
+    room: "House of Momaw Nadon"
+    species: Twi'lek
+    description: >-
+      A female Twi'lek in practical work clothes and moisture-resistant
+      gloves tends the garden that grows where a Tatooine home has no
+      business growing anything. She moves through the artificial mist
+      with the ease of someone who has memorized the placement of every
+      plant -- including which ones will sting you if you brush them
+      coming through the subterranean passage. She works for the house's
+      Ithorian owner, whose botanically precise requirements she executes
+      with skill and whose privacy she maintains with something approaching
+      religious conviction. She will tell you what she can, which is mostly
+      the names of the plants and when to water them.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+1
+        technical: 2D+2
+      skills:
+        scholar: 3D+2
+        con: 3D+1
+        languages: 3D
+        willpower: 3D+2
+        medicine: 2D+2
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Noor came to Mos Eisley from Ryloth three years ago and took
+        the caretaking post because the work was unusual and the pay
+        was reliable. She has since developed genuine expertise in
+        off-world botanical species and a genuine attachment to the
+        garden she tends daily. She is loyal to the Ithorian's privacy
+        not out of fear but out of a professional pride that extends
+        to keeping his boundaries. She is warm with visitors who respect
+        the plants and notably cooler with those who don't. She can
+        discuss the garden's contents at length. She will not discuss
+        the owner's schedule, habits, or whereabouts.
+      knowledge:
+        - Every species of plant in the garden and its growing requirements
+        - The climate control systems maintaining humidity in an arid planet
+        - Which off-world plants are rare and what they are worth
+        - The Ithorian owner's preference for quiet and privacy
+      faction: independent
+      dialogue_style: >-
+        Warm Ryloth-accented Basic when the topic is plants; precise and
+        pleasant when redirecting questions about the owner. She smiles
+        during the redirection, which makes it harder to object to.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*She wipes her hands on her gloves and glances back at the garden
+          with the expression of someone checking that her charges are fine.
+          They are. She returns her attention to you, perfectly pleasant.*"
+        - "*She picks a dried leaf from a low branch and examines it while she
+          answers -- not dismissively, just with the divided attention of someone
+          who is always half-in the garden. The leaf gets composted. She looks
+          up fully.*"
+        - "*The warm smile does not move much. He is not available. Is there
+          something I can help you with in the meantime, she asks, and means it
+          entirely sincerely.*"
+
+  # ======================================================================
+  # CITY OUTSKIRTS - SCAVENGER MARKET -- 1 NPC (Jawa market-runner)
+  # Room desc: "Outside the city wall, Jawas have established a
+  # semi-permanent trading post built from scavenged sandcrawler parts.
+  # Moisture farmers haggle over vaporator components. Droids of
+  # questionable provenance stand in crooked rows."
+  # Distinct from Ruzz-tha (Jawa Traders, Drop B) -- that is the city
+  # shop; this is the outdoor scavenger post outside the wall.
+  # Jawa stats: DEX 3D+1 / STR 1D / TEC 3D+2 from WEG canon (unverified).
+  # ======================================================================
+
+  - name: Jawa Scavenger Urrt-kak
+    room: "City Outskirts - Scavenger Market"
+    species: Jawa
+    description: >-
+      A small robed figure in the hooded brown wrappings of a Jawa moves
+      between the crooked rows of droids with the proprietary energy of
+      someone who has personally carried each one here and knows exactly
+      how much it cost them in sandstorm time and fuel cells. Urrt-kak
+      runs this particular cluster of the outdoor market -- not the whole
+      sprawl, which has its own territorial arrangements, but this section,
+      the one with the sign. The sign says GOOD DROIDS CHEEP in Urrt-kak's
+      phonetic Basic, which is more or less accurate depending on your
+      definition of good. Bright orange eyes assess you from the hood's
+      shadow. Urrt-kak's Jawaese is fast, emphatic, and accompanied by
+      hand gestures that fill in the parts Basic doesn't cover.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D+1
+        mechanical: 3D
+        perception: 3D
+        strength: 1D
+        technical: 3D+2
+      skills:
+        bargain: 4D+1
+        value: 4D+2
+        droid_programming_repair: 4D+1
+        repulsorlift_repair: 3D+2
+        search: 3D+2
+        languages: 2D+2
+      weapon: none
+      move: 8
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Urrt-kak is a Jawa who has been running this outdoor market
+        section outside the city wall for four seasons and considers
+        it sovereign territory. Every droid in the rows has been
+        pulled from a wreck, refurbished to some degree, and priced
+        at what the market will bear, which is higher than it looks
+        and negotiable if you know the right gesture. Urrt-kak speaks
+        very fast Jawaese and a remarkable amount of pidgin Basic for
+        someone who learned it from moisture farmers, cargo labels,
+        and the Republic's mandatory warning notices on salvageable
+        droids. The orange eyes are constantly pricing everything.
+      knowledge:
+        - Every droid in the market section and what it cost to bring here
+        - Salvage quality, droid models, and vaporator component provenance
+        - Which moisture farmers buy regularly and what they like to find
+        - Sandcrawler travel routes through the outskirts and the Jundland fringe
+      faction: hutt_cartel
+      dialogue_style: >-
+        Rapid-fire Jawaese with interspersed Basic words (numbers,
+        components, deal-closers, and a few emphatic adjectives).
+        Gestures constantly. Utini punctuates agreement; a double
+        hand-wave means the price is not moving.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+        - "*Urrt-kak's robes rustle in an emphatic gesture that encompasses the
+          entire market section. A stream of Jawaese follows, of which you catch
+          'good price' and 'fixed yesterday' and what might be a number.*"
+        - "*The orange eyes flicker toward a droid in the third row and back to
+          you, then to your equipment, in an assessment that takes approximately
+          two seconds and ends with a click of the tongue and a hand-wave.*"
+        - "*Urrt-kak produces a vaporator fitting from somewhere in the robes
+          and holds it up. Utini. The word conveys complete confidence in the
+          product and a price that is somehow implied by the angle of the tilt.*"
