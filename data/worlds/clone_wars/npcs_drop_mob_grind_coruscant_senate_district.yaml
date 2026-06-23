@@ -1,0 +1,460 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_coruscant_senate_district.yaml
+#
+# Coruscant Senate District & Upper-City Expansion Mob Grind Batch (2026-06-23)
+#
+# Six roaming hostile NPCs seeded across six previously uncovered Coruscant rooms
+# spanning three zones: senate_district (3 rooms), monumental_district (2 rooms),
+# and commercial_district (1 room). All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone spread:
+#   Coruscant - Westport Spaceport (senate_district)             x1  (Rodian cargo jackal)
+#   Coruscant - Glitannai Esplanade (senate_district)            x1  (Bothan leverage specialist)
+#   Coruscant - Monument Plaza (senate_district)                  x1  (Human CIS intelligence observer)
+#   Coruscant - Calocour Heights - Marketing Row (monumental_district) x1 (Devaronian corporate thief)
+#   Coruscant - Calocour Heights - Overlook Terrace (monumental_district) x1 (Trandoshan contract enforcer)
+#   Coruscant Works - Engineering Corps Habitation Block (commercial_district) x1 (Weequay CIS saboteur)
+#
+# Species diversity: Rodian / Bothan / Human / Devaronian / Trandoshan / Weequay — 6 distinct.
+#
+# Thematic premise: The Senate District's security perimeter concentrates clone trooper
+# presence on government facilities, not the streets around them. Westport's passenger
+# crush, the Esplanade's wealthy foot-traffic, and Monument Plaza's robed pilgrims are
+# exactly the blind spots that criminal and intelligence operators target. The two
+# Calocour Heights rooms (marketing Row / Overlook Terrace) carry security_level: secured,
+# but that hardened perimeter is aimed at residents; the people who already have
+# access — a delivery contact, a maintenance contractor — present a different problem.
+# The Works habitation block's civilian maintenance wing has a sabacc table and
+# relaxed oversight that makes it a useful staging point for infiltrators.
+#
+# All rooms confirmed in data/worlds/clone_wars/planets/coruscant.yaml at HEAD.
+# Room name → planet YAML name matches exactly (see test for validation).
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats. WEG40120 PDF unavailable in this tree;
+#   stats are UNVERIFIED against the PDF. Grounded in sibling CW NPC
+#   patterns (coruscant_monumental + coruscant_midlevels baselines).
+# Weapons: blaster_pistol / concealed_blaster / hold_out_blaster / vibroblade —
+#   all keys confirmed in data/weapons.yaml at HEAD.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # WESTPORT SPACEPORT — 1 NPC (Rodian cargo jackal)
+  # Public berths, floating platform manifests, passenger crush — a
+  # busy spaceport at a node between the Senate and Jedi Temple. Clone
+  # troopers at the main terminal watch credentials, not the freight
+  # lanes. A Rodian working the cargo periphery is nearly invisible.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Spaceport Cargo Jackal
+    room: "Coruscant - Westport Spaceport"
+    species: Rodian
+    description: >-
+      A Rodian in a freight handler's jumpsuit, the shoulder logo
+      of a defunct shipping house still on the sleeve, working the
+      platform lanes along Westport's lower tier where the floating
+      manifest boards are thick and the clone trooper patrol routes
+      do not go. He has a practiced way of standing near unchecked
+      cargo as if he has been assigned to it — clipboard in one
+      hand, blaster pistol in the other if the clipboard stops
+      being persuasive. He has been running this operation at
+      Westport for two months: case a manifest, identify unaccompanied
+      freight, intercept before the owner clears customs. His
+      compound eyes have already calculated exactly how much trouble
+      you are going to be, and the answer is not more than he
+      can manage.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        dodge: 3D+1
+        search: 3D+1
+        streetwise: 3D
+        con: 2D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A professional freight thief who has learned to read the rhythm
+        of Westport's cargo lanes the way a pilot reads instruments —
+        the timing is everything, and when it goes wrong it goes wrong
+        fast. He does not negotiate once the blaster is out; he either
+        finishes the job or he doesn't, and the calculation that happens
+        in his compound eyes is the only warning you get.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Clipped, practical Rodian-accented Basic. "Wrong manifest.
+        Walk away." The blaster is already level.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The clipboard goes into the freight chute and the blaster comes up in the same motion.*"
+        - "*He fires from the cover of a stack of cargo crates and steps sideways.*"
+        - "*'Wrong platform.' He fires again and retreats toward the berthing lanes.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # GLITANNAI ESPLANADE — 1 NPC (Bothan leverage specialist)
+  # The Esplanade's ritziest addresses draw senators and executives
+  # who pay premium prices for privacy — which makes them ideal targets
+  # for a Bothan who trades in the kind of information that is worth
+  # more to its subject than to any buyer.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Bothan Leverage Specialist
+    room: "Coruscant - Glitannai Esplanade"
+    species: Bothan
+    description: >-
+      A Bothan in expensively understated clothing, moving along the
+      Esplanade with the unhurried confidence of someone who belongs
+      here and knows it. He has been on Glitannai for six weeks,
+      attending the same restaurants as the senators and executives,
+      collecting what people say when they think their privacy has
+      been bought by the location. The concealed blaster is a last
+      resort — information is his currency, and violence is
+      expensive — but when a target threatens to become a problem
+      instead of a revenue stream, the calculation changes. He does
+      not issue warnings; a Bothan who has warned you has already
+      decided how this ends, and the end is not the warning.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 3D
+        mechanical: 2D
+        perception: 3D
+        strength: 2D
+        technical: 2D+1
+      skills:
+        blaster: 3D+2
+        dodge: 3D
+        languages: 4D
+        streetwise: 4D
+        persuasion: 3D+2
+        con: 3D+1
+      weapon: concealed_blaster
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Bothan intelligence operative running an independent leverage
+        operation in the Esplanade's high-value social circuit. He is
+        cerebral, patient, and capable of sustained composure under
+        pressure — but he has been in the intelligence trade long enough
+        to know when a situation has passed the point where composure
+        is the best tool. When that threshold arrives, the concealed
+        blaster appears without drama and the operative stops talking.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Smooth, cultivated Basic with the precise Bothan vowel
+        construction that makes every sentence sound like a
+        proposition. "You know something I should know." Then the
+        concealed blaster is in his hand before the sentence has
+        finished resolving.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The Bothan produces the concealed blaster with the speed of someone who has practised this specific motion for years.*"
+        - "*He fires twice and steps behind a restaurant canopy pillar — he already noted the sight lines.*"
+        - "*'Bad data.' He fires again, moving toward the next pillar.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # MONUMENT PLAZA — 1 NPC (Human CIS intelligence observer)
+  # The Flames of Umate pilgrims who meditate at the bedrock summit
+  # of Umate provide ideal cover: robed, contemplative, and numerous
+  # enough that one more figure in the crowd is unremarkable. The
+  # clone trooper foot-routes avoid disrupting the religious site.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: CIS Intelligence Observer
+    room: "Coruscant - Monument Plaza"
+    species: Human
+    description: >-
+      A Human in the ash-grey robes of the Flames of Umate sect,
+      seated in meditation posture at the base of one of the heroic
+      statues with both hands resting on the cold granite of the
+      summit rock and a patience that looks indistinguishable from
+      genuine piety. He is not here for the world-spirit. He is
+      counting Senate traffic patterns: which senators use the
+      Glitannai approach versus the Chancellor's Avenue entrance,
+      which security details rotate when, which couriers take the
+      plaza shortcut with unencrypted datachips. He has been doing
+      this for eleven days and the robes have not attracted a second
+      glance. When you give him one, the blaster pistol appears
+      from under the robe with the unhurried precision of someone
+      who has pre-visualised this exact moment. He does not break
+      from the meditation posture until he has to.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 3D+2
+        dodge: 3D
+        con: 3D+2
+        search: 3D
+        hide: 3D+1
+        sneak: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A CIS field intelligence operative running a passive observation
+        post at Monument Plaza under religious cover. He is disciplined,
+        understated, and trained to disengage rather than engage when
+        exposure is possible — but the training also covers the
+        scenario where disengagement is not an option. In that case
+        the blaster appears from under the robe and the operative
+        becomes a very different kind of problem from the meditating
+        pilgrim he was a moment before.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Quiet, measured Basic with no regional accent — the trained
+        neutrality of someone who has been briefed on how intelligence
+        operatives are detected. "I think you have the wrong plaza."
+        Then the blaster is out and he is already moving.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The robe's inner fold opens and the blaster pistol is in his hand before the meditation posture ends.*"
+        - "*He fires once and uses the statue's base as cover, precise and calm.*"
+        - "*'Wrong observation.' He fires again and moves toward the bedrock summit — higher ground.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # CALOCOUR HEIGHTS - MARKETING ROW — 1 NPC (Devaronian corporate thief)
+  # Luxury apartments above marketing-agency offices; residents are senior
+  # executives and the occasional senator who values anonymity. A Devaronian
+  # running a data-extraction operation here has access to both the agencies'
+  # servers and the residents' private terminals — everything happens on the
+  # same building network.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Devaronian Data Extractor
+    room: "Coruscant - Calocour Heights - Marketing Row"
+    species: Devaronian
+    description: >-
+      A Devaronian in a courier's uniform — the livery of a mid-tier
+      datacourier firm that services the marketing agencies below —
+      moving with the specific unhurried efficiency of someone who
+      makes regular deliveries here and knows exactly when the lobby
+      security sweep runs. He is carrying two things: a sealed delivery
+      case that is not carrying any delivery, and a hold-out blaster
+      under the courier vest. The data extraction operation runs off
+      a sliced terminal in one of the agency suites — two minutes to
+      copy, two minutes to wipe the intrusion trace, then back to the
+      lobby before the sweep. When you make it clear you have noticed
+      the second visit this hour, the case goes down and the blaster
+      comes up. He has a very narrow window and you have just closed it.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+1
+        technical: 2D+2
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        con: 3D+2
+        streetwise: 3D+1
+        sneak: 3D
+        computer_ops: 3D+2
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Devaronian corporate intelligence operative running a data-
+        extraction circuit through Marketing Row's building network.
+        He is professional, time-pressured, and has a trained response
+        to exposure: the operation ends, the blaster comes out, and
+        the problem is resolved with the minimum necessary violence to
+        exit the building. He has done this before in four other
+        buildings in the Heights and knows exactly how much noise is
+        too much noise.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Smooth, professional Basic with the faint Devaronian
+        lilt that he usually suppresses but lets through when
+        he is annoyed. "Misdelivery. Moving on." Then the hold-out
+        blaster is in his hand and the delivery case is already
+        dropping to the floor.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The delivery case hits the floor and the hold-out blaster is already level — he's practised this transition.*"
+        - "*He fires once and backs toward the turbolift — he knows where the coverage gaps are.*"
+        - "*'Wrong timing.' He fires again and moves sideways, using the lobby pillar for cover.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # CALOCOUR HEIGHTS - OVERLOOK TERRACE — 1 NPC (Trandoshan contract enforcer)
+  # High-end condos with private turbolifts and discreet security checks —
+  # which means debts incurred by residents here are handled discreetly.
+  # A Trandoshan who has been hired to collect on one of those debts has
+  # worked out how to pass the lobby check: his client is a resident.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Trandoshan Debt Enforcer
+    room: "Coruscant - Calocour Heights - Overlook Terrace"
+    species: Trandoshan
+    description: >-
+      A Trandoshan in a dark formal jacket that does not quite hide
+      the bulk underneath it, standing near the transparisteel deck
+      railing of Overlook Terrace with the still patience of a
+      species that has no difficulty waiting for the thing it is
+      waiting for. He has been on the terrace for forty minutes.
+      The resident who owes his employer sixty thousand credits has
+      not returned from the morning caf run. He is not concerned.
+      His amber eyes sweep the terrace and the cloud-line view
+      without appearing to look at anything specific — the reptilian
+      stillness that people who have not dealt with Trandoshans
+      mistake for passivity. The vibroblade is beneath the jacket
+      in a horizontal draw rig. When you occupy the space between
+      him and his exit, the jacket opens.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+1
+        strength: 3D+2
+        technical: 2D
+      skills:
+        melee_combat: 4D+2
+        brawling: 4D
+        dodge: 3D
+        intimidation: 3D+2
+        search: 2D+2
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Trandoshan debt-collection enforcer working a contract in the
+        Calocour Heights luxury residential tier. He is methodical, unhurried,
+        and physically formidable enough that he rarely needs to be otherwise.
+        When something disrupts the collection — unexpected witnesses,
+        interference — he responds with controlled melee force and uses the
+        terrace geometry to limit his exposure to the building's security
+        systems. He does not pursue past the exit point; the contract specifies
+        collection, not elimination, and he is professional about the distinction.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Low, unhurried Trandoshan Basic with the patient cadence of
+        a species that does not raise its voice. "Wrong terrace."
+        The vibroblade comes out of the jacket in a single smooth
+        motion and the Trandoshan moves to cut the angle to the
+        exit.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The vibroblade comes out of the jacket rig in one horizontal draw — he had the angle before he spoke.*"
+        - "*He drives forward with the blade, using the railing to funnel your movement.*"
+        - "*A low Trandoshan sound — satisfaction, possibly — and the vibroblade comes around again.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # ENGINEERING CORPS HABITATION BLOCK — 1 NPC (Weequay CIS saboteur)
+  # Clone troopers occupy one wing; civilian maintenance workers another.
+  # The sabacc table has been running for three years and the common room
+  # is relaxed about who sits in. A Weequay who has spent four shifts
+  # playing sabacc against the civilian crew knows the maintenance
+  # schedule for every Works system within six levels.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Weequay CIS Saboteur
+    room: "Coruscant Works - Engineering Corps Habitation Block"
+    species: Weequay
+    description: >-
+      A Weequay in civilian maintenance coveralls with the Works
+      department insignia — the kind that can be sourced from any
+      labour exchange in the lower commercial district — sitting at
+      the sabacc table in the common room with a small stack of chips
+      and the weathered expression of someone who has been losing
+      steadily for two shifts by design. He is listening to everything
+      the civilian crew says about their rotation schedules, the
+      atmospheric processors, the power grid maintenance windows.
+      All of it goes into a datapad in a shielded interior pocket.
+      He is three shifts away from having what he needs. When you
+      sit down uninvited and ask the wrong question, the data
+      collection phase ends and the next phase begins: the blaster
+      pistol comes out from under the coveralls and the Weequay
+      stops looking like a bad sabacc player.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D+1
+        perception: 2D+1
+        strength: 3D
+        technical: 2D+2
+      skills:
+        blaster: 4D
+        dodge: 3D
+        sneak: 3D+1
+        demolitions: 3D
+        con: 2D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Weequay CIS saboteur embedded in the Engineering Corps
+        habitation block under civilian maintenance cover. He is
+        patient by training, methodical by temperament, and has
+        internalized the Weequay cultural relationship between
+        stillness and inevitability. The sabacc-losing routine is
+        calculated; the blaster under the coveralls is what the
+        routine is protecting. When cover is blown, he abandons
+        the routine completely and addresses the problem directly
+        and without delay.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Flat Weequay-accented Basic, economical and unhurried.
+        "Wrong shift." The blaster pistol comes out from under
+        the coveralls and the datapad goes back in the pocket
+        in the same motion.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The sabacc chips scatter as he stands — the blaster is already clear of the coveralls.*"
+        - "*He fires and steps behind the sabacc table, using it as cover and the common-room geometry to control the choke points.*"
+        - "*'Wrong question.' He fires again and moves for the maintenance corridor exit — he has already walked it.*"
