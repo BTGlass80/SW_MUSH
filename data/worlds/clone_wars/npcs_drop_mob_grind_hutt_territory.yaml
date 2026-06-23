@@ -1,0 +1,319 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_hutt_territory.yaml
+#
+# Hutt Territory — Contested Criminal Strongholds Mob Grind Batch (2026-06-23)
+#
+# Four roaming hostile NPCs seeded across four previously uncovered Hutt-controlled
+# contested rooms: two in the Nar Shaddaa Hutt Emissary Tower (lobby + audience
+# chamber) and two in Jabba's Townhouse in Mos Eisley (entrance + audience chamber).
+# All four satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone spread (all 4 rooms had zero hostile NPCs at HEAD):
+#   Nar Shaddaa - Hutt Emissary Tower - Lobby x1         (Gamorrean checkpoint guard)
+#   Nar Shaddaa - Hutt Emissary Tower - Audience Chamber x1 (Klatooinian audience enforcer)
+#   Jabba's Townhouse - Main Entrance x1                  (Aqualish door muscle)
+#   Jabba's Townhouse - Audience Chamber x1               (Weequay throne guard)
+#
+# Rooms confirmed hutt_cartel / security_level: contested:
+#   hutt_emissary_tower_lobby:    faction_override: hutt_cartel, security_level: contested
+#   hutt_emissary_tower_audience: faction_override: hutt_cartel, security_level: contested
+#   jabbas_townhouse_entrance:    faction_override: hutt_cartel, security_level: contested
+#   jabbas_townhouse_audience:    faction_override: hutt_cartel, security_level: contested
+#
+# Thematic premise: Hutt criminal operations on Nar Shaddaa and Tatooine maintain
+# dedicated enforcement muscle at their most sensitive locations. The Emissary Tower
+# on Nar Shaddaa receives CIS and Republic envoys under contested truce — the
+# Gamorrean checkpoint and Klatooinian audience enforcer keep order by threat of
+# force. Jabba's Mos Eisley townhouse operates under the nominal cover of a
+# wealthy private residence; the Aqualish at the door and the Weequay in the
+# audience chamber ensure that "private" stays enforced at close range.
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original; Jabba is off-site
+#   (canonical figure — not instanced as an NPC).
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats. WEG40120 PDF absent from this worktree;
+#   stats UNVERIFIED against PDF. Grounded in sibling CW NPC patterns
+#   and established species baselines:
+#   Gamorrean:   DEX 1D+2, STR 3D+1–3D+2, melee_combat 4D+1–4D+2.
+#   Klatooinian: average humanoid, blaster 3D–4D; loyal Hutt servants
+#                (Honor Bond; appear in TCW era).
+#   Aqualish:    STR 2D+2, DEX 2D+2, blaster 4D; known aggressive types.
+#   Weequay:     STR 3D, DEX 2D+1–2D+2, melee_combat 4D; Hutt enforcer
+#                archetype (skiff guards in later eras).
+# Weapons: vibroblade, blaster_carbine, heavy_blaster_pistol —
+#   all keys confirmed in data/weapons.yaml at HEAD.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # NAR SHADDAA - HUTT EMISSARY TOWER - LOBBY — 1 NPC (Gamorrean checkpoint guard)
+  # The lobby's polished duranium floors, garish lighting, and Hutt
+  # clan sigil speak to wealth and permanence. The real message is
+  # the Gamorrean at the turbolift checkpoint: visitors are scanned
+  # twice, and anyone who comes back wrong gets this.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Gamorrean Tower Guard
+    room: "Nar Shaddaa - Hutt Emissary Tower - Lobby"
+    species: Gamorrean
+    description: >-
+      A massive Gamorrean in the dark-green Hutt-house livery that marks
+      him as tower security rather than a street grunt: the fabric is
+      better, the Hutt clan sigil is embroidered on the shoulder, and
+      the vibroblade is polished to a mirror finish. He does not manage
+      the checkpoint desk — the protocol droid handles appointments,
+      the scanner handles weapons, and the Gamorrean handles anyone the
+      scanner flags or the protocol droid can't redirect. He is watching
+      you with the full weight of his compact intelligence, which has
+      concluded something it does not need to articulate. When he moves,
+      he is faster than his bulk suggests.
+    char_sheet:
+      attributes:
+        dexterity: 1D+2
+        knowledge: 1D
+        mechanical: 1D
+        perception: 1D+2
+        strength: 3D+2
+        technical: 1D
+      skills:
+        melee_combat: 4D+2
+        brawling: 4D
+        dodge: 2D
+        intimidation: 3D
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Gamorrean hired specifically for the Hutt Emissary Tower's
+        lobby checkpoint — he is here because the Hutt organization
+        learned that a massive, visibly armed Gamorrean in livery
+        deters problems that a protocol droid cannot. He responds to
+        unauthorized access with immediate physical intervention; the
+        vibroblade is the answer to everything the scanner flags, and
+        the scanner flags you.
+      knowledge: []
+      faction: hutt_cartel
+      dialogue_style: >-
+        Guttural Gamorrean grunts that need no translation — the
+        vibroblade is already out of the belt-ring before the sound
+        fades. The protocol droid translates nothing; it backs away
+        from the scene.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The Gamorrean steps forward from the checkpoint without sound — the vibroblade already at guard.*"
+        - "*A guttural warning sound, and then the vibroblade swings low.*"
+        - "*He drives between you and the turbolift, using his bulk to control the space.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # NAR SHADDAA - HUTT EMISSARY TOWER - AUDIENCE CHAMBER — 1 NPC
+  # (Klatooinian audience enforcer)
+  # The chamber is designed to diminish anyone who enters: raised dais,
+  # uncomfortable chairs, wall-mounted cameras recording everything.
+  # Between the recording equipment and the Hutt's absence, a Klatooinian
+  # enforcer maintains order and protocol — he knows every visitor's file
+  # and enforces the audience process with calm authority backed by a
+  # carbine slung across his chest.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Klatooinian Audience Enforcer
+    room: "Nar Shaddaa - Hutt Emissary Tower - Audience Chamber"
+    species: Klatooinian
+    description: >-
+      A Klatooinian in the formal livery of a senior Hutt house aide,
+      standing near the wall-mounted camera array at the chamber's
+      perimeter with the settled bearing of someone who has been in
+      this room for every meeting this tower has hosted. The blaster
+      carbine slung across his chest is part of the uniform — not a
+      threat display, just a fact. His file on you came through the
+      moment your name cleared the lobby scanner, and the expression
+      he is giving you now is the expression he gives people whose
+      file he has read and whose visit he has already categorised.
+      The repulsor sled's empty dais behind him makes the room feel
+      more enclosed, not less. When you step toward it without
+      invitation, he turns in one smooth motion and the carbine is
+      no longer slung.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 3D+2
+        dodge: 3D
+        intimidation: 3D
+        search: 2D+2
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Klatooinian senior aide with the Honor Bond devotion
+        to Hutt service that defines his species — he does not find
+        this servitude degrading; he finds it structuring. His role
+        in the audience chamber is protocol management and physical
+        enforcement, and he is practiced at both. Unauthorized access
+        to the dais or the Hutt's personal space triggers the carbine
+        response without negotiation; he has explained audience protocol
+        once already.
+      knowledge: []
+      faction: hutt_cartel
+      dialogue_style: >-
+        Measured Basic with Klatooinian vowel-rounding. Formal,
+        factual, brief. "The audience is not scheduled." Then the
+        carbine is at shoulder before the sentence finishes.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The Klatooinian steps away from the wall and fires in the same motion, using the dais as a backstop.*"
+        - "*He fires twice and adjusts — the carbine tracks you across the chamber floor.*"
+        - "*No announcement. No further explanation. The carbine fires.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # JABBA'S TOWNHOUSE - MAIN ENTRANCE — 1 NPC (Aqualish door muscle)
+  # The reinforced blast door, the sensor eye, the beggars outside
+  # who are not beggars — all of it communicates that entry is not
+  # informal. Inside the blast door, where the street cover ends and
+  # the real operation begins, an Aqualish handles the first ten
+  # meters. He decides who moves further.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Aqualish Entrance Muscle
+    room: "Jabba's Townhouse - Main Entrance"
+    species: Aqualish
+    description: >-
+      An Aqualish with the broad, multi-eyed face and aggressive
+      bearing of a species bred for Outer Rim environments where
+      negotiation was historically shorter-lived than force. He
+      occupies the inner entrance corridor with the proprietary ease
+      of someone who owns the first ten meters past the blast door
+      in the way that a territorial predator owns a chokepoint: he
+      has stood here, he decides what passes, and the heavy blaster
+      on his hip has settled the few cases where the decision was
+      disputed. His four eyes track you simultaneously from different
+      angles — the multi-spectral arrangement that makes Aqualish
+      notoriously difficult to approach unannounced. He watched you
+      come through the door. He has already decided. The blaster
+      comes off the hip with practiced speed.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        intimidation: 3D+2
+        brawling: 3D
+      weapon: heavy_blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 3
+    ai_config:
+      personality: >-
+        An Aqualish strongarm who has worked Jabba's Mos Eisley
+        townhouse entrance long enough to have opinions about what
+        constitutes a threat and a very short patience for second
+        opinions. He does not escalate — he categorises. "Belongs"
+        or "doesn't belong." You are in the second category and he
+        has already drawn.
+      knowledge: []
+      faction: hutt_cartel
+      dialogue_style: >-
+        Aqualish Basic — short words, heavy accent, entirely
+        to the point. "Wrong place." Then the heavy blaster
+        comes up without further elaboration.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The Aqualish fires and steps sideways, keeping the blast door behind him — a solid backstop.*"
+        - "*All four eyes track you; the heavy blaster fires twice before you can reposition.*"
+        - "*He drives you toward the corridor wall with controlled fire, giving ground only to a better angle.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # JABBA'S TOWNHOUSE - AUDIENCE CHAMBER — 1 NPC (Weequay throne guard)
+  # Specially constructed to dominate visitors: the Hutt sled's
+  # raised position, the Kayven Whistlers in the ceiling net above
+  # the supplicant's chair, the security cameras recording from
+  # three angles. On days when Jabba is elsewhere, a Weequay guard
+  # holds the chamber, which suits him — the room runs the
+  # intimidation automatically and he just has to be in it.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Weequay Throne Guard
+    room: "Jabba's Townhouse - Audience Chamber"
+    species: Weequay
+    description: >-
+      A lean, sun-darkened Weequay standing at the chamber's edge
+      near the hookah stand with the comfortable stillness of a
+      species that communicates status through stillness and age.
+      The vibroblade at his hip is old-model, worn through years
+      of actual use rather than display — the handle shows where
+      grip pressure has polished the surface smooth. He holds the
+      chamber on days when the owner is absent, which means he
+      holds it as a Weequay holds anything: absolutely and without
+      visible effort. The Kayven Whistlers shift in the ceiling
+      net above the visitor's chair. He watches you enter with
+      the patient assessment of someone who has seen exactly this
+      situation before and knows which direction it resolves.
+      The vibroblade comes off his hip without drama.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D
+        mechanical: 1D+2
+        perception: 2D+2
+        strength: 3D
+        technical: 2D
+      skills:
+        melee_combat: 4D
+        brawling: 4D+1
+        dodge: 3D+1
+        intimidation: 3D+2
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Weequay who has worked Jabba's audience chamber long
+        enough to be trusted with it unsupervised — a significant
+        operational endorsement in a Hutt organization. He is calm,
+        unhurried, and responds to unauthorized presence in the
+        chamber with controlled melee force rather than escalating
+        noise. He treats the chamber as territory; you are in it
+        without authorization; the vibroblade handles the rest.
+      knowledge: []
+      faction: hutt_cartel
+      dialogue_style: >-
+        Minimal. A single Weequay look — the long, flat
+        assessment — and then the vibroblade is already at guard.
+        No words unless a threat lingers, and then only: "Leave."
+        The blade does not lower.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The Weequay moves across the chamber floor with the efficiency of someone who has cleared this room before.*"
+        - "*The vibroblade comes around in a controlled arc — he is using the hookah stand as cover.*"
+        - "*A flat Weequay sound. He drives forward, pushing you toward the visitor chairs.*"
