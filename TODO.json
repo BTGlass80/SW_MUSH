@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "last_updated": "2026-06-23",
-  "last_updated_note_prev": "2026-06-23 (guide-20-scenes-plots-authoritative, Opus loop): GUIDES authoritative quality pass over Guide_20 Scenes/Plots/Places",
+  "last_updated_note_prev": "2026-06-23 (guide-21-channels-mail-news-authoritative, Opus loop): GUIDES authoritative quality pass over Guide_21 Channels/Mail/News; logged design fork COMM.comlink_not_planet_scoped",
   "architecture_of_record": "sw_d6_mush_architecture_v52.md",
   "_notes": [
     "2026-06-23 (ambient-tatooine-civic-outskirts, Sonnet loop): world-content-breadth drop — 4 non-hostile ambient NPCs filling 4 previously-empty Tatooine rooms: Police Station - Main Floor (Officer Darvesh Orr/Human desk officer), Dim-U Monastery - Main Gate (Brother Selaith Vorn/Gran monk — monastery's criminal front is background lore, not stated to PC), House of Momaw Nadon (Noor Blen/Twi'lek botanical assistant — Momaw Nadon himself is Phase 4), City Outskirts - Scavenger Market (Jawa Scavenger Urrt-kak/Jawa — distinct from Ruzz-tha at city Jawa Traders). All hostile:false, no special-reward markers. npcs_drop_ambient_tatooine_civic_outskirts.yaml; wired into era.yaml content_refs.npcs. New tests/test_drop_ambient_tatooine_civic_outskirts.py (33 tests). No engine change; no schema; no faucet/sink.",
@@ -1841,6 +1841,16 @@
     }
   ],
   "design_calls_pending_brian": [
+    {
+      "id": "COMM.comlink_not_planet_scoped",
+      "status": "OPEN",
+      "title": "comlink is documented (everywhere) as a planet-wide IC channel but is implemented as a galaxy-wide broadcast to ALL online characters — enforce planet-scoping, or rebrand it as the global IC channel?",
+      "origin": "Guide_21 Channels/Mail/News authoritative pass (drop guide-21-channels-mail-news-authoritative, 2026-06-23): documenting comlink against HEAD showed the 'planet-wide' label is aspirational only.",
+      "premise_verified_at_head": "server/channels.py ChannelManager.broadcast_comlink takes only (session_mgr, sender_name, message) and iterates `for sess in session_mgr.all: if sess.character: send`. There is NO planet/zone/room argument or filter — the sender's planet is never consulted — so comlink reaches every online character galaxy-wide, functionally identical in reach to ooc (differing only in IC framing + intercept-ability). The docstrings (server/channels.py module header + the method) and ComlinkCommand.help_text all SAY 'planet-wide', but no code enforces it. The guide was corrected to state comlink reaches all online characters (galaxy-wide IC).",
+      "fork": "(A) Make comlink genuinely planet-scoped: pass the sender's planet/zone into broadcast_comlink and filter recipients to the same planet (matches the long-standing design intent + the IC fiction of a planetary comm net), then restore the guide's 'planet-wide' framing; (B) accept galaxy-wide IC as the launch design (fine at low population — comlink = the global IC voice, ooc = the global OOC voice), update the stale docstrings/help to match, and keep the guide's galaxy-wide framing.",
+      "lane_note": "server/channels.py is not an avoid-lane and the change is small/self-contained, but which way to go is a game-feel design call (planetary immersion vs a simple global IC channel) — flagging, not guessing.",
+      "decision_needed": "Pick A or B. If A, confirm the scope key (planet vs zone) and whether cross-planet should be impossible or just default-off."
+    },
     {
       "id": "EVENT.communal_rework_staged_scenarios",
       "status": "OPEN",
