@@ -9,7 +9,7 @@ tags: ["scenes", "plots", "places", "locations", "rooms", "world"]
 
 **Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
-**Guide Version 1.0**
+**Guide Version 1.1**
 
 ---
 
@@ -449,7 +449,7 @@ This is the cantina-builder's tool for atmosphere. Instead of "Trill leaves nort
 | `depart` (alias `stand`) | Leave your current place |
 | `tt <message>` | Table-talk (place-only speech) |
 | `ttooc <message>` | OOC table-talk |
-| `mutter <player> <message>` | Private whisper to one place-mate |
+| `mutter <player> = <message>` | Private whisper to one place-mate |
 
 ### Places commands (builder)
 
@@ -501,11 +501,12 @@ Five concrete pictures.
 | Scene types | 4 (Social, Action, Plot, Vignette) |
 | Scene states | active / completed / shared |
 | Plot states | open / closed |
-| Max places per room | unlimited (typically 2-8) |
-| Max occupants per place | configurable (typically 2-6) |
+| Max places per room | 1–20 (typically 2-8) |
+| Max occupants per place | configurable (default 4, typically 2-6) |
 | Auto-logged in scenes | poses, dialogue, notable actions, arrivals/departures |
 | Not auto-logged | OOC commands, channel chatter, private pages, mechanics |
-| Recent scenes list cap | 30 |
+| Your recent scenes cap (`+scenes`) | 15 |
+| Shared / closed archive lists cap | 30 |
 | Open plots list cap | 30 |
 
 ---
