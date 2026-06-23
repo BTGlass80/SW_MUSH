@@ -403,9 +403,9 @@ class TestPureHelpers(_AnomalyTestCase):
         # SYN.7.a.fix: with a real region tag, only matching templates
         # can be returned. Dune Sea templates are the original 5.
         dune_keys = {k for k, v in TIER1_TEMPLATES.items()
-                     if "dune_sea" in v["regions"]}
+                     if "tatooine_dune_sea" in v["regions"]}
         for _ in range(20):
-            picked = _pick_template(rng, region_slug="dune_sea")
+            picked = _pick_template(rng, region_slug="tatooine_dune_sea")
             self.assertIn(picked, dune_keys)
         # Coruscant Underworld templates are disjoint.
         coru_keys = {k for k, v in TIER1_TEMPLATES.items()
@@ -518,7 +518,7 @@ class TestPruneExpiredRegion(_AnomalyTestCase):
 
 class TestSpawnAnomalyForRegion(_AnomalyTestCase):
 
-    def _bootstrap_region(self, mdb, region="dune_sea", room_ids=(10, 11)):
+    def _bootstrap_region(self, mdb, region="tatooine_dune_sea", room_ids=(10, 11)):
         mdb.seed_zone(zone_id=1)
         for rid in room_ids:
             mdb.seed_room(room_id=rid, zone_id=1,
@@ -529,11 +529,11 @@ class TestSpawnAnomalyForRegion(_AnomalyTestCase):
         from engine.wilderness_anomalies import spawn_anomaly_for_region
         mdb = self._bootstrap_region(_MiniDB())
         a = _run(spawn_anomaly_for_region(
-            mdb, "dune_sea", rng=random.Random(0), force=True,
+            mdb, "tatooine_dune_sea", rng=random.Random(0), force=True,
         ))
         self.assertIsNotNone(a)
-        self.assertEqual(a.region_slug, "dune_sea")
-        # SYN.7.a.fix: template must be one of the 5 dune_sea-tagged
+        self.assertEqual(a.region_slug, "tatooine_dune_sea")
+        # SYN.7.a.fix: template must be one of the 5 tatooine_dune_sea-tagged
         # templates, not a Coruscant one.
         self.assertIn(a.template_key,
                       ["stranded_clone_scout", "salvage_cache",
@@ -549,7 +549,7 @@ class TestSpawnAnomalyForRegion(_AnomalyTestCase):
         results = []
         for _ in range(MAX_PER_REGION + 2):
             r = _run(spawn_anomaly_for_region(
-                mdb, "dune_sea", rng=random.Random(_), force=True,
+                mdb, "tatooine_dune_sea", rng=random.Random(_), force=True,
             ))
             results.append(r)
         non_none = [r for r in results if r is not None]
@@ -569,7 +569,7 @@ class TestSpawnAnomalyForRegion(_AnomalyTestCase):
             def randint(self, lo, hi): return lo
 
         a = _run(spawn_anomaly_for_region(
-            mdb, "dune_sea", rng=_HighRoll(), force=False,
+            mdb, "tatooine_dune_sea", rng=_HighRoll(), force=False,
         ))
         self.assertIsNone(a)
 
@@ -579,7 +579,7 @@ class TestSpawnAnomalyForRegion(_AnomalyTestCase):
         # No rooms at all (and an unknown region — should still be
         # None either way)
         a = _run(spawn_anomaly_for_region(
-            mdb, "dune_sea", rng=random.Random(0), force=True,
+            mdb, "tatooine_dune_sea", rng=random.Random(0), force=True,
         ))
         self.assertIsNone(a)
 
@@ -596,8 +596,8 @@ class TestTickFlow(_AnomalyTestCase):
         mdb.seed_zone(zone_id=1)
         # SYN.7.a.fix: use a real region slug so _pick_template can
         # actually return a template.
-        mdb.seed_room(room_id=10, zone_id=1, wilderness_region_id="dune_sea")
-        mdb.seed_room(room_id=11, zone_id=1, wilderness_region_id="dune_sea")
+        mdb.seed_room(room_id=10, zone_id=1, wilderness_region_id="tatooine_dune_sea")
+        mdb.seed_room(room_id=11, zone_id=1, wilderness_region_id="tatooine_dune_sea")
 
         class _AlwaysSpawn:
             def random(self): return 0.0
@@ -704,10 +704,10 @@ class TestResolveAnomalyFailures(_AnomalyTestCase):
         )
         mdb = _MiniDB()
         mdb.seed_zone(zone_id=1)
-        mdb.seed_room(room_id=10, zone_id=1, wilderness_region_id="dune_sea")
-        mdb.seed_room(room_id=11, zone_id=1, wilderness_region_id="dune_sea")
+        mdb.seed_room(room_id=10, zone_id=1, wilderness_region_id="tatooine_dune_sea")
+        mdb.seed_room(room_id=11, zone_id=1, wilderness_region_id="tatooine_dune_sea")
         a = _run(spawn_anomaly_for_region(
-            mdb, "dune_sea", rng=random.Random(0), force=True,
+            mdb, "tatooine_dune_sea", rng=random.Random(0), force=True,
         ))
         # Char at room 11, anomaly at (likely) room 10 or 11; force
         # the mismatch
@@ -890,18 +890,18 @@ class TestStateIsolation(_AnomalyTestCase):
         mdb.seed_zone(zone_id=1)
         # SYN.7.a.fix: use two real regions (Dune Sea + Coruscant
         # Underworld) so _pick_template can find templates for both.
-        mdb.seed_room(room_id=10, zone_id=1, wilderness_region_id="dune_sea")
+        mdb.seed_room(room_id=10, zone_id=1, wilderness_region_id="tatooine_dune_sea")
         mdb.seed_room(room_id=20, zone_id=1,
                       wilderness_region_id="coruscant_underworld")
         a1 = _run(spawn_anomaly_for_region(
-            mdb, "dune_sea", rng=random.Random(0), force=True,
+            mdb, "tatooine_dune_sea", rng=random.Random(0), force=True,
         ))
         a2 = _run(spawn_anomaly_for_region(
             mdb, "coruscant_underworld", rng=random.Random(1), force=True,
         ))
         self.assertIsNotNone(a1)
         self.assertIsNotNone(a2)
-        self.assertEqual(len(get_anomalies_for_region("dune_sea")), 1)
+        self.assertEqual(len(get_anomalies_for_region("tatooine_dune_sea")), 1)
         self.assertEqual(len(get_anomalies_for_region("coruscant_underworld")), 1)
 
     def test_reset_helper(self):
@@ -911,13 +911,13 @@ class TestStateIsolation(_AnomalyTestCase):
         )
         mdb = _MiniDB()
         mdb.seed_zone(zone_id=1)
-        mdb.seed_room(room_id=10, zone_id=1, wilderness_region_id="dune_sea")
+        mdb.seed_room(room_id=10, zone_id=1, wilderness_region_id="tatooine_dune_sea")
         _run(spawn_anomaly_for_region(
-            mdb, "dune_sea", rng=random.Random(0), force=True,
+            mdb, "tatooine_dune_sea", rng=random.Random(0), force=True,
         ))
-        self.assertEqual(len(get_anomalies_for_region("dune_sea")), 1)
+        self.assertEqual(len(get_anomalies_for_region("tatooine_dune_sea")), 1)
         _reset_state_for_tests()
-        self.assertEqual(len(get_anomalies_for_region("dune_sea")), 0)
+        self.assertEqual(len(get_anomalies_for_region("tatooine_dune_sea")), 0)
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -947,8 +947,8 @@ class TestCoruscantTemplates(_AnomalyTestCase):
             regions = TIER1_TEMPLATES[k]["regions"]
             self.assertIn("coruscant_underworld", regions,
                           f"{k} not tagged for coruscant_underworld")
-            self.assertNotIn("dune_sea", regions,
-                             f"{k} leaked into dune_sea")
+            self.assertNotIn("tatooine_dune_sea", regions,
+                             f"{k} leaked into tatooine_dune_sea")
 
     def test_coruscant_templates_cw_correct(self):
         """No GCW residue in Coruscant template flavor strings."""
@@ -983,7 +983,7 @@ class TestCoruscantTemplates(_AnomalyTestCase):
                     f"{k}: archetype {spec['archetype']!r} is unknown",
                 )
 
-    def test_dune_sea_combat_templates_have_archetypes(self):
+    def test_tatooine_dune_sea_combat_templates_have_archetypes(self):
         """Same check for the Dune Sea combat templates (wounded_animal,
         tusken_party) that flipped skill→combat in SYN.7.a.fix."""
         from engine.wilderness_anomalies import TIER1_TEMPLATES
@@ -1006,7 +1006,7 @@ class TestCoruscantTemplates(_AnomalyTestCase):
 class TestRegionFiltering(_AnomalyTestCase):
     """Templates only spawn in their tagged regions."""
 
-    def test_dune_sea_never_picks_coruscant_template(self):
+    def test_tatooine_dune_sea_never_picks_coruscant_template(self):
         from engine.wilderness_anomalies import (
             _pick_template, TIER1_TEMPLATES,
         )
@@ -1014,15 +1014,15 @@ class TestRegionFiltering(_AnomalyTestCase):
                      if "coruscant_underworld" in v["regions"]}
         rng = random.Random(0)
         for _ in range(200):
-            picked = _pick_template(rng, region_slug="dune_sea")
+            picked = _pick_template(rng, region_slug="tatooine_dune_sea")
             self.assertNotIn(picked, coru_keys)
 
-    def test_coruscant_never_picks_dune_sea_template(self):
+    def test_coruscant_never_picks_tatooine_dune_sea_template(self):
         from engine.wilderness_anomalies import (
             _pick_template, TIER1_TEMPLATES,
         )
         dune_keys = {k for k, v in TIER1_TEMPLATES.items()
-                     if "dune_sea" in v["regions"]}
+                     if "tatooine_dune_sea" in v["regions"]}
         rng = random.Random(0)
         for _ in range(200):
             picked = _pick_template(rng, region_slug="coruscant_underworld")
@@ -1052,7 +1052,7 @@ class TestRegionFiltering(_AnomalyTestCase):
         compatible template. Guards against the gap that SYN.7.a.fix
         was created to close."""
         from engine.wilderness_anomalies import TIER1_TEMPLATES
-        known = ["dune_sea", "coruscant_underworld"]
+        known = ["tatooine_dune_sea", "coruscant_underworld"]
         for region in known:
             matches = [k for k, v in TIER1_TEMPLATES.items()
                        if region in v["regions"]]
@@ -1079,14 +1079,14 @@ class TestCombatResolutionSpawn(_AnomalyTestCase):
         mdb = _MiniDB()
         mdb.seed_zone(zone_id=1)
         mdb.seed_room(room_id=10, zone_id=1,
-                      wilderness_region_id="dune_sea")
+                      wilderness_region_id="tatooine_dune_sea")
         now = time.time()
         a = WildernessAnomaly(
-            id=1, region_slug="dune_sea", zone_id=1,
+            id=1, region_slug="tatooine_dune_sea", zone_id=1,
             template_key=template_key, anchor_room_id=10,
             expiry=now + 600,
         )
-        _anomalies["dune_sea"] = [a]
+        _anomalies["tatooine_dune_sea"] = [a]
         char = _make_char(char_id=1, room_id=10, faction_id=faction_id)
         return mdb, char, a
 
@@ -1169,14 +1169,14 @@ class TestCombatAnomalyReward(_AnomalyTestCase):
         mdb = _MiniDB()
         mdb.seed_zone(zone_id=1)
         mdb.seed_room(room_id=10, zone_id=1,
-                      wilderness_region_id="dune_sea")
+                      wilderness_region_id="tatooine_dune_sea")
         now = time.time()
         a = WildernessAnomaly(
-            id=1, region_slug="dune_sea", zone_id=1,
+            id=1, region_slug="tatooine_dune_sea", zone_id=1,
             template_key=template_key, anchor_room_id=10,
             expiry=now + 600,
         )
-        _anomalies["dune_sea"] = [a]
+        _anomalies["tatooine_dune_sea"] = [a]
         char = _make_char(char_id=1, room_id=10, faction_id=faction_id)
         # Persist char to the mini-DB so award_combat_anomaly_reward
         # can re-fetch it via get_character.
@@ -1293,7 +1293,7 @@ class TestCombatAnomalyReward(_AnomalyTestCase):
         )
         # Force the anomaly to expire.
         a.expiry = time.time() - 60
-        _prune_expired_region("dune_sea")
+        _prune_expired_region("tatooine_dune_sea")
         # Now the NPC is killed.
         payout = _run(award_combat_anomaly_reward(
             mdb, killer_char_id=1, npc_id=a.spawned_npc_ids[0],
@@ -1310,7 +1310,7 @@ class TestCombatAnomalyReward(_AnomalyTestCase):
         mdb = _MiniDB()
         mdb.seed_zone(zone_id=1)
         mdb.seed_room(room_id=10, zone_id=1,
-                      wilderness_region_id="dune_sea")
+                      wilderness_region_id="tatooine_dune_sea")
         npc_id = _run(mdb.create_npc(
             name="Random Goon", room_id=10, species="Human",
             char_sheet_json="{}",
@@ -1363,7 +1363,7 @@ class TestExpiredAnomalyNpcCleanup(_AnomalyTestCase):
         mdb = _MiniDB()
         mdb.seed_zone(zone_id=1)
         mdb.seed_room(room_id=10, zone_id=1,
-                      wilderness_region_id="dune_sea")
+                      wilderness_region_id="tatooine_dune_sea")
         # Create an expired anomaly with a live NPC.
         npc_id = _run(mdb.create_npc(
             name="Old Hostile", room_id=10, species="Human",
@@ -1374,17 +1374,17 @@ class TestExpiredAnomalyNpcCleanup(_AnomalyTestCase):
         ))
         now = time.time()
         a = WildernessAnomaly(
-            id=1, region_slug="dune_sea", zone_id=1,
+            id=1, region_slug="tatooine_dune_sea", zone_id=1,
             template_key="tusken_party", anchor_room_id=10,
             expiry=now - 60,   # expired
         )
         a.spawned_npc_ids = [npc_id]
-        _anomalies["dune_sea"] = [a]
+        _anomalies["tatooine_dune_sea"] = [a]
         # NPC exists before cleanup.
         self.assertIsNotNone(_run(mdb.get_npc(npc_id)))
         # Cleanup pass.
         removed = _run(_prune_expired_region_with_cleanup(
-            mdb, "dune_sea", now,
+            mdb, "tatooine_dune_sea", now,
         ))
         self.assertEqual(removed, 1)
         # NPC is gone.
@@ -1399,7 +1399,7 @@ class TestExpiredAnomalyNpcCleanup(_AnomalyTestCase):
         mdb = _MiniDB()
         mdb.seed_zone(zone_id=1)
         mdb.seed_room(room_id=10, zone_id=1,
-                      wilderness_region_id="dune_sea")
+                      wilderness_region_id="tatooine_dune_sea")
         npc_id = _run(mdb.create_npc(
             name="Live Hostile", room_id=10, species="Human",
             char_sheet_json="{}",
@@ -1409,13 +1409,13 @@ class TestExpiredAnomalyNpcCleanup(_AnomalyTestCase):
         ))
         now = time.time()
         a = WildernessAnomaly(
-            id=1, region_slug="dune_sea", zone_id=1,
+            id=1, region_slug="tatooine_dune_sea", zone_id=1,
             template_key="tusken_party", anchor_room_id=10,
             expiry=now + 600,   # fresh
         )
         a.spawned_npc_ids = [npc_id]
-        _anomalies["dune_sea"] = [a]
-        _run(_prune_expired_region_with_cleanup(mdb, "dune_sea", now))
+        _anomalies["tatooine_dune_sea"] = [a]
+        _run(_prune_expired_region_with_cleanup(mdb, "tatooine_dune_sea", now))
         # NPC still alive.
         self.assertIsNotNone(_run(mdb.get_npc(npc_id)))
 
@@ -1432,7 +1432,7 @@ class TestFindAnomalyGlobally(_AnomalyTestCase):
         )
         now = time.time()
         a = WildernessAnomaly(
-            id=42, region_slug="dune_sea", zone_id=1,
+            id=42, region_slug="tatooine_dune_sea", zone_id=1,
             template_key="tusken_party", anchor_room_id=10,
             expiry=now + 600,
         )
@@ -1441,7 +1441,7 @@ class TestFindAnomalyGlobally(_AnomalyTestCase):
             template_key="black_sun_courier", anchor_room_id=20,
             expiry=now + 600,
         )
-        _anomalies["dune_sea"] = [a]
+        _anomalies["tatooine_dune_sea"] = [a]
         _anomalies["coruscant_underworld"] = [b]
         self.assertIs(find_anomaly_globally(42), a)
         self.assertIs(find_anomaly_globally(43), b)
