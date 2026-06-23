@@ -299,6 +299,13 @@ class PerformCommand(BaseCommand):
         room_id = char["room_id"]
         char_name = char.get("name", "Someone")
 
+        # T3.19 telemetry accumulators (set per-branch below, emitted once
+        # after the outcome dispatch). Defaults are the FAIL outcome: no
+        # payout, no audience counted.
+        perform_outcome = "fail"
+        perform_payout = 0
+        perform_audience = 0
+
         if result.success:
             if result.critical_success:
                 # Critical: big payout + special reaction
@@ -321,6 +328,10 @@ class PerformCommand(BaseCommand):
             if audience > 0:
                 payout = int(payout * audience_multiplier(audience))
                 flavor = flavor + "  " + _audience_flavor(audience)
+
+            perform_outcome = "critical" if result.critical_success else "success"
+            perform_payout = payout
+            perform_audience = audience
 
             # Set cooldown
             new_attrs = _set_last_perform(char, now)
@@ -392,6 +403,8 @@ class PerformCommand(BaseCommand):
         elif result.margin >= -4:
             # Partial: small payout, mild reaction
             payout = int(_PARTIAL_PAY * brawl_mult)
+            perform_outcome = "partial"
+            perform_payout = payout
 
             # Shorter cooldown for partial (use success cooldown still)
             new_attrs = _set_last_perform(char, now)
@@ -461,6 +474,35 @@ class PerformCommand(BaseCommand):
                 exclude=ctx.session,
                 source_char=char,
         )
+
+        # ── T3.19 telemetry: the entertainer (cantina) credit faucet ──────
+        # The `entertainer` ledger source captures the net payout and the
+        # Persuasion/Musical-Instrument roll rides `skill_check`, but neither
+        # can reconstruct the outcome split (critical/success/partial/fail),
+        # the fatigue-bumped difficulty + fatigue_count (diminishing returns),
+        # the live-audience hub bonus, or the cantina-brawl 2x flag — the
+        # direct tuning signal for the pay bounds, the audience cap, the
+        # fatigue penalty, and the perform cooldowns. One fail-open,
+        # sample-tunable `entertainer_perform` emit at the post-dispatch seam
+        # closes that economy-depth gap; buffer-only + offline-flushed, so it
+        # can never disturb the performance it observes.
+        try:
+            from engine.telemetry import emit as _tele_emit
+            from engine.tunables import get_tunable
+            _tele_emit("entertainer_perform", {
+                "char_id": int(char.get("id") or 0),
+                "outcome": perform_outcome,
+                "payout": int(perform_payout),
+                "skill": skill_name,
+                "margin": int(getattr(result, "margin", 0)),
+                "difficulty": int(effective_difficulty),
+                "fatigue_count": int(fatigue_count_before),
+                "audience": int(perform_audience),
+                "brawl": brawl_mult > 1.0,
+                "fumble": bool(getattr(result, "fumble", False)),
+            }, sample=float(get_tunable("telemetry.entertainer_sample", 1.0)))
+        except Exception as _e:
+            log.debug("entertainer telemetry emit failed: %s", _e)
 
 
 def register_entertainer_commands(registry):

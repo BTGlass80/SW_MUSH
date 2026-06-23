@@ -84,6 +84,15 @@ telemetry.vendor_sample: 1.0          # fraction of completed vendor trades emit
 # acquire→rent→overdue→forfeit funnel + voluntary-checkout churn. Low-frequency
 # (bounded by player action + the weekly tick) so 1.0 is fine; lower if noisy.
 telemetry.housing_sample: 1.0         # fraction of housing transitions emitted (0..1]
+# Keep-rate for the entertainer (cantina) credit faucet (parser/entertainer_commands.py).
+# Each `perform` emits one 'entertainer_perform' event tagged by outcome
+# (critical/success/partial/fail): the payout the ledger logs plus the depth it
+# can't rejoin — the fatigue-bumped difficulty + fatigue_count (diminishing
+# returns), the live-audience hub bonus (audience heads), and the cantina-brawl
+# 2x flag. The signal for tuning the pay bounds (_BASE_PAY/_CRIT_PAY/_PARTIAL_PAY),
+# the audience cap, the fatigue penalty, and the perform cooldowns. Bounded by
+# player action + the 10-min cooldown so 1.0 is fine at launch; lower if noisy.
+telemetry.entertainer_sample: 1.0     # fraction of performances emitted (0..1]
 
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
