@@ -377,14 +377,24 @@ class TestChainsEndpointFirstChar(_IsolatedBase):
 
 class TestChainsEndpointAuth(_IsolatedBase):
 
-    def test_missing_token_rejected(self):
+    def test_missing_token_serves_first_character_picker(self):
+        # QA (Playwright E2E, 2026-06-23): the STANDALONE /chargen wizard (the
+        # portal's "Create Character" link) has no account token yet, so a
+        # tokenless /chains request must serve the FIRST-character picker -- it
+        # used to 401, which surfaced "Failed to load chains (HTTP 401)" and
+        # blocked a new player from picking a tutorial chain. A SUPPLIED but
+        # invalid token (test_bad_token_rejected) is still 401.
         _set_era("clone_wars")
         _reset_rate_limits()
         db = _MockDB(accounts={1})
         api = _build_api(db)
-        req = _MockRequest(query={})  # no token
+        req = _MockRequest(query={})  # no token (standalone chargen)
         resp = _run(api.handle_chains(req))
-        self.assertEqual(resp.status, 401)
+        self.assertEqual(resp.status, 200)
+        body = _resp_json(resp)
+        self.assertTrue(body["is_first_character"])
+        self.assertTrue(len(body["chains"]) > 0,
+                        "standalone first-character picker must list chains")
 
     def test_bad_token_rejected(self):
         _set_era("clone_wars")
