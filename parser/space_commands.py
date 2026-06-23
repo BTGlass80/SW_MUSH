@@ -3371,6 +3371,43 @@ class SlipCommand(BaseCommand):
         )
 
 
+# ── SPACE.anomaly_engagement (2026-06-23): per-type engagement for the anomaly
+# types whose scan readouts promised `course anomaly <id>` but had no resolution
+# wired (only derelict->salvage and mineral_vein->mine existed). Each non-combat
+# type resolves through perform_skill_check (the dice funnel) -> adjust_credits
+# (the credit funnel) -> remove_anomaly, mirroring the salvage pattern. The
+# governing attribute/skill + difficulty follow each type's scan-readout design;
+# one-shot types consume the anomaly on a failed attempt, retry types keep it.
+_ANOMALY_ENGAGE = {
+    "distress": dict(skill="sensors", diff=10, label="Easy", one_shot=True,
+                     credits=(600, 1200), tag="anomaly_distress",
+                     ok="You answer the mayday and stabilize the stricken crew; "
+                        "they transfer a grateful reward.",
+                     fail="Your sensors flag the 'distress call' as bait -- you "
+                          "break off before the ambush springs. Nothing recovered."),
+    "cache": dict(skill="technical", diff=15, label="Moderate", one_shot=False,
+                  credits=(800, 1800), tag="anomaly_cache",
+                  ok="You bypass the cache's security seal and strip its contents.",
+                  fail="The security seal holds. Line up the bypass and try again."),
+    "pirates": dict(skill="mechanical", diff=15, label="Moderate", one_shot=True,
+                    credits=(1000, 2200), tag="anomaly_pirates",
+                    ok="Your guns scatter the pirate pack; you scavenge their wrecks.",
+                    fail="The pack outguns you this pass and scatters with their "
+                         "spoils. The nest is gone."),
+    "imperial": dict(skill="technical", diff=20, label="Difficult", one_shot=True,
+                     credits=(1200, 2400), tag="anomaly_deaddrop",
+                     ok="You crack the cipher and lift the intelligence package.",
+                     fail="The cipher resists -- and a patrol pings your position. "
+                          "You withdraw before they close. The drop is blown."),
+    "mynock": dict(skill="mechanical", diff=8, label="Easy", one_shot=False,
+                   credits=(200, 600), tag="anomaly_mynock",
+                   ok="A hard burn shakes the mynock colony loose; you skim the "
+                      "salvageable nest material.",
+                   fail="A few mynocks latch on -- minor system strain. "
+                        "Shake them again."),
+}
+
+
 class CourseCommand(BaseCommand):
     """
     course                  -- show current zone and adjacent zones
@@ -3394,6 +3431,10 @@ class CourseCommand(BaseCommand):
 
     async def execute(self, ctx):
         """Orchestrator: validate → dispatch cancel/show/plot-course."""
+        _raw = (ctx.args or "").strip()
+        if _raw.lower().split()[:1] == ["anomaly"]:
+            await self._engage_anomaly(ctx, _raw)
+            return
         ship, systems, zone, arg = await self._validate_helm(ctx)
         if ship is None:
             return
@@ -3433,6 +3474,86 @@ class CourseCommand(BaseCommand):
         await self._set_transit(ctx, ship, systems, dest_zone, result, difficulty)
 
     # ── Helpers ────────────────────────────────────────────────────────────
+
+    async def _engage_anomaly(self, ctx, raw):
+        """`course anomaly <id>` -- per-type resolution for a fully-scanned anomaly."""
+        import random
+        from engine.character import SkillRegistry
+        from engine.skill_checks import perform_skill_check
+        from engine.space_anomalies import get_anomalies_for_zone, remove_anomaly
+        parts = raw.split()
+        if len(parts) < 2 or not parts[1].isdigit():
+            await ctx.session.send_line(
+                "  Usage: course anomaly <id>  (the id shown by `deepscan`).")
+            return
+        aid = int(parts[1])
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        if ship.get("docked_at"):
+            await ctx.session.send_line("  You're docked. Launch first.")
+            return
+        systems = _get_systems(ship)
+        zone_id = systems.get("current_zone", "")
+        target = next(
+            (a for a in get_anomalies_for_zone(zone_id) if a.id == aid), None)
+        if target is None:
+            await ctx.session.send_line(
+                f"  No anomaly #{aid} in this zone. Use `deepscan` to detect anomalies.")
+            return
+        if target.resolution < target.scans_needed:
+            await ctx.session.send_line(
+                f"  Anomaly #{aid} isn't fully resolved yet. "
+                f"`deepscan {aid}` to close the picture first.")
+            return
+        atype = target.anomaly_type
+        if atype == "derelict":
+            await ctx.session.send_line(
+                "  You bring the ship alongside the wreck. Use `salvage` to strip it.")
+            return
+        if atype == "mineral_vein":
+            await ctx.session.send_line(
+                "  You move into extraction range. Use `mine` to extract the ore.")
+            return
+        spec = _ANOMALY_ENGAGE.get(atype)
+        if not spec:
+            await ctx.session.send_line(f"  There's nothing to engage on anomaly #{aid}.")
+            return
+        char = ctx.session.character
+        sr = SkillRegistry()
+        try:
+            import os as _os
+            sr.load_file(_os.path.join(
+                _os.path.dirname(_os.path.dirname(__file__)), "data", "skills.yaml"))
+        except Exception:
+            pass  # an unloaded registry still rolls the governing attribute
+        try:
+            result = perform_skill_check(char, spec["skill"], spec["diff"], sr)
+        except Exception:
+            result = None
+        success = (result is None) or (result.success and not result.fumble)
+        if not success:
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_YELLOW}[ANOMALY]{ansi.RESET} {spec['fail']} "
+                f"({spec['label']} {spec['skill']}, diff {spec['diff']})")
+            if spec["one_shot"]:
+                remove_anomaly(zone_id, target.id)
+            return
+        lo, hi = spec["credits"]
+        amount = hi if (result and result.critical_success) \
+            else random.randint(lo, hi)
+        new_bal = await ctx.db.adjust_credits(char["id"], amount, spec["tag"])
+        if isinstance(char, dict) and new_bal is not None:
+            char["credits"] = new_bal
+        remove_anomaly(zone_id, target.id)
+        await ctx.session.send_line(
+            f"  {ansi.BRIGHT_CYAN}[ANOMALY]{ansi.RESET} {spec['ok']} "
+            f"(+{amount:,} credits)")
+        try:
+            await ctx.session.send_hud_update(db=ctx.db, session_mgr=ctx.session_mgr)
+        except Exception:
+            pass
 
     async def _validate_helm(self, ctx):
         """Check ship, pilot seat, hyperspace, ion — return (ship, systems, zone, arg) or (None,)*4."""
