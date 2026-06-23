@@ -1003,6 +1003,29 @@ async def checkout_room(db, char: dict) -> dict:
     except Exception as e:
         log.warning("[housing] checkout exit removal error: %s", e)
 
+    # FK SAFETY (QA housing 2026-06-23): clear the cross-references BEFORE the
+    # deletes, or they hit FOREIGN KEY constraint failures -- characters.home_room_id
+    # -> rooms.id, and rooms.housing_id -> player_housing.id. Previously the room
+    # DELETE failed silently and the player_housing DELETE then crashed UNCAUGHT,
+    # breaking EVERY vacate path (checkout / sell / @evict / faction-revoke /
+    # rent-eviction tick). Mirrors sell_shopfront's ordering.
+    if room_ids:
+        try:
+            await db.execute(
+                "UPDATE characters SET home_room_id = NULL WHERE home_room_id IN (%s)"
+                % ",".join("?" * len(room_ids)),
+                room_ids,
+            )
+        except Exception:
+            log.warning("checkout_room: home_room_id clear failed", exc_info=True)
+        for rid in room_ids:
+            try:
+                await db.execute(
+                    "UPDATE rooms SET housing_id = NULL WHERE id = ?", (rid,))
+            except Exception:
+                log.warning("checkout_room: rooms.housing_id clear failed",
+                            exc_info=True)
+
     # Delete rooms
     for rid in room_ids:
         try:
@@ -2919,7 +2942,10 @@ async def get_housing_for_private_room(db, room_id: int) -> Optional[dict]:
 def is_on_guest_list(h: dict, char_id: int) -> bool:
     """Check if a character is on a housing record's guest list."""
     guests = _guest_list(h)
-    return char_id in guests
+    # guest_add stores {"id": int, "name": str} dicts, so a bare `char_id in
+    # guests` (int in a list of dicts) was ALWAYS False -- invited guests were
+    # permanently locked out. (QA housing 2026-06-23.)
+    return any(isinstance(g, dict) and g.get("id") == char_id for g in guests)
 
 
 async def can_enter_housing_room(db, char: dict, room_id: int) -> tuple[bool, str]:
