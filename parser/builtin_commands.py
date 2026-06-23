@@ -5035,6 +5035,53 @@ class GiveCommand(BaseCommand):
         return None
 
 
+class DrinkCommand(BaseCommand):
+    """Drink from your water canteen to recover from dehydration.
+
+    ENV recovery (2026-06-23): the desert-heat dehydration debuff used to be
+    permanent with no in-game cure. Drinking from a carried water_canteen now
+    clears it instantly; both env hazard debuffs also decay on their own once you
+    leave the hazard (engine.buffs duration), so you are never permanently stuck.
+    """
+    key = "drink"
+    aliases = ["hydrate"]
+    help_text = "Drink from your water canteen to recover from dehydration."
+    usage = "drink"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        if not char:
+            await ctx.session.send_line("  You must be logged in.")
+            return
+        from engine.buffs import has_buff, remove_buff
+        from engine.hazards import _has_mitigation
+        has_water = _has_mitigation(char, ["water_canteen"])
+        if not has_buff(char, "dehydration"):
+            if has_water:
+                await ctx.session.send_line(
+                    "  You take a pull from your canteen. Refreshing, "
+                    "though you were not thirsty.")
+            else:
+                await ctx.session.send_line(
+                    "  You are not dehydrated. (Carry a water canteen to "
+                    "recover from desert thirst.)")
+            return
+        if not has_water:
+            await ctx.session.send_line(
+                "  You have no water. Find a water canteen, or leave the heat, "
+                "to recover from dehydration.")
+            return
+        remove_buff(char, "dehydration")
+        await ctx.db.save_character(char["id"], attributes=char["attributes"])
+        await ctx.session.send_line(
+            ansi.success("  You drink deeply from your canteen. "
+                         "The dehydration fades."))
+        try:
+            await ctx.session.send_hud_update(db=ctx.db, session_mgr=ctx.session_mgr)
+        except Exception:
+            log.debug("[drink] HUD push failed", exc_info=True)
+
+
 def register_all(registry):
     """Register all built-in commands with the registry."""
     commands = [
@@ -5052,6 +5099,7 @@ def register_all(registry):
         WeatherCommand(),
         InventoryCommand(),
         UseCommand(),
+        DrinkCommand(),
         SheetCommand(),
         HelpCommand(),
         QuitCommand(),
