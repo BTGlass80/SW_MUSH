@@ -1,0 +1,495 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_kuat_expansion.yaml
+#
+# Kuat Expansion — Corporate Intrigue & CIS Operations Mob Grind Batch (2026-06-23)
+#
+# Six roaming hostile NPCs seeded across six previously uncovered Kuat rooms:
+# four in the kdy_orbital_ring zone and two in kuat_city_embassy. Each satisfies
+# engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone spread:
+#   Kuat Drive Yards - The Pressure Drop Cantina x1   (Devaronian Black Sun Fixer,
+#                                                       hold_out_blaster)
+#   Kuat Drive Yards - House Andrim Suite x1           (Human Corporate Assassin,
+#                                                       blaster_pistol)
+#   Kuat Drive Yards - House Purkis Suite x1           (Bothan Industrial Saboteur,
+#                                                       blaster_pistol)
+#   Kuat - Military Space Station x1                   (Duros CIS Intelligence Operative,
+#                                                       blaster_pistol)
+#   Kuat City - Mercantile Forum x1                    (Trandoshan Debt Enforcer,
+#                                                       vibroblade)
+#   Kuat City - Estate District x1                     (Zabrak Contract Kidnapper,
+#                                                       blaster_carbine)
+#
+# Thematic premise: Kuat Drive Yards (~20 BBY) is the Republic's most
+# productive shipyard system — and thus the most valuable intelligence and
+# sabotage target in the galaxy. The Cantina hosts off-shift workers who know
+# production schedules and hull codes; Black Sun has embedded an operative to
+# extract that intelligence (and run a quiet protection racket on the side).
+# The corporate suites are battlefields of a different kind: House Andrim
+# and House Purkis are actively sabotaging each other's Venator/Acclamator
+# contracts, and both have hired outside help. CIS intelligence has placed a
+# Duros operative on the Military Space Station under Republic Navy cover.
+# On the surface, Kuat City's wealth makes it a target for criminal
+# syndicates: a Trandoshan debt enforcer has come to collect from a
+# merchant family that borrowed to survive war-driven supply disruptions,
+# and a Zabrak kidnapper has a contract against a minor noble estate.
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original. Jestra Andrim and
+#   Dorin Purkis are room fixtures (referenced in planet YAML); neither
+#   is instanced as an enemy NPC here.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats — WEG40120 PDF absent from this worktree.
+#   Stats UNVERIFIED against PDF. Grounded in sibling CW NPC patterns:
+#   Devaronian:  DEX 2D+2, KNO 2D+2, PER 3D, STR 2D+1, TEC 2D+1
+#   Human:       DEX 3D, KNO 2D, PER 3D, STR 3D+1, TEC 2D
+#   Bothan:      DEX 2D+2, KNO 3D, MEC 2D, PER 3D, STR 2D, TEC 2D+2
+#   Duros:       DEX 3D, KNO 2D+2, MEC 3D, PER 3D, STR 2D+1, TEC 2D
+#   Trandoshan:  DEX 2D+1, KNO 2D, PER 2D+2, STR 3D+2, TEC 2D
+#   Zabrak:      DEX 3D, KNO 2D, PER 2D+2, STR 3D+2, TEC 2D
+# Weapons: hold_out_blaster, blaster_pistol, vibroblade, blaster_carbine —
+#   all keys confirmed in data/weapons.yaml at HEAD.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # KUAT DRIVE YARDS - THE PRESSURE DROP CANTINA — 1 NPC
+  # (Devaronian Black Sun Fixer)
+  # The Pressure Drop has been serving ring workers for forty years.
+  # It has also, for the past eighteen months, been serving a Black Sun
+  # cell that realized the cantina was the one place where off-shift
+  # shipwrights talked freely — hull tolerances, material requisitions,
+  # production schedule slippages. The Devaronian at the corner table
+  # is not nursing his drink. He is listening.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Cantina Intelligence Broker
+    room: "Kuat Drive Yards - The Pressure Drop Cantina"
+    species: Devaronian
+    description: >-
+      A Devaronian male at the corner table with the studied ease of
+      someone who has been in this cantina long enough to understand
+      its rhythms: which shift changeovers bring the loudest talkers,
+      which foremen drink until they start complaining about contract
+      problems, which junior engineers are running short on rent and
+      might be receptive to a second income. His drink has been full
+      for an hour. He is not here for the ale — he is here for the
+      production schedule that a structural engineer just mentioned to
+      a friend three tables over. When you sit too close or start
+      watching him with the same attention he applies to the room, the
+      hold-out blaster is already in his hand before you have finished
+      the thought that something is wrong.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 3D+2
+        dodge: 3D+1
+        con: 4D
+        streetwise: 4D+1
+        search: 3D+2
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Black Sun intelligence courier embedded in the Pressure Drop
+        for eighteen months, extracting production and scheduling data
+        from off-shift KDY workers through careful social cultivation.
+        He does not run protection — that is too visible — but he is
+        fully prepared to eliminate a complication before it reaches
+        someone who can act on it. Patient and precise. When he draws,
+        it is because he has already decided the situation will not
+        resolve otherwise.
+      knowledge: []
+      faction: black_sun
+      dialogue_style: >-
+        Warm, unhurried Outer Rim-accented Basic — the voice of someone
+        who is very interested in what you have to say. Until the
+        moment he isn't, at which point the sentence stops mid-word
+        and the hold-out blaster is on the table.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He moves out of the corner without hurrying, putting a support pillar between himself and the door.*"
+        - "*The hold-out comes up in a two-fingered grip — small, quiet, and already aimed.*"
+        - "*'This is not the complication I needed tonight.' He does not lower the weapon.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # KUAT DRIVE YARDS - HOUSE ANDRIM SUITE — 1 NPC
+  # (Human Corporate Assassin)
+  # House Andrim manages the Venator contract portfolio. House Purkis
+  # wants that portfolio. Someone — and the attribution is deliberately
+  # unclear — has paid a Human contractor to make the Andrim portfolio
+  # management problem solve itself. The contractor is currently
+  # reviewing security camera placements in the suite's anteroom
+  # with the focused attention of someone who does not actually care
+  # about camera placements.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Corporate Security Contractor
+    room: "Kuat Drive Yards - House Andrim Suite"
+    species: Human
+    description: >-
+      A Human in the understated grey of a contracted security
+      consultant — the kind of professional-neutral clothing designed
+      to be unremarkable in any corporate corridor on any station in
+      the Republic. He carries a datapad with a KDY Security Division
+      header on the screen and moves through the Andrim suite's
+      anteroom with the slow, methodical attention of a security audit.
+      The audit is genuine in the sense that he has memorized every
+      camera angle and every guard rotation it took to produce. The
+      report he will file has already been written; it will recommend
+      no significant changes. What he is actually doing is something
+      he will not still be doing when anyone looks for him. When you
+      step into the corridor at the wrong moment, the datapad lowers
+      and the blaster comes out in a single smooth motion that has
+      been practiced to the point of reflex.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D+2
+        dodge: 4D
+        hide: 4D+1
+        sneak: 4D+1
+        search: 3D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A professional contractor with a corporate assassination
+        background — neither ideological nor sadistic, simply
+        experienced at solving the kind of problems that cannot be
+        filed as a grievance. He has done this work for eleven years
+        and has a clear-eyed understanding of what discovery means.
+        He responds to unexpected witnesses quickly and without
+        hesitation; a loose end is a professional problem.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Flat corporate Basic, the register of someone reciting from
+        a checklist. "This area is under security audit. Please
+        return to the corridor." Then, if that doesn't work, nothing
+        further — the blaster does the next part.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He moves to a firing position behind the reception desk without breaking stride.*"
+        - "*The blaster comes up in a two-handed grip, the kind that suggests a range background.*"
+        - "*He does not speak again. The audit is concluded.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # KUAT DRIVE YARDS - HOUSE PURKIS SUITE — 1 NPC
+  # (Bothan Industrial Saboteur)
+  # Dorin Purkis is described, in his own suite's atmosphere, as
+  # engaged in at least three simultaneous acts of corporate espionage.
+  # What is less documented is that one of his recent targets responded
+  # in kind — and the Bothan intelligence operative currently posing
+  # as a contract courier in the Purkis suite's outer office is not
+  # delivering anything that belongs on the official manifest.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Bothan Courier Operative
+    room: "Kuat Drive Yards - House Purkis Suite"
+    species: Bothan
+    description: >-
+      A Bothan in the brown-and-grey of a contract courier service,
+      carrying a sealed cargo case with the correct manifests clipped
+      to the handle. The manifests are correct. The cargo case is
+      not what the manifests describe. He is working the outer office
+      of the Purkis suite with the unhurried competence of someone who
+      has made courier deliveries on sixteen stations and has never
+      once been asked to open a case at the point of delivery. The
+      Bothan tell of stress — a fine ripple in the fur across the
+      shoulders — is present but controlled, suppressed to the level
+      of someone who trained against exactly that tell and can hold the
+      suppression for about four hours before it starts showing through.
+      He is at hour three and a half. When you catch his eye and hold
+      it a beat too long, the cargo case sets down very carefully, and
+      the blaster comes out from the inner lining of the courier vest.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 3D
+        mechanical: 2D
+        perception: 3D
+        strength: 2D
+        technical: 2D+2
+      skills:
+        blaster: 3D+2
+        dodge: 3D+1
+        sneak: 4D
+        con: 4D+1
+        computer_programming_slash_repair: 3D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Bothan intelligence operative contracted to extract Purkis
+        corporate data and plant surveillance devices in the outer
+        office — a counter-espionage response to three months of
+        Purkis intelligence operations against his employer. He is
+        professional, controlled, and acutely aware that his cover
+        holds only until someone decides to verify the manifest. When
+        that moment arrives, he draws fast and fires faster — not
+        from aggression, but because field training made "neutralize
+        before they can report" the only rational response to exposure.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Corporate-neutral Basic with the slight Bothan cadence of
+        someone who learned the language formally rather than
+        growing up in it. "I have a delivery for the Purkis
+        suite. Standard manifest, standard protocol." When the
+        cover breaks, the voice drops out entirely.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The cargo case goes down and the courier vest comes open in the same motion.*"
+        - "*He backs toward the suite's secondary exit, blaster up, watching the door.*"
+        - "*The Bothan fur is fully rippling now — no more suppression, no more cover.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # KUAT - MILITARY SPACE STATION — 1 NPC
+  # (Duros CIS Intelligence Operative)
+  # The Military Space Station carries a Republic Admiral and a KSF
+  # station commander in a state of managed diplomatic friction. The
+  # sensor net covers the entire Kuat system; the weapons array could
+  # challenge a small fleet. Access is restricted. A Duros navigator
+  # attached to a Republic supply convoy has been here for nine days,
+  # longer than any navigator's rest rotation justifies. His actual
+  # task is in the restricted data corridors.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: CIS Fleet Intelligence Operative
+    room: "Kuat - Military Space Station"
+    species: Duros
+    description: >-
+      A tall, blue-grey Duros in the standard off-white of a Republic
+      civilian navigation contractor — the kind of technical specialist
+      cleared for military transits because the Navy prefers spacers
+      who know the Kuat approach vectors over their own pilots who
+      don't. His clearance badge is authentic. His assignment orders
+      are authentic. His nine-day stopover while his convoy is
+      "resupplied" is within tolerance. His presence in the restricted
+      data corridor adjacent to the sensor net operations room is not
+      within any documented tolerance, which is why he has arranged
+      to be here during the shift change when the corridor is least
+      monitored. The dataspike he was about to insert into the station's
+      tactical feed goes back into his jacket when he sees you. The
+      blaster comes out instead.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D+2
+        mechanical: 3D
+        perception: 3D
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+2
+        hide: 3D+2
+        sneak: 4D
+        streetwise: 3D+1
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A CIS fleet intelligence operative with nine years of field
+        experience extracting Republic naval disposition data from
+        restricted military installations. He uses his Duros spacer
+        credentials as cover — civilian navigators are credentialed
+        for restricted military transits as a matter of operational
+        necessity, and the CIS has exploited that gap systematically.
+        Discovery means mission failure and extraction is no longer
+        possible; he responds to witnesses with immediate lethal
+        action, which he views as the only remaining option.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Precise spacer Basic with the flat tonal delivery of a Duros
+        who learned to modulate affect for professional purposes.
+        "You should not be in this corridor." Then, if you are still
+        in this corridor: nothing further.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He moves to the corridor junction, using the bulkhead as partial cover.*"
+        - "*The blaster is a compact military model, not a civilian piece — he came prepared.*"
+        - "*He does not call for station security. That would require explaining what he was doing here.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # KUAT CITY - MERCANTILE FORUM — 1 NPC
+  # (Trandoshan Debt Enforcer)
+  # The Mercantile Forum is where House Andrim and House Purkis
+  # do not look at each other in public session. It is also where
+  # a Trandoshan debt collection agent from an off-world lending
+  # syndicate has come to locate a minor merchant family that borrowed
+  # significantly against a delayed wartime supply contract. The
+  # syndicate does not wait for the contract to resolve.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Syndicate Debt Collector
+    room: "Kuat City - Mercantile Forum"
+    species: Trandoshan
+    description: >-
+      A large Trandoshan in the plain dark clothing of an off-world
+      commercial representative — too large and too still for the
+      role, but the Forum's public gallery accepts visitors without
+      verifying their stated purpose. He is watching the session
+      room through the gallery glass with the patience of a predator
+      that has already located the prey and is simply waiting for it
+      to separate from the herd. The vibroblade on his belt is
+      registered as a tool, which it technically is. He represents a
+      lending syndicate whose terms do not include grace periods for
+      wartime supply delays, and his visit to Kuat City is not a
+      courtesy call. When you step between him and the session room
+      exit, his head turns with the careful deliberateness of
+      something that has decided this is now a different kind of
+      problem.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+2
+        technical: 2D
+      skills:
+        melee_combat: 4D+1
+        brawling: 4D+2
+        dodge: 2D+2
+        intimidation: 4D+2
+        search: 3D
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Trandoshan debt collection specialist operating for an
+        off-world lending syndicate whose portfolio on Kuat grew
+        substantially when wartime supply disruptions pushed merchant
+        families into emergency credit lines. He is not interested
+        in discussion — the discussion happened at the loan office.
+        He is here for the asset recovery, or a demonstration that
+        will produce it. When disruption appears, he closes to melee
+        range immediately and uses his mass to control the situation.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Trandoshan-accented Basic, deliberately slow. "You are
+        interrupting a business matter. Step aside." He does not
+        repeat himself. The vibroblade makes the second statement.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He moves into the gallery corridor, cutting off the Forum exit behind him.*"
+        - "*The vibroblade comes out with the unhurried motion of someone who knows the range calculation already.*"
+        - "*He does not look at the session room anymore. The problem is here now.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # KUAT CITY - ESTATE DISTRICT — 1 NPC
+  # (Zabrak Contract Kidnapper)
+  # The Estate District's decorative gates and KSF security circuits
+  # maintain the appearance of safety. The Zabrak moving along the
+  # perimeter wall of the third estate from the boulevard entrance
+  # has already mapped the circuit timing. He has a contract against
+  # a minor branch of a Kuati family — not the main house, just a
+  # cousin whose testimony in a contested inheritance case has become
+  # inconvenient to someone with enough credits to make the
+  # inconvenience someone else's problem.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Estate Perimeter Operative
+    room: "Kuat City - Estate District"
+    species: Zabrak
+    description: >-
+      A Zabrak with the facial tattoos of an Iridonian clan that no
+      longer has a claim on his loyalty and the quiet focused movement
+      of someone executing a site survey that is not going to end with
+      a report. He has been working the Estate District's perimeter
+      for two days, timing KSF security circuits and identifying the
+      estate staff rotation that creates the smallest overlap. The
+      blaster carbine is disassembled in a carrying case that looks
+      like a maintenance kit. It is not a maintenance kit. When you
+      observe him at the perimeter wall with the particular attention
+      of someone who has also noticed that the security circuit left
+      a gap, the case opens and the carbine comes together with the
+      smooth speed of someone who has done this in the dark, in the
+      rain, and under worse pressure than a clear afternoon in a
+      wealthy residential district.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+2
+        technical: 2D
+      skills:
+        blaster: 4D+2
+        dodge: 3D+2
+        sneak: 4D
+        search: 3D+1
+        intimidation: 3D+2
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Zabrak contractor specializing in coercive extraction —
+        the kind of work that requires patience for the preparation
+        phase and absolute decisiveness in the execution phase.
+        He is midway through a two-day site survey on a kidnapping
+        contract and has no interest in complications that cannot be
+        contained. Witnesses who demonstrate they have noticed
+        something are a containment problem. He deals with them
+        efficiently, without conversation, because conversation is
+        not something the preparation phase has budget for.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Near-silence. The Zabrak who talks during the approach phase
+        is the Zabrak who gets caught. If he speaks at all, it is
+        one flat word: "Leave." Then the carbine clears the case.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He moves along the perimeter wall, using the estate's own boundary as cover.*"
+        - "*The carbine is up and the sight picture is on you before you finish processing that this is happening.*"
+        - "*He does not retreat toward the boulevard. The security circuit closes in four minutes and he knows that.*"
