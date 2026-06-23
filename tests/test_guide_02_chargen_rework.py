@@ -274,3 +274,154 @@ def test_persistence_section_has_content():
     assert len(content_lines) >= 3, (
         "§11 Persistence must have actual paragraph content (was an empty heading)"
     )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  Authoritative quality pass (2026-06-23) — cross-check guide facts vs HEAD.
+#
+#  The block above (the F.7-era accuracy rework) pins the guide text against
+#  itself. These guards go further: they pin the documented NUMBERS and STATS
+#  to the live engine + data files, so a future engine/data change that drifts
+#  away from Guide_02 fails loudly here instead of silently misinforming new
+#  players. This is the "engine cross-check guard" pattern the other guide
+#  authoritative passes established.
+# ════════════════════════════════════════════════════════════════════════════
+
+SPECIES_DIR = pathlib.Path("data/species")
+SKILLS_YAML = pathlib.Path("data/skills.yaml")
+TEMPLATES_YAML = pathlib.Path("data/worlds/clone_wars/chargen_templates.yaml")
+
+_ATTR_ORDER = ["dexterity", "knowledge", "mechanical", "perception", "strength", "technical"]
+
+
+def _load_species():
+    import yaml
+    out = {}
+    for f in sorted(SPECIES_DIR.glob("*.yaml")):
+        out[f.stem] = yaml.safe_load(f.read_text(encoding="utf-8"))
+    return out
+
+
+def test_nine_species_match_data():
+    sp = _load_species()
+    assert len(sp) == 9, f"Expected 9 species YAMLs in data/species/, found {len(sp)}"
+    assert "Nine playable species" in read_guide(), (
+        "§2 must say 'Nine playable species' to match data/species/ (9 files)"
+    )
+
+
+def test_seventy_six_skills_match_data():
+    import yaml
+    data = yaml.safe_load(SKILLS_YAML.read_text(encoding="utf-8"))
+    count = sum(len(v) for v in data.values() if isinstance(v, list))
+    assert count == 76, f"Expected 76 skills in data/skills.yaml, found {count}"
+    text = read_guide()
+    assert "76 skills" in text, "§4 must say '76 skills' to match data/skills.yaml"
+
+
+def test_starting_defaults_match_character():
+    from engine.character import Character
+    c = Character()
+    assert c.force_points == 1, "New char must start with 1 Force Point"
+    assert c.character_points == 5, "New char must start with 5 CP"
+    assert c.credits == 1000, "New char must start with 1000 credits"
+    text = read_guide()
+    assert "1 Force Point" in text, "§7/§6 must document 1 starting Force Point"
+    assert "1,000 credits" in text, "§7 must document 1,000 starting credits"
+    assert "CP: 5" in text, "§10 sheet example must show CP: 5"
+
+
+def test_skill_creation_cap_is_2d():
+    from engine.chargen_validator import MAX_SKILL_BONUS_PIPS
+    assert MAX_SKILL_BONUS_PIPS == 6, "2D creation cap == 6 pips"
+    text = read_guide()
+    assert "2D cap" in text and "+2D" in text, (
+        "§4 must document the WEG R&E +2D-per-skill creation cap"
+    )
+
+
+def test_attribute_and_skill_budgets_documented():
+    text = read_guide()
+    # 18D attributes (54 pips), 7D skills (21 pips) — WEG R&E baseline that the
+    # CreationEngine enforces (engine/creation.py _attr_pips_total/_skill_pips_total).
+    assert "18D" in text and "54 pips" in text, "§3 must document 18D / 54 pips of attributes"
+    assert "7D" in text and "21 pips" in text, "§4 must document 7D / 21 pips of skills"
+
+
+def test_village_force_seed_is_1d():
+    from engine.village_choice import _FORCE_SEED_DICE, _FORCE_ATTRS
+    assert _FORCE_SEED_DICE == "1D", "Village trials seed 1D in each Force discipline"
+    assert set(_FORCE_ATTRS) == {"control", "sense", "alter"}
+    assert "1D in each of the three Force disciplines" in read_guide(), (
+        "§6 must document the 1D Control/Sense/Alter Force seed"
+    )
+
+
+def test_section1_does_not_relist_force_as_a_chargen_step():
+    import re
+    text = read_guide()
+    overview = re.search(r"## 1\. Overview.*?(?=## 2)", text, re.DOTALL)
+    assert overview is not None, "§1 Overview not found"
+    assert "declare Force sensitivity" not in overview.group(0), (
+        "§1 must not list 'declare Force sensitivity' as a chargen step — "
+        "STEP_FORCE was removed in PG.3.gates.b; §6 is the authority"
+    )
+
+
+def _guide_template_rows():
+    """Return {row-name: [name, DEX, KNO, MEC, PER, STR, TEC, skills]} for the
+    §5 template table rows (bolded archetype rows only)."""
+    rows = {}
+    for line in read_guide().splitlines():
+        if line.startswith("| **") and "Key Skills" not in line:
+            cols = [c.strip() for c in line.strip().strip("|").split("|")]
+            rows[cols[0].strip("* ")] = cols
+    return rows
+
+
+def test_template_attributes_match_yaml():
+    """Pin every §5 template attribute column to chargen_templates.yaml."""
+    import yaml
+    tmpls = yaml.safe_load(TEMPLATES_YAML.read_text(encoding="utf-8"))["templates"]
+    label_to_key = {v["label"]: k for k, v in tmpls.items()}
+    rows = _guide_template_rows()
+    checked = 0
+    for label, cols in rows.items():
+        if label not in label_to_key:
+            continue  # species-table row, not a template
+        attrs = tmpls[label_to_key[label]]["attributes"]
+        for i, a in enumerate(_ATTR_ORDER):
+            assert cols[1 + i] == attrs[a], (
+                f"{label} {a}: guide={cols[1 + i]!r} vs yaml={attrs[a]!r}"
+            )
+        checked += 1
+    assert checked == 9, f"Expected to cross-check 9 templates, checked {checked}"
+
+
+def test_duros_sullustan_ability_mechanics_match_yaml():
+    """The tightened §2 ability text must reflect the real species YAML mechanics."""
+    sp = _load_species()
+    text = read_guide()
+    duros = {a["name"]: a["description"] for a in sp["duros"]["special_abilities"]}
+    assert "Astrogation" in duros["Natural Pilots"]
+    assert "+1D to Astrogation" in text, "§2 Duros ability must cite +1D Astrogation"
+    sull = {a["name"]: a["description"] for a in sp["sullustan"]["special_abilities"]}
+    assert "Perception" in sull["Enhanced Senses"]
+    assert "+1D to Perception" in text, "§2 Sullustan ability must cite +1D Perception"
+
+
+def test_extreme_species_ranges_match_yaml():
+    """Spot-check the §2 species table extremes against data/species/."""
+    import re
+    sp = _load_species()
+    text = read_guide()
+    # Wookiee Strength 3D–6D
+    w = sp["wookiee"]["attributes"]["strength"]
+    assert w["min"] == "3D" and w["max"] == "6D"
+    wook_row = next(l for l in text.splitlines() if l.startswith("| **Wookiee**"))
+    assert re.search(r"3D[–-]6D", wook_row), f"Wookiee STR 3D–6D missing: {wook_row!r}"
+    # Bothan Perception max 4D+2
+    b = sp["bothan"]["attributes"]["perception"]
+    assert b["max"] == "4D+2"
+    both_row = next(l for l in text.splitlines() if l.startswith("| **Bothan**"))
+    assert "4D+2" in both_row, f"Bothan PER 4D+2 missing: {both_row!r}"

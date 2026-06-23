@@ -1,0 +1,460 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_coruscant_commercial_expansion.yaml
+#
+# Coruscant Commercial District Expansion — Hostile Mob Grind Batch (2026-06-23)
+#
+# Six roaming hostile NPCs seeded across six previously uncovered
+# commercial_district rooms on Coruscant, extending the solo-PvE mob-grind
+# reward loop (engine/hunting_rewards.py).
+# All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone: commercial_district (threat_band: settled)
+# These rooms were untouched by the prior Coruscant grind batches:
+#   npcs_drop_mob_grind_coruscant_midlevels.yaml (Outlander Club / Gartro Rookery /
+#     Power Grid Station / University District / Coco Town Loft + Civic Block)
+#   npcs_drop_mob_grind_coruscant_gilded_cage.yaml (entertainment_district)
+#   npcs_drop_mob_grind_coruscant.yaml / _lower.yaml / _monumental.yaml
+#   npcs_drop_mob_grind_coruscant_underworld{,_deep}.yaml (wilderness seam)
+#   npcs_drop_mob_grind_coruscant_southern_underground.yaml
+#
+# Zone spread:
+#   Mid-City Transit Hub x1         (Duros Transit Mugger, hold_out_blaster)
+#   Mid-Level Market Street x1      (Zabrak Spice Enforcer, vibroblade)
+#   Mid-Level Residential Block x1  (Quarren Block Boss, heavy_blaster_pistol)
+#   Coco Town - Residential Walk x1 (Rodian Territorial Watch, blaster_pistol)
+#   Coco Town - Market Arcade x1    (Devaronian Arcade Fence, concealed_blaster)
+#   Outlander Cantina - Back Rooms x1 (Human Back-Room Enforcer, blaster_pistol)
+#
+# Thematic premise: Wartime Coruscant's commercial mid-levels operate under
+# stretched security. Galactic transit pressure funnels desperate beings into the
+# transit and market corridors; criminal networks exploit the anonymity. Spice
+# distribution has hardened through the market street since the war diverted
+# Senate Planetary Security resources; residential block bosses extract tribute
+# with even less oversight than before. The Outlander Cantina's back rooms host
+# deals the front-room staff officially know nothing about — the enforcer on duty
+# ensures that stays true.
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats grounded in sibling CW NPC patterns (coruscant
+#   monumental + midlevels batch baselines):
+#   Human:      2D baseline all attributes
+#   Duros:      MEC 3D, KNO 2D+2 (spacer species; good spatial + nav sense)
+#   Zabrak:     STR 2D+2, PER 2D+2 (disciplined, fearless; resist pain)
+#   Quarren:    STR 2D+2, KNO 2D+1 (Mon Cal moon species; tough, calculating)
+#   Rodian:     DEX 3D, PER 3D+1 (hunter species; natural at tracking/stalking)
+#   Devaronian: STR 2D+1, PER 3D (nomadic wanderers; sharp-eyed, persuasive)
+#   Stats UNVERIFIED against WEG40120 PDF.
+# Weapons: hold_out_blaster, vibroblade, heavy_blaster_pistol, blaster_pistol,
+#   concealed_blaster — all keys confirmed in data/weapons.yaml.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # MID-CITY TRANSIT HUB — 1 NPC (Duros transit mugger)
+  # The hub where mag-rail, air-bus, and pedestrian walkways converge.
+  # High foot traffic from clone leave-rotations and displaced civilians
+  # gives a skilled thief ideal cover — until the mark fights back.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Transit Hub Mugger
+    room: "Coruscant - Mid-City Transit Hub"
+    species: Duros
+    description: >-
+      A tall, blue-grey Duros in a worn transit-authority jacket he
+      clearly did not earn through employment — the patch is
+      the right colour but the badge number belongs to someone who
+      retired two years ago, a detail only someone who checks would
+      catch. He works the mag-rail waiting area, timing his approaches
+      to the arrival surge when the platform is crowded enough that a
+      drawn weapon or a shout gets lost in the noise. His hold-out
+      blaster sits in a modified jacket liner, positioned for a
+      one-handed draw that he has made fast through practice. He has
+      been working this platform for six weeks and has learned which
+      security rotations are worth waiting out. He spots you as
+      someone who might have credits or cargo worth the risk and
+      closes the distance while the next train is still boarding.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D+2
+        mechanical: 3D
+        perception: 3D
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+2
+        hide: 3D+1
+        search: 3D
+        streetwise: 3D+2
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Duros opportunist who migrated from a failed cargo-running
+        career to working the transit corridors as a mugger and
+        occasional informant for a mid-level spice distributor. He
+        is calculating and patient — he picks targets who look
+        distracted and hits during the transit noise. If challenged
+        before he is ready he draws immediately; he has no interest
+        in a conversation he is not controlling.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Clipped spacer Basic with the vowel-flattening accent of a
+        Duro native who has spent too long off-world. "Missed your
+        train. Long wait." Then the jacket liner opens.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He steps back into the crowd flow, using other travellers as moving
+          cover.*"
+        - "*The hold-out comes up in a two-fingered grip — small but accurate at
+          this range.*"
+        - "*He does not run. The platform exit is behind you.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # MID-LEVEL MARKET STREET — 1 NPC (Zabrak spice trade enforcer)
+  # The ground-level commercial artery that runs through the mid-city
+  # block, lined with legitimate vendors and secondary-market stalls.
+  # The spice distribution network runs its transit through three
+  # specific stalls; the Zabrak keeps traffic moving and witnesses out.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Market Street Enforcer
+    room: "Coruscant - Mid-Level Market Street"
+    species: Zabrak
+    description: >-
+      A Zabrak with the dense geometric facial tattoos of a
+      Dathomir-adjacent clan lineage and the posture of someone who
+      has spent years being the largest and most visibly armed person
+      in any given space by deliberate design. He patrols the middle
+      stretch of the market street on behalf of a distribution
+      operation that moves spice through three of the produce stalls
+      under legitimate vendor cover. His vibroblade is in an
+      open-carry harness across his back, legal in this district
+      under the craftsman exemption, and he has never had to explain
+      the exemption to anyone twice. He sees you as someone who
+      has stopped at the wrong stall and is now getting a longer
+      look than the produce warrants. The hand goes to the harness.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+2
+        technical: 2D
+      skills:
+        melee_combat: 4D+2
+        brawling: 4D+1
+        dodge: 3D+1
+        intimidation: 4D
+        search: 3D
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Zabrak street enforcer working a spice distribution
+        territory in the Coruscant mid-level market corridor.
+        He is direct and physical — his job is to make problems
+        go away quickly and without attracting official attention,
+        and the vibroblade is the fastest available tool for
+        close-range problem resolution. He does not issue
+        warnings that he intends to follow up verbally.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Minimal Basic with a Dathomir-region cadence. "Wrong
+        stretch." The hand is already on the harness by the
+        time he says it.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He shifts his weight forward and drives with the vibroblade in a low
+          arc.*"
+        - "*'Keep moving.' The blade is already tracking.*"
+        - "*He does not step back. He closes.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # MID-LEVEL RESIDENTIAL BLOCK — 1 NPC (Quarren block protection boss)
+  # A twenty-story residential tower in the commercial mid-levels,
+  # its building management officially registered to a shell company
+  # that forwards payments to a Hutt-adjacent receivables firm.
+  # The protection circuit runs through the residential corridors.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Residential Block Boss
+    room: "Coruscant - Mid-Level Residential Block"
+    species: Quarren
+    description: >-
+      A Quarren in the muted grey coveralls that building maintenance
+      staff wear, though the heavy blaster pistol on his hip is not
+      standard issue for building maintenance and neither is the way
+      he moves through the corridor — checking sightlines, reading
+      everyone who passes through, cataloguing who belongs and who
+      does not. He runs the protection circuit for floors nine
+      through eighteen and has been doing it long enough that most
+      residents pay without being asked, an arrangement that suits
+      everyone except the ones who moved in recently and haven't
+      learned the building's informal fee structure yet. His
+      tentacles flex in the particular configuration that in
+      Quarren social grammar signals something between displeasure
+      and readiness. You are on floor twelve and you did not arrive
+      through a door he recognises.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D
+        strength: 3D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        brawling: 4D+2
+        dodge: 3D
+        intimidation: 4D+1
+        streetwise: 3D+2
+      weapon: heavy_blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Quarren building-level protection boss who has run his
+        circuit for long enough to be territorial about it in the
+        way of someone who has had to defend it physically before.
+        He identifies new presences immediately and resolves
+        unregistered ones with force before they become
+        complications for the operation.
+      knowledge: []
+      faction: hutt_cartel
+      dialogue_style: >-
+        Bubbling Mon Cal-accented Basic with a flat professional
+        register. "Which floor are you visiting?" The heavy blaster
+        is already in his hand by the time you answer.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He backs into the stairwell alcove, using the frame for partial cover,
+          and fires.*"
+        - "*'Wrong building.' A second shot, adjusted for your movement.*"
+        - "*He knows every maintenance corridor on this floor. You don't.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # COCO TOWN — RESIDENTIAL WALK — 1 NPC (Rodian territorial watch)
+  # The pedestrian walkway threading the Coco Town residential towers,
+  # lined with communal garden strips and informal market stalls.
+  # A Hutt-adjacent gang has claimed the two-block stretch between
+  # the transit steps and the park access as territory.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Residential Walk Lookout
+    room: "Coruscant - Coco Town - Residential Walk"
+    species: Rodian
+    description: >-
+      A Rodian perched on the railing above the walkway's transit-step
+      landing, green chitin faded at the joints from years in
+      artificial light, snout tracking everything that moves through
+      the two-block stretch below. He wears the loose street clothes
+      that make him look like any other Coco Town resident, but the
+      angle he holds — always able to see both ends of the walkway
+      simultaneously — is the posture of someone on a specific
+      assignment. His gang claimed this stretch for a territorial
+      buffer zone six months ago; his job is to spot and discourage
+      anyone who looks like they are mapping the access routes for
+      a rival or a security detail. You came through the transit
+      steps on the wrong side of a line he enforces, and his hand
+      has already moved to the blaster at his belt.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        dodge: 4D
+        hide: 3D+2
+        search: 4D
+        streetwise: 3D+1
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Rodian gang lookout maintaining territorial boundary
+        enforcement on a Coco Town residential walkway. His
+        hunter instincts serve the role well — he spots
+        anomalies in foot traffic before they become problems
+        and responds with a blaster rather than a warning.
+        The gang does not pay him to have conversations.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Whistling Rodese with a brief Basic translation: "You
+        took the wrong steps." The blaster is out before the
+        sentence finishes.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He drops below the railing and fires from cover, using the elevation
+          advantage.*"
+        - "*A clicking sound in Rodese — a confirmation signal to someone further
+          down the walk. Then another shot.*"
+        - "*He does not pursue past the transit steps. But he does not miss.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # COCO TOWN — MARKET ARCADE — 1 NPC (Devaronian stolen goods fence)
+  # A covered commercial arcade running along the base of the main
+  # Coco Town residential spire, mixing legitimate craft vendors
+  # with secondary-market stalls that do not always ask about
+  # provenance. One stall operates as a receiving point for military
+  # hardware moving through an off-book channel.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Arcade Fence
+    room: "Coruscant - Coco Town - Market Arcade"
+    species: Devaronian
+    description: >-
+      A Devaronian male with the characteristic dull horn stubs of
+      middle age and the hand-worn surface of a stall he has run for
+      longer than the stall's official registration suggests. His
+      official inventory is reconstituted consumer electronics —
+      screen panels, power couplings, comm units with the model years
+      scraped off. His actual inventory is military-grade components
+      that fell off supply convoys between the Republic Logistics
+      Depot and the KDY parts distribution run, catalogued in a
+      chip he keeps on his body rather than in any data terminal.
+      When he sees you examining the inventory too carefully — the
+      kind of examination that reads part numbers rather than prices —
+      the friendly shopkeeper register drops and the concealed blaster
+      comes out from under the counter fast enough to confirm he has
+      done this before.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 3D
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+1
+        technical: 2D+1
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        bargain: 3D+2
+        streetwise: 4D
+        con: 3D+2
+      weapon: concealed_blaster
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Devaronian fence operating a stolen-military-hardware
+        receiving point out of a market arcade stall under
+        consumer-electronics cover. He is experienced and
+        controlled — his first instinct is to read whether
+        a visitor is a customer, a rival, or a threat to the
+        operation, and he resolves threats before they can
+        report back to whoever sent them.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Smooth, accented Basic that shifts from vendor warmth
+        to flat professionalism in a single word. "Interesting
+        interest in the back stock. Who sent you?"
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He drops behind the counter and fires low through the stall gap.*"
+        - "*'Wrong answer.' The concealed blaster adjusts for your new position.*"
+        - "*He knows the arcade geometry better than anyone. He built it.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # OUTLANDER CANTINA — BACK ROOMS — 1 NPC (Human enforcer)
+  # The Outlander Club's front room is officially a licensed cantina.
+  # The back rooms are where the club's actual business happens —
+  # data sales, cargo arrangement, introduction fees. The enforcer
+  # on the back-room door is the only person who controls access.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Cantina Back-Room Guard
+    room: "Coruscant - Outlander Cantina - Back Rooms"
+    species: Human
+    description: >-
+      A broad Human in the kind of clothing that is expensive enough
+      to be respectable at the front-bar but has been tailored to
+      conceal the blaster on his left side and the backup piece in
+      his boot. He stands at the divide between the cantina's public
+      space and the back corridor with the specific stillness of
+      someone who does not move because they do not need to —
+      the message is in the position, not the motion. He has been
+      the Outlander's back-room door for four years and in that time
+      has established a personal catalogue of who is allowed through
+      and who is not. You are not in the catalogue. His hand has
+      moved from his hip to the grip of the blaster with the smooth
+      economy of someone who made that motion professional before
+      the war started.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 3D+1
+        technical: 2D
+      skills:
+        blaster: 4D+2
+        brawling: 4D+1
+        dodge: 3D+2
+        intimidation: 3D+2
+        streetwise: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A veteran Human enforcer who has run the Outlander Cantina's
+        back-room access control for years and treats it with the
+        thoroughness of someone who has personally cleaned up the
+        consequences of letting the wrong person through. He is
+        not aggressive for its own sake — he identifies threats
+        and neutralises them with professional economy.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Flat Core-world Basic, no regional colouring. "You're not
+        on the list." That is the only thing he says before
+        drawing.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He steps to the side of the corridor, using the frame as cover, and
+          fires.*"
+        - "*'No list, no pass.' A second shot, tracked to your movement.*"
+        - "*He does not follow into the front bar. His job is the door.*"

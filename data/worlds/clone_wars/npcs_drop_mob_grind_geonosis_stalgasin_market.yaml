@@ -1,0 +1,468 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_geonosis_stalgasin_market.yaml
+#
+# Geonosis Stalgasin Surface & Remaining Hostile Mob Grind Batch (2026-06-22)
+#
+# Seven roaming hostile NPCs seeded across the six previously uncovered
+# Geonosis world rooms to complete mob-grind coverage of all Geonosis
+# surface and interior rooms. Satisfies engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone spread:
+#   Surface Market x2              (Hive Market Enforcer + Surface Market Fixer)
+#   CIS Recruitment Office x1      (CIS Recruitment Security Droid)
+#   Archduke's Audience Hall x1    (Palace Honor Guard)
+#   Stalgasin Offworld Quarter x1  (Offworld Quarter Enforcer)
+#   Stalgasin Outsider Compound x1 (Compound Gatekeeper)
+#   Smuggler's Roost Flophouse x1  (Roost Debt Collector)
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats grounded in sibling CW NPC patterns (mob-grind baselines):
+#   Geonosian warriors: DEX 3D, STR 3D, vibroblade 4D+2.
+#   B2 battle droid: DEX 3D, STR 4D, blaster 4D+2.
+#   Humanoid grunts/operatives: DEX 2D+2 to 3D+1, fight skills 3D+2–4D+1.
+#   Stats UNVERIFIED against WEG40120 PDF.
+# Weapons: vibroblade, blaster_rifle, blaster_carbine, blaster_pistol —
+#   all keys confirmed in data/weapons.yaml.
+# Droid NPC uses weapon: blaster_rifle (B2 standard loadout).
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # SURFACE MARKET — 2 NPCs (Geonosian enforcer + Rodian fixer)
+  # A pragmatic grey market that the hive neither sanctions nor shuts
+  # down, occupying the cracked stone apron between the hive wall and
+  # the offworld landing clearance. The Geonosian is not a trader.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Hive Market Enforcer
+    room: "Geonosis - Surface Market"
+    species: Geonosian
+    description: >-
+      A Geonosian warrior-caste fighter who has claimed the Surface
+      Market as territorial space on behalf of the hive's outer-ring
+      castes. Its muted brown-grey chitin is unmarked by foundry dyes,
+      which in Geonosian social grammar means it was never assigned to
+      production and has spent its working life on the sharp end of
+      access control. It moves through the market stalls with the
+      slow circling pattern of something that knows it is the apex
+      presence in the area. When it notices you in a section without
+      a vendor's mark, the circuit stops, the wings click half-open,
+      and the vibroblade comes off its back harness in one fluid
+      reach. There is no verbal component to the challenge.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 1D+1
+        mechanical: 1D
+        perception: 3D+1
+        strength: 3D
+        technical: 1D+2
+      skills:
+        vibroblade: 4D+2
+        dodge: 3D+2
+        brawling: 4D
+        search: 3D+1
+        intimidation: 3D+2
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A Geonosian territorial enforcer assigned to keep the surface
+        market from becoming a threat vector against the hive's outer
+        walls. It collects an informal clearance toll from offworld
+        vendors and removes anyone who refuses or who is suspected of
+        scouting the hive perimeter. Violence is the first and only
+        escalation; the market has long since stopped expecting
+        anything else from it.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Subsonic clicks and a half-spread of wings. No translator
+        module in the market recognises the specific frequency it
+        uses — a deliberate choice.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The Geonosian clicks once and steps between you and the exit path.*"
+        - "*Wings fully spread; the vibroblade traces a warning arc through the air.*"
+        - "*It does not speak. It simply reduces the distance.*"
+
+  - name: Surface Market Fixer
+    room: "Geonosis - Surface Market"
+    species: Rodian
+    description: >-
+      A Rodian in patched thermal gear with a vendor's mark scratched
+      deep on one forearm — old enough that the original authority
+      that issued it no longer exists. He runs a three-stall operation
+      in the market's eastern quadrant that officially deals in
+      reclaimed atmospheric filtration parts and unofficially moves
+      anything a visiting crew needs that can't clear customs. He has
+      been on Geonosis for fourteen months and has an understanding
+      with both the Geonosian enforcer circuit and a Hutt logistics
+      relay in the offworld quarter. When he clocks you clocking his
+      stall's actual inventory, the friendly forward lean turns into
+      something else and the hold-out rig under the filtration parts
+      comes up with professional speed.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D
+        strength: 2D
+        technical: 2D+1
+      skills:
+        blaster: 4D+1
+        dodge: 3D+2
+        hide: 3D+1
+        streetwise: 3D+2
+        bargain: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A long-term offworld fixer who has built a stable operation
+        in the Geonosis surface market by staying small, staying
+        useful to multiple factions, and eliminating anyone who could
+        identify him to the wrong party. He is not cruel, just
+        practical: witnesses to the secondary inventory are a
+        liability he cannot carry, and the blaster resolves
+        liabilities cleanly.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Smooth Basic with a Rodia-adjacent cadence. "Just browsing,
+        or did you need something?" The tone shifts to flat and
+        professional the moment the blaster comes out.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He slides sideways behind the filtration stack and fires from cover.*"
+        - "*'Nothing personal.' The second shot is already tracking.*"
+        - "*He does not negotiate from this position.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # CIS RECRUITMENT OFFICE — 1 NPC (B2 security droid)
+  # A converted Geonosian storage chamber repurposed as a CIS muster
+  # point. The droid on station was assigned crowd-control duties and
+  # has been here long enough to interpret its engagement parameters
+  # with increasing latitude.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: CIS Recruitment Security Droid
+    room: "Geonosis - CIS Recruitment Office"
+    species: Droid
+    description: >-
+      A B2 super battle droid in the dulled-white finish of a unit
+      that has been on continuous station for some months, assigned
+      to the CIS recruitment office as security for the processing
+      flow. The muster point stopped running regular intake cycles
+      weeks ago, but nobody updated the droid's standing orders,
+      so it remains at post with a blaster-arm charging cycle that
+      runs every forty minutes whether or not anything is present
+      to threaten. It has extended its concept of "the secured
+      perimeter" to the entire chamber and both approaches, and its
+      identification protocols now classify anyone it has not seen
+      enter with a CIS officer escort as an active intrusion. The
+      photoreceptors track your entry with the particular quality of
+      attention that does not include any possibility of dialogue.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 1D
+        mechanical: 1D+2
+        perception: 2D+2
+        strength: 4D
+        technical: 1D+1
+      skills:
+        blaster: 4D+2
+        dodge: 3D+1
+        brawling: 4D
+        search: 2D+2
+      weapon: blaster_rifle
+      move: 8
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A B2 battle droid on static security assignment at a CIS
+        recruitment post whose active intake operations have
+        suspended. Its engagement parameters have drifted in the
+        absence of officer oversight, and it now classifies all
+        unescorted entry as hostile intrusion subject to immediate
+        force resolution. It does not distinguish between
+        categories of intruder.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        "HALT. IDENTITY NOT CONFIRMED. ENGAGING." The cadence is
+        unchanged regardless of circumstances.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The B2 repositions with a heavy hydraulic step and fires again.*"
+        - "*'PERIMETER BREACH CONFIRMED. ESCALATING.' The blaster arm cycles.*"
+        - "*It does not slow. It does not hesitate. It was built for exactly this.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # ARCHDUKE'S AUDIENCE HALL — 1 NPC (Palace Honor Guard)
+  # The hall that presents the Archduke at the same eye level as a
+  # standing visitor. Honor guard warriors here are drawn from the
+  # palace caste and operate under a strict no-witness protocol.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Palace Honor Guard
+    room: "Geonosis - Archduke's Audience Hall"
+    species: Geonosian
+    description: >-
+      A Geonosian warrior in the deep-crimson pigmentation of the
+      palace-caste guard contingent, the ceremonial markings on its
+      thorax worn smooth from years of formal presentation. It stands
+      between the audience hall's main approach and the elevated dais,
+      force pike carried diagonally across the body in the formal
+      guard stance that in Geonosian court practice signals both
+      honour and readiness. The wings are fully folded and still,
+      which palace protocol dictates for this position. What palace
+      protocol also dictates: any visitor who enters the audience
+      hall without an Archduke-issued pass and fails to withdraw on
+      first challenge is a direct threat to the throne-line's security,
+      and the guard's authority to use terminal force in this hall is
+      absolute and unreviewed. The force pike activates with a sound
+      like cracking stone.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 1D
+        perception: 3D+2
+        strength: 3D+1
+        technical: 1D+2
+      skills:
+        melee_combat: 5D
+        dodge: 4D
+        brawling: 4D+1
+        search: 3D+2
+        intimidation: 3D+1
+      weapon: force_pike
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        An elite Geonosian palace guard assigned to the Archduke's
+        audience hall. Its authority in this space is complete and
+        it exercises it without hesitation; hall security has
+        no escalation tier below lethal force once a challenge
+        is declined. It is not violent for its own sake — it is
+        indifferent, which is worse.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        A single subsonic challenge tone, recognizable even without
+        a translator as a final warning. Then the force pike comes
+        to active-guard and there is nothing further.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The honor guard closes ground with a controlled burst of wings.*"
+        - "*The force pike sweeps low — it is not aiming to wound.*"
+        - "*It clicks once, pivots, and drives forward.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # STALGASIN SURFACE — OFFWORLD QUARTER — 1 NPC (Trandoshan enforcer)
+  # The stretch of hive outer wall where non-Geonosians have been
+  # allowed to take long-term positions. Criminal networks run the
+  # practical infrastructure here.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Offworld Quarter Enforcer
+    room: "Geonosis - Stalgasin Surface - Offworld Quarter"
+    species: Trandoshan
+    description: >-
+      A Trandoshan with the layered scar tissue of a career in
+      enforcement work, his current contract covering the eastern
+      stretch of the offworld quarter on behalf of a Hutt logistics
+      broker who wants the territory kept clean of competing supply
+      chains. He is not subtle about it — the carbine is slung in
+      open carry, the vendor-toll receipts are visible on his belt,
+      and he makes a point of being seen at the chokepoints where
+      the quarter's access routes converge. New arrivals who haven't
+      paid the access surcharge don't get a second notice; he fires
+      first and the broker handles any paperwork afterward.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 1D+2
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+2
+        technical: 1D+2
+      skills:
+        blaster: 4D
+        brawling: 4D+1
+        dodge: 3D
+        intimidation: 3D+2
+        search: 3D
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Trandoshan street enforcer on contract to a Hutt-connected
+        logistics operation controlling offworld-quarter access
+        flows. He is experienced, economical, and has no interest in
+        conversation once he has decided a visitor is not going to pay.
+        The carbine is the whole argument.
+      knowledge: []
+      faction: hutt_cartel
+      dialogue_style: >-
+        Trandoshan Basic with a flat cadence. "Access surcharge is
+        fifteen credits. You look like you don't have it." He
+        doesn't wait long for an answer.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He drops to a crouch behind a supply crate and fires from cover.*"
+        - "*'Wrong quarter.' Another burst from the carbine.*"
+        - "*He is unhurried. He has done this before.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # STALGASIN SURFACE — OUTSIDER COMPOUND — 1 NPC (Weequay gatekeeper)
+  # A Geonosian-engineered walled enclosure built to keep non-
+  # Geonosians penned and observable. The informal power inside
+  # it belongs to whoever is most willing to enforce it.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Compound Gatekeeper
+    room: "Geonosis - Stalgasin Surface - Outsider Compound"
+    species: Weequay
+    description: >-
+      A Weequay with a lieutenant's bearing and a blaster that sits
+      at his hip like it belongs there, which it has for long enough
+      that the holster has worn to his body shape. He controls the
+      compound's water allocation, bunk assignments, and off-compound
+      passes, which means in practice he controls the compound. The
+      arrangement suits him and he maintains it with the minimum
+      necessary force, which is more force than most visitors expect.
+      He knows every face that has been through the compound in the
+      past three months and yours is not among them, which means you
+      entered through a route he hasn't locked down yet and that is
+      a problem that gets resolved immediately.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        brawling: 3D+2
+        dodge: 3D+2
+        intimidation: 4D
+        streetwise: 3D+1
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Weequay gang lieutenant running the informal power
+        structure of the outsider compound through control of
+        basic resources. He is pragmatic and efficient; new
+        arrivals who came in through an unauthorized route
+        represent a security gap he needs to close. Violence
+        is quick and clean.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Measured Basic, the voice of someone who does not need to
+        raise it. "You didn't come through the front. That means
+        we have a conversation."
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He steps left and fires with practiced economy.*"
+        - "*'You should have used the gate.' A second shot, no hesitation.*"
+        - "*He does not pursue past the compound wall. He doesn't need to.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # STALGASIN SURFACE — SMUGGLER'S ROOST FLOPHOUSE — 1 NPC (Nikto collector)
+  # The closest thing the Geonosian surface offers to lodging. Vez
+  # Garra's operation keeps order through a resident debt collector.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Roost Debt Collector
+    room: "Geonosis - Stalgasin Surface - Smuggler's Roost Flophouse"
+    species: Nikto
+    description: >-
+      A Nikto in scuffed flophouse-issue coveralls with the Roost's
+      room-charge ledger on a datachip clipped to his collar and a
+      blaster pistol that has had the manufacturer's serial filed off
+      and a new one scratched in by hand — a joke or a habit, hard
+      to tell. He collects Vez Garra's bed fees, the storage-locker
+      tax, and the informal security surcharge for guests who don't
+      want their gear walked out while they sleep. He also handles
+      collection disputes, which in practice means he fires first
+      and updates the ledger afterward. He spotted you as a new
+      arrival the moment you walked in, has already calculated what
+      Vez will charge for your presence, and is moving to collect
+      before you find a bunk and make it complicated.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D
+        brawling: 3D+1
+        dodge: 3D+1
+        intimidation: 3D+2
+        streetwise: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Nikto debt collector and informal enforcer for the
+        Smuggler's Roost flophouse. He operates without mercy
+        or ceremony; an unregistered visitor is an outstanding
+        charge and he collects outstanding charges with a
+        blaster before they become disputes.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Flat Basic with a Nikto rasp. "You haven't paid Vez yet."
+        That is the entirety of the warning.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He drops behind the bunk frame and fires low.*"
+        - "*'No credit, no roof.' Another shot, tracking your movement.*"
+        - "*He has the geometry of the room memorised. You don't.*"

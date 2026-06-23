@@ -3,7 +3,7 @@
 parser/espionage_commands.py — Espionage Command Suite for SW_MUSH.
 
 Commands:
-  scan <player>         — covert character assessment
+  assess <player>       — covert character assessment (alias: size)
   eavesdrop [direction] — listen to adjacent room (alias: listen)
   search                — search room for hidden info (alias: inspect)
   +intel                — compose/manage intel reports
@@ -45,7 +45,7 @@ class ScanCommand(BaseCommand):
             return
         target_name = (ctx.args or "").strip()
         if not target_name:
-            await ctx.session.send_line("  Scan who? Usage: scan <player>")
+            await ctx.session.send_line("  Assess who? Usage: assess <player>")
             return
 
         # Cooldown check (2 minutes per target)
