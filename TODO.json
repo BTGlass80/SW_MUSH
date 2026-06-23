@@ -1884,6 +1884,16 @@
       "lane_note": "space_commands.py / the space layer is the interactive conductor's QA lane — flagging here, NOT fixing, to avoid collision.",
       "fork": "(A) Build the missing per-type engagement (a real `course anomaly <id>` or a dedicated verb routed per anomaly_type), making the readouts true; (B) trim the anomaly system to detection + derelict-salvage at launch and fix the misleading 'course anomaly {id}' readout text to match what's wired; (C) leave as-is post-launch.",
       "decision_needed": "Pick A/B/C; if anything pre-launch, it belongs to the space/conductor lane, not the unattended loops."
+    },
+    {
+      "id": "SPACE.ships_log_thresholds_stale_vs_reworked_graph",
+      "status": "OPEN",
+      "title": "Ship's-Log milestone titles (Explorer 16 zones / Galactic Traveler 4 planets / Spotter 19 ships) and their 'All N ...' flavor text are stale against the June space rework's larger galaxy graph",
+      "origin": "Guide_05 Space Systems authoritative pass (2026-06-23): documenting the live galaxy showed the title thresholds no longer match the zone/planet counts the rework produced.",
+      "premise_verified_at_head": "data/worlds/clone_wars/space_zones.yaml now defines 6 planets (tatooine, nar_shaddaa, coruscant, kuat, kamino, geonosis) x dock/orbit/deep_space = 18 planet zones, plus 6 hyperspace lanes + 4 wildspace zones = 28 zones total. But engine/ships_log.py MILESTONES still threshold Explorer at 16 zones with msg 'All 16 zones charted', Galactic Traveler at 4 planets with msg 'Touched down on all 4 planets', and Spotter at 19 ship types (the live CW registry now has 21 distinct hulls / 23 keys). The titles still FIRE (they are milestone counters, not gated on a live total) but the thresholds are no longer 'all', and the flavor text is factually wrong. The guide documents the thresholds honestly as milestones and does not claim they equal the galaxy total.",
+      "lane_note": "engine/ships_log.py is not avoid-lane, but the threshold VALUES are a balance/design call and the space layer is the interactive conductor's QA lane -- flagging here, not guessing.",
+      "fork": "(A) Re-tune to the new graph as true completion (Explorer 28 zones, Galactic Traveler 6 planets, Spotter 21 ships) + fix the 'All N' flavor; (B) keep the current thresholds as mid-game milestones and reword the flavor so it no longer says 'all'; (C) leave as-is post-launch.",
+      "decision_needed": "Pick A/B/C; if pre-launch, it belongs to the space/conductor lane, not the unattended loops."
     }
   ],
   "design_calls_resolved_recent": [
