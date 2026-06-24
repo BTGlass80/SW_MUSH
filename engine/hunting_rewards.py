@@ -152,7 +152,8 @@ async def on_huntable_kill(db, killer_char: dict, npc_row: dict, *,
         attrs = _load_attrs(killer_char)
         log_d = _load_log(attrs, day_stamp)
 
-        reward = _reward_for(_safe_int(log_d.get("daily_credits")))
+        daily_before = _safe_int(log_d.get("daily_credits"))
+        reward = _reward_for(daily_before)
 
         # Credits via the funnel chokepoint (a real, bounded faucet).
         new_balance = await db.adjust_credits(
@@ -163,7 +164,7 @@ async def on_huntable_kill(db, killer_char: dict, npc_row: dict, *,
         prev_kills = _safe_int(log_d.get("kills"))
         new_kills = prev_kills + 1
         log_d["kills"] = new_kills
-        log_d["daily_credits"] = _safe_int(log_d.get("daily_credits")) + reward
+        log_d["daily_credits"] = daily_before + reward
         attrs[HUNT_LOG_KEY] = log_d
         await _persist_attrs(db, killer_char, attrs)
 
@@ -181,6 +182,30 @@ async def on_huntable_kill(db, killer_char: dict, npc_row: dict, *,
             except Exception:
                 log.debug("hunting: title grant failed", exc_info=True)
                 title_key = None
+
+        # Telemetry: join the grind OUTCOME to the already-ledgered credit leg
+        # (T3.19 breadth — grind/rewards). Fail-open + zero extra I/O (cheap
+        # in-memory npc_row/killer_char fields only; offline resolves
+        # room_id->zone->threat-band). NEVER let it disturb the reward path.
+        try:
+            from engine import telemetry as _tlm
+            ai = _ai_config(npc_row)
+            _tlm.emit_grind_kill(
+                killer_char.get("id"),
+                reward=reward,
+                daily_credits=log_d["daily_credits"],
+                at_cap=log_d["daily_credits"] >= DAILY_SOFT_CAP,
+                over_cap=daily_before >= DAILY_SOFT_CAP,
+                total_kills=new_kills,
+                npc_name=npc_row.get("name", ""),
+                room_id=killer_char.get("room_id"),
+                species=npc_row.get("species"),
+                faction=ai.get("faction"),
+                behavior=ai.get("combat_behavior"),
+                title_key=title_key,
+            )
+        except Exception:
+            log.debug("hunting: grind telemetry emit failed", exc_info=True)
 
         return {
             "reward": reward,
