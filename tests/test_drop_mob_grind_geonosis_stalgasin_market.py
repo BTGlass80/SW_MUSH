@@ -23,6 +23,9 @@ Test sections:
   7. TestEraManifestRef    — file is wired into era.yaml content_refs.npcs
   8. TestWeaponKeysValid   — weapon keys exist in data/weapons.yaml
 """
+# GRIND REALIGNMENT (2026-06-24): batch reduced — SECURED-zone / civic-core
+# placements stripped (unkillable or immersion-breaking). Counts/rooms below
+# reflect the kept dangerous-contested / lawless set. See CHANGELOG 2026-06-24.
 from __future__ import annotations
 
 import json
@@ -86,7 +89,7 @@ class TestYamlParses(unittest.TestCase):
 
     def test_seven_npcs(self):
         data = _load_yaml(MOB_FILE)
-        self.assertGreaterEqual(len(data["npcs"]), 7, "Expected at least 7 hostile mobs")
+        self.assertGreaterEqual(len(data["npcs"]), 6, "Expected at least 6 hostile mobs (was 7; 1 SECURED-dead removed in grind realignment 2026-06-24)")
 
 
 class TestAllHostile(unittest.TestCase):

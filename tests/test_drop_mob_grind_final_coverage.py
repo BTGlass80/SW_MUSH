@@ -5,14 +5,13 @@ tests/test_drop_mob_grind_final_coverage.py
 Verifies the final coverage sweep hostile-mob grind batch
 (data/worlds/clone_wars/npcs_drop_mob_grind_final_coverage.yaml).
 
-Fills the 5 remaining uncovered publicly-accessible planet rooms:
-  - Coruscant - The Falleen Syndicate Tower  (monumental_district, frontier) x2
-  - Coruscant - Coco Town                   (commercial_district, settled)   x2
-  - Coruscant - Dexter's Diner              (commercial_district, settled)   x2
+Originally seeded 10 NPCs across 5 rooms; the 3 Coruscant rooms were SECURED
+(combat-blocked) and were stripped in the grind realignment (2026-06-24). The
+kept dangerous-contested set is 4 NPCs across 2 Nar Shaddaa rooms:
   - Nar Shaddaa - Ship Parts Emporium       (nar_shaddaa_promenade, settled)  x2
   - Nar Shaddaa - Renna Dox's Workshop      (nar_shaddaa_promenade, settled)  x2
 
-All ten NPCs must satisfy engine/hunting_rewards.is_huntable_mob():
+All kept NPCs must satisfy engine/hunting_rewards.is_huntable_mob():
   - ai_config.hostile = true
   - none of the special-reward markers present
 
@@ -25,8 +24,11 @@ Test sections:
   6. TestRoomsExist        — every room name resolves in the CW planet YAMLs
   7. TestEraManifestRef    — file is wired into era.yaml content_refs.npcs
   8. TestWeaponKeysValid   — weapon keys exist in data/weapons.yaml
-  9. TestCoverageComplete  — all 5 target rooms have at least one NPC entry
+  9. TestCoverageComplete  — all 2 kept target rooms have at least one NPC entry
 """
+# GRIND REALIGNMENT (2026-06-24): batch reduced — SECURED-zone / civic-core
+# placements stripped (unkillable or immersion-breaking). Counts/rooms below
+# reflect the kept dangerous-contested / lawless set. See CHANGELOG 2026-06-24.
 from __future__ import annotations
 
 import json
@@ -47,9 +49,8 @@ ERA_FILE = os.path.join(CW_DIR, "era.yaml")
 WEAPONS_FILE = os.path.join(PROJECT_ROOT, "data", "weapons.yaml")
 
 _EXPECTED_ROOMS = {
-    "Coruscant - The Falleen Syndicate Tower",
-    "Coruscant - Coco Town",
-    "Coruscant - Dexter's Diner",
+    # 3 Coruscant rooms (Falleen Syndicate Tower / Coco Town / Dexter's Diner)
+    # were SECURED-dead; removed in grind realignment 2026-06-24.
     "Nar Shaddaa - Ship Parts Emporium",
     "Nar Shaddaa - Renna Dox's Workshop",
 }
@@ -98,7 +99,7 @@ class TestYamlParses(unittest.TestCase):
 
     def test_ten_npcs(self):
         data = _load_yaml(MOB_FILE)
-        self.assertGreaterEqual(len(data["npcs"]), 10, "Expected at least 10 hostile mobs")
+        self.assertGreaterEqual(len(data["npcs"]), 4, "Expected at least 4 hostile mobs (was 10; 6 SECURED-dead removed in grind realignment 2026-06-24)")
 
 
 class TestAllHostile(unittest.TestCase):

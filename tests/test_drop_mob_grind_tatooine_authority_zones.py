@@ -25,6 +25,9 @@ Test sections:
   10. TestRequiredCharSheetFields — required char_sheet fields present
   11. TestFallbackLines    — at least 2 fallback_lines per NPC
 """
+# GRIND REALIGNMENT (2026-06-24): batch reduced — SECURED-zone / civic-core
+# placements stripped (unkillable or immersion-breaking). Counts/rooms below
+# reflect the kept dangerous-contested / lawless set. See CHANGELOG 2026-06-24.
 from __future__ import annotations
 
 import json
@@ -46,12 +49,10 @@ TATOOINE_PLANET_FILE = os.path.join(CW_DIR, "planets", "tatooine.yaml")
 WEAPONS_FILE = os.path.join(PROJECT_ROOT, "data", "weapons.yaml")
 
 EXPECTED_ROOMS = {
-    "City Outskirts - Republic Checkpoint",
+    # 5 authority/govt rooms (Republic Checkpoint, Government Quarter, Customs
+    # Office, Control Tower, Militia HQ) were civic/SECURED; removed in grind
+    # realignment 2026-06-24. Only the frontier scavenger market remains.
     "City Outskirts - Scavenger Market",
-    "Mos Eisley Street - Government Quarter",
-    "Spaceport Customs Office",
-    "Mos Eisley Spaceport Control Tower",
-    "Tatooine Militia Headquarters",
 }
 
 _SPECIAL_MARKERS = (
@@ -98,7 +99,7 @@ class TestYamlParses(unittest.TestCase):
 
     def test_six_npcs(self):
         data = _load_yaml(MOB_FILE)
-        self.assertEqual(len(data["npcs"]), 6, "Expected exactly 6 hostile mobs")
+        self.assertEqual(len(data["npcs"]), 1, "Expected exactly 1 hostile mob (was 6; 5 civic/SECURED removed in grind realignment 2026-06-24)")
 
     def test_schema_version(self):
         data = _load_yaml(MOB_FILE)
