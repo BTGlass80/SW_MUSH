@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
 """
-tests/test_qa_l2_force_0d_lockout.py — QA L2
-0D force-attribute lockout fix.
+tests/test_qa_l2_force_0d_lockout.py — L2 0D force-attribute handling.
 
-A character whose attributes JSON contains control/sense/alter = '0D'
-should NOT be reconstructed as force_sensitive=True. Key presence alone
-(even with a zero-dice pool) must not trigger Force-sensitivity; only a
-non-zero pool counts.
+HARD INVARIANT (CLAUDE.md): `force_sensitive` is DERIVED from the PRESENCE of
+control/sense/alter keys in the attributes JSON — regardless of dice value. A
+character whose three keys are all '0D' (an untrained Force-sensitive) is
+`force_sensitive=True`; the 0D "lockout" is solved by MESSAGING (guide them to
+`+teach`), not by demoting `force_sensitive`.
 
-Bug: Character.from_db_dict set force_sensitive=True whenever a force
-attribute key existed in attrs, regardless of the dice value. So a char
-with '0D' in all three keys was marked force_sensitive=True but every
-Force command rejected them (list_powers_for_char returned empty because
-_has_force_skill checks pool.dice > 0 or pool.pips > 0).
-
-Fix: from_db_dict now checks pool.is_zero() before setting
-force_sensitive=True.
+History (resolved 2026-06-24): two autonomous loop drops contradicted each other
+on this. `140c4d9` (this file, originally) added a `from_db_dict` non-zero guard
+so all-0D → `force_sensitive=False`; `3e1e00c` then re-aligned the code to the
+key-presence invariant (all-0D + keys → True) and fixed the lockout via the
+`+teach` message instead (see `tests/test_l2_force_0d_lockout_fix.py`). The live
+code (`engine/character.py` `from_db_dict`: "key presence → force-sensitive
+(invariant)") follows `3e1e00c`; the original assertions here were stale and have
+been corrected to match the invariant + the live behaviour.
 """
 import json
 import unittest
@@ -62,20 +62,26 @@ def _make_db_row(force_attrs: dict) -> dict:
 class TestForce0DLockout(unittest.TestCase):
     """Chars with '0D' force attributes must not be force_sensitive."""
 
-    def test_all_zero_dice_not_force_sensitive(self):
-        """control=sense=alter='0D' => force_sensitive=False."""
+    def test_all_zero_dice_still_force_sensitive(self):
+        """control=sense=alter='0D' with keys present => force_sensitive=True.
+
+        Key presence is the invariant trigger, not value. An untrained
+        Force-sensitive (all 0D) stays force_sensitive and is guided to +teach.
+        """
         row = _make_db_row({"control": "0D", "sense": "0D", "alter": "0D"})
         char = Character.from_db_dict(row)
-        self.assertFalse(
+        self.assertTrue(
             char.force_sensitive,
-            "0D force attrs should NOT mark the char as force-sensitive",
+            "0D force attrs with the keys present MUST mark the char "
+            "force-sensitive (key-presence invariant); the lockout is fixed via "
+            "messaging, not by demoting force_sensitive.",
         )
 
-    def test_zero_pips_not_force_sensitive(self):
-        """control=sense=alter='0D+0' => force_sensitive=False."""
+    def test_zero_pips_still_force_sensitive(self):
+        """control=sense=alter='0D+0' with keys present => force_sensitive=True."""
         row = _make_db_row({"control": "0D+0", "sense": "0D+0", "alter": "0D+0"})
         char = Character.from_db_dict(row)
-        self.assertFalse(char.force_sensitive)
+        self.assertTrue(char.force_sensitive)
 
     def test_nonzero_dice_is_force_sensitive(self):
         """control=sense=alter='1D' => force_sensitive=True."""

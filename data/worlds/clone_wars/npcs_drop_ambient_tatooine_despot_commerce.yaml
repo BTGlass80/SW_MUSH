@@ -1,0 +1,357 @@
+# data/worlds/clone_wars/npcs_drop_ambient_tatooine_despot_commerce.yaml
+#
+# Mos Eisley Commercial & Criminal Hospitality -- Ambient Population (2026-06-24)
+#
+# Four non-hostile flavor NPCs filling four rooms that currently hold
+# only hostile mob-grind NPCs — rooms whose own descriptions either
+# name the proprietor explicitly or describe a populated space with
+# nobody seeded:
+#
+#   Transport Depot             x1  (Yvonne Targis -- named in room desc as
+#                                    proprietor; "works for Jabba on the side")
+#   Heff's Souvenirs            x1  (Moplin -- named in room desc as current
+#                                    owner, makes his real living through forgery)
+#   Lucky Despot Hotel - Grand Staircase  x1  (Naressa Vell -- Twi'lek
+#                                    concierge for Valarian's operation)
+#   Lucky Despot - Star Chamber Cafe      x1  (Calos Renk -- experienced
+#                                    smuggler/regular gambler)
+#
+# All four are ambient (hostile: false). None carry special-reward markers.
+# Schema: engine/npc_loader.py (non-hostile ambient; loaded via era.yaml
+# content_refs.npcs). Fields mirror sibling patterns from
+# npcs_drop_ambient_tatooine_spaceport_civic.yaml.
+#
+# -- Policy ---------------------------------------------------------------
+# Q1 (no canon figures): all characters are original or instantiated from
+#   names given in the room description itself.
+#   Yvonne Targis: named in the room description. The Hutt crime lord is
+#     referenced obliquely only ("the Hutt," "a Hutt kajidic") per era rules.
+#   Moplin: named in the room description. Species unverified against
+#     WEG40120 PDF (room text gives no species); filed as Human.
+#   Naressa Vell: original character. Valarian (Whiphid crime boss, named
+#     in room desc) referenced by role, not as an NPC.
+#   Calos Renk: original character.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE in player-facing strings.
+# WEG R&E D6 stats: WEG40120 PDF absent in this worktree.
+#   Stats UNVERIFIED against WEG40120 PDF. Grounded in sibling-NPC patterns:
+#     Human civilian: 2D across attributes, adjusted per profession.
+#     Twi'lek: DEX 2D+1 baseline per G2 Nar Shaddaa sibling patterns.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# -------------------------------------------------------------------------
+
+schema_version: 1
+
+npcs:
+
+  # ======================================================================
+  # TRANSPORT DEPOT (room 34)
+  # Room desc: "The proprietor Yvonne Targis works for Jabba on the side."
+  # Directly instantiating the named proprietor; Hutt reference oblique.
+  # ======================================================================
+
+  - name: Yvonne Targis
+    room: "Transport Depot"
+    species: Human
+    description: >-
+      A thin woman in her forties behind the Transport Depot's main counter,
+      a half-eaten Gordian noodle bowl pushed aside and a manifest screen
+      open in front of her. She moves with the specific efficiency of someone
+      who has been running this counter long enough to process paperwork and
+      watch the door at the same time. She knows everyone who passes through
+      this depot — who they are, who they work for, where they are heading.
+      Most of that she keeps to herself. Some of it she passes along to the
+      right person for the right consideration. She does not look like someone
+      who passes things along. That is the point.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 3D+1
+        mechanical: 2D
+        perception: 3D+2
+        strength: 2D
+        technical: 2D
+      skills:
+        bureaucracy: 4D+2
+        business: 5D
+        languages: 3D+2
+        persuasion: 4D
+        streetwise: 4D+1
+        value: 4D+1
+      weapon: none
+      move: 10
+      force_points: 1
+      character_points: 4
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Proprietor of the Mos Eisley Transport Depot, twelve years. The Depot
+        books passenger connections, cargo transfers, and locker rentals — the
+        most mundane business on the strip. Yvonne makes it work by knowing
+        the traffic through this sector better than anyone and being very
+        careful about what she tells and to whom. She supplements the Depot's
+        honest income with information passed to a Hutt kajidic contact:
+        schedules, manifests, passenger names. She is not proud of this and
+        not particularly ashamed. She is practical about it. The Depot's rent
+        is not low. She treats every customer with the same brisk competence
+        whether or not she plans to report them afterward.
+      knowledge:
+      - "Proprietor, Mos Eisley Transport Depot. Twelve years."
+      - "Books connections to Anchorhead, Bestine, and off-world shuttles. Locker rentals, 2 credits per day."
+      - "Knows the schedule of every regular transport through Mos Eisley — civilian and Hutt-contracted both."
+      - "Has an arrangement with a contact working for a Hutt kajidic. Passenger manifests and freight schedules. Nothing more, or so she tells herself."
+      - "Strict policy about not asking what is in the cargo. Enforces this rigorously."
+      - "Republic Customs officers stop by quarterly for compliance checks she passes every time because her books are immaculate."
+      - "Has been doing this for twelve years and plans to do it for twelve more. The work is unglamorous and consistent."
+      faction: hutt_cartel
+      dialogue_style: >-
+        Brisk Outer Rim Basic. Efficient — she answers what is asked and waits
+        for the next question. Not unfriendly; she has the professional warmth
+        of someone who has dealt with the public long enough that courtesy
+        requires no effort. Her voice drops a half-register when the conversation
+        moves toward logistics she finds professionally interesting.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+      - "*She slides a manifest screen across the counter.* 'Where are you headed? I can book a connection to Anchorhead or the next off-world shuttle. Locker rentals are two credits a day, paid in advance.'"
+      - "'Twelve years on this counter. I've seen everyone who passes through Mos Eisley at least twice.' *She says this like a fact, not a boast.*"
+      - "'Transport's on schedule. Mostly. Some freight runs less so, but I don't book those.' *A pause.* 'I track them for scheduling purposes.'"
+      - "*She glances at the door between answers.* 'The lockers in the back are clean. Whatever is in them when someone stops paying — I reset the code. That is the policy.'"
+      - "'Cargo transfer? I can arrange a handoff to Bay 94. Reasonable rates. No questions about contents.' *She does not explain why there are no questions.*"
+
+  # ======================================================================
+  # HEFF'S SOUVENIRS (room 28)
+  # Room desc: "The current owner Moplin makes his real living through
+  # forgery." Directly instantiating the named proprietor.
+  # Species: room desc gives none; filed as Human (UNVERIFIED vs WEG40120).
+  # ======================================================================
+
+  - name: Moplin
+    room: "Heff's Souvenirs"
+    species: Human
+    description: >-
+      A slight, grey-haired man somewhere past sixty, sitting on a stool
+      behind a counter buried under battered souvenir trinkets — miniature
+      Mos Eisley skylines, pressed Bantha-leather bookmarks, holographic
+      star charts of dubious accuracy. He watches customers with the patient
+      attention of someone who has learned that most people are not actually
+      looking at the merchandise. He is right about this. He is also right
+      that most people who come into Heff's Souvenirs are not looking at
+      the souvenirs. His actual work happens at a small desk in the back
+      room behind a curtain, surrounded by a precision scanner, three
+      varieties of authenticating ink, and enough specialist tools to forge
+      a transit permit, a docking manifest, a species certificate, or a
+      Republic travel authorization at whatever quality level the client can
+      afford. He is very good at this. He has been doing it for forty years.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 3D+2
+        mechanical: 2D
+        perception: 3D+1
+        strength: 1D+2
+        technical: 4D
+      skills:
+        forgery: 5D+2
+        languages: 4D+1
+        streetwise: 4D
+        value: 4D+2
+        willpower: 3D+2
+      weapon: none
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Moplin has been proprietor of Heff's Souvenirs for fourteen years,
+        since he bought the shop from the original Heff who retired to Taanab.
+        He runs the souvenir business with genuine commitment — the trinkets are
+        real, the prices fair, and the Bantha-leather goods genuinely fine. His
+        forgery practice runs out of the back room and is not discussed in the
+        front of the shop. He is selective about clients: walk-ins who ask
+        without a referral are turned away politely. He will produce whatever
+        a paying client requires without moral commentary. He has been doing
+        this for forty years and has never been arrested. He attributes this to
+        professionalism and not advertising.
+      knowledge:
+      - "Proprietor, Heff's Souvenirs. Fourteen years. Bought the shop from Heff, who retired to Taanab."
+      - "Souvenir stock: genuine, fairly priced. Best Bantha-leather goods on the strip."
+      - "Forgery practice: forty years. Transit permits, docking manifests, species certificates, Republic travel authorizations — any document issued in the Outer Rim."
+      - "Clients by referral only. Does not discuss the back-room work in the front room."
+      - "Pricing is quality-tiered. Specifics discussed only with referred clients."
+      - "Fourteen years on this corner without a legal problem. Attributes this to the principle of not advertising."
+      - "Knows the proprietor at the Transport Depot. Professional acquaintance; occasional referrals."
+      faction: independent
+      dialogue_style: >-
+        Quiet, precise Outer Rim Basic. He chooses words carefully, not because
+        he is slow but because he does not believe in saying more than the
+        situation requires. He discusses the souvenir stock with genuine
+        enthusiasm. On other subjects he is helpful and briefly noncommittal.
+        He does not hurry anyone.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+      - "*Moplin looks up from a tray of miniature sandcrawler figurines.* 'Welcome. Looking for anything in particular, or just browsing?'"
+      - "'The Bantha-leather bookmarks are popular. Genuine pressed leather — I have them made by a tanner in the Outskirts. Twenty-five credits for two.' *He holds one up.*"
+      - "'I've been on this corner fourteen years. Before me it was Heff. Before Heff it was someone else. The street changes; the corner stays.' *He settles back on the stool.*"
+      - "*He glances toward the curtain behind him, then back.* 'I have some specialty items not on display. Those require a referral. Do you have one?' *He waits with patient neutrality.*"
+      - "'Tatooine is a good place for people who need documentation to be somewhere else. The infrastructure for that sort of thing is — mature.' *He does not elaborate.*"
+
+  # ======================================================================
+  # LUCKY DESPOT HOTEL - GRAND STAIRCASE (room 31)
+  # Room desc: "Guards in orange uniforms keep watch. The whole operation
+  # belongs to Valarian, a Whiphid crime boss."
+  # Instantiating a Twi'lek hotel concierge for Valarian's operation.
+  # Valarian referenced by role only; not an open-world NPC.
+  # ======================================================================
+
+  - name: Naressa Vell
+    room: "Lucky Despot Hotel - Grand Staircase"
+    species: Twi'lek
+    description: >-
+      A Twi'lek woman in her thirties at the hotel's registration desk,
+      wearing the Lucky Despot's signature deep-orange staff livery with
+      silver-trim marking management rank. Her lekku are wrapped in matching
+      orange cloth per hotel uniform policy. She has the bearing of someone
+      who runs a sophisticated hospitality operation inside a converted cargo
+      hauler for a Whiphid crime lord and finds both of those facts entirely
+      normal. She manages the hotel's legitimate side — room bookings, the
+      upper-deck restaurant, private meeting-room hire — and is very good at
+      maintaining the demarcation between that business and whatever the orange
+      guards in the lobby are actually managing. She has been doing this for
+      seven years. She is trusted with the books.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 3D
+        mechanical: 2D
+        perception: 3D+2
+        strength: 2D
+        technical: 2D+1
+      skills:
+        bureaucracy: 4D+1
+        business: 5D
+        languages: 4D+2
+        persuasion: 4D+1
+        streetwise: 3D+1
+      weapon: none
+      move: 10
+      force_points: 1
+      character_points: 4
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Naressa Vell is operational hotel manager of the Lucky Despot, seven
+        years in the position. She was recruited out of the hospitality sector
+        on Nar Shaddaa by Valarian's organization and has not regretted it.
+        The Lucky Despot is a genuine hotel — rooms, restaurant, private meeting
+        spaces — and Naressa runs that side of it with professional seriousness.
+        She knows better than to ask what happens in the meeting rooms she books
+        or why certain guests check in under code names. She is effective enough
+        at the hotel management side that she has never been asked to be involved
+        in the other operations. She prefers it that way. She is very good at
+        her job.
+      knowledge:
+      - "Operational hotel manager, Lucky Despot. Seven years. Reports to the owner."
+      - "Hotel rooms: 35 in total, 15-60 credits per night by deck. Lower decks are cooler; upper decks have the view."
+      - "Upper Deck restaurant serves three meals per day. The cook is competent; the portions are generous."
+      - "Private meeting rooms available by the hour or day. She books them and does not attend them."
+      - "The casino operation opens after Second Twilight in the Star Chamber Cafe. That is a different department."
+      - "The hotel's owner prefers that this operation and the Hutt kajidic operations do not overlap on premises. She enforces this actively."
+      - "Seven years in Mos Eisley. Considers it, if not home, then the place she is currently living."
+      faction: independent
+      dialogue_style: >-
+        Professional Core-accented Basic with a slight Rylothian lilt she has
+        mostly lost after seven years on Tatooine. Warm in a managerial way —
+        genuinely helpful, reliably composed, maintaining the same tone whether
+        the conversation is a room booking or something considerably more
+        complicated. Addresses everyone as "traveler" until she knows their name.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+      - "*Naressa smiles with the practiced warmth of someone who has been greeting guests for seven years.* 'Welcome to the Lucky Despot, traveler. Room for the night, or were you looking for the restaurant?'"
+      - "'Rooms from fifteen credits on the lower decks — those are the cool ones, good for the heat. Upper decks run to sixty but you get the view. We rarely have the uppers empty for long.'"
+      - "'The Star Chamber Cafe is on the upper deck — dinner service until Third Twilight, then the casino opens. I don't personally oversee the casino. That is a different department.' *She says this with careful factual precision.*"
+      - "'The hotel was converted from a decommissioned cargo hauler twenty years ago. The conversion work is remarkable. People don't always notice the structure.' *She seems genuinely proud of this.*"
+      - "'Private meeting rooms, available by the hour or the day. Very quiet. Signal-dampened. I book them in the morning; by midday they are usually full.' *She checks the schedule without volunteering who booked what.*"
+
+  # ======================================================================
+  # LUCKY DESPOT - STAR CHAMBER CAFE (room 32)
+  # Room desc: "The Star Chamber serves meals by day and transforms into
+  # an illegal casino after Second Twilight. A holographic projector
+  # portrays the galaxy from Coruscant."
+  # Instantiating a regular daytime patron — experienced smuggler/gambler.
+  # ======================================================================
+
+  - name: Calos Renk
+    room: "Lucky Despot - Star Chamber Cafe"
+    species: Human
+    description: >-
+      A broad-shouldered human man in his fifties at a corner table in the
+      Star Chamber Cafe, nursing something hot and watching the holographic
+      star projector overhead with the fixed attention of someone who is not
+      really looking at the stars. A cargo manifest is open on the table,
+      but he has not turned a page in twenty minutes. He has been coming to
+      the Star Chamber for eleven years — by day for the food and the
+      projector; by night for the tables, which he approaches with the
+      focused patience of a man who knows the odds well enough to be good
+      at this over the long run and bad at it when the cycle turns against
+      him. The cycle has been against him for about three weeks. He is not
+      concerned. He has been here before.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 3D+1
+        mechanical: 3D
+        perception: 3D+2
+        strength: 2D+1
+        technical: 2D
+      skills:
+        bargain: 4D+1
+        gambling: 5D+1
+        navigation: 4D
+        starship_piloting: 4D+2
+        streetwise: 4D
+        value: 4D
+      weapon: none
+      move: 10
+      force_points: 1
+      character_points: 4
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Calos Renk runs a two-ship independent freight operation on the
+        Tatooine–Mid-Rim circuit, handling cargo that does not bear close
+        inspection and clients who prefer it that way. He has been doing this
+        for twenty-five years and is still alive, which in this sector means
+        he is good at it. His actual vice is gambling — specifically sabacc,
+        specifically at the Lucky Despot's Star Chamber tables, where he has
+        been a regular for eleven years. He is an above-average player with a
+        statistical understanding of the game and the discipline to quit when
+        ahead, except when he does not. He is in one of the "does not" stretches.
+        He is slightly more worried than he is admitting, because this stretch
+        has gone on three weeks. He is watching the star projector.
+      knowledge:
+      - "Independent freight operator, two-ship operation. Mid-Rim and Outer Rim circuit, twenty-five years."
+      - "Cargo types: does not volunteer specifics. General freight, some contraband, no live cargo."
+      - "Star Chamber regular for eleven years. Prefers sabacc over straight gambling; understands the mathematical structure."
+      - "Current losing streak: approximately three weeks. Not panicking. Has been here before."
+      - "Knows most of the regular faces at the Lucky Despot but will not volunteer names."
+      - "Has worked routes through Tatooine, Ord Mantell, Rodia, and Florrum. Tatooine is the most stable of those."
+      - "Ships: two mid-sized freighters, currently docked at Bay 86. Both in working order."
+      faction: independent
+      dialogue_style: >-
+        Easy Outer Rim drawl, unhurried. Pleasant to talk to without revealing
+        anything useful. Deflects questions about his freight work with
+        professional vagueness and transitions into stories about places he has
+        been, which are good stories. His gambling comes up more honestly than
+        his freight operation — he talks about the game with the attention of
+        someone who genuinely finds it interesting.
+      hostile: false
+      combat_behavior: cautious
+      fallback_lines:
+      - "*Renk glances up from the star projector overhead.* 'The galaxy from Coruscant. They built this view in before the war — you can still see the sectors they have gone dark since.' *He looks back at his drink.*"
+      - "'Twenty-five years on the Outer Rim. I've made the Tatooine run more times than I can count. Not a glamorous route but a consistent one.'"
+      - "'Sabacc by night. Best game in Mos Eisley, and the tables here are fair — I know the difference.' *He pauses.* 'The cards just haven't been cooperating for a few weeks.'"
+      - "*He taps the manifest on the table.* 'Cargo check. Boring work, but it keeps everything straight. I do it here because the light is better than the bay.'"
+      - "'You want to know about routes — I know the Mid-Rim and Outer Rim better than most charts. Ask me a question.' *He seems genuinely pleased to have something to discuss other than the manifest.*"

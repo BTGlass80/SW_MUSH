@@ -138,6 +138,36 @@ telemetry.gear_insurance_sample: 1.0  # fraction of insurance transitions emitte
 # painless dead weight; everyone escalates to the enforcer → punitive. At most
 # one event per debtor per weekly tick, so 1.0 (full capture) is fine.
 telemetry.debt_sample: 1.0            # fraction of debt-lifecycle events emitted (0..1]
+# Keep-rate for the vanity-title prestige lifecycle (engine/titles.py). The
+# purchase debit already rides credit_flow under `vanity_title`, but that
+# isolated row can't be rejoined offline into the prestige lifecycle: each
+# `+title buy` emits one 'vanity_title' event tagged `purchase` (the sink, with
+# the price-tier index + owned-count-after) and each earned deed-reward emits
+# `grant` (no credits move). The signal for tuning the 8-tier VANITY_TITLES cost
+# curve (2k→400k): a dead top tier is priced past reach; everyone parked on the
+# cheap tiers means the sink is too shallow. A deliberate, low-frequency buy so
+# 1.0 (full capture) is fine.
+telemetry.title_sample: 1.0           # fraction of vanity-title events emitted (0..1]
+# Keep-rate for the spacer-quest onboarding funnel (engine/spacer_quest.py). The
+# 30-step "From Dust to Stars" new-player chain pays a per-step credit faucet
+# (already on credit_flow under `spacer_quest`) but those isolated rows can't be
+# rejoined offline into the onboarding funnel: how many players START vs the last
+# step they reach (the drop-off curve) vs how many reach grand COMPLETE, plus the
+# per-step pay. Each event is one `spacer_quest` record tagged `start`/`step`/
+# `complete`. A once-per-player, low-frequency lifecycle so 1.0 (full capture)
+# is fine — sampling it down would blur the very drop-off curve it exists to show.
+telemetry.spacer_quest_sample: 1.0    # fraction of spacer-quest events emitted (0..1]
+# Keep-rate for the CP-spend (advancement) sink (parser/cp_commands.py `train`).
+# The CP economy already telemeters its FAUCET (cp_income — every Character-Point
+# income source, in engine/cp_engine.py) but had no SINK emitter: each `train`
+# spends CP to raise a skill pip. Each advance emits one `cp_spend` event tagged
+# source=train, with the skill, the `dice` cost basis (== the pool size advanced),
+# the CP `cost` paid, `cp_remaining`, the old→new pool, and a `guild_discount`
+# flag. Joined to cp_income on char_id it shows whether players hoard or spend CP,
+# which skills they invest in, and guild-discount uptake — the signal for tuning
+# TICKS_PER_CP / WEEKLY_CAP_TICKS + the 20% guild discount. A deliberate, low-
+# frequency act so 1.0 (full capture) is fine.
+telemetry.cp_spend_sample: 1.0        # fraction of CP-advancement events emitted (0..1]
 
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
