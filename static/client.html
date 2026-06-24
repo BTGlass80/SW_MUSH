@@ -4886,7 +4886,7 @@ a { color: inherit; text-decoration: none; }
       <button class="qa-btn" data-qa="LOOK" data-cmd="look" data-action="send">LOOK</button>
       <button class="qa-btn" data-qa="POSE" data-cmd="pose " data-action="stage">POSE</button>
       <button class="qa-btn" data-qa="SAY"  data-cmd="say "  data-action="stage">SAY</button>
-      <button class="qa-btn" data-qa="INV"  data-cmd="inventory" data-action="send" title="Open inventory">INV</button>
+      <button class="qa-btn" data-qa="INV"  data-cmd="+inv" data-action="send" title="Open inventory">INV</button>
       <button class="qa-btn" data-qa="JOBS" data-cmd="bounties" data-action="send" title="Open bounty board">JOBS</button>
       <button class="qa-btn" data-qa="CRAFT" data-cmd="schematics" data-action="send" title="Open crafting panel">CRAFT</button>
       <button class="qa-btn guide-qa-btn" onclick="openGuideBrowser()" title="Open field guide browser (or type: guide)">GUIDE</button>
@@ -6340,7 +6340,7 @@ var QUICK_MODES = {
     { label: 'LOOK',  qa: 'LOOK',  cmd: 'look',       action: 'send',  tip: 'Look around — see the room, exits, and who is here' },
     { label: 'POSE',  qa: 'POSE',  cmd: 'pose ',      action: 'stage', tip: 'Stage a pose for roleplay' },
     { label: 'SAY',   qa: 'SAY',   cmd: 'say ',       action: 'stage', tip: 'Stage a say command' },
-    { label: 'INV',   qa: 'INV',   cmd: 'inventory',  action: 'send',  tip: 'Open inventory' },
+    { label: 'INV',   qa: 'INV',   cmd: '+inv',  action: 'send',  tip: 'Open inventory' },
     { label: 'JOBS',  qa: 'JOBS',  cmd: 'bounties',   action: 'send',  tip: 'Open bounty board' },
     { label: 'CRAFT', qa: 'CRAFT', cmd: 'schematics', action: 'send',  tip: 'Open crafting panel' },
   ],
@@ -6348,7 +6348,7 @@ var QUICK_MODES = {
     { label: 'LOOK',  qa: 'LOOK',  cmd: 'look',      action: 'send',  tip: 'Survey the area after combat' },
     { label: 'LOOT',  qa: 'LOOT',  cmd: 'loot',      action: 'send',  tip: 'Search fallen enemies for gear' },
     { label: 'HEAL',  qa: 'HEAL',  cmd: 'heal',      action: 'send',  tip: 'Use a medpac to treat wounds' },
-    { label: 'INV',   qa: 'INV',   cmd: 'inventory', action: 'send',  tip: 'Check your inventory' },
+    { label: 'INV',   qa: 'INV',   cmd: '+inv', action: 'send',  tip: 'Check your inventory' },
   ],
 };
 
@@ -6448,7 +6448,7 @@ function enterPostCombatMode() {
   var pcBtns = [
     { label: 'LOOK', qa: 'LOOK', cmd: 'look',      action: 'send', tip: 'Survey the area after combat' },
     { label: 'LOOT', qa: 'LOOT', cmd: 'loot',      action: 'send', tip: 'Search fallen enemies for gear' },
-    { label: 'INV',  qa: 'INV',  cmd: 'inventory', action: 'send', tip: 'Check your inventory' },
+    { label: 'INV',  qa: 'INV',  cmd: '+inv', action: 'send', tip: 'Check your inventory' },
   ];
   if (_lastWoundLevel > 0) {
     // Insert HEAL at front when wounded

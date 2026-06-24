@@ -1200,6 +1200,24 @@ class GameServer:
                                     f"Entering the game as {ansi.player_name(char['name'])}..."
                                 )
                                 break
+                            # Unknown id (stale picker after a delete/switch, a
+                            # reconnect race, or a desynced WS frame): the client
+                            # has already shown its "entering game" splash, so a
+                            # silent no-op strands it until the 300s timeout. Tell
+                            # the player and RE-SEND a fresh picker so the client
+                            # re-draws and they can retry. (QA browser-breakit 2026-06-23.)
+                            await session.send_line(
+                                ansi.error("No such character — pick again."))
+                            await session.send_json("char_select", {
+                                "characters": [
+                                    {"id": c["id"], "name": c["name"],
+                                     "species": c.get("species", "Human"),
+                                     "template": c.get("template", "")}
+                                    for c in characters
+                                ],
+                                "can_create": can_create,
+                                "max_characters": max_chars,
+                            })
                         except (ValueError, IndexError) as _e:
                             log.debug("silent except in server/game_server.py:580: %s", _e, exc_info=True)
                     if line == "__request_chargen__" and can_create:
