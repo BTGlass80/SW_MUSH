@@ -138,6 +138,16 @@ telemetry.gear_insurance_sample: 1.0  # fraction of insurance transitions emitte
 # painless dead weight; everyone escalates to the enforcer → punitive. At most
 # one event per debtor per weekly tick, so 1.0 (full capture) is fine.
 telemetry.debt_sample: 1.0            # fraction of debt-lifecycle events emitted (0..1]
+# Keep-rate for the vanity-title prestige lifecycle (engine/titles.py). The
+# purchase debit already rides credit_flow under `vanity_title`, but that
+# isolated row can't be rejoined offline into the prestige lifecycle: each
+# `+title buy` emits one 'vanity_title' event tagged `purchase` (the sink, with
+# the price-tier index + owned-count-after) and each earned deed-reward emits
+# `grant` (no credits move). The signal for tuning the 8-tier VANITY_TITLES cost
+# curve (2k→400k): a dead top tier is priced past reach; everyone parked on the
+# cheap tiers means the sink is too shallow. A deliberate, low-frequency buy so
+# 1.0 (full capture) is fine.
+telemetry.title_sample: 1.0           # fraction of vanity-title events emitted (0..1]
 
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.

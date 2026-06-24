@@ -91,6 +91,52 @@ _TITLE_COLS = [
 ]
 
 
+# ── Telemetry (T3.19): the vanity-title prestige lifecycle ───────────────────
+def _emit_title_telemetry(action, char_id, amount, **extra):
+    """Emit one fail-open, sample-tunable ``vanity_title`` lifecycle event.
+
+    The purchase debit already rides the ledger as ``vanity_title`` (a pure
+    prestige sink), but that isolated credit row can't be rejoined offline into
+    the *prestige* lifecycle — which price tiers actually sell, how purchased
+    prestige compares to earned prestige, and how much veteran credit the sink
+    soaks up against take-up. Each transition emits ONE event tagged by action:
+    ``purchase`` (the sink — a title bought) or ``grant`` (an EARNED title
+    awarded for a deed; no credit movement). The signal for tuning the 8-tier
+    ``VANITY_TITLES`` cost curve (2k→400k): a dead top tier means it is priced
+    past reach; everyone parked on the cheap tiers means the sink is too shallow.
+
+      action : ``"purchase"`` / ``"grant"``
+      char_id: the acting character (coerced to int when it parses, so a str-id
+               system and an int-id system join on the same player)
+      amount : the signed credit delta — ``-cost`` for a purchase, ``0`` for a
+               (creditless) earned grant
+      extra  : action-specific fields (key, tier, owned); ``None`` dropped so
+               the record stays clean.
+
+    Sampling honours ``telemetry.title_sample`` (default 1.0 — buying/earning a
+    title is a deliberate, low-frequency act, so full capture by default).
+    Buffer-only + offline-flushed → can NEVER disturb the buy/grant it observes.
+    """
+    try:
+        try:
+            cid = int(char_id)
+        except (TypeError, ValueError):
+            cid = char_id
+        fields = {"action": action, "char_id": cid, "amount": int(amount)}
+        for k, v in extra.items():
+            if v is not None and k not in fields:
+                fields[k] = v
+        from engine.telemetry import emit as _tele_emit
+        try:
+            from engine.tunables import get_tunable
+            sample = float(get_tunable("telemetry.title_sample", 1.0))
+        except Exception:
+            sample = 1.0
+        _tele_emit("vanity_title", fields, sample=sample)
+    except Exception:
+        log.debug("title telemetry emit failed", exc_info=True)
+
+
 # ── Pure helpers ─────────────────────────────────────────────────────────────
 def title_by_key(key):
     """Return the catalog entry dict for `key`, or None."""
@@ -265,6 +311,13 @@ async def purchase_title(db, char: dict, key) -> dict:
                       char.get("id"), exc_info=True)
         return {"ok": False, "reason": "persist_failed"}
 
+    # Telemetry only after the buy has genuinely landed (debit + persist both
+    # succeeded). A failed-and-refunded buy emits nothing — never a phantom
+    # prestige signal. ``tier`` is the price-tier index in VANITY_TITLES.
+    _tier = next((i for i, vt in enumerate(VANITY_TITLES)
+                  if vt["key"] == t["key"]), None)
+    _emit_title_telemetry("purchase", char["id"], -cost,
+                          key=t["key"], tier=_tier, owned=len(owned))
     return {"ok": True, "key": t["key"], "label": t["label"], "cost": cost}
 
 
@@ -292,6 +345,9 @@ async def grant_earned_title(db, char: dict, key) -> bool:
         log.warning("[titles] earned-title persist failed for char %s",
                     char.get("id"), exc_info=True)
         return False
+    # The deed-reward grant — no credit movement (amount 0), but a prestige
+    # progression signal worth rejoining against the purchased tiers offline.
+    _emit_title_telemetry("grant", char["id"], 0, key=t["key"])
     return True
 
 
