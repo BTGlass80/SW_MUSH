@@ -110,6 +110,15 @@ telemetry.medical_sample: 1.0         # fraction of treatments emitted (0..1]
 # against live @economy data. The rake faucet itself rides the sabacc `gamble`
 # emitter. Very low-frequency (a ranked-cartel act) so 1.0 is fine.
 telemetry.den_sample: 1.0             # fraction of den transitions emitted (0..1]
+# Keep-rate for the PvP player-bounty economy (parser/pc_bounty_commands.py).
+# Each post/stack/cancel/fulfill/void/expire emits one 'pc_bounty' event tagged
+# by action: the closed PvP credit loop the per-tag credit rows (bounty_post /
+# bh_bounty_payout / bounty_*_refund) can't rejoin into a contract lifecycle —
+# the post→fulfil vs post→cancel/expire funnel, the escrow distribution against
+# MAX_BOUNTY, and the posting/cancel fee-burn volume. The signal for tuning
+# MIN_BOUNTY / MAX_BOUNTY / POSTING_FEE_PCT / CANCEL_FEE_PCT / BOUNTY_DURATION.
+# Very low-frequency (a deliberate PvP act) so 1.0 is fine.
+telemetry.pc_bounty_sample: 1.0       # fraction of pc-bounty transitions emitted (0..1]
 
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
