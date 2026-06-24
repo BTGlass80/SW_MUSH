@@ -119,6 +119,16 @@ telemetry.den_sample: 1.0             # fraction of den transitions emitted (0..
 # MIN_BOUNTY / MAX_BOUNTY / POSTING_FEE_PCT / CANCEL_FEE_PCT / BOUNTY_DURATION.
 # Very low-frequency (a deliberate PvP act) so 1.0 is fine.
 telemetry.pc_bounty_sample: 1.0       # fraction of pc-bounty transitions emitted (0..1]
+# Keep-rate for the gear-insurance policy lifecycle (engine/gear_insurance.py).
+# Each `+insure buy` / `+insure cancel` emits one 'gear_insurance' event tagged
+# by action: the premium sink the ledger tags `gear_insurance_premium` plus the
+# lifecycle the isolated credit row can't rejoin — the buy→cancel voluntary-churn
+# rate and the premium-sink volume against take-up. The signal for tuning the
+# lone lever GEAR_INSURANCE_PREMIUM (too cheap → everyone insures, eroding the
+# consensual gear-loss sink; too dear → dead weight). The death-consume leg moves
+# no credits and lives in death.py (avoid-lane), so it is intentionally not
+# emitted. Very low-frequency (a deliberate loadout-protection buy) so 1.0 is fine.
+telemetry.gear_insurance_sample: 1.0  # fraction of insurance transitions emitted (0..1]
 
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
