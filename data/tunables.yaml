@@ -102,6 +102,14 @@ telemetry.entertainer_sample: 1.0     # fraction of performances emitted (0..1]
 # tuning _HEAL_DIFFICULTY and whether heal-for-hire is worth it vs a bacta tank.
 # Low-frequency (player action + the 60s offer window) so 1.0 is fine; lower if noisy.
 telemetry.medical_sample: 1.0         # fraction of treatments emitted (0..1]
+# Keep-rate for the Hutt-cartel sabacc-den lifecycle (engine/dens.py). Each
+# `+den establish` / `+den abandon` emits one 'den' event tagged by action: the
+# setup-cost sink the ledger tags `sabacc_den_setup` plus the lifecycle the
+# isolated credit row can't rejoin — the per-org establish→abandon churn and the
+# setup-sink volume. The signal for tuning DEN_SETUP_COST / DEN_ESTABLISH_MIN_RANK
+# against live @economy data. The rake faucet itself rides the sabacc `gamble`
+# emitter. Very low-frequency (a ranked-cartel act) so 1.0 is fine.
+telemetry.den_sample: 1.0             # fraction of den transitions emitted (0..1]
 
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
