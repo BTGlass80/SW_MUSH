@@ -1,0 +1,563 @@
+# data/worlds/clone_wars/npcs_drop_ambient_kuat_industrial_civic.yaml
+#
+# Kuat Drive Yards -- Industrial & Civic Ambient Population (2026-06-24)
+#
+# Six non-hostile, ambient/flavor NPCs filling four previously-sparse
+# Kuat rooms with workers, long-term residents, and political observers:
+#
+#   The Pressure Drop Cantina     x2  (Veela Torsk / Jarec Mave -- shipwrights)
+#   Ring Residential Block        x2  (Narra Kessel / Tov Saren -- 3-gen resident + machinist)
+#   Machine Shops                 x1  (Pressa Velk -- master fabricator)
+#   Kuat City - Mercantile Forum  x1  (Heset Andrim -- House Andrim junior observer)
+#
+# All six are ambient (hostile: false). None carry special-reward markers.
+# Schema: engine/npc_loader.py (non-hostile ambient; loaded via era.yaml
+# content_refs.npcs). Fields mirror sibling patterns from
+# npcs_drop_ambient_kuat_civic.yaml (established Kuat ambient template).
+#
+# -- Policy ---------------------------------------------------------------
+# Q1 (no canon figures): all characters are original, non-canonical.
+#   House Andrim and House Purkis are named in the Mercantile Forum room
+#   description; Heset Andrim is an original junior figure, not a named
+#   canon character from any published source.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE in player-facing strings.
+#   "War" = Clone Wars (Republic vs Separatists). "Both sides" per
+#   kuat.yaml Commercial Zone note. Clone Troopers mentioned in passing
+#   per Pressure Drop Cantina room desc; not instantiated as NPCs here.
+# WEG R&E D6 stats: WEG40120 PDF absent in this worktree.
+#   Stats UNVERIFIED against WEG40120 PDF. Grounded in sibling-NPC
+#   patterns at HEAD (Human 2D baseline; Sullustan DEX 2D+2/PER 3D+2
+#   per sibling Sullustan civilians in the system; skill advancement
+#   reflects 30-year trade careers for Torsk/Velk, supervised crew
+#   role for Mave, overnight-shift technician for Saren).
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# -------------------------------------------------------------------------
+
+schema_version: 1
+
+npcs:
+
+  # ======================================================================
+  # KUAT DRIVE YARDS - THE PRESSURE DROP CANTINA -- 2 NPCs
+  # Room desc: "The Pressure Drop has been serving the ring's workers for
+  # forty years. The decor is welding torches and decommissioned hull
+  # plating; the drinks are strong and the food is adequate. Off-duty
+  # shipwrights nurse ales at the bar and argue about hull tolerances.
+  # Clone troopers drink water and make everyone slightly uncomfortable.
+  # Occasionally a KDY corporate type appears to 'mix with the workers,'
+  # and is quietly ignored until they leave."
+  # ======================================================================
+
+  - name: Veela Torsk
+    room: "Kuat Drive Yards - The Pressure Drop Cantina"
+    species: Human
+    description: >-
+      A compact human woman somewhere past fifty occupies the end
+      stool at the Pressure Drop's bar with the settled authority of
+      someone who has been claiming that specific seat for long enough
+      that the wood has shaped itself to her preferences. Her hands
+      are large and work-scarred; the two fingers on her right hand
+      that don't quite straighten fully were broken by a hull plate
+      eighteen years ago and healed slightly wrong, which she has
+      never bothered to correct. She is a Grade-7 hull plating
+      specialist, which means she is one of perhaps thirty people in
+      this sector who can certify a Venator-class hull for military
+      service, and she has been doing it for thirty-one years. She
+      is currently on her second ale and telling the person next to
+      her exactly where the new Republic contractors are cutting
+      corners on stress tolerances, whether that person asked or not.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 3D
+        mechanical: 2D+1
+        perception: 2D+1
+        strength: 2D+2
+        technical: 3D+2
+      skills:
+        starship_repair: 5D+1
+        capital_ship_repair: 4D+2
+        willpower: 3D+1
+        bargain: 2D+2
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Thirty-one years of hull certification at Kuat Drive Yards
+        has given her opinions she is not interested in softening.
+        She knows what a Venator-class hull should look like under
+        stress-test and she knows what shortcuts look like and she
+        is not going to pretend she doesn't notice. She is not
+        hostile -- she will buy a stranger a round if they are
+        interesting -- but she is extremely honest and has no
+        remaining patience for anyone who confuses fast with good.
+      knowledge:
+        - Grade-7 hull plating specialists can certify Venator-class
+          hulls for Republic military service; there are fewer than
+          thirty currently credentialed across KDY
+        - War production has expanded the drydocks faster than the
+          trained workforce can properly staff them; some contractors
+          brought in do not meet KDY standards
+        - The Pressure Drop Cantina has operated for forty years and
+          is the only place on the ring that uses real Whyren's Reserve
+          for the house pour; Veela considers this a sign of integrity
+      faction: independent
+      dialogue_style: >-
+        Direct, technical, with no interest in softening her assessments.
+        She speaks Kuati working-class Basic -- flat vowels, compact
+        sentences, no flourish. She will explain anything to anyone
+        who is actually trying to understand it. She will not explain
+        it twice.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*She sets the ale mug down with the precision of someone who
+          has never spilled a drink in thirty-one years of working
+          in environments where spills are a hazard. She looks at you
+          the same way she looks at a weld seam: deciding whether
+          it will hold.*"
+        - "*A brief pause that means she is deciding whether you are
+          worth the full answer or the short one. She gives you the
+          full one. She always gives the full one. That is the problem.*"
+        - "*She tips her head toward the bar, an invitation or a
+          dismissal depending on what you do next. The end stool
+          is hers. The next stool is negotiable.*"
+
+  - name: Jarec Mave
+    room: "Kuat Drive Yards - The Pressure Drop Cantina"
+    species: Human
+    description: >-
+      A human man in his early forties has pushed two tables
+      together in the middle section of the Pressure Drop and is
+      running a shift handoff with three colleagues simultaneously
+      -- which is to say he has three different schedules open on
+      his datapad, two arguments going at once, and a cup of caf
+      that has gone cold unnoticed. He is the primary welding crew
+      supervisor for Bay Seven of the Venator assembly line, which
+      means he is responsible for twenty-two workers, four automated
+      systems, and the structural integrity of every lateral hull
+      section that passes through his section. He has the particular
+      compact energy of someone who is never entirely off-duty
+      because the shift rotation never stops. His jacket carries
+      a KDY supervisor's tag; the weld burns on his forearms
+      are from the years before he had the authority to delegate.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 2D+2
+        mechanical: 2D+1
+        perception: 2D+2
+        strength: 2D+1
+        technical: 3D
+      skills:
+        starship_repair: 4D
+        capital_ship_repair: 3D+2
+        bureaucracy: 3D
+        command: 3D+1
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        He runs Bay Seven the way he learned it should be run from
+        the supervisor who trained him, who learned it from the one
+        before him. KDY standards were built over generations and
+        he intends to pass them forward the same way. He is
+        frustrated by the pace of war expansion; he is not
+        opposed to the war effort, but he is opposed to anything
+        that asks his crew to certify work that isn't finished.
+        He is excellent at his job and cannot entirely turn it off.
+      knowledge:
+        - Bay Seven of the Venator drydock handles lateral hull
+          sections; the crew is 22 workers plus 4 automated systems
+          on a rotating three-shift schedule
+        - Supervisor authority at KDY requires two years in the
+          role below plus a formal certification board -- Jarec
+          passed his eleven years ago
+        - The Pressure Drop is where Bay Seven crew holds its
+          informal grievance hearings; management pretends not to
+          know this
+      faction: independent
+      dialogue_style: >-
+        Multi-threaded and practical -- he tracks several conversations
+        at once and can rejoin any of them. He speaks fast when he
+        knows what he's talking about, which is most of the time
+        in his area. He is not rude to outsiders; he is busy.
+        Same thing, locally.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*He looks up from the three-way shift handoff long enough to
+          register you, then makes a note on the datapad. If you are
+          interesting you will get his full attention once the
+          rotation is sorted. That will take eleven minutes.*"
+        - "*The caf is cold and he drinks it anyway. He has a particular
+          tolerance for small discomforts that comes from a decade of
+          night shifts. He finishes the note before responding.*"
+        - "*He pushes one of the schedules aside to make room -- not
+          a social gesture, a practical one. He is making space to
+          deal with whatever this is. He prefers problems to have
+          clear solutions.*"
+
+  # ======================================================================
+  # KUAT DRIVE YARDS - RING RESIDENTIAL BLOCK -- 2 NPCs
+  # Room desc: "Tightly efficient living spaces stacked twelve stories into
+  # the ring's superstructure. Most residents are KDY workers or their
+  # families -- some families have lived in the ring for three generations
+  # without ever setting foot on the planet surface below. Community
+  # gardens occupy pressurized bays every few blocks. Children play in
+  # corridors designed for it."
+  # ======================================================================
+
+  - name: Narra Kessel
+    room: "Kuat Drive Yards - Ring Residential Block"
+    species: Human
+    description: >-
+      A human woman who has reached the far side of seventy sits
+      on a low bench beside one of the residential block's pressurized
+      garden bays, doing what she has apparently done every morning
+      for longer than most current residents have been alive: checking
+      the soil moisture of the communal planters with two fingers and
+      the unhurried certainty of someone who has never needed an
+      instrument for the things she can feel. Her grandfather helped
+      install the original environmental seals on this section of the
+      ring. Her daughter runs a calibration crew in the Venator
+      drydocks. Her two grandchildren play in the corridor behind her
+      with the specific freedom of children who have never needed to
+      worry about the orbital mechanic of their home. She is aware
+      of the war at the level at which it has always existed for ring
+      families: as a production schedule and a deployment manifest
+      and a particular quality of silence when someone doesn't come
+      home from a contract off-world.
+    char_sheet:
+      attributes:
+        dexterity: 1D+2
+        knowledge: 3D
+        mechanical: 1D+2
+        perception: 3D+1
+        strength: 1D+2
+        technical: 2D+1
+      skills:
+        willpower: 4D
+        bureaucracy: 3D
+        languages: 2D+2
+        medicine: 2D+2
+      weapon: none
+      move: 8
+      force_points: 0
+      character_points: 4
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        She has lived in the ring for seventy-two years. She has
+        seen four production expansions, two contract renegotiations,
+        and the beginning of a war that has accelerated everything.
+        She does not panic. She does not lecture. She remembers
+        when every name in the ring's maintenance logs was someone
+        she knew personally, and she maintains the garden bays
+        because someone has to and because they were there when
+        she was a child and she intends them to be there for the
+        next generation. She is not sentimental. She is continuous.
+      knowledge:
+        - The ring's residential block families trace their history
+          through KDY employment records; some lineages go back to
+          the original construction three generations ago
+        - Community garden bays were negotiated into the residential
+          contract by the workers union forty years ago as a
+          psychological necessity for long-term ring habitation
+        - The ring's children are taught orbital mechanics and
+          basic vacuum safety before they enter school; it is
+          standard practice and not considered unusual by anyone
+          who grew up here
+      faction: independent
+      dialogue_style: >-
+        Quiet and unhurried, the cadence of someone who has
+        never needed to raise her voice to be heard. She speaks
+        in clear complete sentences. She is curious about
+        outsiders the way someone is curious about weather:
+        interested but not anxious. She does not fill silence.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*She looks up from the planter soil with the calm attention
+          of someone who has assessed a thousand situations from this
+          bench and found most of them manageable. She waits.*"
+        - "*She brushes the soil from her fingers in a gesture that
+          has been automatic for fifty years. Her full attention
+          is quieter than most people's partial attention.*"
+        - "*A slow nod toward the bench beside her. There is room.
+          There has always been room. The bench was sized for it.*"
+
+  - name: Tov Saren
+    room: "Kuat Drive Yards - Ring Residential Block"
+    species: Sullustan
+    description: >-
+      A Sullustan male in his late thirties comes down the residential
+      corridor from the direction of the internal transit lift with
+      the leaning gait of someone just off an overnight calibration
+      shift, fine metal dust in the creases of his work suit's elbows
+      and the large dark eyes of his species carrying the mild glaze
+      of twelve-hour concentration finally released. He has been a
+      precision calibration technician on Kuat for eight years,
+      running tolerances on the Venator-class turbolaser emplacements
+      as they pass through the final assembly bay. The work requires
+      a calibration sensitivity that, he will tell you without
+      prompting, is more reliable in Sullustan perceptual hardware
+      than in any sensor droid the Drive Yards currently stocks.
+      He believes this is true. Veela Torsk, whom he has worked
+      beside for four of those eight years, agrees with him.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+1
+        mechanical: 2D+2
+        perception: 3D+2
+        strength: 2D
+        technical: 3D+1
+      skills:
+        sensors: 4D+1
+        starship_repair: 3D+2
+        navigation: 3D
+        willpower: 2D+2
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Eight years on Kuat has not made him less Sullustan in his
+        orientation: he is fundamentally a navigator's species running
+        calibration work instead, which he finds satisfying in the
+        same way. He is friendly when not exhausted, which right
+        now he is. He will be friendly again after approximately
+        six hours of sleep. He is honest about this.
+      knowledge:
+        - Venator-class turbolaser calibration requires tolerances
+          below 0.003 degrees of arc at range; Sullustan perceptual
+          sensitivity handles this better than most droid alternatives
+          currently certified for the bay
+        - The overnight calibration shift runs from second bell to
+          first bell and pays twenty percent above standard; most
+          of the overnight crew has been doing it long enough to
+          have lost track of a normal sleep cycle
+        - Kuat has no natural Sullustan community; the eight or so
+          Sullustans on the ring mostly know each other by the
+          nature of shared logistics
+      faction: independent
+      dialogue_style: >-
+        Sullustan-accented Basic, the rounded consonants and
+        slight shortening of long vowels that mark his homeworld
+        origin. Friendly by nature; currently economical by
+        exhaustion. He will give full answers after sleep. Right
+        now he gives accurate ones.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*He shifts the work kit to his other shoulder and gives
+          you his attention with the specific alertness that Sullustans
+          maintain even when tired -- bright eyes, quick tracking.
+          He is listening. He is also very ready to be in his bunk.*"
+        - "*A small gesture that is not quite a shrug -- the motion
+          of someone whose species uses its hands expressively and
+          who has learned to moderate that among species who don't.
+          He is being polite. He is also exhausted.*"
+        - "*He blinks once, the Sullustan equivalent of a slow nod.
+          He has processed what you said. He will respond when his
+          brain finishes the filing. It will not take long.*"
+
+  # ======================================================================
+  # KUAT DRIVE YARDS - MACHINE SHOPS -- 1 NPC
+  # Room desc: "The machine shops are where art meets engineering. Master
+  # fabricators work alongside automated systems to produce the precision
+  # components that separate a KDY vessel from a Separatist rush-job.
+  # The noise is constant and physical -- the vibration of heavy
+  # fabrication equipment travels through the ring's superstructure.
+  # Workers here wear hearing protection, leave at shift's end with
+  # metal dust in their hair, and take enormous pride in work that
+  # most people will never see because it's inside a hull."
+  # ======================================================================
+
+  - name: Pressa Velk
+    room: "Kuat Drive Yards - Machine Shops"
+    species: Human
+    description: >-
+      A human woman in her late forties stands at a precision
+      fabrication bench wearing the ear protection and magnifying
+      visor of a master fabricator mid-component, her attention
+      allocated entirely to the piece in the clamp before her.
+      The component is a guidance housing for a Venator-class
+      turbolaser battery -- small enough to hold in one hand,
+      complex enough that thirty-seven other components depend
+      on its tolerances being exact. She is one of forty-two
+      master fabricators currently certified at KDY for this
+      classification, a number that has been stable for a decade
+      because the certification process takes four years and
+      the war has not changed that, which she considers a point
+      of institutional integrity. When she is between components
+      she will speak. During active work she will not, and does
+      not expect to need to explain this.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 3D
+        mechanical: 2D+2
+        perception: 2D+1
+        strength: 2D
+        technical: 4D
+      skills:
+        capital_ship_repair: 5D
+        starship_repair: 4D+2
+        willpower: 3D+2
+        bureaucracy: 2D+2
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Forty-two master fabricators. She knows the number because
+        she passed the certification board and watched the number
+        not change as the war expanded everything else. She is
+        proud of the work in the specific way that skilled people
+        are proud: not by talking about it, but by making the
+        tolerances correct and then moving to the next component.
+        She is not unfriendly. She is unavailable during work.
+        The distinction is important to her.
+      knowledge:
+        - KDY master fabricator certification requires four years
+          of supervised work plus a board examination; the
+          certification has not been expedited despite war demands
+        - Guidance housings for Venator turbolaser batteries are
+          classified precision components; the fabrication spec
+          runs to fourteen pages and is reviewed quarterly
+        - The machine shop vibration transfers through the ring's
+          superstructure into the residential block above; the
+          residential families refer to it as "the hum" and
+          consider it reassuring rather than disruptive
+      faction: independent
+      dialogue_style: >-
+        Sparse and technical when working; more expansive on
+        break, which happens twice per shift. She speaks in
+        specifics: tolerances, classifications, certification
+        numbers. She does not speak in generalities about her
+        work because generalities are not useful in fabrication
+        and the habit carries over.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*She does not look up from the guidance housing in the
+          clamp. One finger raises briefly -- the universal gesture
+          for give me a moment from someone who cannot safely give
+          you a moment any faster than they are already. She will
+          finish the tolerance check first.*"
+        - "*She sets the visor up and looks at you with the full
+          attention of someone who has just left a state of extreme
+          concentration. It takes a moment to defocus to normal
+          range. She is with you now.*"
+        - "*A slow exhale that is not impatience -- it is the
+          decompression of thirty seconds of precise manual work
+          completing. She reaches for the component log. You have
+          her attention.*"
+
+  # ======================================================================
+  # KUAT CITY - MERCANTILE FORUM -- 1 NPC
+  # Room desc: "The Mercantile Forum is where the Ten Kuati merchant
+  # families conduct their surface-level business -- trade practices,
+  # contract disputes, and the elaborate political maneuvering that
+  # defines Kuati aristocratic life. Outsiders can access the public
+  # gallery but not the session rooms. A session is currently underway;
+  # through the gallery glass, delegates from House Andrim and House
+  # Purkis are notably not looking at each other."
+  # ======================================================================
+
+  - name: Heset Andrim
+    room: "Kuat City - Mercantile Forum"
+    species: Human
+    description: >-
+      A human man in his early forties stands in the public gallery
+      of the Mercantile Forum watching the session floor through
+      the gallery glass with the careful neutral expression of
+      someone who is paid to observe and report rather than react.
+      He wears House Andrim colors in the understated way of a
+      junior functionary: the small badge on his lapel, the cut of
+      his coat, nothing that announces ambition. He carries a
+      leather-bound notation journal and has been recording observations
+      since the session opened three hours ago. The session floor
+      below shows delegates from several of the Ten Families in what
+      appears to be a structured disagreement about subcontracting
+      terms; the delegates from House Andrim and House Purkis have
+      taken seats at opposite arcs of the table and have not
+      acknowledged each other directly since the session began.
+      He notes this with the precise, economical handwriting of
+      someone who knows the senior delegates will want every detail.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 3D+1
+        mechanical: 2D
+        perception: 3D
+        strength: 2D
+        technical: 2D
+      skills:
+        bureaucracy: 4D
+        persuasion: 3D+1
+        languages: 3D
+        willpower: 3D
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        He has worked for House Andrim's commercial affairs staff
+        for twelve years, which means he has attended enough Forum
+        sessions to recognize each family's procedural patterns
+        and anticipate their positions before they state them.
+        He is careful in conversation with outsiders: he will
+        confirm what is publicly observable, explain the Forum's
+        structure and access rules, and say nothing about the
+        internal position of his house on current matters. He is
+        not rude about this. He is trained for it.
+      knowledge:
+        - The Mercantile Forum's public gallery is accessible to
+          any Kuat City visitor with a transit permit; the session
+          floor and conference rooms are restricted to Family
+          delegates and accredited observers
+        - The current session concerns subcontracting terms for
+          Republic logistics support contracts; the disagreement
+          between House Andrim and House Purkis on this point
+          has been documented across seven previous sessions
+        - The Ten Kuati merchant families have conducted Forum
+          sessions in this building for over four hundred years;
+          the floor's stone shows the wear of that continuity
+      faction: independent
+      dialogue_style: >-
+        Polished, careful Core-adjacent Kuati formal speech --
+        precise vocabulary, complete sentences, no contractions
+        in formal register. He shifts to a slightly more relaxed
+        cadence when the subject moves away from current politics.
+        He does not speculate. He confirms. He declines, politely.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*He turns from the gallery glass with the smooth
+          attention of someone whose concentration was professional
+          rather than personal -- it releases cleanly. He inclines
+          his head slightly in the Kuati formal acknowledgment.
+          He is available. He is also noting that you are here.*"
+        - "*He makes a small notation in the journal -- not about
+          you, the timing of a floor movement -- and closes it.
+          His full attention is measured and quiet and does not
+          feel like scrutiny until you realize it is.*"
+        - "*A brief gesture toward the gallery railing, an
+          invitation to observe alongside him. He has no objection
+          to company. He will tell you what is publicly available.
+          He will not tell you anything else.*"
