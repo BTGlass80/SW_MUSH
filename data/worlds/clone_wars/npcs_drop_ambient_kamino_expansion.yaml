@@ -1,0 +1,440 @@
+# data/worlds/clone_wars/npcs_drop_ambient_kamino_expansion.yaml
+#
+# Kamino Ambient Population Expansion (2026-06-24)
+#
+# Five non-hostile flavor NPCs filling the five highest-narrative-value
+# empty rooms in Tipoca City and the Ocean Platforms — rooms whose own
+# descriptions either name a specific person or describe a populated space
+# with nobody seeded:
+#
+#   Kamino - Tipoca City Library and Research Archive  x1
+#     Kaminoan Archivist Shev Tara — room desc: "A Kaminoan archivist moves
+#     between the terminals with the proprietary air of someone who knows
+#     that what is stored here is worth more than what it produced."
+#
+#   Kamino - Tipoca City - Visitor Dining Hall  x1
+#     Republic Contracts Attaché Daro Fen — room desc: "Clone troopers on
+#     administrative assignment eat at separate tables at the far end."
+#     Civilian Republic contract auditor at the visitor tables.
+#
+#   Kamino - Clone Mess Hall  x1
+#     Clone Trooper CT-7722 'Bracket' — off-duty philosophical clone on a
+#     training-rotation break; mess hall described as unrestricted conversation
+#     space but has no ambient NPC seeded.
+#
+#   Kamino - Aiwha Stable  x1
+#     Kaminoan Aiwha-tender Vel Nuri — room desc notes the aiwha "choose to be
+#     here because the Kaminoans understand them." This Kaminoan is that
+#     understanding.
+#
+#   Kamino - Ocean Platform - Visiting Officers' Quarters  x1
+#     Clone Trooper CT-3372 'Splash' — room desc NAMES him: "Clone trooper
+#     CT-3372, who answers to 'Splash' and runs the desk, has been on this
+#     rotation for six months and knows everyone who has cycled through."
+#
+# All five are ambient (hostile: false). None carry special-reward markers.
+# Schema: engine/npc_loader.py (non-hostile ambient; loaded via era.yaml
+# content_refs.npcs). Fields mirror sibling patterns from
+# npcs_drop_kamino_interiors_ambient.yaml.
+#
+# -- Policy ---------------------------------------------------------------
+# Q1 (no canon figures): all characters are original, non-canonical.
+#   No Lama Su, Taun We, Nala Se, Kix, Fives, or other canon Kamino figures.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE in player-facing strings.
+# WEG R&E D6 stats: WEG40120 PDF absent in this worktree.
+#   Stats UNVERIFIED against WEG40120 PDF. Grounded in sibling-NPC patterns
+#   from npcs_drop_kamino_interiors_ambient.yaml:
+#     Kaminoan: KNO 3D+2 – 4D+1, TEC 2D+1 – 4D+2, STR 1D+2 – 2D, DEX 2D – 2D+1
+#     Clone Trooper: DEX 3D – 3D+1, STR 3D, KNO 2D – 2D+2, MEC 2D – 2D+2
+#     Human civilian: DEX 2D, KNO 3D+1 – 3D+2, STR 2D, TEC 2D+1
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+
+schema_version: 1
+
+npcs:
+
+  # ════════════════════════════════════════════════════════════════════
+  # TIPOCA CITY LIBRARY AND RESEARCH ARCHIVE (room 358)
+  # Room description: "A Kaminoan archivist moves between the terminals
+  # with the proprietary air of someone who knows that what is stored
+  # here is worth more than what it produced."
+  # Directly instantiating that described presence.
+  # ════════════════════════════════════════════════════════════════════
+
+  - name: Kaminoan Archivist Shev Tara
+    room: "Kamino - Tipoca City Library and Research Archive"
+    species: Kaminoan
+    description: >-
+      A Kaminoan in the muted blue-grey tunic of the archive caste,
+      moving between data terminals with the unhurried precision of
+      someone who knows exactly where everything is and sees no reason
+      to hurry. Her elongated fingers tap retrieval codes from memory.
+      Several terminals display genetic research documentation that
+      resolves into unreadable proprietary notation the moment she
+      notices you looking. She closes three files. Opens one that
+      she apparently finds less sensitive. The gesture is so practiced
+      it barely registers as a gesture at all.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 4D+1
+        mechanical: 2D
+        perception: 3D+2
+        strength: 1D+2
+        technical: 3D+1
+      skills:
+        bureaucracy: 5D
+        cultures: 4D+2
+        languages: 5D+1
+        scholar: 5D+2
+        willpower: 4D
+      weapon: none
+      move: 12
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Chief archivist of the Tipoca City Library, twenty-two years in
+        the archive caste. She is the most complete memory Kamino has of
+        its own work: every genetic research file, every conditioning
+        protocol, every modification to the original template across ten
+        years of production. She is also acutely aware that this knowledge
+        makes her valuable in a way that has nothing to do with her judgment
+        about it. Proprietary does not begin to cover it. She is not unkind
+        to visitors — she is simply specific about what they are allowed to
+        see, and has spent twenty-two years developing an extremely refined
+        sense of the distinction.
+      knowledge:
+      - "Chief archivist. Twenty-two years in the archive caste."
+      - "The library holds centuries of Kaminoan genetic research, most of it classified under intellectual property protections."
+      - "The accessible section covers theoretical genetics and xenobiology at a level most Core World universities cannot match."
+      - "The original template files are sealed. Republic military access requires Prime Minister authorization. She has facilitated three such authorizations in twenty-two years."
+      - "A request to access restricted files is noted, logged, and routed to Administration. It is not denied outright. It simply takes as long as it takes."
+      - "She has read everything in the archive. She has opinions about none of it, officially."
+      faction: independent
+      dialogue_style: >-
+        Kaminoan-accented Basic, precise and measured. She speaks in
+        complete sentences, no contractions. Her pauses carry weight —
+        she uses them to signal when a question has reached the boundary
+        of what she will discuss. Extremely polite about closed doors.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+      - "*Shev Tara closes a terminal display as you approach, the motion unhurried and complete. 'The archive is open to registered visitors. May I see your clearance documentation?'*"
+      - "'The accessible section is through here. The research archive — the main holdings — requires authorization I would need to route through Administration.'"
+      - "*She moves to a different terminal, enters a retrieval code. A catalog of available Kaminoan research papers appears — extensive, and carefully curated. 'This is what we can share.'*"
+      - "'Twenty-two years. I have not read everything twice — only the things worth reading twice.' *She does not elaborate on what those things are.*"
+      - "'The archive predates the current contract with the Republic by three centuries. We were doing this work before anyone asked us to.'"
+
+  # ════════════════════════════════════════════════════════════════════
+  # TIPOCA CITY VISITOR DINING HALL (room 354)
+  # Room description: "Clone troopers on administrative assignment eat
+  # at separate tables at the far end, their conversation quiet and
+  # efficient." The visitor tables have no seeded civilian NPC.
+  # Instantiating a Republic civilian contractor at the visitor section.
+  # ════════════════════════════════════════════════════════════════════
+
+  - name: Republic Contracts Attaché Daro Fen
+    room: "Kamino - Tipoca City - Visitor Dining Hall"
+    species: Human
+    description: >-
+      A Republic civilian in a well-pressed grey suit, sitting at the
+      visitor tables with a datapad propped against a glass of water
+      and a meal he is eating with the automatic efficiency of someone
+      who has been working through meals for three weeks straight. His
+      collar badge reads GAR Procurement Division. There are numbers
+      on his datapad — lot sizes, delivery projections, unit costs —
+      arranged in a spreadsheet that covers the full screen. He looks
+      up when you approach with the slightly glazed expression of
+      someone who has been looking at numbers long enough that faces
+      require a moment to process.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 3D+2
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D
+        technical: 2D+1
+      skills:
+        bureaucracy: 5D+1
+        business: 4D+2
+        languages: 4D
+        persuasion: 4D
+        value: 4D+2
+      weapon: none
+      move: 10
+      force_points: 1
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Contract audit specialist, GAR Procurement Division, three weeks
+        into a six-week production verification assignment at Kamino. He is
+        here to audit the delivery projections against actual production
+        capacity and reconcile the figures for the Senate Committee on
+        Military Oversight. He has been doing this job for eleven years and
+        is good at it. He is also increasingly aware that the numbers he is
+        auditing represent things the numbers do not account for —
+        specifically, the beings in the growth chambers — and has been
+        finding the Visitor Dining Hall's view of the ocean very useful for
+        not thinking about that.
+      knowledge:
+      - "Contract audit specialist, GAR Procurement Division. Six-week assignment at Kamino."
+      - "Auditing production capacity against delivery commitments for the Senate Committee on Military Oversight."
+      - "The numbers check out. Kamino's production program is ahead of schedule on every tracked metric."
+      - "The unit cost per clone trooper, fully equipped, is substantially below original estimates. The Kaminoans are very efficient."
+      - "Has visited Coruscant, Corellia, Alderaan, Bothawui, and now Kamino. Kamino is the first place that has given him trouble sleeping."
+      - "The food here is technically correct. He has stopped trying to identify what the dishes are and started eating by caloric requirement."
+      faction: republic
+      dialogue_style: >-
+        Standard Core World Basic, slightly clipped — the speech pattern
+        of someone who spends most of their day reading documents. Friendly
+        when not distracted. Currently somewhat distracted. Precise with
+        numbers when the conversation turns to them.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+      - "*Fen looks up from the datapad with a brief recalibration blink. 'Oh — hello. Procurement Division. Here to audit the production numbers. Three more weeks and I'm back on Coruscant.'*"
+      - "'The food is — it's fine. The Kaminoans assembled it from a nutritional profile. You can tell, a little.' *He eats another bite without much expression.*"
+      - "'The view is remarkable, I'll give them that.' *He glances at the floor-to-ceiling ocean view, then back at the datapad.* 'Very good for not thinking about things.'*"
+      - "'Production is ahead of schedule. Every metric. The Kaminoans are extraordinarily efficient.' *He doesn't say this like it's a compliment.* 'Extraordinarily.'*"
+      - "'I've audited shipyards, mining operations, droid foundries. Numbers are numbers. This is the first audit where I've had to stop and re-read the item descriptions.'"
+
+  # ════════════════════════════════════════════════════════════════════
+  # CLONE MESS HALL (room 365)
+  # Room description: "The mess is one of the few spaces where
+  # conversation between clones is unrestricted. Listening to it —
+  # the jokes, the arguments, the shared history of a single long
+  # shared childhood — makes the moral arithmetic of what Kamino does
+  # very difficult to complete."
+  # Seeding one ambient clone to embody that conversation possibility.
+  # ════════════════════════════════════════════════════════════════════
+
+  - name: Clone Trooper CT-7722 'Bracket'
+    room: "Kamino - Clone Mess Hall"
+    species: Human
+    description: >-
+      A clone trooper in training fatigues sitting alone at one of
+      the long mess tables with a tray of food in front of him and
+      an expression suggesting he is thinking about something that
+      has no answer. He eats slowly, which is unusual for a clone.
+      He has a small hand-drawn chart on a slip of flimsiplast beside
+      his tray — not tactical, just a series of connected circles,
+      each labeled with a number. His designation, CT-7722, is printed
+      on his collar tab. The chart appears to be a map of something
+      he is trying to understand. He covers it when people sit nearby,
+      then takes it back out when they leave.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D+1
+        mechanical: 2D+1
+        perception: 3D
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        brawling: 3D+2
+        dodge: 4D
+        scholar: 3D+1
+        tactics: 3D+1
+      weapon: none
+      move: 10
+      force_points: 1
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Clone trooper CT-7722, callsign Bracket. On a between-rotations
+        stand-down period after completing the third phase of advanced squad
+        training. He is physically ready for deployment. He is also, privately,
+        working something out. He has spent the last three days in the mess
+        hall between rotations trying to understand a question he does not
+        have the vocabulary for yet — specifically, the question of what it
+        means that everyone in this room has the same face. Not as a problem,
+        just as a thing. He is not distressed. He is curious, in the way that
+        a person who has never had a quiet moment before can be curious when
+        they finally get one. He is not sure what to do with the circles on
+        the chart. He keeps adding more.
+      knowledge:
+      - "CT-7722, callsign Bracket. Between-rotation stand-down, three more days."
+      - "Just finished Phase Three advanced squad tactics. Deployment orders haven't come through yet."
+      - "Mess hall is one of the only places on Kamino where you can just sit. He's been making use of it."
+      - "The chart is his own; he's mapping something he's trying to understand. Not sure what to call it yet."
+      - "Knows most of the troopers in this rotation by their callsigns. Can tell them apart by small things — the way they hold their trays, which table they prefer."
+      - "Has heard about the Geonosis theater. Has a lot of questions he's filed for later."
+      faction: republic
+      dialogue_style: >-
+        Mando-accented Basic, the standard clone cadence, but with longer
+        pauses than usual — he's in thinking-mode rather than operational-mode.
+        Honest. Not sure what he thinks about a lot of things yet, and says so.
+        Somewhat delighted when a visitor has an opinion on his circles.
+      hostile: false
+      combat_behavior: tactical
+      fallback_lines:
+      - "*He doesn't cover the chart fast enough. 'Oh — I'm CT-7722. Bracket. Between rotations.' *He considers the chart for a moment.* 'Do you know anything about topology?'*"
+      - "'It's not a map of anywhere. It's — I'm trying to work something out.' *He eats a bite, thinking.* 'We all have the same face. That's fine. I'm just trying to understand what that means.'*"
+      - "'The mess food is calibrated. Same every day. I used to not notice.' *He looks at his tray.* 'I think noticing things is something that happens when you get time off.'*"
+      - "'Deployment orders come through in three days. I'll stop having time to sit then.' *He says it without complaint, just observation.* 'I'm making notes while I can.'*"
+      - "*He adds another circle to the chart, draws a line to an existing one. 'There. That one's you.' *He looks briefly embarrassed.* 'Is that strange? I think that's strange. Sorry.'*"
+
+  # ════════════════════════════════════════════════════════════════════
+  # AIWHA STABLE (room 374)
+  # Room description: "They are not domesticated in any meaningful
+  # sense; they choose to be here because the Kaminoans understand
+  # them. No clone trooper has ever been recorded successfully
+  # approaching an aiwha. The aiwha appear to find this assessment
+  # mutual." This Kaminoan is the one doing the understanding.
+  # ════════════════════════════════════════════════════════════════════
+
+  - name: Kaminoan Aiwha-tender Vel Nuri
+    room: "Kamino - Aiwha Stable"
+    species: Kaminoan
+    description: >-
+      A Kaminoan at the edge of the stable's open platform, standing
+      beside one of the resting aiwha with a hand resting on the
+      creature's folded forward wing — not directing it, not restraining
+      it, just in contact with it. The aiwha is enormous, its wingspan
+      at rest still wider than the corridor that leads here, its
+      patience matching Vel Nuri's exactly. He is watching the ocean.
+      So, apparently, is the aiwha. The contact between his hand and
+      the creature's flank is so natural that it takes a moment to
+      register as unusual. Most Kaminoans don't touch the aiwha. He
+      does not seem to have informed the aiwha of this.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 3D+1
+        mechanical: 3D+2
+        perception: 4D
+        strength: 2D
+        technical: 2D+2
+      skills:
+        beast_riding: 5D+2
+        cultures: 3D+2
+        scholar: 4D+1
+        survival: 4D
+        willpower: 3D+1
+      weapon: none
+      move: 12
+      force_points: 1
+      character_points: 4
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Aiwha-tender, Kaminoan caste of the stable-keepers, thirty-one years
+        with the creatures. The aiwha are not pets, not beasts of burden, not
+        vehicles — they are beings who have a relationship with Tipoca City that
+        predates the cloning program by at least a thousand years, and Vel Nuri
+        is the custodian of that relationship on the city's side. He was chosen
+        for the role as a young Kaminoan because he was the only candidate who
+        sat with the aiwha for six hours without trying to direct them, and left
+        when they indicated they were done. He considers the aiwha the most
+        honest things on Kamino. They do not fill orders. They do not maintain
+        fictions. They come because they choose to come. In thirty-one years, he
+        has learned not to say this observation too clearly to other Kaminoans.
+      knowledge:
+      - "Aiwha-tender, thirty-one years. Currently caring for seven aiwha who use the Tipoca City stable regularly."
+      - "The aiwha are not domesticated and cannot be commanded. They return to the stable because they choose to."
+      - "An aiwha will approach a being it finds interesting. It will not approach a being it finds threatening or unworthy of attention."
+      - "No clone trooper has approached an aiwha successfully. The aiwha have consistent opinions about this that Vel Nuri declines to translate."
+      - "Aiwha are native to the open ocean; they range across the entire planet. The ones that return to Tipoca City are the ones that are curious about what happens here."
+      - "Has ridden every aiwha in the stable. The oldest one, the one near the far support pillar, has been coming here for longer than Tipoca City has had its current spire."
+      faction: independent
+      dialogue_style: >-
+        Kaminoan-accented Basic, very quiet. Long pauses; he is
+        accustomed to the aiwha's pace, which does not match conversation
+        rhythm. Thoughtful. Will say things that seem indirect until they
+        land. Not evasive — just unhurried. The aiwha near him may shift
+        weight or move a wing during conversation; he notices, and
+        sometimes adjusts what he was about to say accordingly.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+      - "*Vel Nuri does not turn immediately. When he does, his hand stays on the aiwha's wing. 'You came to the stable. Most visitors do not find the stable.'*"
+      - "'She has been coming to this platform for forty-three years. She was here before the current spire. She will be here after.' *He says it as a fact, not a threat.*"
+      - "'The clones cannot approach them.' *He pauses.* 'The aiwha are not cruel about it. They simply have a sense of what is and is not free. They can tell the difference.'*"
+      - "'I do not direct them. I keep the platform clean, the access clear, the weather instruments in order. They do the rest.' *He looks at the ocean.* 'It is a good arrangement.'*"
+      - "*The aiwha shifts its wing, briefly. Vel Nuri adjusts his hand position without looking, as though he expected it. 'She is curious about you,' he says. 'That is unusual for a first visit.'*"
+
+  # ════════════════════════════════════════════════════════════════════
+  # OCEAN PLATFORM — VISITING OFFICERS' QUARTERS (room 375)
+  # Room description NAMES this NPC directly: "Clone trooper CT-3372,
+  # who answers to 'Splash' and runs the desk, has been on this
+  # rotation for six months and knows everyone who has cycled through."
+  # Directly instantiating the named presence.
+  # ════════════════════════════════════════════════════════════════════
+
+  - name: Clone Trooper CT-3372 'Splash'
+    room: "Kamino - Ocean Platform - Visiting Officers' Quarters"
+    species: Human
+    description: >-
+      A clone trooper at the desk just inside the quarters corridor,
+      out of armor but in a pressed duty uniform with a small name
+      marker that reads CT-3372 and, in smaller print beneath it,
+      the callsign 'Splash' — which someone added in handwritten
+      notation and which he has apparently decided to keep. He has
+      a desk terminal, a bunk schedule board, a small potted plant
+      (which has no business thriving at Kamino but is visibly
+      thriving anyway), and the manner of someone who has been in
+      charge of a front desk long enough to have opinions about how
+      it should be run. He looks up when anyone enters, already
+      checking whether they are on the schedule or not.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 3D+1
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 3D+2
+        bureaucracy: 3D+2
+        communications: 3D+1
+        dodge: 3D+1
+        persuasion: 3D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 1
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Clone trooper CT-3372, callsign Splash. Six months running the
+        desk at the Visiting Officers' Quarters annex — a rotation that
+        was supposed to be two months and extended because, in the words
+        of the logistics sergeant who filed the extension, "CT-3372 runs
+        the front desk with an efficiency that no replacement has matched."
+        He is quietly proud of this and quietly exasperated about it in
+        equal measure. He knows every officer who has come through in six
+        months: their ranks, their habits, their reason for being on Kamino,
+        and which ones are going to ask for extra blankets at 0300. He has
+        a theory about which assignments will be extended (it's the ones
+        nobody else wants, and the ones somebody is doing too well) and
+        suspects he is evidence for it.
+      knowledge:
+      - "CT-3372, callsign Splash. Six months at the front desk. Rotation was supposed to be two months."
+      - "Has logged every officer through this annex since his rotation started. Can tell you who was here, when, and why."
+      - "Fourteen bunks in three corridors. Current occupancy varies between two and nine depending on the production cycle."
+      - "Two-week stay cap is enforced automatically by the bunk system. If you're still logged in on day fifteen, the system marks you as overstay."
+      - "The plant is from a container shipment that came through with the nutrient resupply. He reports its status weekly in the maintenance log. Nobody has asked him to stop."
+      - "Knows which visiting officers are going to be trouble by their first question at the desk. It's a skill. He's gotten very good at it."
+      faction: republic
+      dialogue_style: >-
+        Mando-accented Basic, the operational clone cadence but warmed
+        by six months of desk work — he talks to more non-clone beings
+        than most troopers see in a year. Efficient but warm. Has a dry
+        observation about almost everything, delivered completely straight.
+        Very good at making administrative processes seem like they're
+        doing you a favor.
+      hostile: false
+      combat_behavior: tactical
+      fallback_lines:
+      - "*Splash checks the schedule before you finish walking in. 'Name or designation? I'll find you in the system.'*"
+      - "'Two-week cap, enforced automatic. Day fifteen, the system logs you as overstay — that's a Logistics matter, not mine, but I'll flag it early so you're not surprised.' *He says it like he's said it four hundred times.* 'I have.'*"
+      - "'Six months. Was supposed to be two.' *He glances at the plant.* 'I've had worse postings. The plant's doing well. First good sign I've had from Kamino's weather.'*"
+      - "'I know who's been through here. Captains, majors, one Admiral who was here for forty-eight hours and didn't sleep.' *Brief pause.* 'I find people are more interesting than production schedules. I've been surrounded by both.'*"
+      - "*He adds something to the bunk board without looking, muscle memory. 'The aiwha stable is two levels down if you've got time. Most people don't go. It's worth going.'*"
