@@ -129,6 +129,15 @@ telemetry.pc_bounty_sample: 1.0       # fraction of pc-bounty transitions emitte
 # no credits and lives in death.py (avoid-lane), so it is intentionally not
 # emitted. Very low-frequency (a deliberate loadout-protection buy) so 1.0 is fine.
 telemetry.gear_insurance_sample: 1.0  # fraction of insurance transitions emitted (0..1]
+# Keep-rate for the Hutt-debt payment lifecycle (engine/debt.py). The weekly
+# auto-debit already rides credit_flow under `debt_payment`, but those isolated
+# rows can't be rejoined offline into the debt lifecycle: each weekly tick emits
+# one 'debt' event tagged by action — `payment` (partial), `payoff` (cleared),
+# or `missed` (insufficient; escalation tags warning/enforcer). The signal for
+# tuning DEBT_WEEKLY_PAYMENT (500cr) and the miss thresholds: nobody misses →
+# painless dead weight; everyone escalates to the enforcer → punitive. At most
+# one event per debtor per weekly tick, so 1.0 (full capture) is fine.
+telemetry.debt_sample: 1.0            # fraction of debt-lifecycle events emitted (0..1]
 
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
