@@ -3,7 +3,7 @@ key: +quest
 title: Quest — Personal Story Quests from the Director AI
 category: "Commands: Narrative"
 summary: All personal-quest verbs live under +quest/<switch>. List your quests, accept, complete, or abandon — every verb is a switch here. Personal quests are Director-AI-generated story hooks, distinct from the paid mission board.
-aliases: [quest, quests, +pq, personalquests, +quests, acceptquest, pqaccept, finishquest, pqcomplete, completequest, abandonquest, pqdrop]
+aliases: [quest, quests, +pq, personalquests, +quests, acceptquest, pqaccept, finishquest, pqcomplete, completequest, abandonquest, pqdrop, questaccept, questcomplete, questabandon]
 see_also: [+mission, +background, +recap, narrative, director]
 tags: [narrative, quests, story, command]
 access_level: 0

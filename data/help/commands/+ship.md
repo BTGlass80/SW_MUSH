@@ -3,7 +3,7 @@ key: +ship
 title: Ship — Status, Info, Fleet, Mods, and Maintenance
 category: "Commands: Ships"
 summary: All ship-admin verbs live under +ship/<switch>. View tactical status, browse the catalog, inspect template specs, manage your owned fleet, rename, repair, or modify your ship — every verb is a switch here.
-aliases: [+ship, ships]
+aliases: [+ship, ships, hyperspace, jump, hyper, astrogate, shipname, setshipname, "+shipname"]
 see_also: [ships, hyperspace, launch, land, crew, +crew, +pilot, +bridge, capital]
 tags: [ships, admin, command]
 access_level: 0

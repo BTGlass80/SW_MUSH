@@ -3,7 +3,7 @@ key: +bounty
 title: Bounty — Hunting Contracts & The Bounty Board
 category: "Commands: Economy"
 summary: All bounty-board verbs live under +bounty/<switch>. Browse the board, claim a contract, track your mark, collect the reward — every verb is a switch here.
-aliases: [bounty, mybounty, activebounty, myhunt, +myhunt, +mybounty, bounties, +bounties, bboard, bountyboard, +bboard, claimbounty, acceptbounty, tracktarget, hunttrack, collectbounty, claimreward]
+aliases: [bounty, mybounty, activebounty, myhunt, +myhunt, +mybounty, bounties, +bounties, bboard, bountyboard, +bboard, claimbounty, acceptbounty, tracktarget, hunttrack, collectbounty, claimreward, bountyclaim, bountytrack, bountycollect, completebounty, complete_bounty]
 see_also: [bounty, +mission, +smuggle, economy, combat, streetwise, search]
 tags: [economy, bounty, hunting, command]
 access_level: 0
