@@ -320,6 +320,71 @@ def emit_cp_income(source: str, char_id: Any, *, cp_gained: int = 0,
         log.debug("telemetry.emit_cp_income failed", exc_info=True)
 
 
+def emit_grind_kill(char_id: Any, *, reward: int = 0, daily_credits: int = 0,
+                    at_cap: bool = False, over_cap: bool = False,
+                    total_kills: int = 0, npc_name: str = "",
+                    room_id: Any = None, **extra: Any) -> None:
+    """Emit one mob-grind kill-reward event (T3.19 breadth — grind/rewards).
+
+    The solo-PvE mob-grind faucet (``engine/hunting_rewards.on_huntable_kill``)
+    already tags its CREDIT leg on the ledger (``mob_grind``), but those isolated
+    credit rows cannot be rejoined offline into the grind FUNNEL: the per-kill
+    payout distribution, how fast a grinder hits the 400 cr/day SOFT CAP (and how
+    much of the session runs on the OVER_CAP_FLOOR trickle tail), what / where is
+    being farmed, and how deep engagement runs (lifetime kills, milestone
+    titles). A SINGLE ``grind_kill`` event joined to ``credit_flow`` on
+    ``char_id`` gives exactly the signal to tune the grind knobs (BASE_REWARD /
+    DAILY_SOFT_CAP / OVER_CAP_FLOOR) on real post-launch behaviour — does the cap
+    bite too early? is the trickle tail so thin nobody grinds past it? are some
+    zones farmed while others sit idle?
+
+      char_id      : the grinding character (coerced to int when it parses, so a
+                     str-id system and an int-id system join on the same player).
+      reward       : credits paid for THIS kill (BASE_REWARD or OVER_CAP_FLOOR).
+      daily_credits: grind credits earned today AFTER this kill — cap pressure.
+      at_cap       : the day's grind income has reached / passed the soft cap.
+      over_cap     : THIS kill was paid at the trickle floor (already past cap
+                     when the reward was computed).
+      total_kills  : lifetime huntable kills AFTER this one (engagement depth).
+      npc_name     : what was killed (the mob's display name).
+      room_id      : where the kill happened (the grinder's room — offline
+                     resolves room->zone->threat-band). ``None`` is dropped.
+      extra        : cheap in-memory context (species, faction, behavior);
+                     ``None`` values dropped so the record stays clean.
+
+    Sampling honours ``telemetry.grind_kill_sample`` (default 1.0 — the daily
+    soft cap already bounds a grinder's kill volume, so full capture is
+    affordable and sampling it down would blur the very cap-pressure curve this
+    exists to show). Fail-open: wraps the already-fail-open ``emit()`` and guards
+    the field assembly + tunable read, so a telemetry break can NEVER disturb the
+    reward path it observes.
+    """
+    try:
+        try:
+            char_id = int(char_id)
+        except (TypeError, ValueError):
+            pass
+        fields: dict[str, Any] = {
+            "char_id": char_id, "reward": reward,
+            "daily_credits": daily_credits, "at_cap": bool(at_cap),
+            "over_cap": bool(over_cap), "total_kills": total_kills,
+            "npc_name": npc_name,
+        }
+        if room_id is not None:
+            fields["room_id"] = room_id
+        for k, v in extra.items():
+            if v is not None and k not in fields:
+                fields[k] = v
+        try:
+            from engine.tunables import get_tunable
+            sample = float(get_tunable("telemetry.grind_kill_sample", 1.0))
+        except Exception:
+            sample = 1.0
+        emit("grind_kill", fields, sample=sample)
+    except Exception:
+        log.debug("telemetry.emit_grind_kill failed", exc_info=True)
+
+
 def configure(*, path: Optional[str] = None, enabled: Optional[bool] = None,
               max_buffer: Optional[int] = None) -> TelemetrySink:
     """(Re)build the singleton with explicit settings. For boot + tests."""

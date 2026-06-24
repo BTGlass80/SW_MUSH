@@ -168,6 +168,17 @@ telemetry.spacer_quest_sample: 1.0    # fraction of spacer-quest events emitted 
 # TICKS_PER_CP / WEEKLY_CAP_TICKS + the 20% guild discount. A deliberate, low-
 # frequency act so 1.0 (full capture) is fine.
 telemetry.cp_spend_sample: 1.0        # fraction of CP-advancement events emitted (0..1]
+# Keep-rate for the mob-grind kill-reward sink (engine/hunting_rewards.py
+# `on_huntable_kill`). The solo-PvE grind faucet already tags its CREDIT leg on
+# the ledger (`mob_grind`) but those isolated rows can't be rejoined offline into
+# the grind funnel: per-kill payout distribution, how fast a grinder hits the
+# 400 cr/day SOFT CAP + how much runs on the OVER_CAP_FLOOR trickle tail, what /
+# where is farmed, and engagement depth (lifetime kills, milestone titles). Each
+# kill emits one `grind_kill` event; joined to credit_flow on char_id it's the
+# signal for tuning BASE_REWARD / DAILY_SOFT_CAP / OVER_CAP_FLOOR. The daily soft
+# cap already bounds a grinder's kill volume, so 1.0 (full capture) is affordable
+# and sampling down would blur the very cap-pressure curve it exists to show.
+telemetry.grind_kill_sample: 1.0      # fraction of mob-grind kills emitted (0..1]
 
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
