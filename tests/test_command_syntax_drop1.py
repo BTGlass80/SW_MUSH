@@ -39,9 +39,16 @@ CANONICAL_FORMS = ["+who", "+inv", "+sheet", "+finger", "+roll", "+check"]
 # Forms Drop 1 DELETES. After deletion none of these may be an exact primary
 # key or alias in the live registry (has_exact does NO prefix matching, so it
 # is the precise "is this token still a registered name" probe).
+#
+# Drop-34 (2026-06-23): `who` and `online` are re-added as redirect stubs
+# (WhoStubCommand) so new players who type them get a helpful pointer to
+# `+who` rather than "Huh? Unknown command."  They are NOT full duplicate
+# implementations; they are pure redirects.  Removed from DELETED_EXACT_FORMS
+# so the stub is not treated as a regression.  The +online and players forms
+# remain deleted (they are not stub-worthy; the stub covers the common case).
 DELETED_EXACT_FORMS = [
-    # +who family
-    "who", "online", "+online", "players",
+    # +who family — `who` and `online` are now redirect stubs (drop-34); not deleted.
+    "+online", "players",
     # +inv family
     "inventory", "i", "+inventory",
     # +sheet family
@@ -94,15 +101,27 @@ def test_bare_inv_no_longer_maps_to_inventory(registry):
 
 
 def test_who_is_single_canonical_command(registry):
-    """There is exactly ONE who-listing command and it is `+who`; the bare
-    `who` key (formerly parser.channel_commands.WhoCommand) is gone and was
-    folded into the builtin +who."""
+    """There is exactly ONE who-listing command and it is `+who`.
+
+    Drop-34 (2026-06-23) re-adds bare `who` as a *redirect stub*
+    (WhoStubCommand) so new players who type `who` get a helpful
+    pointer to `+who` instead of "Huh? Unknown command."  The
+    stub is NOT a second who-listing implementation — it owns `who`
+    as a newbie redirect and must not duplicate `+who`'s real logic.
+    """
+    from parser.builtin_commands import WhoStubCommand, WhoCommand
     assert registry.get("+who") is not None
-    # No exact `who` key/alias survives (a stray bare `who` would re-introduce
-    # the dual-impl ambiguity Drop 1 resolved).
-    assert not registry.has_exact("who")
+    # Drop-34: `who` is now a redirect stub (WhoStubCommand), not absent.
     who_cmds = [c for c in registry.all_commands if c.key == "who"]
-    assert who_cmds == [], "a command still owns the bare `who` key"
+    assert len(who_cmds) == 1, (
+        f"Expected exactly one `who` stub; got {who_cmds!r}"
+    )
+    assert isinstance(who_cmds[0], WhoStubCommand), (
+        f"`who` key must be owned by WhoStubCommand, not {type(who_cmds[0])!r}"
+    )
+    # The stub must not be the full WhoCommand.
+    assert not isinstance(who_cmds[0], WhoCommand)
+    # `+who` is still the single canonical full implementation.
     plus_who = [c for c in registry.all_commands if c.key == "+who"]
     assert len(plus_who) == 1, "expected exactly one +who command"
 

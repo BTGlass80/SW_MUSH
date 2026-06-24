@@ -82,7 +82,8 @@ TIER_WEIGHTS: dict[BountyTier, int] = {
 # generate era-appropriate fugitives (deserter clones, ARC defectors,
 # rogue Jedi). Era selection happens at NPC-spawn time via the npc
 # generator; this list is the union of allowed archetypes across both
-# eras. The Director / spawn callers can filter by era if needed.
+# eras. Use `_get_fugitive_archetypes(era)` to get the era-filtered
+# pool instead of sampling directly from this list.
 FUGITIVE_ARCHETYPES = [
     # ── GCW / era-agnostic ──
     "thug", "smuggler", "bounty_hunter", "scout",
@@ -90,6 +91,28 @@ FUGITIVE_ARCHETYPES = [
     # ── CW (B.1.g) ──
     "clone_trooper", "arc_trooper", "republic_officer",
 ]
+
+# Archetypes that are era-violations on a CW boot and must never be
+# selectable when the active era is "clone_wars" (B3 era-cleanness
+# invariant — no Imperial/Stormtrooper strings on a CW server).
+_GCW_ONLY_ARCHETYPES = frozenset(["stormtrooper", "imperial_officer"])
+
+# Zone name prefixes for the Mos Eisley bounty board. Fugitive targets
+# must spawn in a room whose zone name starts with one of these prefixes
+# so the board's targets are reachable on the same planet. See
+# `_get_board_zone_ids()`.
+BOARD_ZONE_PREFIXES: tuple[str, ...] = ("tatooine_",)
+
+# Track difficulty by tier (canonical; also referenced by
+# BountyTrackCommand in parser/bounty_commands.py).  Kept here so
+# build_board_state can surface it without importing the parser layer.
+TRACK_DIFFICULTIES: dict[str, int] = {
+    "extra":    6,
+    "average":  10,
+    "novice":   13,
+    "veteran":  17,
+    "superior": 21,
+}
 
 # Rooms to avoid placing fugitives (docking bays are too obvious/common)
 _AVOID_ROOM_KEYWORDS = ["docking bay", "landing pad", "bay 94", "bay 86",
@@ -187,6 +210,50 @@ def _get_posting_orgs(era: str | None = None) -> list[str]:
     if era == "clone_wars":
         return _CW_POSTING_ORGS
     return _POSTING_ORGS
+
+def _get_fugitive_archetypes(era: str | None = None) -> list[str]:
+    """Return the era-appropriate fugitive archetype pool.
+
+    B3 era-cleanness invariant: GCW-only archetypes (stormtrooper,
+    imperial_officer) are never selectable on a CW boot. Any era not
+    recognised returns the full union list minus the GCW-only set so
+    that the CW era is always clean. On error, returns the CW-safe
+    pool to be conservative.
+    """
+    if era is None:
+        try:
+            from engine.era_state import get_active_era
+            era = get_active_era()
+        except Exception:
+            # Conservative: default to CW-safe subset on any error
+            return [a for a in FUGITIVE_ARCHETYPES
+                    if a not in _GCW_ONLY_ARCHETYPES]
+    if era == "clone_wars":
+        return [a for a in FUGITIVE_ARCHETYPES
+                if a not in _GCW_ONLY_ARCHETYPES]
+    # GCW / unmapped eras: full union (includes stormtrooper etc.)
+    return list(FUGITIVE_ARCHETYPES)
+
+
+async def _get_board_zone_ids(db) -> frozenset[int]:
+    """Return the set of zone DB-IDs that are valid for the bounty board.
+
+    The Mos Eisley board should only spawn targets in zones whose name
+    starts with one of the BOARD_ZONE_PREFIXES (e.g. "tatooine_").
+    Returns an empty frozenset on any error — callers must fall back to
+    unfiltered room selection in that case.
+    """
+    try:
+        zones = await db.get_all_zones()
+        return frozenset(
+            z["id"] for z in zones
+            if any(str(z.get("name", "")).startswith(p)
+                   for p in BOARD_ZONE_PREFIXES)
+        )
+    except Exception:
+        log.warning("[bounty] _get_board_zone_ids failed", exc_info=True)
+        return frozenset()
+
 
 _INVESTIGATIVE_TIPS = [
     "Last seen near the cantina district.",
@@ -326,8 +393,22 @@ def _scale_reward(tier: BountyTier) -> int:
     return int(round(raw / 50) * 50)
 
 
-def _pick_fugitive_room(rooms: list[dict]) -> Optional[dict]:
-    """Pick a room that isn't a docking bay or obvious safe zone."""
+def _pick_fugitive_room(rooms: list[dict],
+                        zone_ids: "frozenset[int] | None" = None) -> Optional[dict]:
+    """Pick a room that isn't a docking bay or obvious safe zone.
+
+    When `zone_ids` is a non-empty frozenset, candidates are further
+    restricted to rooms whose zone_id is in that set so targets only
+    spawn on the board's home planet. If the zone filter eliminates all
+    rooms, it is dropped and the full docking-bay-free set is used
+    (graceful degradation).
+    """
+    # Apply zone-confinement filter first, fall back if it wipes the pool
+    if zone_ids:
+        zone_rooms = [r for r in rooms if r.get("zone_id") in zone_ids]
+        if zone_rooms:
+            rooms = zone_rooms
+
     candidates = [
         r for r in rooms
         if not any(kw in r.get("name", "").lower() for kw in _AVOID_ROOM_KEYWORDS)
@@ -362,26 +443,37 @@ async def generate_bounty(db, rooms: Optional[list[dict]] = None) -> Optional[Bo
     except Exception:
         log.warning("[bounty] krayt_bounty flag lookup failed",
                     exc_info=True)
-    archetype = random.choice(FUGITIVE_ARCHETYPES)
+    archetype = random.choice(_get_fugitive_archetypes())
 
-    # Generate stat block
+    # Pick species and generate a real name before calling generate_npc
+    # so the fugitive is never rendered as "Unnamed <Archetype>".
+    from engine.npc_crew import generate_name as _gen_name, _ALL_SPECIES as _SPECIES
+    target_species = random.choice(_SPECIES)
+    target_name    = _gen_name(target_species)
+
+    # Generate stat block, passing the pre-chosen name and species
     try:
-        npc_data = generate_npc(tier.value, archetype)
+        npc_data = generate_npc(tier.value, archetype,
+                                species=target_species, name=target_name)
     except Exception as e:
         log.warning("[bounty] NPC generation failed: %s", e)
         return None
 
-    target_name = npc_data["name"]
-    target_species = npc_data.get("species", "Human")
+    # Confirm the name from the stat block (generate_npc may override on
+    # future refactors; this keeps a consistent canonical value).
+    target_name    = npc_data.get("name", target_name)
+    target_species = npc_data.get("species", target_species)
 
-    # Pick spawn room
+    # Pick spawn room — restricted to the board's home planet zones so
+    # the target is always reachable from where the contract is posted.
     if not rooms:
         try:
             rooms = await db.list_rooms(limit=100)
         except Exception:
             rooms = []
 
-    spawn_room = _pick_fugitive_room(rooms)
+    board_zone_ids = await _get_board_zone_ids(db)
+    spawn_room = _pick_fugitive_room(rooms, zone_ids=board_zone_ids)
     if not spawn_room:
         log.warning("[bounty] No valid spawn room found")
         return None
@@ -722,7 +814,8 @@ def build_board_state(posted: list["BountyContract"],
     Pinned ABI (web_client_vision_and_protocol — Webify UI-5)::
 
         { "contracts": [ BountyContract.to_dict()
-                         + {"expires_in_secs": int|None} ],
+                         + {"expires_in_secs": int|None,
+                            "track_difficulty": int|None} ],
           "claimed_id": str|None }
 
     `posted` is the caller's already-visibility-filtered POSTED list
@@ -750,6 +843,10 @@ def build_board_state(posted: list["BountyContract"],
                 max(0, int(exp - ts)) if isinstance(exp, (int, float)) and exp
                 else None
             )
+            # Expose per-contract track difficulty so the client can
+            # surface a winnability hint without importing the parser layer.
+            d["track_difficulty"] = TRACK_DIFFICULTIES.get(
+                d.get("tier", ""), None)
             return d
         except Exception:
             log.debug("build_board_state: skipping malformed contract",

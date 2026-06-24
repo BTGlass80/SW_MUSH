@@ -911,10 +911,51 @@ def _trophies(h: dict) -> list:
 
 # ── Lot helpers ───────────────────────────────────────────────────────────────
 
-async def get_available_lots(db) -> list[dict]:
+async def _planet_for_room(db, room_id: int) -> Optional[str]:
+    """Derive planet from a room's zone name prefix.
+
+    Zone slugs are stored verbatim as zones.name (world_writer.py uses the
+    slug when no explicit name: key is set).  The slug prefix identifies the
+    planet (e.g. "tatooine_mos_eisley" → "tatooine", "nar_shaddaa_landing"
+    → "nar_shaddaa").  Returns None for space zones, wilderness tiles, or
+    any room not in the live DB.
+    """
     rows = await db.fetchall(
-        "SELECT * FROM housing_lots WHERE current_homes < max_homes ORDER BY planet, id"
+        "SELECT z.name FROM rooms r "
+        "JOIN zones z ON z.id = r.zone_id "
+        "WHERE r.id = ?",
+        (room_id,),
     )
+    if not rows:
+        return None
+    zone_name = rows[0]["name"] or ""
+    # nar_shaddaa must be checked before the generic "na" prefix to avoid
+    # a false match if a future planet starts with "nar_".
+    for planet in ("nar_shaddaa", "tatooine", "coruscant",
+                   "geonosis", "kamino", "kuat"):
+        if zone_name.startswith(planet):
+            return planet
+    return None
+
+
+async def get_available_lots(db, planet: Optional[str] = None) -> list[dict]:
+    """Return available (not full) housing lots, optionally filtered by planet.
+
+    Mirrors get_market_directory(db, planet) — when planet is given only lots
+    on that planet are returned; when None all lots are returned (admin view,
+    rent-from-transit fallback).
+    """
+    if planet:
+        rows = await db.fetchall(
+            "SELECT * FROM housing_lots "
+            "WHERE current_homes < max_homes AND planet = ? "
+            "ORDER BY planet, id",
+            (planet,),
+        )
+    else:
+        rows = await db.fetchall(
+            "SELECT * FROM housing_lots WHERE current_homes < max_homes ORDER BY planet, id"
+        )
     return [dict(r) for r in rows]
 
 async def get_lot(db, lot_id: int) -> Optional[dict]:
@@ -1286,7 +1327,11 @@ _TIER_LABELS = {
 async def get_housing_status_lines(db, char: dict) -> list[str]:
     h = await get_housing(db, char["id"])
     if not h:
-        lots = await get_available_lots(db)
+        # Filter to the player's current planet so the default `housing` view
+        # only shows local lots (QA fix 2026-06-23).  Falls back to all lots
+        # when planet cannot be determined (transit / wilderness / unknown zone).
+        current_planet = await _planet_for_room(db, char.get("room_id") or 0)
+        lots = await get_available_lots(db, planet=current_planet)
         lines = [
             "\033[1;37m── Housing ──\033[0m",
             "  You don't have a home.",

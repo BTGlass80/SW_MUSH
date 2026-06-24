@@ -401,11 +401,22 @@ async def _try_auto_resolve(combat, ctx):
                                           combat.room_id, source_char=_src)
             await _send_combat_ended(combat.room_id, ctx.session_mgr,
                                      source_char=_src)
-            # Achievement: combat_victory for surviving PCs
+            # Achievement: combat_victory for surviving PCs who actually won.
+            # "Won" = PC can still act (can_act_now covers wound ladder + stun-KO)
+            # AND no hostile NPC survived still able to act (guards against the
+            # edge case where a PC goes down but the fight ended on a different
+            # trigger). The old `wound_level.value < 5` check admitted
+            # INCAPACITATED PCs (value 4 < 5 = True) who had been defeated.
             try:
                 from engine.achievements import on_combat_victory
+                _active_npcs_remain = any(
+                    c.is_npc and c.char and c.char.can_act_now()
+                    for c in combat.combatants.values()
+                )
                 for c in combat.combatants.values():
-                    if not c.is_npc and c.char and c.char.wound_level.value < 5:
+                    if (not c.is_npc and c.char
+                            and c.char.can_act_now()
+                            and not _active_npcs_remain):
                         _csess = ctx.session_mgr.find_by_character(c.id)
                         if _csess:
                             await on_combat_victory(ctx.db, c.id, session=_csess)

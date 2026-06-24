@@ -4556,6 +4556,26 @@ class CoordsCommand(BaseCommand):
 # to the REAL mechanics. They are pure redirects — no state change, no
 # ground-item system. Per the drop-24 P2.4 deferral.
 
+class WhoStubCommand(BaseCommand):
+    """`who` / `online` — redirect to the canonical `+who` command.
+
+    The syntax rework (command_syntax_rework_design_v2.md Drop 1) deleted
+    bare `who` / `online` / `+online` as aliases; the canonical form is
+    `+who` (OOC/HUD prefix policy). This stub turns the "Huh? Unknown
+    command" dead-end into a helpful pointer so new players are not stranded.
+    No state change; pure redirect.  Per drop-34 QA fix (2026-06-23).
+    """
+    key = "who"
+    aliases = ["online"]
+    help_text = "Type \033[1;33m+who\033[0m to see who is online."
+    usage = "who  →  use +who instead"
+
+    async def execute(self, ctx: CommandContext):
+        await ctx.session.send_line(
+            "  The who-list command is \033[1;33m+who\033[0m "
+            "(with the plus sign). Type it now to see who's online.")
+
+
 class GetTakeCommand(BaseCommand):
     """`get` / `take` — redirect to how items actually reach you."""
     key = "get"
@@ -5131,6 +5151,8 @@ def register_all(registry):
         # reflexive get/take/drop verbs (no ground-item system here).
         GetTakeCommand(),
         DropStubCommand(),
+        # drop 34 (2026-06-23): redirect `who`/`online` to canonical `+who`.
+        WhoStubCommand(),
     ]
     for cmd in commands:
         registry.register(cmd)

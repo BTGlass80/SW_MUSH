@@ -186,8 +186,16 @@ class ChannelManager:
         count = 0
         for sess in session_mgr.all:
             if sess.character:
-                await sess.send_line(line)
-                await sess.send_json("chat", {"channel": "ooc", "from": sender_name, "text": message})
+                _proto = getattr(sess, "protocol", None)
+                _is_web = _proto is not None and getattr(_proto, "value", None) == "websocket"
+                if _is_web:
+                    # Web clients get a structured chat-json row rendered by the
+                    # client; a plain send_line would also land in #pose-log and
+                    # produce a duplicate.  Send JSON only.
+                    await sess.send_json("chat", {"channel": "ooc", "from": sender_name, "text": message})
+                else:
+                    # Telnet: no chat-json support — plain ANSI line only.
+                    await sess.send_line(line)
                 count += 1
         log.debug("[ooc] %s: %s  (%d recipients)", sender_name, message[:60], count)
         return count
@@ -205,8 +213,15 @@ class ChannelManager:
         count = 0
         for sess in session_mgr.all:
             if sess.character:
-                await sess.send_line(line)
-                await sess.send_json("chat", {"channel": "ic", "from": sender_name, "text": f"[COMLINK] {message}"})
+                _proto = getattr(sess, "protocol", None)
+                _is_web = _proto is not None and getattr(_proto, "value", None) == "websocket"
+                if _is_web:
+                    # Web clients render the structured chat-json row; the plain
+                    # send_line would produce a duplicate entry in #pose-log.
+                    await sess.send_json("chat", {"channel": "ic", "from": sender_name, "text": f"[COMLINK] {message}"})
+                else:
+                    # Telnet: no chat-json support — plain ANSI line only.
+                    await sess.send_line(line)
                 count += 1
         log.debug("[comlink] %s: %s  (%d recipients)", sender_name, message[:60], count)
         # ── Comlink intercept delivery (Tier 3 Feature #19) ──

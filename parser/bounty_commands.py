@@ -217,14 +217,9 @@ class BountyTrackCommand(BaseCommand):
     )
     usage = "+bounty/track"
 
-    # Difficulty by tier
-    _DIFFICULTIES = {
-        "extra":    6,
-        "average":  10,
-        "novice":   13,
-        "veteran":  17,
-        "superior": 21,
-    }
+    # Difficulty by tier — canonical source is engine.bounty_board.TRACK_DIFFICULTIES;
+    # aliased here so existing callers within this class are unchanged.
+    from engine.bounty_board import TRACK_DIFFICULTIES as _DIFFICULTIES
 
     async def execute(self, ctx: CommandContext):
         char = ctx.session.character

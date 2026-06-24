@@ -1826,6 +1826,12 @@ async function submitCharacter() {
       background: S.background || '',
     },
   };
+  // Send the tutorial chain chosen at step6 so the server SEEDS it (onboarding
+  // BLOCKER fix 2026-06-24). Without this the first-time player's pick was
+  // silently dropped and they entered with no active chain / blank TRAINING panel.
+  if (S.tutorialChainId) {
+    payload.chain_id = S.tutorialChainId;
+  }
 
   try {
     const resp = await fetch('/api/chargen/submit', {

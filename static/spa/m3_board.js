@@ -10,7 +10,8 @@
 
    Contract fields used: id, tier, target_name, target_species,
    target_archetype, crime_description, posting_org, tip, reward,
-   reward_alive_bonus, status, chain_bounty_id, expires_in_secs.
+   reward_alive_bonus, status, chain_bounty_id, expires_in_secs,
+   track_difficulty.
 
    Real verbs only — the two staged actions are:
      • ACCEPT       → `+bounty/claim <id>` (posted card, viewer unclaimed)
@@ -182,6 +183,10 @@ function contractCard(c, claimedId){
   ];
 
   if (_expanded[c.id]){
+    var diffVal = (c.track_difficulty != null) ? String(c.track_difficulty) : null;
+    var diffHint = diffVal
+      ? 'Track: Difficulty ' + diffVal + ' (Search/Streetwise/Tracking)'
+      : null;
     body.push(el('div', {class: 'm3b-details'}, [
       el('div', {class: 'm3b-kv'}, [
         el('span', {class: 'm3b-k', text: 'Posted by'}),
@@ -191,6 +196,10 @@ function contractCard(c, claimedId){
         el('span', {class: 'm3b-k', text: 'Contract'}),
         el('span', {class: 'm3b-v mono', text: c.id || '?'})
       ]),
+      diffHint ? el('div', {class: 'm3b-kv'}, [
+        el('span', {class: 'm3b-k', text: 'Hunt'}),
+        el('span', {class: 'm3b-v m3b-track-diff', text: diffHint})
+      ]) : null,
       c.tip ? el('div', {class: 'm3b-tip', text: '\u275D ' + c.tip + ' \u275E'}) : null
     ]));
   }

@@ -519,6 +519,13 @@ class ChargenAPI:
         username = data.get("username", "")
         password = data.get("password", "")
         char_data = data.get("character", {})
+        # Tutorial chain the wizard collected at step6 (onboarding BLOCKER fix
+        # 2026-06-24). The standalone first-character path previously ignored
+        # this, so a brand-new player picked a chain and got NONE. Mirror the
+        # embedded handle_create_character path. Ignore a malformed value.
+        chain_id = data.get("chain_id")
+        if chain_id is not None and not isinstance(chain_id, str):
+            chain_id = None
 
         all_errors: dict[str, list[str]] = {}
 
@@ -601,18 +608,95 @@ class ChargenAPI:
             if isinstance(cgn, str) and cgn:
                 char_obj.chargen_notes = cgn[:2000]  # cap matches +chargen_notes
 
-            # Place in tutorial Landing Pad if it exists
-            try:
-                landing_pad_rows = await self.db.fetchall(
-                    "SELECT id FROM rooms WHERE name = 'Landing Pad' "
-                    "AND properties LIKE '%tutorial_zone%' ORDER BY id LIMIT 1"
-                )
-                if landing_pad_rows:
-                    char_obj.room_id = landing_pad_rows[0]["id"]
-            except Exception:
-                log.warning("Could not find tutorial Landing Pad", exc_info=True)
+            # ── Tutorial-chain resolution (onboarding BLOCKER fix 2026-06-24) ──
+            # Resolve + lock-check the selected chain exactly like the embedded
+            # handle_create_character path. On ANY miss (no/unknown/locked
+            # chain) fall back to plain Landing Pad placement — never block
+            # first-character creation on a chain hiccup.
+            selected_chain = None
+            if chain_id:
+                try:
+                    from engine.tutorial_chains import (
+                        load_tutorial_chains, is_chain_locked_for_character,
+                    )
+                    corpus = load_tutorial_chains()
+                    if corpus is not None and corpus.ok and corpus.chains:
+                        cand = corpus.by_id().get(chain_id)
+                        if cand is not None:
+                            is_locked, _reason = is_chain_locked_for_character(
+                                cand,
+                                {
+                                    "chargen_complete": True,
+                                    "faction_intent": "__chargen_any__",
+                                    "force_sensitive": bool(force_sensitive),
+                                    "jedi_path_unlocked": False,
+                                },
+                            )
+                            if not is_locked:
+                                selected_chain = cand
+                            else:
+                                log.warning("[onboarding] chain %r locked for "
+                                            "first char; no chain seeded.", chain_id)
+                        else:
+                            log.warning("[onboarding] unknown chain %r; no chain "
+                                        "seeded.", chain_id)
+                except Exception:
+                    log.warning("[onboarding] chain resolution failed; no chain "
+                                "seeded.", exc_info=True)
+
+            # Place at the chain's starting room if one resolved; else the
+            # legacy tutorial Landing Pad. Mirrors handle_create_character.
+            placed_via_chain = False
+            if selected_chain is not None and selected_chain.starting_room:
+                slug = selected_chain.starting_room
+                try:
+                    chain_room_rows = await self.db.fetchall(
+                        "SELECT id FROM rooms WHERE properties LIKE ? "
+                        "ORDER BY id LIMIT 1",
+                        (f'%"slug": "{slug}"%',),
+                    )
+                    if chain_room_rows:
+                        char_obj.room_id = chain_room_rows[0]["id"]
+                        placed_via_chain = True
+                    else:
+                        log.warning("[onboarding] chain starting_room slug %r did "
+                                    "not resolve; Landing Pad fallback.", slug)
+                except Exception:
+                    log.warning("[onboarding] chain starting_room lookup failed; "
+                                "Landing Pad fallback.", exc_info=True)
+            if not placed_via_chain:
+                try:
+                    landing_pad_rows = await self.db.fetchall(
+                        "SELECT id FROM rooms WHERE name = 'Landing Pad' "
+                        "AND properties LIKE '%tutorial_zone%' ORDER BY id LIMIT 1"
+                    )
+                    if landing_pad_rows:
+                        char_obj.room_id = landing_pad_rows[0]["id"]
+                except Exception:
+                    log.warning("Could not find tutorial Landing Pad", exc_info=True)
 
             db_fields = char_obj.to_db_dict()
+
+            # Seed the tutorial_chain block into attributes so the chain is
+            # ACTIVE on first login (drives the TRAINING panel + objectives).
+            # Mirrors handle_create_character's seeding.
+            if selected_chain is not None:
+                import time as _t
+                try:
+                    attrs_dict = json.loads(db_fields.get("attributes") or "{}")
+                except json.JSONDecodeError:
+                    attrs_dict = {}
+                attrs_dict["tutorial_chain"] = {
+                    "chain_id": selected_chain.chain_id,
+                    "step": 1,
+                    "started_at": _t.time(),
+                    "completed_steps": [],
+                    "completion_state": "active",
+                }
+                if selected_chain.faction_alignment:
+                    attrs_dict["faction_intent"] = selected_chain.faction_alignment
+                db_fields["attributes"] = json.dumps(attrs_dict)
+
             char_id = await self.db.create_character(
                 account_id=account_id, fields=db_fields
             )

@@ -5809,8 +5809,12 @@ function isCommsEvent(ev) {
 }
 
 function commsEventFilter(ev) {
-  // Returns which tab categories this event belongs to
-  if (ev.t === 'comm-in') return ['all', 'ic'];
+  // Returns which tab categories this event belongs to.
+  // comm-in events carry ev.channel ('ooc' or 'ic') set by handleChatMsg;
+  // route accordingly so the OOC tab only shows OOC traffic.
+  if (ev.t === 'comm-in') {
+    return (ev.channel === 'ooc') ? ['all', 'ooc'] : ['all', 'ic'];
+  }
   if (ev.t === 'ooc')     return ['all', 'ooc'];
   return ['all', 'sys'];  // sys-*, sys-event, sys-ok, sys-arrival
 }
@@ -12214,7 +12218,7 @@ function _updatePosingPanelTick() {
   var totalSeconds = (d.pose_window_seconds && d.pose_window_seconds > 0)
     ? d.pose_window_seconds
     : POSE_PANEL_DEFAULT_SECONDS;
-  var remaining = Math.max(0, Math.round(d.pose_deadline - Date.now() / 1000));
+  var remaining = Math.max(0, Math.round((new Date(d.pose_deadline).getTime() - Date.now()) / 1000));
   var pct = Math.max(0, Math.min(100, (remaining / totalSeconds) * 100));
   var urgent = remaining < 30;
 
@@ -12342,7 +12346,7 @@ function handleCombatState(data) {
   // Pose deadline countdown (if posing phase active)
   var deadlineEl = $('ch-deadline');
   if (data.pose_deadline) {
-    var rem = Math.max(0, Math.round(data.pose_deadline - Date.now() / 1000));
+    var rem = Math.max(0, Math.round((new Date(data.pose_deadline).getTime() - Date.now()) / 1000));
     if (rem > 0) {
       deadlineEl.textContent = '⏱ ' + rem + 's TO POSE';
       deadlineEl.classList.toggle('urgent', rem < 30);
