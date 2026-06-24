@@ -241,6 +241,44 @@ def _get_pool_str(char: dict, skill_name: str) -> str:
         return "?"
 
 
+def _emit_medical_telemetry(*, healer_id, patient_id, room_id, skill,
+                            difficulty, roll, outcome, wound_before,
+                            wound_after, rate, paid):
+    """T3.19 telemetry: one fail-open ``medical_treatment`` event per resolved
+    player-healer treatment (the heal-for-hire service economy).
+
+    The credit legs of a SUCCESSFUL treatment already ride ``credit_flow`` (two
+    ``medical``-tagged ``adjust_credits`` rows), but those separate ledger rows
+    can't be rejoined into a single healer→patient service transaction, and the
+    **partial / failed** treatments move NO credits at all, so ``credit_flow``
+    never sees them. This seam captures the whole market in one event: the
+    healer success rate (skill roll vs the wound-scaled difficulty), the rate
+    distribution per wound severity, and the partial/fail share — the direct
+    tuning signal for ``_HEAL_DIFFICULTY`` and whether the healer-for-hire
+    economy is worth a player's credits vs a bacta tank. Buffer-only +
+    offline-flushed → can never disturb the treatment it observes (fail-open
+    like the rest of the T3.19 emitters).
+    """
+    try:
+        from engine.telemetry import emit as _tele_emit
+        from engine.tunables import get_tunable
+        _tele_emit("medical_treatment", {
+            "healer_char": int(healer_id or 0),
+            "patient_char": int(patient_id or 0),
+            "room_id": room_id,
+            "skill": str(skill),
+            "difficulty": int(difficulty),
+            "roll": int(roll),
+            "outcome": str(outcome),
+            "wound_before": int(wound_before),
+            "wound_after": int(wound_after),
+            "rate": int(rate),
+            "paid": int(paid),
+        }, sample=float(get_tunable("telemetry.medical_sample", 1.0)))
+    except Exception:
+        log.debug("medical treatment telemetry emit failed", exc_info=True)
+
+
 class HealAcceptCommand(BaseCommand):
     key = "healaccept"
     aliases = ["haccept"]
@@ -301,6 +339,14 @@ class HealAcceptCommand(BaseCommand):
         room_id = char["room_id"]
         wound_name = _WOUND_NAMES.get(target_wound, "Wounded")
 
+        # T3.19 telemetry accumulators — resolved per-branch below and emitted
+        # ONCE after the outcome block, so all three outcomes (success / partial
+        # / fail) are captured, including the partial/fail cases that move no
+        # credits and so are invisible to the credit_flow ledger.
+        tele_outcome = "fail"
+        tele_wound_after = target_wound
+        tele_paid = 0
+
         if result.success:
             # Reduce wound level
             if result.critical_success and target_wound >= 2:
@@ -335,6 +381,10 @@ class HealAcceptCommand(BaseCommand):
             await ctx.db.save_character(char_id, wound_level=new_wound)
             await ctx.db.adjust_credits(healer_char["id"], rate, "medical")
             healer_char["credits"] = healer_char.get("credits", 0) + rate
+            tele_outcome = ("critical" if (result.critical_success
+                                           and target_wound >= 2) else "success")
+            tele_wound_after = new_wound
+            tele_paid = rate
 
             # Notify
             await ctx.session.send_line(
@@ -357,6 +407,7 @@ class HealAcceptCommand(BaseCommand):
 
         elif result.margin >= -4:
             # Partial: no wound improvement, flavor text, no payment
+            tele_outcome = "partial"
             await ctx.session.send_line(
                 f"  {ansi.BRIGHT_YELLOW}[MEDICAL]{ansi.RESET} "
                 f"The treatment stabilises the bleeding but doesn't fully take. "
@@ -371,6 +422,7 @@ class HealAcceptCommand(BaseCommand):
 
         else:
             # Failure: no improvement, no payment
+            tele_outcome = "fumble" if result.fumble else "fail"
             fumble_extra = " Something went wrong!" if result.fumble else ""
             await ctx.session.send_line(
                 f"  {ansi.BRIGHT_RED}[MEDICAL]{ansi.RESET} "
@@ -382,6 +434,15 @@ class HealAcceptCommand(BaseCommand):
                 f"({skill_name.title()} {result.pool_str}: {result.roll} vs {difficulty})"
                 f"{fumble_extra}"
             )
+
+        # T3.19: one behavioral event per resolved treatment (fires for all
+        # three outcomes; the insufficient-credits abort above returns early and
+        # is intentionally NOT recorded — no treatment completed there).
+        _emit_medical_telemetry(
+            healer_id=healer_char["id"], patient_id=char_id, room_id=room_id,
+            skill=skill_name, difficulty=difficulty, roll=result.roll,
+            outcome=tele_outcome, wound_before=target_wound,
+            wound_after=tele_wound_after, rate=rate, paid=tele_paid)
 
 
 class HealRateCommand(BaseCommand):

@@ -49,6 +49,50 @@ DEN_SETUP_SOURCE = "sabacc_den_setup"
 DEN_SETUP_REFUND_SOURCE = "sabacc_den_setup_refund"
 
 
+# ── T3.19 telemetry ───────────────────────────────────────────────────────────
+def _emit_den(action: str, char_id, amount: int, **extra) -> None:
+    """T3.19 telemetry: one fail-open ``den`` event per cartel-den lifecycle
+    transition (establish / abandon).
+
+    The ledger already tags the setup credit leg (``sabacc_den_setup``), and the
+    den *rake* faucet is captured by the sabacc ``gamble`` emitter, but neither
+    rejoins offline into the den *lifecycle*: how many dens a cartel stands up vs
+    abandons, the establish→abandon churn, and the setup-sink volume per org —
+    the direct signal for tuning ``DEN_SETUP_COST`` / ``DEN_ESTABLISH_MIN_RANK``
+    against live ``@economy`` data. One buffered, sample-tunable emit per
+    transition closes the gap; because ``emit()`` only appends to a bounded
+    buffer flushed offline it can NEVER disturb the establish/abandon it observes.
+
+      action : the lifecycle transition — ``"establish"`` / ``"abandon"``.
+      char_id: the acting cartel member (coerced to int when it parses so a
+               str-id and int-id system join on the same player).
+      amount : signed credit delta — negative for the setup sink on establish,
+               0 on abandon (the setup cost is never refunded).
+      extra  : ``org_id`` / ``org_code`` / ``room_id``; ``None`` values dropped.
+
+    Sampling honours ``telemetry.den_sample`` (default 1.0 — den lifecycle
+    events are low-frequency + high-value, so full capture by default).
+    """
+    try:
+        try:
+            cid = int(char_id)
+        except (TypeError, ValueError):
+            cid = char_id
+        fields = {"action": action, "char_id": cid, "amount": int(amount)}
+        for k, v in extra.items():
+            if v is not None and k not in fields:
+                fields[k] = v
+        from engine.telemetry import emit as _tele_emit
+        try:
+            from engine.tunables import get_tunable
+            sample = float(get_tunable("telemetry.den_sample", 1.0))
+        except Exception:
+            sample = 1.0
+        _tele_emit("den", fields, sample=sample)
+    except Exception:
+        log.debug("den telemetry emit failed", exc_info=True)
+
+
 # ── Pure eligibility ─────────────────────────────────────────────────────────
 def check_den_eligibility(*, is_cantina: bool, membership: Optional[dict],
                           existing_den: Optional[dict], balance: int,
@@ -188,6 +232,8 @@ async def establish_den(db, char: dict, *,
                       exc_info=True)
         return {"ok": False, "reason": "write_failed"}
 
+    _emit_den("establish", char.get("id"), -int(cost),
+              org_id=org.get("id"), org_code=org.get("code"), room_id=room_id)
     return {"ok": True, "cost": cost, "org_name": org.get("name", "the cartel")}
 
 
@@ -217,4 +263,8 @@ async def abandon_den(db, char: dict) -> dict:
     except Exception:
         log.warning("[dens] abandon failed for room %s", room_id, exc_info=True)
         return {"ok": False, "reason": "write_failed"}
+
+    _emit_den("abandon", char.get("id"), 0,
+              org_id=den.get("org_id"), org_code=den.get("org_code"),
+              room_id=room_id)
     return {"ok": True}

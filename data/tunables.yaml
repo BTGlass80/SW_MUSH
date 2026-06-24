@@ -93,6 +93,51 @@ telemetry.housing_sample: 1.0         # fraction of housing transitions emitted 
 # the audience cap, the fatigue penalty, and the perform cooldowns. Bounded by
 # player action + the 10-min cooldown so 1.0 is fine at launch; lower if noisy.
 telemetry.entertainer_sample: 1.0     # fraction of performances emitted (0..1]
+# Keep-rate for the player-healer medical-services economy (parser/medical_commands.py).
+# Each resolved `healaccept` emits one 'medical_treatment' event tagged by outcome
+# (critical/success/partial/fail/fumble): the healer→patient service transaction the
+# credit ledger can't rejoin, plus the partial/failed treatments that move no credits
+# and so are invisible to credit_flow entirely. Carries the skill roll vs the
+# wound-scaled difficulty, the rate, and wound_before→wound_after — the signal for
+# tuning _HEAL_DIFFICULTY and whether heal-for-hire is worth it vs a bacta tank.
+# Low-frequency (player action + the 60s offer window) so 1.0 is fine; lower if noisy.
+telemetry.medical_sample: 1.0         # fraction of treatments emitted (0..1]
+# Keep-rate for the Hutt-cartel sabacc-den lifecycle (engine/dens.py). Each
+# `+den establish` / `+den abandon` emits one 'den' event tagged by action: the
+# setup-cost sink the ledger tags `sabacc_den_setup` plus the lifecycle the
+# isolated credit row can't rejoin — the per-org establish→abandon churn and the
+# setup-sink volume. The signal for tuning DEN_SETUP_COST / DEN_ESTABLISH_MIN_RANK
+# against live @economy data. The rake faucet itself rides the sabacc `gamble`
+# emitter. Very low-frequency (a ranked-cartel act) so 1.0 is fine.
+telemetry.den_sample: 1.0             # fraction of den transitions emitted (0..1]
+# Keep-rate for the PvP player-bounty economy (parser/pc_bounty_commands.py).
+# Each post/stack/cancel/fulfill/void/expire emits one 'pc_bounty' event tagged
+# by action: the closed PvP credit loop the per-tag credit rows (bounty_post /
+# bh_bounty_payout / bounty_*_refund) can't rejoin into a contract lifecycle —
+# the post→fulfil vs post→cancel/expire funnel, the escrow distribution against
+# MAX_BOUNTY, and the posting/cancel fee-burn volume. The signal for tuning
+# MIN_BOUNTY / MAX_BOUNTY / POSTING_FEE_PCT / CANCEL_FEE_PCT / BOUNTY_DURATION.
+# Very low-frequency (a deliberate PvP act) so 1.0 is fine.
+telemetry.pc_bounty_sample: 1.0       # fraction of pc-bounty transitions emitted (0..1]
+# Keep-rate for the gear-insurance policy lifecycle (engine/gear_insurance.py).
+# Each `+insure buy` / `+insure cancel` emits one 'gear_insurance' event tagged
+# by action: the premium sink the ledger tags `gear_insurance_premium` plus the
+# lifecycle the isolated credit row can't rejoin — the buy→cancel voluntary-churn
+# rate and the premium-sink volume against take-up. The signal for tuning the
+# lone lever GEAR_INSURANCE_PREMIUM (too cheap → everyone insures, eroding the
+# consensual gear-loss sink; too dear → dead weight). The death-consume leg moves
+# no credits and lives in death.py (avoid-lane), so it is intentionally not
+# emitted. Very low-frequency (a deliberate loadout-protection buy) so 1.0 is fine.
+telemetry.gear_insurance_sample: 1.0  # fraction of insurance transitions emitted (0..1]
+# Keep-rate for the Hutt-debt payment lifecycle (engine/debt.py). The weekly
+# auto-debit already rides credit_flow under `debt_payment`, but those isolated
+# rows can't be rejoined offline into the debt lifecycle: each weekly tick emits
+# one 'debt' event tagged by action — `payment` (partial), `payoff` (cleared),
+# or `missed` (insufficient; escalation tags warning/enforcer). The signal for
+# tuning DEBT_WEEKLY_PAYMENT (500cr) and the miss thresholds: nobody misses →
+# painless dead weight; everyone escalates to the enforcer → punitive. At most
+# one event per debtor per weekly tick, so 1.0 (full capture) is fine.
+telemetry.debt_sample: 1.0            # fraction of debt-lifecycle events emitted (0..1]
 
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.

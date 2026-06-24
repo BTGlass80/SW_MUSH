@@ -46,6 +46,54 @@ PREMIUM_SOURCE = "gear_insurance_premium"
 PREMIUM_REFUND_SOURCE = "gear_insurance_premium_refund"
 
 
+# ── T3.19 telemetry ───────────────────────────────────────────────────────────
+def _emit_gear_insurance(action: str, char_id, amount: int, **extra) -> None:
+    """T3.19 telemetry: one fail-open ``gear_insurance`` event per
+    policy-lifecycle transition.
+
+    The premium debit already rides ``credit_flow`` per-tag
+    (``gear_insurance_premium`` / ``gear_insurance_premium_refund``), but those
+    isolated ``credit_flow`` rows can't be rejoined offline into the policy
+    *lifecycle* — the buy → cancel voluntary-churn rate, or the premium-sink
+    volume against take-up. That lifecycle is the direct signal for tuning the
+    one lever this module has (``GEAR_INSURANCE_PREMIUM``): if *everyone* insures
+    the consensual gear-loss sink erodes (raise it); if nobody does it is dead
+    weight (lower it or scale by loadout value). The death-consume leg moves no
+    credits and lives in ``engine/death.py`` (an avoid-lane), so it is
+    deliberately NOT emitted here — this emitter covers the buy/cancel side.
+
+      action : the lifecycle transition — ``"purchase"`` / ``"cancel"``.
+      char_id: the acting character (coerced to int when it parses so a str-id
+               and int-id system join on the same player).
+      amount : signed credit delta — negative for the premium sink (purchase),
+               0 for a cancel (no refund — the premium is a pure sink).
+      extra  : action-specific fields (premium, …); ``None`` values are dropped
+               so the record stays clean.
+
+    Sampling honours ``telemetry.gear_insurance_sample`` (default 1.0 — buying a
+    policy is a deliberate, low-frequency act, so full capture by default).
+    Buffer-only + offline-flushed → can NEVER disturb the buy/cancel it observes.
+    """
+    try:
+        try:
+            cid = int(char_id)
+        except (TypeError, ValueError):
+            cid = char_id
+        fields = {"action": action, "char_id": cid, "amount": int(amount)}
+        for k, v in extra.items():
+            if v is not None and k not in fields:
+                fields[k] = v
+        from engine.telemetry import emit as _tele_emit
+        try:
+            from engine.tunables import get_tunable
+            sample = float(get_tunable("telemetry.gear_insurance_sample", 1.0))
+        except Exception:
+            sample = 1.0
+        _tele_emit("gear_insurance", fields, sample=sample)
+    except Exception:
+        log.debug("gear_insurance telemetry emit failed", exc_info=True)
+
+
 # ── Pure helpers ─────────────────────────────────────────────────────────────
 def premium_amount() -> int:
     """The flat premium for a one-shot gear-insurance policy."""
@@ -133,6 +181,9 @@ async def purchase_gear_insurance(db, char: dict) -> dict:
                       char.get("id"), exc_info=True)
         return {"ok": False, "reason": "persist_failed"}
 
+    # Lifecycle telemetry: one fail-open event AFTER the premium sink + flag
+    # persist both succeed, so a refused/refunded buy emits nothing.
+    _emit_gear_insurance("purchase", char["id"], -cost, premium=cost)
     return {"ok": True, "cost": cost}
 
 
@@ -182,4 +233,8 @@ async def cancel_gear_insurance(db, char: dict) -> dict:
         log.warning("[gear_insurance] cancel persist failed for char %s",
                     char.get("id"), exc_info=True)
         return {"ok": False, "reason": "persist_failed"}
+    # Lifecycle telemetry: a voluntary checkout — no credits move (no refund).
+    # Wired after the flag-clear persist, so a refused/stale-cache/failed cancel
+    # emits nothing.
+    _emit_gear_insurance("cancel", char["id"], 0)
     return {"ok": True}

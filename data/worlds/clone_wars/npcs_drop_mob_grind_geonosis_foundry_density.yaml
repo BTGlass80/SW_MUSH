@@ -1,0 +1,439 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_geonosis_foundry_density.yaml
+#
+# Geonosis Foundries — Second-Mob Density Expansion (2026-06-24)
+#
+# Six roaming hostile NPCs adding a SECOND huntable mob to six
+# geonosis_foundries rooms that previously had exactly one hostile NPC each.
+# Doubles mob-grind density in the zone's most active areas.
+# All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone: geonosis_foundries (security: lawless, threat_band: frontier)
+#
+# Room spread (each room's first mob shown for de-duplication):
+#   Droid Foundry - Main Floor x1    (Scrambled Assembly B1 existing)
+#     → NEW: Neimoidian CIS Production Overseer
+#   B2 Super Battle Droid Assembly x1 (B2 Assembly Malfunction Unit existing)
+#     → NEW: Geonosian Assembly Line Warrior
+#   Foundry Control Center x1        (Geonosian Foundry Marshal existing)
+#     → NEW: CIS Signals Intelligence Tech
+#   CIS Engineering Bay x1           (Escaped Test Chassis existing)
+#     → NEW: Zabrak Mercenary Bay Guard
+#   Foundry Power Generator x1       (MagnaGuard Security Unit existing)
+#     → NEW: Gamorrean Power Station Enforcer
+#   Secondary Foundry (Deep Level) x1 (Rogue Foundry Maintenance Droid existing)
+#     → NEW: Trandoshan Scrap Raker
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats. WEG40120 PDF absent from this worktree;
+#   stats UNVERIFIED against PDF. Grounded in sibling CW NPC patterns
+#   (geonosis_foundries.yaml / foundry.yaml baselines):
+#   Geonosian warrior: DEX 3D, STR 3D, vibroblade 4D+2.
+#   CIS Human operative: DEX 2D+2, blaster 3D+2–4D.
+#   Neimoidian: DEX 2D+1, knowledge 3D (poor fighter, good knowledge).
+#   Zabrak: DEX 3D+1, blaster 4D+1–4D+2.
+#   Gamorrean: DEX 2D, STR 3D+2, melee/brawling 4D–4D+1.
+#   Trandoshan: DEX 3D, STR 3D, blaster 4D, brawling 4D+1.
+# Weapons: blaster_pistol, heavy_blaster_pistol, vibroblade, vibroaxe,
+#   blaster_rifle — all keys confirmed in data/weapons.yaml.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # DROID FOUNDRY - MAIN FLOOR — 2nd NPC (Neimoidian CIS Production Overseer)
+  # The foundry floor thunders with assembly cradles and welding arcs.
+  # A Neimoidian overseer has been posted here by the Trade Federation's
+  # logistics arm to enforce production quotas and inventory accountability.
+  # He has no combat training to speak of, but he is armed, and strangers
+  # on the floor represent a threat to shipment schedules he answers for.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Neimoidian Production Overseer
+    room: "Geonosis - Droid Foundry - Main Floor"
+    species: Neimoidian
+    description: >-
+      A Neimoidian in Trade Federation administrative robes that have been
+      modified — badly — for the foundry environment: the lower hem is
+      scorched, the sleeves are rolled back, and the collar has been
+      unfastened in a way that suggests extended exposure to foundry heat.
+      He stands at a portable logistics station, reviewing inventory
+      manifests with the agitated focus of someone whose production numbers
+      are three units short of the day's quota. A blaster hangs at his hip
+      in a holster designed for a larger being, riding uncomfortably against
+      his robes. When you appear in his workspace unscheduled, his vocal
+      registers shift into the upper range and his hand drops toward the
+      holster before his brain finishes the sentence he is already composing.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 3D
+        mechanical: 2D+2
+        perception: 3D
+        strength: 2D
+        technical: 2D+2
+      skills:
+        blaster: 3D+1
+        dodge: 3D
+        bureaucracy: 4D+1
+        business: 4D+2
+        alien_species: 3D+1
+        intimidation: 3D+1
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Trade Federation logistics officer more comfortable with manifests
+        than confrontations. He views the foundry floor as his domain and
+        any unauthorized presence as a direct threat to his accountability
+        chain. He draws fast when cornered, but his aim is poor and he
+        fights scared — backing toward cover and calling for assistance
+        that will not come before the situation resolves.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Neimoidian-accented Basic, rapid and pitched high when stressed.
+        "This floor is restricted — production access only. Identify your
+        authorization." On the next word that is not an authorization code,
+        the blaster comes out. "You will stop. NOW."
+      hostile: true
+      combat_behavior: defensive
+      fallback_lines:
+        - "*He fires from behind the logistics station, using it as cover.*"
+        - "*His aim is erratic — the blaster discharge is close enough to be dangerous.*"
+        - "*He is backing toward the assembly cradles, trying to put machinery between you.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # B2 SUPER BATTLE DROID ASSEMBLY — 2nd NPC (Geonosian Assembly Warrior)
+  # The B2 assembly line requires constant warrior-caste oversight.
+  # Geonosian hive mechanics calibrate torque thresholds and test combat
+  # actuators on each chassis; a warrior assigned to the line enforces
+  # caste hierarchy and removes any element that disrupts the pace.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Geonosian Assembly Warrior
+    room: "Geonosis - B2 Super Battle Droid Assembly"
+    species: Geonosian
+    description: >-
+      A Geonosian warrior in the mottled ochre and rust of the foundry
+      caste, moving along the B2 assembly line with the proprietary
+      certainty of something that has built these machines from component
+      to chassis a thousand times. It carries a vibroblade at its hip and
+      a calibration tool in its manipulator hands, swapping between the
+      two tasks — tightening a joint coupler, returning to a ready position
+      — with the unsettling efficiency of a being that does not distinguish
+      between maintenance work and combat readiness. Its compound eyes fix
+      on you the moment you enter the assembly hall, and the calibration
+      tool is set down before you have taken a second step.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D+2
+        perception: 2D+2
+        strength: 3D
+        technical: 2D+1
+      skills:
+        melee_combat: 4D+2
+        brawling: 3D+1
+        dodge: 3D+1
+        search: 3D
+        intimidation: 2D+2
+        machinery: 3D+1
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Geonosian warrior assigned to the B2 assembly line who functions
+        as both quality-control enforcer and floor security. It has no
+        patience for unauthorized presence on the line and no interest in
+        negotiating the reason. The vibroblade comes out at the first wrong
+        movement; it closes quickly and fights in the confined space between
+        assembly cradles with practiced familiarity.
+      knowledge: []
+      faction: geonosian_hive
+      dialogue_style: >-
+        The low clicking-buzz of Geonosian battle language — no Basic. The
+        tone carries a single message regardless of what sounds it makes:
+        you are not supposed to be on the line, and this will be corrected.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*It closes the gap between assembly cradles in two strides, vibroblade leading.*"
+        - "*The Geonosian drives you back toward the assembly intake — using the B2 chassis as obstacles.*"
+        - "*It buzzes sharply — a signal or a warning — and presses the attack.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # FOUNDRY CONTROL CENTER — 2nd NPC (CIS Signals Intelligence Tech)
+  # The control center runs the foundry's production coordination and
+  # external communications links. A Chagrian signals tech embedded here
+  # by CIS intelligence monitors for Republic infiltration frequencies
+  # and comm-trace attempts on the facility's outbound channels.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: CIS Signals Intelligence Tech
+    room: "Geonosis - Foundry Control Center"
+    species: Chagrian
+    description: >-
+      A Chagrian at the control center's secondary communications array,
+      wearing the muted grey-blue of a CIS technical division uniform
+      under a layer of scan-goggles pushed up on the brow-ridge. He
+      monitors three display screens simultaneously — one showing
+      production telemetry, two showing comm-intercept bands — with the
+      practiced inattention of someone who processes that data in
+      background the way other people breathe. His lekki are coiled
+      into the sensor rig attached to the workstation. When you appear
+      in the control center, the scan-goggles come down and both hands
+      move away from the workstation in the particular way of someone
+      reaching for something that was not visible a moment ago.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 3D
+        mechanical: 3D+1
+        perception: 3D
+        strength: 2D
+        technical: 3D+1
+      skills:
+        blaster: 3D+2
+        dodge: 3D+1
+        communications: 4D+2
+        computers: 4D+1
+        sensors: 4D
+        security: 3D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A CIS intelligence technician whose work is monitoring, not fighting.
+        He reacts to unauthorized access to the control center as a security
+        breach requiring immediate termination — a professional response to
+        a professional threat. He fights from cover, uses the comm array
+        as terrain, and is competent enough with the blaster to be dangerous
+        at control-room distances. His priority is destroying the comms
+        equipment before it can be captured; failing that, he eliminates
+        the threat.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Calm, Chagrian-inflected Basic with the cadence of someone who
+        has relayed technical reports his entire career. "Facility breach.
+        Control center. Designate threat." Then the blaster comes out
+        without further announcement.
+      hostile: true
+      combat_behavior: defensive
+      fallback_lines:
+        - "*He fires and drops behind the comm array — using the equipment bank as a barrier.*"
+        - "*He reaches toward the secondary console — trying to trigger an alert or wipe the system.*"
+        - "*The blaster tracks you across the control center. He does not advance.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # CIS ENGINEERING BAY — 2nd NPC (Zabrak Mercenary Bay Guard)
+  # The engineering bay holds active schematics for CIS droid systems.
+  # The Separatists contracted a small mercenary unit for physical
+  # security after too many CIS intelligence breaches in prior months.
+  # One Zabrak guard patrols the bay independently of the CIS personnel.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Zabrak Mercenary Bay Guard
+    room: "Geonosis - CIS Engineering Bay"
+    species: Zabrak
+    description: >-
+      A Zabrak in contractor armor — layered plates, no insignia, the
+      practical loadout of someone paid to be effective rather than
+      identifiable — standing near the engineering bay's schematic
+      display wall. The heavy blaster at his thigh is worn in the
+      cross-draw position of someone who has used it in confined spaces
+      before; the strap across the chest secures a second weapon he has
+      not needed to reach for yet. He has the sub-dermal facial tattoos
+      of a Dathomir-trained fighter — the asymmetric pattern that marks
+      the northern ranges. He is watching every access point to the bay
+      simultaneously, and his evaluation of you completes before you
+      finish stepping through the door.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D+2
+        dodge: 4D+1
+        melee_combat: 3D+2
+        search: 3D+2
+        sneak: 3D+1
+        intimidation: 3D
+      weapon: heavy_blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A professional mercenary who has been contracted to prevent
+        exactly what is happening right now. He is not affiliated with
+        the CIS ideologically; he is on a job, and the job requires
+        eliminating unauthorized entry. He is skilled, methodical, and
+        not easily startled — he takes a moment to assess the entry
+        vector before engaging, then commits fully. He uses the
+        engineering bay's schematic stations for cover and knows every
+        angle of the room.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Zabrak Basic, flat and without inflection. "Bay's closed." A
+        pause that lasts exactly one second. "Leave now or I solve it."
+        The heavy blaster clears the holster on the first movement
+        that isn't toward the door.
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*He fires and steps sideways — already moving to a second position.*"
+        - "*The heavy blaster tracks you around the schematic stations.*"
+        - "*He does not waste shots. Each discharge is aimed.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # FOUNDRY POWER GENERATOR — 2nd NPC (Gamorrean Power Station Enforcer)
+  # The generator complex runs on forced labor — Republic POWs and
+  # captured civilians manage the coolant lines and fuel feeds.
+  # A Gamorrean has been assigned here to keep the work-detail moving,
+  # which he interprets broadly to include removing anyone who
+  # disrupts the labor rhythm.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Gamorrean Power Station Enforcer
+    room: "Geonosis - Foundry Power Generator"
+    species: Gamorrean
+    description: >-
+      A Gamorrean standing at the generator complex's central coolant
+      manifold, where the forced-labor work-detail is running coolant
+      line checks. He carries a vibroaxe in one hand with the easy grip
+      of something that weighs nothing to him, using the flat of the
+      blade to direct workers who have slowed their pace — a tap on
+      the shoulder from someone his size registers as more than a tap.
+      His hide is darkened with generator heat and the particular grey
+      dust of the foundry's lower levels. When he registers your
+      presence, the flat-of-blade gesture becomes an overhead grip and
+      the workers scatter instinctively to the perimeter of the room.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 1D+2
+        mechanical: 1D+2
+        perception: 2D+1
+        strength: 3D+2
+        technical: 1D+2
+      skills:
+        melee_combat: 4D
+        brawling: 4D+1
+        dodge: 2D+2
+        intimidation: 3D+2
+        search: 2D
+      weapon: vibroaxe
+      move: 10
+      force_points: 0
+      character_points: 1
+      dark_side_points: 3
+    ai_config:
+      personality: >-
+        A Gamorrean labor enforcer whose entire professional output is
+        physical intimidation and the application of force. He does not
+        negotiate, does not assess threat levels, and does not retreat
+        unless the pain response overrides the combat drive. He moves
+        toward threats in a straight line and uses the vibroaxe with
+        the momentum of his full body weight behind each swing.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Gamorrean vocalization — a low booming grunt-series that
+        translates approximately as "you are in the wrong place" before
+        the vibroaxe swings. No Basic. No warning.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He swings the vibroaxe in a wide arc — clearing space rather than aiming.*"
+        - "*The Gamorrean advances. He does not use cover; he uses mass.*"
+        - "*A second swing follows the first without pause. The backswing is almost as fast.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # SECONDARY FOUNDRY (DEEP LEVEL) — 2nd NPC (Trandoshan Scrap Raker)
+  # The deep foundry level is below the active production lines —
+  # older machinery, rejected chassis, stripped components. A
+  # Trandoshan has been harvesting droid scrap from the lower level
+  # to sell to black-market parts brokers. He regards any discovery
+  # of his operation as an existential threat to the arrangement.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Trandoshan Scrap Raker
+    room: "Geonosis - Secondary Foundry (Deep Level)"
+    species: Trandoshan
+    description: >-
+      A Trandoshan in the deep-foundry's blue-lit murk, crouched over
+      a decommissioned B1 chassis with the focused attention of someone
+      extracting value from something everyone else wrote off. He is
+      working fast — a portable scanner in one hand, extraction tools
+      in the other — cataloguing parts with the practiced eye of
+      someone who has been doing this longer than the Geonosians have
+      been looking for him. The blaster rifle is propped against the
+      chassis within reach. When the scanner picks up your movement,
+      he does not ask how you found him — he simply drops the extraction
+      tool and reaches for the rifle in one motion.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D
+        technical: 2D+1
+      skills:
+        blaster: 4D
+        brawling: 4D+1
+        dodge: 3D+1
+        search: 3D+2
+        sneak: 3D+2
+        streetwise: 3D
+      weapon: blaster_rifle
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Trandoshan operating an unsanctioned scrap-harvesting operation
+        in the deep foundry — he is not here with CIS authorization, and
+        anyone who finds him is a problem that cannot leave. He fights
+        with the adaptive aggression of a hunter who is also cornered:
+        using the decommissioned chassis and machinery for cover, picking
+        angles, and not wasting ammunition because he cannot resupply
+        down here.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Trandoshan Basic — clipped, clicking consonants. "You found the
+        wrong level." The rifle is already up. No further dialogue.
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*He fires and drops behind the chassis — the dead machinery makes excellent cover.*"
+        - "*The blaster rifle is tracking you around the decommissioned hulks.*"
+        - "*He moves to a second firing position without fully exposing himself.*"

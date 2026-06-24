@@ -3,7 +3,7 @@ key: +smuggle
 title: Smuggle — Contraband Jobs & Underworld Contacts
 category: "Commands: Economy"
 summary: All smuggling verbs live under +smuggle/<switch>. Browse the underworld board, take a run, deliver cargo, or jettison contraband to avoid a patrol — every verb is a switch here.
-aliases: [smuggle, smugjob, myrun, activerun, cargo, +cargo, +smugjob, smugjobs, smugboard, smugcontacts, underworld, +underworld, +smugjobs, smugaccept, takesmug, takerun, deliver, dropoff, smugdump, dumpcargo, jettison]
+aliases: [smuggle, smugjob, myrun, activerun, cargo, +cargo, +smugjob, smugjobs, smugboard, smugcontacts, underworld, +underworld, +smugjobs, smugaccept, takesmug, takerun, deliver, dropoff, smugdump, dumpcargo, jettison, smugdeliver, deliverrun, deliver_contraband]
 see_also: [smuggling, +mission, economy, factions, darkside, reputation]
 tags: [economy, smuggling, underworld, command]
 access_level: 0

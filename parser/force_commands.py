@@ -633,9 +633,12 @@ class ForceCommand(BaseCommand):
             if pool.dice == 0 and pool.pips == 0:
                 missing.append(skill.title())
         if missing:
+            skill_list = ", ".join(missing)
             await ctx.session.send_line(
-                f"  You lack the Force skill(s) needed: {', '.join(missing)}. "
-                f"You must develop {', '.join(missing)} to use {power.name}."
+                f"  You are Force-sensitive but {skill_list} "
+                f"{'is' if len(missing) == 1 else 'are'} untrained (0D). "
+                f"Force skills are raised through a master/apprentice bond — "
+                f"ask a Jedi Master to use +teach."
             )
             return
 

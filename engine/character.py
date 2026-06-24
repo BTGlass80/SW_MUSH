@@ -879,8 +879,7 @@ class Character:
                 try:
                     pool = DicePool.parse(attrs[force_attr])
                     char.set_attribute(force_attr, pool)
-                    if not pool.is_zero():
-                        char.force_sensitive = True
+                    char.force_sensitive = True  # key presence → force-sensitive (invariant)
                 except (ValueError, TypeError, AttributeError) as _e:
                     log.warning("Malformed force attribute %r=%r for char %s: %s — skipped",
                                 force_attr, attrs.get(force_attr), data.get("id", "?"), _e)

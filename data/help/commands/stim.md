@@ -3,7 +3,7 @@ key: stim
 title: Stim / Stimaccept — Administer Medical Consumables
 category: "Commands: Medical"
 summary: Administer a stimpack, medpac, or specialty stim to yourself or another player. The target must type stimaccept to receive the treatment.
-aliases: [stimaccept, saccept]
+aliases: [stimaccept, saccept, stimpack, "+stim", usemedpac, usestim]
 see_also: [+medical, heal, healaccept, respawn, +healrate]
 tags: [medical, consumables, combat, command]
 access_level: 0
