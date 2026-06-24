@@ -959,6 +959,59 @@ async def _send_comlink(session, source: str, text: str):
     await session.send_line(f"\n  {_COMLINK} {source}: \"{text}\"")
 
 
+def _emit_spacer_telemetry(phase: str, char, qs, *, step_id: int = 0,
+                           credits: int = 0, title: bool = False,
+                           phase_gate: bool = False) -> None:
+    """Emit one spacer-quest onboarding-funnel event (T3.19 telemetry breadth).
+
+    A SINGLE event type (``spacer_quest``) tagged by ``phase`` collapses the
+    30-step "From Dust to Stars" onboarding chain into one offline funnel: how
+    many players START it, the last step they reach (the drop-off curve), the
+    credit faucet paid per step, and how many reach grand COMPLETE — exactly
+    the new-player retention + onboarding-economy signal Brian wants to tune
+    the chain (is one phase a wall? is a step's pay too low to bother?).
+    Mirrors the engine chains' ``chain_reward`` step/graduation events; the
+    spacer quest lives in the character attr blob (not the chain engine), so it
+    needs its own emitter.
+
+      phase     : "start" (chain auto-started) / "step" (a step completed) /
+                  "complete" (step 30 — grand completion).
+      char      : the acting character dict (``id`` joins to the credit ledger).
+      qs        : the quest-state dict — its ``phase`` (1-5) is the macro stage.
+      step_id   : the completed step 1-30 (0 for the start event).
+      credits   : the step's reward-credit faucet this event.
+      title     : the step granted a title.
+      phase_gate: completing this step advanced the player to the next phase.
+
+    Buffer-only + offline-flushed → zero gameplay behaviour; fail-open so a
+    telemetry break can never disturb the quest step it observes.
+    """
+    try:
+        from engine.telemetry import emit as _tele_emit
+        fields = {
+            "phase": phase,
+            "char_id": int((char or {}).get("id") or 0),
+        }
+        if qs is not None:
+            fields["quest_phase"] = qs.get("phase", 0)
+        if step_id:
+            fields["step"] = int(step_id)
+        if credits:
+            fields["credits"] = int(credits)
+        if title:
+            fields["title"] = True
+        if phase_gate:
+            fields["phase_gate"] = True
+        try:
+            from engine.tunables import get_tunable
+            sample = float(get_tunable("telemetry.spacer_quest_sample", 1.0))
+        except Exception:
+            sample = 1.0
+        _tele_emit("spacer_quest", fields, sample=sample)
+    except Exception as _e:
+        log.debug("spacer_quest telemetry emit failed: %s", _e)
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Step completion logic
 # ═══════════════════════════════════════════════════════════════════════
@@ -1075,6 +1128,16 @@ async def _complete_step(session, db, qs: dict, step: dict):
         _set_quest_state(char, qs)
         await db.save_character(char["id"],
                                 attributes=char.get("attributes", "{}"))
+
+    # Onboarding-funnel telemetry (T3.19): one event per ACTUALLY-completed
+    # step, tagging the credit faucet + phase-gate so the offline drop-off
+    # curve + per-step pay are reconstructable. Step 27's affordability gate
+    # returns above, so a can't-afford attempt is (correctly) not counted here.
+    _emit_spacer_telemetry(
+        "complete" if step_id >= 30 else "step",
+        char, qs, step_id=step_id, credits=credits,
+        title=bool(title), phase_gate=bool(step.get("phase_gate")),
+    )
 
 
 async def _grand_completion(session, db, qs):
@@ -1582,6 +1645,10 @@ async def _maybe_start_chain(session, db, trigger: str, **kw):
     _set_attrs(char, a)
     await db.save_character(char["id"],
                             attributes=char.get("attributes", "{}"))
+
+    # Onboarding-funnel telemetry (T3.19): mark the chain start so the offline
+    # funnel can divide completions/last-step-reached by starts.
+    _emit_spacer_telemetry("start", char, qs)
 
     step1 = get_step(1)
     await _send_comlink(session, "Kessa",
