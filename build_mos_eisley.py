@@ -189,28 +189,50 @@ async def build(db_path="sw_mush.db", era="clone_wars"):
     room_name_by_yaml_id = {r.id: r.name for r in bundle.rooms.values()}
 
     # Connect to seed rooms (1=Landing Pad, 2=Mos Eisley Street, 3=Cantina)
-    # ── Seed rooms (Landing Pad, Street, Cantina) — GCW-specific ─────────────
-    # The seed rooms 1/2/3 are created by Database.initialize() as a
+    # ── Seed rooms (Landing Pad, Street, Cantina) — bootstrap pocket ─────────
+    # The seed rooms 1/2/3 are created by the schema (db/database.py) as a
     # bootstrap so the server can serve a minimal world before any build
-    # runs.  These three exits link them into the GCW Mos Eisley map.
-    # For CW (Nar Shaddaa starting room) and other future eras, this
-    # block needs its own per-era pattern — likely a content_refs.seed_links
-    # YAML pointing at era-specific yaml_ids.  Until then, gate on era.
-    if era == "gcw":
+    # runs, and the LEGACY core tutorial graduates new players into this
+    # 3-room pocket. These exits link the pocket into the live Mos Eisley
+    # map so a graduate can reach the market/cantina vendors (Kayson's
+    # Weapon Shop, Lup's General Store, Jawa Traders). Without them the
+    # graduate is stranded in a vendorless pocket — which is exactly what
+    # happened to the production CW economy: this block was gated on the
+    # RETIRED `gcw` era (T2.CW.gcw_retirement), so for `clone_wars` it was
+    # silently skipped and the whole economy loop was walled off.
+    #
+    # The canonical Mos Eisley yaml_ids 7 (Spaceport Row), 8 (Market
+    # District) and 12 (Chalmun's Cantina Entrance) are shared by the gcw
+    # and clone_wars world trees (verified against
+    # data/worlds/clone_wars/planets/tatooine.yaml). Each lookup is guarded
+    # so a future era whose Mos Eisley lacks those rooms warns + skips
+    # instead of KeyError-crashing the build.
+    #
+    # NOTE: room 1's bootstrap `north` already points at seed room 2, so its
+    # new north→spaceport link is silently skipped by create_exit's
+    # same-direction dedup; the pocket still escapes into the city via
+    # room 2 (Street) → north → Market and room 3 (Cantina) → east → Entrance.
+    seed_exits = 0
+    if era in ("gcw", "clone_wars"):
         print("\n  Linking seed rooms to new Mos Eisley...")
-        spaceport_row_id = room_ids[7]
-        market_id = room_ids[8]
-        cantina_entrance_id = room_ids[12]
-
-        await db.create_exit(1, spaceport_row_id, "north", "")
-        await db.create_exit(spaceport_row_id, 1, "south", "Landing Pad")
-        await db.create_exit(2, market_id, "north", "")
-        await db.create_exit(market_id, 2, "south", "Street")
-        await db.create_exit(3, cantina_entrance_id, "east", "")
-        await db.create_exit(cantina_entrance_id, 3, "west", "")
-        print("    Seed rooms linked (Landing Pad, Street, Cantina)")
+        # (seed_room_id, world_yaml_id, out_dir, back_dir, back_name)
+        seed_links = [
+            (1, 7, "north", "south", "Landing Pad"),
+            (2, 8, "north", "south", "Street"),
+            (3, 12, "east", "west", ""),
+        ]
+        for seed_room, world_yaml_id, out_dir, back_dir, back_name in seed_links:
+            world_room = room_ids.get(world_yaml_id)
+            if world_room is None:
+                print(f"    [WARN] seed link skipped: world room yaml_id="
+                      f"{world_yaml_id} not present in this build.")
+                continue
+            await db.create_exit(seed_room, world_room, out_dir, "")
+            await db.create_exit(world_room, seed_room, back_dir, back_name)
+            seed_exits += 2
+        print(f"    Seed rooms linked ({seed_exits} exit rows)")
     else:
-        print(f"\n  [SKIP] Seed-room linking is GCW-specific; era={era!r}.")
+        print(f"\n  [SKIP] Seed-room linking unsupported for era={era!r}.")
 
 
     # ── Wilderness regions (Drop 9 / May 2026) ──────────────────────────────
@@ -477,7 +499,7 @@ async def build(db_path="sw_mush.db", era="clone_wars"):
 
     # -- Summary --
     total_rooms = len(bundle.rooms) + len(ships)  # rooms + bridge rooms
-    seed_exits = 6 if era == "gcw" else 0
+    # seed_exits was set by the seed-room linking block above (real count).
     total_exits = len(bundle.exits) * 2 + seed_exits + len(ships) * 2  # pairs + seed links + ship exits
     hostile_count = sum(1 for _, _, _, _, _, a in planet_npcs if a.get('hostile'))
     print(f"\n  +======================================+")
