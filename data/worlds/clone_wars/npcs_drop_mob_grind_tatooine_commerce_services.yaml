@@ -1,0 +1,433 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_tatooine_commerce_services.yaml
+#
+# Tatooine Commerce & Services — Mob Grind Batch (2026-06-23)
+#
+# Six roaming hostile NPCs seeded across six previously uncovered Tatooine
+# commercial and civic service rooms. Each satisfies
+# engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone spread (all 6 rooms had zero hostile NPCs at HEAD):
+#   Kayson's Weapon Shop              x1 (Zabrak arms thief, hold_out_blaster)
+#   Police Station - Main Floor       x1 (Trandoshan bail-jumper, vibroblade)
+#   Spaceport Speeders                x1 (Weequay protection enforcer, vibroaxe)
+#   Dockside Cafe                     x1 (Human syndicate enforcer, blaster_pistol)
+#   The Cutting Edge Clinic           x1 (Rodian medical thief, blaster_pistol)
+#   Dim-U Monastery - Main Gate       x1 (Gran relic looter, sporting_blaster)
+#
+# Species diversity: Zabrak / Trandoshan / Weequay / Human / Rodian / Gran
+#   — 6 distinct species, one per room.
+#
+# Thematic premise: Mos Eisley's commercial and civic interior spaces (~20 BBY)
+# operate under a thin veneer of order that organized crime penetrates at every
+# seam. The weapon shop's inventory draws professional thieves with commissioned
+# targets. The police station is a soft-target building where criminal associates
+# come to settle outstanding arrests by force rather than credit. The speeder
+# rental business owes Hutt protection money it hasn't paid. The dockside cafe
+# controls the informal information flow for the entire docking apron, which
+# means the criminal syndicate that owns the block sends an enforcer to remind
+# the management of the arrangement. The clinic's bacta stockpile is worth more
+# per liter than anything else in the building, and three organized theft rings
+# know it. The monastery gate is quiet enough that a Gran artifact hunter with
+# a map of the Dim-U's pre-colonial relic collection thinks he can slip in
+# before the monks' morning observation period.
+#
+# All rooms confirmed in data/worlds/clone_wars/planets/tatooine.yaml at HEAD.
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original; Dr. Evazan excluded
+#   from clinic scenario per Q1 guard (canonical figure).
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats — WEG40120 PDF absent from this worktree.
+#   Stats UNVERIFIED against PDF. Grounded in sibling CW NPC species baselines:
+#   Zabrak:     DEX 3D+2, KNO 2D,   MEC 2D,   PER 2D+2, STR 3D,   TEC 2D
+#   Trandoshan: DEX 2D+2, KNO 1D+2, MEC 1D+2, PER 2D,   STR 3D+2, TEC 1D+2
+#   Weequay:    DEX 2D+1, KNO 2D,   MEC 1D+2, PER 2D+2, STR 3D,   TEC 2D
+#   Human:      DEX 3D,   KNO 2D,   MEC 2D,   PER 3D,   STR 3D,   TEC 2D
+#   Rodian:     DEX 3D+1, KNO 2D,   MEC 2D,   PER 3D+1, STR 2D+1, TEC 2D
+#   Gran:       DEX 2D+2, KNO 2D+2, MEC 2D,   PER 3D,   STR 2D+2, TEC 2D
+# Weapons: hold_out_blaster, vibroblade, vibroaxe, blaster_pistol,
+#          sporting_blaster — all keys confirmed in data/weapons.yaml at HEAD.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # KAYSON'S WEAPON SHOP — 1 NPC (Zabrak arms thief)
+  # The shop's specialty in off-catalog modifications makes it a
+  # target for commissioned theft; the Zabrak operates under a
+  # specific retrieval contract and attacks rather than negotiate.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Zabrak Arms Thief
+    room: "Kayson's Weapon Shop"
+    species: Zabrak
+    description: >-
+      A Zabrak male with the compact, deliberate posture of a
+      professional who does not browse. The tactical vest is worn
+      under a sand-colored outer layer, and the hold-out blaster
+      at his forearm rig is already clear of its housing — he
+      came in through the service entrance rather than the front
+      and he is not here to make a purchase. His horned head
+      tilts at the sound of your entry; the threat-assessment
+      that follows is fast and arrives at the same conclusion it
+      always does when someone interrupts him mid-retrieval. He
+      has a job to finish and you are between him and the exit.
+    char_sheet:
+      attributes:
+        dexterity: 3D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D+2
+        dodge: 4D
+        sneak: 3D+2
+        streetwise: 3D
+        search: 2D+2
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Zabrak professional thief contracted to retrieve a specific
+        illegal modification kit from Kayson's back inventory. He
+        does not want a fight — he wants the item and the exit — but
+        he has run enough jobs to know that anyone who interrupts a
+        retrieval mid-operation needs to be neutralised quickly. He
+        fires first, aims for mobility, and keeps moving toward the
+        exit. He does not explain the contract.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Nothing until the hold-out blaster fires. If pressed: a flat
+        Zabrak statement — "Not your job." Then the shot comes.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The Zabrak fires from behind the display case, using the rifle rack as cover.*"
+        - "*He moves for the service entrance and fires again to keep you back.*"
+        - "*'Walk away.' The hold-out blaster tracks your center mass.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # POLICE STATION - MAIN FLOOR — 1 NPC (Trandoshan bail-jumper)
+  # A Trandoshan who came to the station to break his associate out
+  # of holding; the duty officers' reaction made negotiation brief.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Trandoshan Bail-Jumper
+    room: "Police Station - Main Floor"
+    species: Trandoshan
+    description: >-
+      A Trandoshan with the scaled bulk and scaled patience of a
+      species that treats violence as a practical tool rather than
+      a last resort. He came in through the front door — the only
+      entrance — carrying nothing visible and asking for the duty
+      sergeant in the polite Dosh-accented Basic he uses when he
+      wants something. That conversation ended fast. He is now
+      standing in the middle of the main floor with a vibroblade
+      drawn and a very clear position on what happens next. His
+      associate is in the holding cell three meters behind him,
+      and everyone between the Trandoshan and that door has
+      become an obstacle he is resolving in order.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 1D+2
+        mechanical: 1D+2
+        perception: 2D
+        strength: 3D+2
+        technical: 1D+2
+      skills:
+        melee_combat: 4D+2
+        brawling: 4D+1
+        dodge: 3D
+        intimidation: 3D+2
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 3
+    ai_config:
+      personality: >-
+        A Trandoshan with a simple objective — retrieve his associate
+        from the holding cell — and the physical capacity to pursue
+        it through the main floor of a police station alone. He did
+        not plan to fight today; he planned to pay. The officers
+        declined the arrangement, which moved this into a different
+        category of problem. He is working through the room in order
+        of proximity, and he is not stopping.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Dosh-accented Basic, direct and short. "Move." The vibroblade
+        comes up if you don't. He does not repeat himself.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The Trandoshan drives forward, using his bulk to control the space between you and the door.*"
+        - "*The vibroblade sweeps low then cuts back high — a practiced combination.*"
+        - "*He absorbs the hit without slowing. The blade comes around again.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # SPACEPORT SPEEDERS — 1 NPC (Weequay protection enforcer)
+  # Hutt-licensed protection collection; the speeders business is
+  # three weeks behind on the arrangement, and the Weequay came
+  # to discuss the outstanding balance with both hands free.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Weequay Protection Enforcer
+    room: "Spaceport Speeders"
+    species: Weequay
+    description: >-
+      A sun-weathered Weequay standing in the middle of the speeder
+      dealership's floor with the comfortable stillness of someone
+      who knows the building does not have a back exit. The vibroaxe
+      hanging from a shoulder-ring is not decorative — the nicks in
+      the housing tell you it has been used at working speed more
+      than once, and the Weequay's bearing says he has come here
+      specifically to use it again if the arrangement is not settled
+      in the next thirty seconds. He is ignoring the speeder display
+      entirely. He is watching the door and the counter and the
+      space between you and both of them, and he has already decided
+      you are part of the outstanding balance.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D
+        mechanical: 1D+2
+        perception: 2D+2
+        strength: 3D
+        technical: 2D
+      skills:
+        melee_combat: 4D
+        brawling: 3D+2
+        dodge: 3D
+        intimidation: 4D
+      weapon: vibroaxe
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Weequay collection enforcer on a standard Hutt protection
+        route. The spaceport speeders business is three weeks late
+        on the arrangement fee, and he came to close the account one
+        way or another. He prefers credit — credit is clean and
+        requires less cleanup — but he carries the vibroaxe because
+        some clients need the alternative demonstrated before they
+        understand the arrangement is not optional. You are in the
+        room during a demonstration.
+      knowledge: []
+      faction: hutt_cartel
+      dialogue_style: >-
+        Minimal. A flat Weequay look and then: "Three weeks." The
+        vibroaxe comes off the ring before the words finish.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The vibroaxe comes around in a wide arc, using the speeder display as a backstop.*"
+        - "*He drives you toward the corner, cutting off the exit.*"
+        - "*'Three weeks.' He swings again, unhurried.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # DOCKSIDE CAFE — 1 NPC (Human syndicate enforcer)
+  # The criminal syndicate that controls the docking apron's
+  # informal economy uses the cafe as a collection point; this
+  # enforcer handles disputes that go past a polite conversation.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Syndicate Docks Enforcer
+    room: "Dockside Cafe"
+    species: Human
+    description: >-
+      A Human with a working-docks build — broad shoulders, scarred
+      knuckles, the look of someone who has spent a decade in the
+      sun and dust of the Westport apron — sitting at the counter
+      with a caff that has gone cold while he watches the room.
+      The blaster pistol on his hip is not hidden. The dockside
+      syndicates don't hide their collection people because visible
+      presence is a significant part of the arrangement. He clocked
+      you when you came in, ran his assessment, and arrived at a
+      conclusion. He is on his feet and moving before the caff
+      cup settles.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        intimidation: 3D+2
+        streetwise: 3D
+        brawling: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Human enforcer who has worked the dockside collection
+        route long enough to have strong opinions about how quickly
+        situations resolve when he draws the blaster early. He is
+        not cruel but he is efficient — the syndicate pays him to
+        maintain order and prevent the kind of disagreements that
+        attract the militia, and the fastest way to do that is to
+        establish a clear power gradient immediately. He fires
+        without announcement because announcement gives you time
+        to draw first.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Nothing across the room. He covers the distance fast and
+        fires when he is close enough to be certain. If anything:
+        "Syndicate business." Then the blaster.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires from behind the counter, using the bar top as a firing platform.*"
+        - "*He moves table to table, closing the distance and firing twice.*"
+        - "*'Syndicate business.' He fires again.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # THE CUTTING EDGE CLINIC — 1 NPC (Rodian medical thief)
+  # The clinic's bacta stock is worth more per liter than the rest
+  # of the inventory combined; the Rodian came prepared to take it.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Rodian Bacta Thief
+    room: "The Cutting Edge Clinic"
+    species: Rodian
+    description: >-
+      A Rodian in a service-tech coverall that is the wrong shade
+      of grey for any legitimate medical supply company on Tatooine.
+      He has a hand on a bacta canister the size of a carry case
+      and compound eyes that are already processing the geometry of
+      your arrival — how fast, which direction, how many. He came
+      in through the service access with a manifest that cleared
+      the morning check-in and he is forty seconds from the exit
+      with enough bacta to fund a month of operations. The blaster
+      on his hip comes off the clip the moment you clear the doorway.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+2
+        sneak: 3D+2
+        search: 3D
+        streetwise: 2D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Rodian professional thief specialising in medical supply
+        theft — bacta, pharmaceuticals, surgical-grade equipment
+        with a black-market premium. He is not a fighter by
+        preference but he is good enough with the blaster to have
+        kept this operation running for four years without a loss.
+        When interrupted mid-extraction, he fires immediately and
+        uses the clinic's equipment as cover while he works toward
+        the service exit and his contracted pickup.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Rodian-clipped Basic, fast and flat. "Wrong time, wrong
+        place." The blaster comes up in the same breath.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires from behind the equipment rack and moves for the service access.*"
+        - "*The compound eyes track you; he fires twice and sidesteps behind the supply counter.*"
+        - "*'Wrong time.' He fires again, still moving.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # DIM-U MONASTERY - MAIN GATE — 1 NPC (Gran relic looter)
+  # An unscrupulous antiquities dealer who mapped the monastery's
+  # pre-colonial relic collection through court auction records and
+  # arrived during the monks' morning silence to take advantage of
+  # the quiet.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Gran Relic Looter
+    room: "Dim-U Monastery - Main Gate"
+    species: Gran
+    description: >-
+      A Gran with three eyestalks and a rolled-canvas map case
+      strapped to his back, standing at the monastery gate with
+      the studied casualness of someone who has planned this visit
+      for three months and expected the gate to be unmanned. The
+      sporting blaster at his hip is the kind carried by people
+      who do not think of themselves as dangerous — which makes
+      the draw faster than you expect, because he has not had
+      time to develop caution about it. He has a buyer waiting
+      in the Spaceport Row for two specific Dim-U pre-colonial
+      devotional artifacts, a precise location for both, and
+      absolutely no intention of letting you call the militia.
+      All three eyestalks fix on you and he is already reaching.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 3D+2
+        dodge: 3D
+        search: 3D+1
+        scholar: 3D
+        streetwise: 2D+2
+      weapon: sporting_blaster
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A Gran antiquities dealer who crossed the line from broker
+        to thief when the profit margin on pre-colonial Dim-U relics
+        became too significant to ignore. He does not think of himself
+        as violent, which means he draws the sporting blaster in a
+        moment of panic rather than calculation. He is smart enough
+        to know when he is cornered and is trying to buy time to
+        reach the gate, but smart does not always mean effective
+        with a blaster under pressure.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Gran-accented Basic with the slightly formal register of
+        someone who reads court records for a living. "This is a
+        private scholarly visit." Then all three eyestalks converge
+        and the sporting blaster clears leather.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*All three eyestalks lock on you; the sporting blaster comes up fast.*"
+        - "*He backs toward the gate, firing as he goes — not accurate, but committed.*"
+        - "*'Private visit.' He fires again, one hand on the map case.*"
