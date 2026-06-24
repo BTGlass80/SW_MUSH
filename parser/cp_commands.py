@@ -39,6 +39,61 @@ def _get_skill_reg() -> SkillRegistry:
     return reg
 
 
+# ── T3.19 telemetry ──────────────────────────────────────────────────────────
+def _emit_cp_spend(char_id, skill: str, cost: int, **extra) -> None:
+    """T3.19 telemetry: one fail-open ``cp_spend`` event per CP advancement.
+
+    The CP economy already has a FAUCET emitter (``telemetry.emit_cp_income`` —
+    every Character-Point income source: kudos / scene / passive / ai_eval /
+    milestone / achievement / padawan_training, wired in ``engine/cp_engine``).
+    It had NO sink emitter: ``train`` spends CP to raise a skill pip (the dominant
+    deliberate CP sink), but nothing recorded the spend — so the income half could
+    not be rejoined offline against the spend half. ``cp_spend`` is that missing
+    sink. Joined to ``cp_income`` on ``char_id`` it gives the post-launch
+    progression-balance signal Brian wants: do players hoard CP or spend it, WHICH
+    skills they invest in, at what dice level (``dice`` == the WEG total-dice cost
+    basis == the pool size being advanced), and guild-training-discount uptake —
+    the data to tune the CP levers (``TICKS_PER_CP`` / ``WEEKLY_CAP_TICKS``) + the
+    20% guild discount against real behaviour rather than guesses.
+
+      char_id: the training character (coerced to int when it parses — the SAME
+               coercion ``emit_cp_income`` uses, so faucet + sink rejoin on one
+               player even across the str-id / int-id systems).
+      skill  : the canonical skill key advanced.
+      cost   : CP actually spent (AFTER any guild discount) — the sink value.
+      extra  : ``attribute`` (governing attr), ``dice`` (pre-discount total-dice
+               cost basis = pool size), ``cp_remaining`` (balance after the spend),
+               ``old_pool`` / ``new_pool`` (the pip transition), ``guild_discount``
+               (bool — a discounted train); ``None`` values are dropped.
+
+    Sampling honours ``telemetry.cp_spend_sample`` (default 1.0 — training is a
+    deliberate, low-frequency act, so full capture by default; mirrors the
+    ``cp_income`` faucet, which also captures fully). Buffer-only + offline-flushed
+    → can NEVER disturb the advancement it observes. (The Force ``+teach`` path
+    raises control/sense/alter to 1D and moves NO player CP — a different mechanic,
+    deliberately not counted here; this emitter covers the ``train`` CP sink.)
+    """
+    try:
+        try:
+            cid = int(char_id)
+        except (TypeError, ValueError):
+            cid = char_id
+        fields = {"source": "train", "char_id": cid, "skill": skill,
+                  "cost": int(cost)}
+        for k, v in extra.items():
+            if v is not None and k not in fields:
+                fields[k] = v
+        from engine.telemetry import emit as _tele_emit
+        try:
+            from engine.tunables import get_tunable
+            sample = float(get_tunable("telemetry.cp_spend_sample", 1.0))
+        except Exception:
+            sample = 1.0
+        _tele_emit("cp_spend", fields, sample=sample)
+    except Exception:
+        log.debug("cp_spend telemetry emit failed", exc_info=True)
+
+
 # ── cpstatus ──────────────────────────────────────────────────────────────────
 
 class CPStatusCommand(BaseCommand):
@@ -182,13 +237,15 @@ class TrainCommand(BaseCommand):
         current_bonus = character.skills.get(key, DicePool(0, 0))
         attr_pool = character.get_attribute(skill_def.attribute)
         total_pool = attr_pool + current_bonus
-        cost = total_pool.dice  # advance_skill cost formula
+        base_dice = total_pool.dice  # advance_skill cost formula (pre-discount)
+        cost = base_dice
 
         # Guild training bonus: 20% discount for guild members
+        guild_multiplier = 1.0
         try:
             from engine.organizations import get_guild_cp_multiplier
-            multiplier = await get_guild_cp_multiplier(char, ctx.db)
-            cost = max(1, int(cost * multiplier))
+            guild_multiplier = await get_guild_cp_multiplier(char, ctx.db)
+            cost = max(1, int(cost * guild_multiplier))
         except Exception:
             log.warning("execute: unhandled exception", exc_info=True)
             pass
@@ -226,6 +283,19 @@ class TrainCommand(BaseCommand):
             f"  {ansi.BRIGHT_GREEN}[ADVANCEMENT]{ansi.RESET} "
             f"{skill_name.title()} trained: {attr_pool + current_bonus} → {new_pool}  "
             f"({actual_cost} CP spent, {character.character_points} CP remaining)"
+        )
+
+        # T3.19 telemetry: record the CP SINK (advancement) — pairs with the
+        # cp_income faucet emitters. Fires only here, AFTER the save committed,
+        # so a rejected/insufficient/unknown-skill train emits nothing.
+        _emit_cp_spend(
+            char["id"], skill_name, actual_cost,
+            attribute=skill_def.attribute,
+            dice=base_dice,
+            cp_remaining=character.character_points,
+            old_pool=str(attr_pool + current_bonus),
+            new_pool=str(new_pool),
+            guild_discount=bool(guild_multiplier < 1.0),
         )
 
         # Narrative: log skill training

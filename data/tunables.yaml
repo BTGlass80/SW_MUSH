@@ -157,6 +157,17 @@ telemetry.title_sample: 1.0           # fraction of vanity-title events emitted 
 # `complete`. A once-per-player, low-frequency lifecycle so 1.0 (full capture)
 # is fine — sampling it down would blur the very drop-off curve it exists to show.
 telemetry.spacer_quest_sample: 1.0    # fraction of spacer-quest events emitted (0..1]
+# Keep-rate for the CP-spend (advancement) sink (parser/cp_commands.py `train`).
+# The CP economy already telemeters its FAUCET (cp_income — every Character-Point
+# income source, in engine/cp_engine.py) but had no SINK emitter: each `train`
+# spends CP to raise a skill pip. Each advance emits one `cp_spend` event tagged
+# source=train, with the skill, the `dice` cost basis (== the pool size advanced),
+# the CP `cost` paid, `cp_remaining`, the old→new pool, and a `guild_discount`
+# flag. Joined to cp_income on char_id it shows whether players hoard or spend CP,
+# which skills they invest in, and guild-discount uptake — the signal for tuning
+# TICKS_PER_CP / WEEKLY_CAP_TICKS + the 20% guild discount. A deliberate, low-
+# frequency act so 1.0 (full capture) is fine.
+telemetry.cp_spend_sample: 1.0        # fraction of CP-advancement events emitted (0..1]
 
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
