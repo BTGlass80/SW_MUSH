@@ -93,6 +93,15 @@ telemetry.housing_sample: 1.0         # fraction of housing transitions emitted 
 # the audience cap, the fatigue penalty, and the perform cooldowns. Bounded by
 # player action + the 10-min cooldown so 1.0 is fine at launch; lower if noisy.
 telemetry.entertainer_sample: 1.0     # fraction of performances emitted (0..1]
+# Keep-rate for the player-healer medical-services economy (parser/medical_commands.py).
+# Each resolved `healaccept` emits one 'medical_treatment' event tagged by outcome
+# (critical/success/partial/fail/fumble): the healer→patient service transaction the
+# credit ledger can't rejoin, plus the partial/failed treatments that move no credits
+# and so are invisible to credit_flow entirely. Carries the skill roll vs the
+# wound-scaled difficulty, the rate, and wound_before→wound_after — the signal for
+# tuning _HEAL_DIFFICULTY and whether heal-for-hire is worth it vs a bacta tank.
+# Low-frequency (player action + the 60s offer window) so 1.0 is fine; lower if noisy.
+telemetry.medical_sample: 1.0         # fraction of treatments emitted (0..1]
 
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
