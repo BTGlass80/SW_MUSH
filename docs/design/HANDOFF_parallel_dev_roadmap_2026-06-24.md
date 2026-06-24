@@ -35,8 +35,12 @@ Supersedes the forward-plan half of `HANDOFF_e2e_campaigns_and_ux_upgrade_2026-0
 - `9bb445e` — merge of origin/main (content + telemetry loop drops).
 - This handoff doc.
 
-> **GATE/PUSH STATUS:** _(fill in at close-out)_ threaded full suite (e2e-excluded)
-> result = `<RESULT>`; `git branch -f main HEAD && git push origin main` = `<DONE?>`.
+> **GATE/PUSH STATUS (2026-06-24 PM):** DONE. Two-phase gate: unit xdist (no
+> smoke/slow) = 4 failed / 12,396 passed, all triaged to pre-existing baseline
+> (cargo-tax #7) / working-tree-only (`_verify_bacta` silent-except) / the now-fixed
+> force-0D loop contradiction; smoke = the 3 known chain-walkthrough flakes. None
+> from this session's work. Pushed to main: `9880bec..d47d189`. (The single
+> all-in-one xdist run STICKS at 99% — use the two-phase command in §6.)
 
 ---
 
