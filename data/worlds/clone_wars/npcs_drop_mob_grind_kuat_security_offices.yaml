@@ -1,0 +1,527 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_kuat_security_offices.yaml
+#
+# Kuat Security & Institutional Spaces — Mob Grind Batch (2026-06-23)
+#
+# Six roaming hostile NPCs seeded across six previously uncovered Kuat rooms:
+# three KSF security zones, the ring medical center, the Republic Liaison
+# Office, and the KDY engineer apartments. Each satisfies
+# engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone spread:
+#   Kuat - KSF Customs Checkpoint x1       (Devaronian Forged-Documents Smuggler,
+#                                            hold_out_blaster)
+#   Kuat - KSF Security Substation x1      (Nikto Counter-Surveillance Operative,
+#                                            blaster_pistol)
+#   Kuat Drive Yards - KSF Headquarters x1 (Human Evidence-Destruction Agent,
+#                                            blaster_pistol)
+#   Kuat Drive Yards - Ring Medical Center x1 (Trandoshan Pharmaceutical Thief,
+#                                              vibroblade)
+#   Kuat City - Republic Liaison Office x1 (Chiss CIS Intelligence Operative,
+#                                            blaster_pistol)
+#   Kuat Drive Yards - Engineer Apartments x1 (Weequay Syndicate Enforcer,
+#                                               blaster_carbine)
+#
+# Thematic premise: Kuat's security apparatus (~20 BBY) is stretched thin
+# under wartime pressure. The KSF is thorough but overextended; CIS
+# intelligence knows this and exploits it. The checkpoints and substations
+# that guard the Republic's most valuable shipyard complex have become
+# targets for operatives who understand exactly which gaps exist between
+# KSF's formidable reputation and its actual coverage at any given moment.
+# Elsewhere, the war's economic pressures have pushed criminal elements
+# deeper into the ring's institutional spaces — the medical center is a
+# supply chain target, the engineer apartments are a new protection-racket
+# frontier, and even the Republic Liaison Office has been penetrated by
+# a Chiss operative who understood that diplomatic channels are only as
+# secure as the people staffing them.
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original. KSF Commander Avala
+#   Rhen and Liaison Vessen Kael are referenced as room fixtures; neither
+#   appears as an enemy NPC here.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats — WEG40120 PDF absent from this worktree.
+#   Stats UNVERIFIED against PDF. Grounded in sibling CW NPC patterns:
+#   Devaronian: DEX 2D+2, KNO 2D+2, PER 3D, STR 2D+1, TEC 2D
+#   Nikto:      DEX 3D, KNO 2D, PER 3D, STR 2D+2, TEC 2D
+#   Human:      DEX 2D+2, KNO 3D, PER 2D+2, STR 2D+1, TEC 3D (forensics)
+#   Trandoshan: DEX 2D+1, KNO 2D, PER 2D+2, STR 3D+2, TEC 2D
+#   Chiss:      DEX 2D+2, KNO 3D, PER 2D+2, STR 2D+1, TEC 2D+2
+#   Weequay:    DEX 2D+2, KNO 2D, PER 2D+2, STR 3D+1, TEC 2D
+# Weapons: hold_out_blaster, blaster_pistol, vibroblade, blaster_carbine —
+#   all keys confirmed in data/weapons.yaml at HEAD.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # KSF CUSTOMS CHECKPOINT — 1 NPC
+  # (Devaronian Forged-Documents Smuggler)
+  # The checkpoint is the last bottleneck before the concourse: every
+  # manifest reviewed, every transponder verified. For the past three
+  # months a Devaronian cargo broker has been moving a steady stream
+  # of untaxed tech components through by rotating between four sets
+  # of forged transit papers. Today one set was flagged in the new
+  # war-era KSF database. The broker does not intend to let the
+  # confirmation call go through.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Forged-Documents Broker
+    room: "Kuat - KSF Customs Checkpoint"
+    species: Devaronian
+    description: >-
+      A Devaronian male at the customs counter with a documentation
+      packet spread across the scanner and a cultivated expression of
+      mild bureaucratic impatience — the look of someone who crosses
+      checkpoints professionally and has learned that looking bored
+      reads as innocent. His transit papers are technically flawless;
+      the underlying identity they reference stopped existing eleven
+      days ago when the KSF updated their wartime registry. He is
+      watching the officer's hands. When the officer reaches for the
+      verification comm rather than the stamp, the Devaronian's hand
+      is already inside his jacket. The hold-out comes out in the
+      space between the officer's fingers closing on the comm and
+      the comm reaching her ear.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 3D+2
+        dodge: 3D
+        con: 4D+2
+        streetwise: 4D
+        forgery: 4D+1
+        search: 3D+1
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A professional forged-documents broker who has been running
+        untaxed tech components through Kuat customs for three months
+        via rotating identity packets. He is not violent by inclination —
+        violence attracts exactly the kind of follow-up investigation
+        that ruins a clean smuggling operation. But he is a pragmatist,
+        and a witness who watched him draw at a KSF checkpoint is a
+        problem with exactly one solution. He fires once to create
+        separation, then moves for the exit rather than pressing the
+        engagement.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Smooth Outer Rim-accented Basic, the kind that comes with
+        a corporate datapad and a rehearsed smile. "There must be
+        some mistake." There isn't. He knows it. The hold-out is
+        already out.
+      hostile: true
+      combat_behavior: evasive
+      fallback_lines:
+        - "*He puts the customs counter between himself and you and
+          fires across it.*"
+        - "*The documentation packet scatters. He does not look at it.*"
+        - "*'This does not have to go further.' The hold-out does not lower.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # KSF SECURITY SUBSTATION — 1 NPC
+  # (Nikto Counter-Surveillance Operative)
+  # The substation has a front-desk officer, a detention bay, a weapons
+  # locker, and a secure comm room whose frequency schedules, patrol
+  # rotations, and evidence-handling procedures represent exactly the
+  # intelligence a Black Sun cell needs to move a specific informant
+  # out of protective KSF custody. The Nikto has been inside for
+  # forty minutes as a "maintenance contractor" and has photographed
+  # everything except the secure comm logs. Getting those requires
+  # two more minutes.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Counter-Surveillance Specialist
+    room: "Kuat - KSF Security Substation"
+    species: Nikto
+    description: >-
+      A Kajain'sa'Nikto in the unmarked coveralls of a ventilation
+      maintenance contractor, moving through the substation's back
+      corridor with a toolkit in one hand and a scanner that is
+      performing an entirely different function than its housing
+      suggests. The orange-red ridges along his jaw are smooth and
+      unscratched — this is not a Nikto who got here by fighting
+      his way through things. He maps rooms with the patient
+      efficiency of someone who has done this in tighter spaces
+      with less time. When you step into the corridor between him
+      and the comm room he has not yet reached, his expression
+      does not change. The scanner goes into the toolkit. The
+      blaster comes out of the toolkit in the same motion.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        dodge: 3D+2
+        sneak: 4D+2
+        security: 3D+1
+        search: 4D
+        streetwise: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Black Sun counter-surveillance specialist whose job is
+        mapping security infrastructure, not fighting through it.
+        He is disciplined and precise — violence inside a KSF
+        substation is the single worst possible outcome for this
+        operation. But he has been cornered in worse positions and
+        still extracted. He fires to suppress rather than to kill,
+        uses the substation's corridor geometry for cover, and heads
+        for the maintenance exit at the first viable opening.
+      knowledge: []
+      faction: black_sun
+      dialogue_style: >-
+        Minimal. A flat stare. The toolkit hits the floor and the
+        blaster is already leveled before you finish the sentence
+        you started.
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*He drops behind the detention-bay door frame and fires through
+          the gap.*"
+        - "*A suppressed burst — controlled, tactical, buying seconds.*"
+        - "*He moves down the maintenance corridor without looking back.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # KSF HEADQUARTERS — 1 NPC
+  # (Human Evidence-Destruction Agent)
+  # The KSF headquarters keeps secure case archives in a filing annex
+  # off the main floor. Twelve years of internal investigations,
+  # incident reports, and forensic case files. One of those files
+  # belongs to a former KSF forensic technician who skimmed evidence
+  # for eighteen months before being quietly separated. KSF internal
+  # affairs is reopening the file. The former technician has come
+  # back under a stolen KDY contractor badge to destroy the physical
+  # archive before the investigation goes live.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Evidence-Destruction Agent
+    room: "Kuat Drive Yards - KSF Headquarters"
+    species: Human
+    description: >-
+      A Human man in KDY contractor grey, badge displayed, moving
+      through the headquarters filing annex with the quiet focus
+      of someone who used to work here and still remembers the
+      layout. He was a forensic technician for nine years. He knows
+      exactly where the physical case archive is, exactly how long
+      he has before the filing annex duty officer does her next
+      walkthrough, and exactly which records need to not exist before
+      tomorrow morning. The datapad he is carrying will not survive
+      this building. The files he is looking for will not survive
+      him. When you step into the annex doorway and he realizes his
+      fifteen-minute window just became zero, the datapad goes into
+      a pocket and the blaster comes out with the mechanical ease of
+      someone who spent nine years qualifying on the same weapon range
+      he is now destroying evidence to avoid being prosecuted for.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 3D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D+1
+        technical: 3D
+      skills:
+        blaster: 3D+2
+        dodge: 3D+1
+        sneak: 3D+2
+        security: 4D
+        computer_ops: 3D+2
+        streetwise: 3D
+        search: 3D+1
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A disgraced former KSF forensic technician who came back to
+        destroy evidence before an internal affairs investigation
+        finds it. He is not a killer — nine years in forensics
+        and then eighteen months skimming evidence does not produce
+        a killer. But he is looking at the end of his freedom if
+        he walks out of this annex without finishing the job, and
+        that arithmetic produces a man who will fire on a witness
+        rather than let them make a call. He is scared. Scared
+        people who know how to shoot are dangerous.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Quiet, controlled Basic — the voice of someone who spent a
+        career writing dispassionate incident reports and is applying
+        that same discipline to the moment he has been dreading for
+        eight months. "Walk away." He means it. He is also lying.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He puts a filing cabinet between himself and you and
+          fires around it.*"
+        - "*The badge goes into a pocket. He has already decided.*"
+        - "*'You were not supposed to be here.' He fires again.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # RING MEDICAL CENTER — 1 NPC
+  # (Trandoshan Pharmaceutical Thief)
+  # The medical center stocks surgical-grade bacta patches, stimulant
+  # packs, and clone-regiment trauma kits in quantities that make it
+  # one of the most valuable unguarded supply caches on the ring.
+  # "Unguarded" in relative terms — there is one KSF officer on the
+  # supply wing, who is currently taking a meal break that the
+  # Trandoshan has been watching the schedule of for four shifts.
+  # The medical supply cabinet has eleven minutes left of unobserved
+  # access. He has already loaded seven of them.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Medical Supply Thief
+    room: "Kuat Drive Yards - Ring Medical Center"
+    species: Trandoshan
+    description: >-
+      A large Trandoshan in a scuffed medical-services contractor
+      vest, moving through the supply wing with a duffel bag that
+      is getting heavier. The bag is full of things that are not
+      supposed to leave this building without a signed manifest:
+      surgical bacta patches, stimulant injectors, and a tray of
+      clone-regiment trauma kits that the KSF inventory system
+      will not miss until the next audit because he swapped the
+      scanner tags. He has done this before in smaller facilities
+      on Nar Shaddaa; the KDY medical center is bigger, cleaner,
+      and carries better stock. The vibroblade in his belt is a
+      tool for opening sealed supply cases, and also for situations
+      exactly like the one he finds himself in when you come around
+      the supply wing corner during what should have been an
+      unobserved eleven minutes.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+2
+        technical: 2D
+      skills:
+        melee_combat: 4D+2
+        brawling: 4D+1
+        sneak: 3D+2
+        intimidation: 3D+1
+        dodge: 2D+2
+        streetwise: 3D
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A freelance pharmaceutical thief specializing in medical
+        facility supply runs — bacta patches and stimulants sell
+        at triple markup on Nar Shaddaa, and a single KDY supply
+        run covers his operating costs for a month. He is not a
+        fighter by design, but he is a Trandoshan, and in the
+        tight corridors of a supply wing, a vibroblade and
+        overwhelming strength are a practical alternative to any
+        firearm he does not have. He fights to close distance
+        and disable rather than kill — dead bodies attract
+        more attention than stolen inventory.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Deep Trandoshan-accented Basic, clipped and direct.
+        "Walk. Away." Then the duffel goes down and the vibroblade
+        comes out.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The duffel hits the floor. He closes the distance
+          faster than his size suggests he should.*"
+        - "*The vibroblade swings low — he's done this in tight
+          spaces before.*"
+        - "*A hissing growl. He is not retreating.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # REPUBLIC LIAISON OFFICE — 1 NPC
+  # (Chiss CIS Intelligence Operative)
+  # Liaison Vessen Kael runs a small but strategically critical office
+  # whose comm terminals hold KDY production schedules, procurement
+  # contracts, and the informal communications that connect Republic
+  # military requirements to KDY manufacturing capacity. A Chiss
+  # operative embedded as a Trade Guild procurement observer has spent
+  # three weeks building the access and the siphon routine that is
+  # currently, in this moment, extracting the next six months of
+  # Venator production schedules from the outer office comm terminal.
+  # The observer does not plan to be in this office in ten minutes.
+  # She does not plan to let anyone interfere with the next nine.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Trade Guild Intelligence Operative
+    room: "Kuat City - Republic Liaison Office"
+    species: Chiss
+    description: >-
+      A Chiss woman in the pressed grey of a Trade Guild procurement
+      observer, positioned at the outer office comm terminal with a
+      datapad connected via a transfer lead that the liaison staff
+      accepted without scrutiny because her credentials were genuine
+      when she arrived three weeks ago. She has been here long enough
+      that the staff no longer watches her, which is exactly the
+      condition that the siphon routine running three layers beneath
+      a legitimate procurement audit requires. Her blue skin and red
+      eyes are unreadable in the specific way of someone trained to
+      make them so. When you step into the outer office and your
+      gaze goes to the transfer lead rather than to her face, the
+      datapad goes into her document case and the blaster comes out
+      of her jacket in the single smooth motion of someone who
+      has rehearsed this extraction precisely because she knew it
+      might be necessary.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 3D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D+1
+        technical: 2D+2
+      skills:
+        blaster: 3D+2
+        dodge: 3D+1
+        computer_ops: 4D+2
+        con: 4D
+        search: 3D+1
+        streetwise: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Chiss CIS intelligence operative embedded in the Republic
+        Liaison Office as a Trade Guild procurement observer for
+        three weeks. She is not impulsive — the entire operation
+        has been built on patience and sustained cover. But a
+        compromised extraction is still an extraction, and she has
+        contingency plans that do not involve leaving witnesses
+        in a Republic-faction-controlled building with a description
+        of her. She fires to suppress, retrieves the datapad if
+        possible, and moves for the exit via the route she has
+        had mapped since her first day on site.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Precise, accented Basic with the practiced neutrality of
+        a professional observer who has spent three weeks in this
+        office being unremarkable. "I need you to step back." The
+        blaster appears before the sentence ends.
+      hostile: true
+      combat_behavior: evasive
+      fallback_lines:
+        - "*She puts the outer office desk between herself and you
+          and fires across it.*"
+        - "*The transfer lead disconnects with a soft click. She does
+          not look at it.*"
+        - "*She moves toward the exit without turning her back,
+          blaster level.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # ENGINEER APARTMENTS — 1 NPC
+  # (Weequay Syndicate Enforcer)
+  # The engineer apartments house the junior engineers with access to
+  # the restricted production sections. A protection syndicate moved
+  # in four months ago: weekly fees paid in exchange for not having
+  # minor safety violations — the kind everyone commits — reported
+  # to KDY management. Most engineers pay. A new cohort of junior
+  # engineers transferred in two months ago and declined, collectively,
+  # on the grounds that they had not heard of this arrangement before
+  # accepting. The Weequay enforcer is here to make the arrangement
+  # comprehensible.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Syndicate Protection Enforcer
+    room: "Kuat Drive Yards - Engineer Apartments"
+    species: Weequay
+    description: >-
+      A broad Weequay in KDY maintenance coveralls, standing in the
+      residential corridor with the practised ease of someone who has
+      been here before and intends to be back next week. He carries
+      a blaster carbine slung at his hip with the casual familiarity
+      of a tool rather than a weapon — the engineering residential
+      block has limited KSF foot traffic and he has never needed to
+      draw it here. He is working down a list on a beat-up datapad:
+      apartment numbers, names, outstanding amounts. He calls it
+      "workplace supplemental insurance." The engineers who pay call
+      it nothing, because saying it aloud would require explaining
+      it to someone. When you step into the corridor and make clear
+      you are not here to negotiate a payment plan, the datapad goes
+      away and the carbine comes up with the unhurried authority of
+      a man who has been doing this specific job for three years
+      and has never had to fire it more than twice.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+1
+        technical: 2D
+      skills:
+        blaster: 4D
+        brawling: 3D+2
+        intimidation: 4D+1
+        dodge: 3D+1
+        streetwise: 3D+2
+        search: 2D+2
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Weequay protection-racket enforcer running a syndicate
+        collection route through the KDY engineer apartments. He is
+        not here to fight — fighting in a residential block with
+        limited KSF traffic still generates a report eventually, and
+        reports are bad for the syndicate's relationship with the
+        building. He prefers to make the situation comprehensible
+        through intimidation. But he has been doing this for three
+        years and he is not frightened of a fight; the carbine is
+        heavy and his arms are used to carrying it, and when
+        intimidation stops working he transitions without
+        hesitation.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Flat, unhurried Basic with a Weequay's percussive consonants.
+        "You're not on the list." A pause. "You should be on the
+        list." The carbine comes up.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires from the hip — no wasted motion, no warning.*"
+        - "*'Add it to the balance.' He advances rather than retreating.*"
+        - "*The carbine swings level. He has never needed more than
+          two shots in this corridor.*"
