@@ -93,6 +93,63 @@ CLAIM_TIMER_SECONDS = CLAIM_TIMER_DAYS * _SECONDS_PER_DAY
 _BH_GUILD_FACTION_IDS = frozenset(("bh_guild", "bounty_hunters_guild"))
 
 
+# ── T3.19 telemetry ──────────────────────────────────────────────────────
+def _emit_pc_bounty(action: str, char_id, amount: int, **extra) -> None:
+    """T3.19 telemetry: one fail-open ``pc_bounty`` event per player-bounty
+    lifecycle transition (post / stack / cancel / fulfill / void / expire).
+
+    The PvP player-bounty economy (PG.2) is a closed credit loop DISTINCT from
+    the NPC ``bounty_board`` faucet (already telemetered): a poster STAKES
+    escrow + burns a 10% posting fee (sink), a BH Guild hunter is PAID 80% on
+    fulfilment with 20% sunk to the Guild treasury (faucet), and cancel/void/
+    expire leak escrow back to contributors minus the (already-sunk) fee. Every
+    credit leg already lands in ``credit_log`` per-tag (``bounty_post`` /
+    ``bh_bounty_payout`` / ``bounty_*_refund`` …), but nothing rejoins offline
+    into the *contract lifecycle*: the post→fulfil vs post→cancel/expire funnel,
+    the escrow-amount distribution against ``MAX_BOUNTY``, and the posting/cancel
+    fee-burn volume — the direct signal for tuning ``MIN_BOUNTY`` /
+    ``MAX_BOUNTY`` / ``POSTING_FEE_PCT`` / ``CANCEL_FEE_PCT`` /
+    ``BOUNTY_DURATION_DAYS`` on live ``@economy`` data rather than guesses.
+
+      action : the lifecycle transition — ``"post"`` / ``"stack"`` /
+               ``"cancel"`` / ``"fulfill"`` / ``"void"`` / ``"expire"``.
+      char_id: the acting player — the poster on post/stack/cancel, the paid
+               BH on fulfill, ``0`` for the staff void / tick expire (no single
+               actor). Coerced to int when it parses so a str-id and int-id
+               system join on the same player.
+      amount : signed credit delta from the acting player's view — NEGATIVE for
+               the escrow+fee sink on post/stack, POSITIVE for the refund/payout
+               on cancel/fulfill/void/expire (for the staff/tick refunds it is
+               the total returned across contributors).
+      extra  : ``fee`` (burned posting/cancel fee), ``sunk`` (Guild-treasury
+               20% on fulfill), ``escrow`` / ``total_escrow``, ``target_id``,
+               ``bounty_id``, ``n_contributors``; ``None`` values dropped.
+
+    Sampling honours ``telemetry.pc_bounty_sample`` (default 1.0 — bounty
+    lifecycle events are low-frequency + high-value, so full capture by
+    default). Because ``emit()`` only appends to a bounded buffer flushed
+    offline it can NEVER disturb the post/cancel/fulfil path it observes.
+    """
+    try:
+        try:
+            cid = int(char_id)
+        except (TypeError, ValueError):
+            cid = char_id
+        fields = {"action": action, "char_id": cid, "amount": int(amount)}
+        for k, v in extra.items():
+            if v is not None and k not in fields:
+                fields[k] = v
+        from engine.telemetry import emit as _tele_emit
+        try:
+            from engine.tunables import get_tunable
+            sample = float(get_tunable("telemetry.pc_bounty_sample", 1.0))
+        except Exception:
+            sample = 1.0
+        _tele_emit("pc_bounty", fields, sample=sample)
+    except Exception:
+        log.debug("pc_bounty telemetry emit failed", exc_info=True)
+
+
 # ── PG2.PL.C (May 22 2026): stale-claim warning state ────────────────────
 #
 # Per-process set tracking which bounty IDs we've already sent a
@@ -610,6 +667,15 @@ class BountyCommand(BaseCommand):
             is_stack=False,
         )
 
+        # T3.19 telemetry: the post sink (escrow + burned fee). Wired after
+        # the bounty is confirmed created so a failed/refunded post emits
+        # nothing.
+        _emit_pc_bounty(
+            "post", poster["id"], -int(total_debit),
+            escrow=int(amount), fee=int(fee), bounty_id=int(bounty_id),
+            target_id=int(target["id"]),
+        )
+
     async def _do_stack(
         self, ctx: CommandContext, poster: dict, target: dict,
         existing: dict, *, amount: int, fee: int, total_debit: int,
@@ -698,6 +764,14 @@ class BountyCommand(BaseCommand):
         await self._notify_target_via_mail(
             ctx, poster, target, amount=amount, reason=reason,
             is_stack=True, new_total=new_total,
+        )
+
+        # T3.19 telemetry: the stack sink (added escrow + burned fee). Wired
+        # after the stack is confirmed so a failed/refunded stack emits nothing.
+        _emit_pc_bounty(
+            "stack", poster["id"], -int(total_debit),
+            escrow=int(amount), fee=int(fee), bounty_id=int(existing["id"]),
+            target_id=int(target["id"]), total_escrow=int(new_total),
         )
 
     async def _notify_target_via_mail(
@@ -840,6 +914,15 @@ class BountyCommand(BaseCommand):
         await ctx.db.set_bounty_cooldown(
             poster["id"], snapshot["target_id"],
             _time.time() + COOLDOWN_SECONDS,
+        )
+
+        # T3.19 telemetry: the cancel faucet (refund pool back to contributors)
+        # + the 25% cancel-fee burn. amount is the total returned; fee the sink.
+        _emit_pc_bounty(
+            "cancel", poster["id"], int(refund_pool),
+            fee=int(cancel_fee), total_escrow=int(total_amount),
+            bounty_id=int(bounty["id"]), target_id=int(snapshot["target_id"]),
+            n_contributors=len(refunds),
         )
 
     # ─── +bounty board ────────────────────────────────────────────────────
@@ -1291,6 +1374,14 @@ class AdminBountyCommand(BaseCommand):
             f"{'s' if len(contributors) != 1 else ''}."
         )
 
+        # T3.19 telemetry: the staff void faucet — full refund (escrow + the
+        # otherwise-sunk fee), no fee taken. char_id 0 (no single actor).
+        _emit_pc_bounty(
+            "void", 0, int(total_refund),
+            bounty_id=int(bounty_id), target_id=int(snap["target_id"]),
+            n_contributors=len(contributors),
+        )
+
     async def _handle_review(
         self, ctx: CommandContext, args: str,
     ) -> None:
@@ -1417,6 +1508,15 @@ class AdminBountyCommand(BaseCommand):
                 f"(via staff resolution).",
             )
 
+        # T3.19 telemetry: the fulfil faucet — 80% payout to the BH, 20% sunk
+        # to the Guild treasury. char_id is the paid hunter; the closing event
+        # of a post→fulfil contract.
+        _emit_pc_bounty(
+            "fulfill", bh["id"], int(payout),
+            sunk=int(amount - payout), total_escrow=int(amount),
+            bounty_id=int(bounty_id), target_id=int(snap["target_id"]),
+        )
+
 
 # ─── Tick handler ─────────────────────────────────────────────────────────
 
@@ -1463,6 +1563,7 @@ async def run_pc_bounty_expiry_tick(db) -> dict:
                     contributors = []
             except (ValueError, TypeError):
                 contributors = []
+            bounty_refunded = 0
             for c in contributors:
                 pid = int(c.get("poster_id") or 0)
                 stake = int(c.get("amount") or 0)
@@ -1474,12 +1575,27 @@ async def run_pc_bounty_expiry_tick(db) -> dict:
                                 pid, stake, "bounty_expire_refund",
                             )
                             summary["refunded_total"] += stake
+                            bounty_refunded += stake
                     except Exception:
                         log.warning(
                             "[PG.2 tick] expire-refund failed "
                             "for poster %d on bounty %d",
                             pid, row["id"], exc_info=True,
                         )
+            # T3.19 telemetry: the auto-expire faucet — escrow back to
+            # contributors (fee was sunk at post). One 'expire' event per
+            # lapsed contract; char_id 0 (tick, no actor). The post→expire
+            # tail of the contract funnel — the un-fulfilled bounties.
+            try:
+                _emit_pc_bounty(
+                    "expire", 0, int(bounty_refunded),
+                    bounty_id=int(row["id"]),
+                    target_id=int(snap.get("target_id") or 0) or None,
+                    n_contributors=len(contributors),
+                )
+            except Exception:
+                log.debug("[PG.2 tick] expire telemetry failed",
+                          exc_info=True)
         except Exception:
             log.warning(
                 "[PG.2 tick] expire path failed for bounty %d",
