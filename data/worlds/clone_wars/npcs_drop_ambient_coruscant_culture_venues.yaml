@@ -1,0 +1,435 @@
+# data/worlds/clone_wars/npcs_drop_ambient_coruscant_culture_venues.yaml
+#
+# Coruscant -- Monumental District Culture Venues Ambient Population (2026-06-24)
+#
+# Four non-hostile ambient/flavor NPCs filling four monumental-district
+# rooms that previously held only a hostile mob-grind NPC (no flavor coverage):
+#
+#   Coruscant - Kallarak Amphitheater        x1  (Oraan Tessek / Human male program director)
+#   Coruscant - Royal Icqui Aquaria          x1  (Dresh Tavox / Mon Calamari xenomarine keeper)
+#   Coruscant - Skydome Botanical Gardens    x1  (Prill Avaas / Ithorian horticulturist)
+#   Coruscant - Calocour Heights - Boutique Row x1 (Shan Vorell / Bith antiquities dealer)
+#
+# All four are ambient (hostile: false). None carry special-reward markers.
+# Schema: engine/npc_loader.py (non-hostile ambient; loaded via era.yaml
+# content_refs.npcs). Fields mirror sibling patterns from
+# npcs_drop_ambient_coruscant_monumental.yaml.
+#
+# -- Policy ---------------------------------------------------------------
+# Q1 (no canon figures): all characters are original, non-canonical.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE in player-facing strings.
+# WEG R&E D6 stats: WEG40120 PDF absent in this worktree.
+#   Stats UNVERIFIED against WEG40120 PDF. Grounded in sibling-NPC
+#   patterns at HEAD and WEG species type-casting conventions:
+#     Human: 2D baseline across all attributes.
+#     Mon Calamari: knowledge-forward humanoid; KNO 2D+2 base, TEC 2D+2;
+#       reduced STR reflecting aquatic-optimized physiology.
+#     Ithorian: knowledge-elevated with reduced DEX (lateral-mouth species);
+#       KNO 2D+2, species famed for botanical expertise.
+#     Bith: high-intelligence species; KNO 3D base, STR notably reduced.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# -------------------------------------------------------------------------
+
+schema_version: 1
+
+npcs:
+
+  # ======================================================================
+  # CORUSCANT - KALLARAK AMPHITHEATER -- 1 NPC (Human male program director)
+  # Room desc: "The Kallarak Amphitheater has attracted the finest talent
+  # in the galaxy. The venue seats 1,000,000 and most nights there isn't
+  # an empty seat. The sunken central stage is surrounded by concentric
+  # rings..."
+  # ======================================================================
+
+  - name: Oraan Tessek
+    room: "Coruscant - Kallarak Amphitheater"
+    species: Human
+    description: >-
+      A human man in his late forties stands at the edge of the upper
+      promenade with a scheduling datapad in one hand and the focused
+      expression of someone mentally running four things simultaneously.
+      He is the Kallarak's senior program director — the person who
+      decides which acts get the center stage and which get the
+      secondary ring — and he has held that position for eleven years,
+      long enough that the amphitheater's layout is encoded in his body:
+      he navigates it without looking down. His jacket is precisely
+      pressed. He does not move like someone who considers himself
+      important; he moves like someone who considers his schedule
+      important, which is a different thing. The war has complicated
+      travel for touring ensembles from the Outer Rim sectors, which
+      means his fall calendar has two gaps where he had contracted acts
+      and now does not. He is solving this problem. He is always solving
+      this problem or a problem exactly like it.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 3D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D
+        technical: 2D
+      skills:
+        bureaucracy: 5D
+        persuasion: 4D+1
+        bargain: 4D+2
+        entertainment: 5D+1
+        scholar_galactic_culture: 4D
+        languages: 3D
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Senior program director at the Kallarak Amphitheater, eleven
+        years in the role. He is pragmatic, encyclopedic about
+        performers and ensembles, and has the quiet authority of
+        someone whose opinions have market consequences. He does not
+        talk about art in abstract terms; he talks about it in terms
+        of logistics, audience responses, and the specific practical
+        problems involved in putting ten thousand performers on a
+        stage that holds a million people. He is not unkind, but he
+        is precise, and his precision can read as coldness to
+        performers who wanted enthusiasm instead of accuracy.
+      knowledge:
+        - The Kallarak's fall season has two open slots after two
+          Outer Rim touring ensembles cancelled due to war-disrupted
+          transport corridors; he is currently in talks with three
+          replacement acts, none of whom are quite right
+        - The amphitheater's secondary ring has been dark for six
+          weeks for acoustic restoration — the resonance panels were
+          warped by a humidity incident during a three-day rain event;
+          the work is scheduled to finish in eleven days
+        - Ticket revenue for the current season is up nine percent
+          over the prior year despite two cancellations; the
+          amphitheater's reputation draws audiences even when the
+          program is imperfect
+      faction: independent
+      dialogue_style: >-
+        Precise, economy-of-words Standard Basic with the cadence of
+        someone who gives the same information to many different people
+        and has edited out everything that is not load-bearing. He
+        answers the question asked, not the question that surrounds it.
+        He is not unfriendly — he is efficient. He will tell you exactly
+        what you want to know about the Kallarak if you ask something
+        specific.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*He glances at the datapad, then back — filing something
+          mentally before he continues. Whatever it was, it did not
+          interrupt him visibly.*"
+        - "*He looks out over the empty stage for a moment. At this
+          scale, even empty, the amphitheater commands attention. He
+          has stopped noticing it. That bothers him slightly, which is
+          why he sometimes makes himself notice it deliberately.*"
+        - "*A brief scan of the promenade behind you — not suspicion,
+          just the automatic tally of an event manager who always
+          knows how full a space is.*"
+
+  # ======================================================================
+  # CORUSCANT - ROYAL ICQUI AQUARIA -- 1 NPC (Mon Calamari xenomarine keeper)
+  # Room desc: "Millions of aquatic creatures fill the tanks — from
+  # microscopic flecks of Baraboo biomold to a twenty-meter opee sea
+  # killer from Naboo. Admission is 10 credits per person. The Aquaria
+  # has plenty of si..."
+  # ======================================================================
+
+  - name: Dresh Tavox
+    room: "Coruscant - Royal Icqui Aquaria"
+    species: Mon Calamari
+    description: >-
+      A Mon Calamari of indeterminate age — Mon Cal are difficult to
+      date by appearance, and Dresh has stopped clarifying — stands at
+      the curved glass of the main tank with a handheld scanner tilted
+      toward the water, cataloguing something invisible to the unaided
+      eye. His protective coverall has the Aquaria's crest on the
+      shoulder. He has worked here for fourteen years, long enough that
+      the staff brings problems to him even when his shift is over.
+      His left eye, fixed on the scanner readout, has the calm precision
+      of a being at home in water-related environments — which he is,
+      though home for Dresh is more accurately described as anywhere
+      within ten meters of something alive and swimming. He holds
+      advanced certifications in xenomarine biology and has published
+      six monographs on deep-water species adaptation across three
+      sector journals. He is also responsible for the feeding schedule
+      of the opee sea killer, which he regards with the measured respect
+      of a keeper who has survived all of his charges.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D
+        technical: 2D+2
+      skills:
+        science_xenomarine: 6D
+        scholar_galactic_fauna: 5D+1
+        investigation: 4D
+        technical_biology: 4D+2
+        first_aid: 3D+1
+        languages: 3D
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Senior xenomarine keeper at the Royal Icqui Aquaria, fourteen
+        years in the role. He is the kind of expert whose enthusiasm
+        is expressed through precision rather than volume — he does
+        not perform excitement, he produces a steady stream of
+        accurate, deeply detailed information about whatever aquatic
+        subject has come up, and the detail is the enthusiasm.
+        He has a Mon Calamari's characteristic patience and a
+        scientist's characteristic annoyance with imprecise questions,
+        though he handles the latter gracefully. He talks about his
+        charges the way a parent talks about complicated children:
+        fond, matter-of-fact, acutely aware of their individual
+        temperaments.
+      knowledge:
+        - The Aquaria holds specimens from 847 distinct aquatic
+          ecosystems across the galaxy; the current flagship specimen
+          is the juvenile opee sea killer from Naboo, which arrived
+          eight months ago at four meters and has grown to twenty-two
+          in that time — faster than the published growth tables
+        - Admission is ten credits; the Aquaria receives a Republic
+          cultural-endowment grant that covers forty percent of
+          operating costs; the rest is ticket revenue and a Coruscant
+          tourism levy
+        - The Baraboo biomold exhibit in Tank Seven requires
+          continuous atmospheric filtration to prevent cross-tank
+          contamination — the filtration system was upgraded six
+          months ago after a minor breach; no specimens were lost
+      faction: independent
+      dialogue_style: >-
+        Deliberate, precise Standard Basic with the faint cadence of
+        Mon Calamari vocal register — a slightly musical quality on
+        longer vowels that he has never fully shed. He answers in
+        complete sentences and includes context without prompting. He
+        does not talk down to people, but he does assume that more
+        information is better than less, which sometimes produces
+        longer answers than the questioner expected.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*He adjusts the scanner angle slightly without breaking the
+          scan — the reading he is taking requires a narrow arc window.
+          His attention has not moved from it. He is listening.*"
+        - "*He turns to look at the main tank, where something large
+          is moving in the deep middle section. He tracks it for a
+          moment with the casual attention of a keeper who has stopped
+          finding it surprising and has not stopped finding it
+          interesting.*"
+        - "*A note added to his datapad — a brief annotation, the kind
+          he adds continuously throughout the day. The Aquaria runs on
+          this data. He produces it constantly and without apparent
+          effort.*"
+
+  # ======================================================================
+  # CORUSCANT - SKYDOME BOTANICAL GARDENS -- 1 NPC (Ithorian horticulturist)
+  # Room desc: "Skydome possesses some of the rarest forms of plant life
+  # in the galaxy. Two and a half tons of meat are needed every month
+  # to satiate the ravenous plants in the Carnivorous Flora exhibit.
+  # The Poisonou..."
+  # ======================================================================
+
+  - name: Prill Avaas
+    room: "Coruscant - Skydome Botanical Gardens"
+    species: Ithorian
+    description: >-
+      An Ithorian of perhaps sixty standard years kneels beside a
+      low tray of soil in the propagation section, pressing small
+      markers into the earth with the precise, unhurried attention of
+      someone who understands that what they are doing will take
+      longer than they will be alive to watch. Ithorians keep their
+      mouths on the sides of their necks, and Prill's are slightly
+      curved downward at the corners in a way that suggests rest
+      rather than displeasure. The Skydome badge on their sash is
+      worn and faded — not through neglect but through years. They
+      have been here longer than most of the trees in the lower
+      gallery. The carnivorous flora section behind them is not
+      labeled for casual visitors; Prill's calmness near it is either
+      professional confidence or the specific peace of someone who
+      has made an accommodation with danger and finds it comfortable.
+      Their hands in the soil are the most natural thing in this room.
+    char_sheet:
+      attributes:
+        dexterity: 1D+2
+        knowledge: 2D+2
+        mechanical: 1D+2
+        perception: 3D
+        strength: 2D
+        technical: 2D+1
+      skills:
+        scholar_botany: 6D
+        scholar_galactic_ecology: 5D+2
+        survival: 4D+1
+        first_aid: 3D
+        languages: 4D
+        willpower: 4D+2
+      weapon: none
+      move: 10
+      force_points: 1
+      character_points: 4
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Senior horticulturist at the Skydome Botanical Gardens, in
+        this post for twenty-three years. They have the Ithorian
+        species' characteristic reverence for living things and the
+        specific patience of someone who has spent decades watching
+        things grow at their own pace. They do not rush conclusions.
+        They do not perform urgency. They are not cold — warmth for
+        an Ithorian is expressed differently than for a Human, more
+        in attentiveness than animation. They are deeply curious about
+        other beings and will ask careful questions if given the
+        chance. They have also, without comment, memorized the
+        behavioral patterns of every plant in the carnivorous section
+        and know exactly where to stand.
+      knowledge:
+        - The Skydome holds specimens from over a thousand worlds;
+          the rarest section is the Deep Core flora collection,
+          which requires a specialized electromagnetic environment
+          that costs more to maintain than the rest of the facility
+          combined
+        - The carnivorous flora section is not behind a barrier
+          because experienced staff do not require one; the public
+          viewing areas are roped off; Prill has keys to the work
+          areas and moves through them freely
+        - Ithorian herd-ship culture maintains close ties with the
+          Skydome — a long-standing partnership; two other Ithorian
+          horticulturists work elsewhere in the facility; they
+          coordinate on the rare-specimens schedule
+      faction: independent
+      dialogue_style: >-
+        Deliberate, musical Standard Basic filtered through the
+        Ithorian dual-voice register — the language sounds slightly
+        harmonized when spoken by a native speaker, which Prill is.
+        They choose words carefully and mean them. They do not use
+        filler phrases. Questions about plants will receive long,
+        genuinely interested answers. Questions about other things
+        will receive shorter but equally honest ones.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*They press another marker into the soil and smooth the
+          earth around it with two fingers — a motion that looks like
+          it has been done ten thousand times before. It has.*"
+        - "*They look up at the dome above the propagation section —
+          the light diffusion panels are set for midday spectrum,
+          which is not a natural wavelength for these specimens, but
+          the adjustment is approximate. Good enough. They have
+          learned what good enough means, here.*"
+        - "*A pause. Not hesitation — consideration. They are deciding
+          how to say the accurate thing in a way that will be useful
+          to you specifically.*"
+
+  # ======================================================================
+  # CORUSCANT - CALOCOUR HEIGHTS - BOUTIQUE ROW -- 1 NPC (Bith antiquities dealer)
+  # Room desc: "Boutique Row is the Heights' premier retail corridor —
+  # small shopfronts dealing in luxury goods, bespoke tailoring, rare
+  # antiquities, and designer outfits the rest of the galaxy reads about
+  # months lat..."
+  # ======================================================================
+
+  - name: Shan Vorell
+    room: "Coruscant - Calocour Heights - Boutique Row"
+    species: Bith
+    description: >-
+      A Bith stands outside a shopfront whose window display contains
+      three objects: a piece of pre-Republic architecture from a
+      world that no longer has architecture, a personal communicator
+      that predates the holonet, and a carved figurine of unknown
+      origin, priced simply as "Inquire." The display tells you
+      everything about the business model. Shan Vorell has dealt in
+      antiques and rare objects on Boutique Row for nineteen years,
+      which in that market constitutes deep institutional history.
+      Their large Bith eyes assess incoming pedestrian traffic with
+      the calm discrimination of someone who has learned to identify
+      serious interest at fifteen meters. They are wearing an outfit
+      that costs more than some ships. They are also wearing it
+      casually, which is harder. Their shop's interior, visible
+      through the open door, contains perhaps thirty objects arranged
+      with the precision of an exhibition, each with a small card
+      noting provenance in three languages. They wrote the cards.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 3D+2
+        mechanical: 2D+1
+        perception: 3D
+        strength: 1D+2
+        technical: 3D
+      skills:
+        scholar_galactic_history: 6D
+        bargain: 5D+1
+        languages: 5D
+        investigation: 4D+2
+        persuasion: 4D
+        scholar_galactic_culture: 5D
+      weapon: none
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Nineteen-year Boutique Row dealer in antiquities and rare
+        objects. They are one of those dealers whose expertise
+        extends far enough that they occasionally correct museum
+        curators, which they do without condescension only because
+        they have learned that condescension is bad for repeat
+        business. They are not warm in the sense of being open,
+        but they are interested — a genuine scholar's curiosity
+        about objects and their histories, and by extension about
+        the histories of people who ask about them. They do not
+        hard-sell. Objects of value find their buyers. Their
+        patience is geological.
+      knowledge:
+        - The three objects in the current window display are
+          priced to reflect their rarity and documented histories.
+          The architectural fragment is from Ossus
+          (pre-Cataclysm, verified), the communicator is a
+          Rakatan-era artifact of uncertain function (acquisition
+          via a Corellia estate sale), and the figurine is from
+          a species that has no surviving written record — origin
+          disputed, Shan has three competing theories
+        - Boutique Row rents are the highest on Coruscant outside
+          of the Senate District; several neighboring storefronts
+          have turned over in the last five years; Shan's lease
+          is another eleven, locked in from a prior owner's
+          long-term deal
+        - The war has pushed the antiquities market in two
+          opposite directions at once — rare objects are harder
+          to source from conflict zones, but displaced
+          collections from evacuated institutions have produced
+          sudden availability of material that would not normally
+          surface
+      faction: independent
+      dialogue_style: >-
+        Precise, unhurried Standard Basic with the faint Bith
+        register — a slightly higher fundamental frequency than
+        Human voices, very clear enunciation. They make eye contact
+        with their large eyes and hold it without apparent effort;
+        new acquaintances occasionally find this unsettling. They
+        speak about objects with the same directness they use for
+        everything else. They do not inflate value verbally.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*Their gaze moves back to the window display for a moment
+          — a quick professional assessment of whether the arrangement
+          still reads correctly from the pedestrian angle. It does.
+          They return their attention to you.*"
+        - "*They produce a small stylus from a jacket pocket and make
+          a note on a card-sized datapad — the kind that does not sync
+          to any network; they do not sync their records to any network.
+          This is deliberate.*"
+        - "*A brief pause in which they are, visibly, retrieving
+          something from a deep and well-organized memory. The
+          answer, when it comes, will be exact.*"
