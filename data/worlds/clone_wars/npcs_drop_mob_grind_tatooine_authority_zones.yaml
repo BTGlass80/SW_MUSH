@@ -1,0 +1,532 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_tatooine_authority_zones.yaml
+#
+# Tatooine Authority & Government Zones — Mob Grind Batch (2026-06-23)
+#
+# Six roaming hostile NPCs seeded across six previously uncovered Tatooine
+# rooms: the Republic checkpoint outside the city, the scavenger market at
+# the outskirts, the government quarter street, the spaceport customs office,
+# the spaceport control tower, and the militia headquarters. Each satisfies
+# engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone spread:
+#   City Outskirts - Republic Checkpoint       x1 (Zabrak data courier)
+#   City Outskirts - Scavenger Market          x1 (Gran market enforcer)
+#   Mos Eisley Street - Government Quarter     x1 (Human CIS data thief)
+#   Spaceport Customs Office                   x1 (Sullustan contraband fence)
+#   Mos Eisley Spaceport Control Tower         x1 (Rodian traffic-jam saboteur)
+#   Tatooine Militia Headquarters              x1 (Twi'lek intelligence operative)
+#
+# Species diversity: Zabrak / Gran / Human / Sullustan / Rodian / Twi'lek
+#   — 6 distinct species, one per room.
+#
+# Thematic premise: Tatooine's nominal Republic presence (~20 BBY) is a thin
+# institutional layer over a world that runs on Hutt-licensed crime and
+# frontier indifference. The checkpoint is understaffed for what the war
+# routes through it. The scavenger market operates in the gap between
+# municipal authority and Jawa tradition. The government quarter and militia
+# headquarters are soft targets for CIS intelligence — filing prefects and
+# Outer Rim garrison detachments do not expect professional operatives. The
+# customs office is a high-value chokepoint that organized crime treats as a
+# cost-of-doing-business puzzle. The control tower is the one infrastructure
+# node whose compromise pays off for everyone who runs contraband on this
+# flight path. Every one of these rooms is an intersection between the
+# Republic's stretched reach and the people who profit from stretching it.
+#
+# All rooms confirmed in data/worlds/clone_wars/planets/tatooine.yaml at HEAD.
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats — WEG40120 PDF absent from this worktree.
+#   Stats UNVERIFIED against PDF. Grounded in sibling CW NPC species baselines:
+#   Zabrak:    DEX 3D+2, KNO 2D,   MEC 2D, PER 2D+2, STR 3D,   TEC 2D
+#   Gran:      DEX 2D+2, KNO 2D,   MEC 2D, PER 3D,   STR 2D+2, TEC 2D
+#   Human:     DEX 3D,   KNO 2D,   MEC 2D, PER 3D,   STR 3D+1, TEC 2D
+#   Sullustan: DEX 2D+2, KNO 2D+2, MEC 2D, PER 3D,   STR 2D,   TEC 2D+1
+#   Rodian:    DEX 3D+1, KNO 2D,   MEC 2D, PER 3D+1, STR 2D+1, TEC 2D
+#   Twi'lek:   DEX 3D+1, KNO 2D+1, MEC 2D, PER 3D,   STR 2D+2, TEC 2D
+# Weapons: concealed_blaster, blaster_pistol, hold_out_blaster,
+#          sporting_blaster, heavy_blaster_pistol —
+#   all keys confirmed in data/weapons.yaml at HEAD.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # CITY OUTSKIRTS - REPUBLIC CHECKPOINT — 1 NPC
+  # (Zabrak Data Courier)
+  # The checkpoint is the last bottleneck between Mos Eisley and the
+  # open desert. Two clone troopers check transit papers and scan
+  # cargo manifests against the wartime registry. A Zabrak courier has
+  # been passing through for three weeks carrying what his manifest
+  # describes as personal effects. His transit papers are genuine.
+  # The data chip sewn into the lining of his jacket is not in his
+  # manifest. Today, for the first time, a trooper has asked him to
+  # open the lining. He is calculating the distance to the speeder.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Contraband Data Courier
+    room: "City Outskirts - Republic Checkpoint"
+    species: Zabrak
+    description: >-
+      A Zabrak male with the compact build and controlled stillness of
+      someone who has learned to look unremarkable at checkpoints. His
+      ironthorn crown tattoos are faded, covered partly by a plain
+      traveler's hood. The transit papers he carries are genuine; the
+      data chip sewn into his jacket lining is not on them. He has been
+      through this checkpoint eleven times in three weeks on the same
+      route, the same manifest, the same bland traveler's expression.
+      The clone trooper has just asked him to open his jacket lining.
+      His eyes do not change. His hand moves to the concealed blaster
+      he registered on a different manifest on a different world two
+      years ago with a name that is not this name.
+    char_sheet:
+      attributes:
+        dexterity: 3D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D+2
+        dodge: 4D
+        con: 3D+2
+        sneak: 3D+1
+        streetwise: 3D+1
+        search: 2D+2
+      weapon: concealed_blaster
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A professional data courier who has been running sensitive
+        cargo through the Mos Eisley checkpoint for three weeks on
+        forged route papers. He is not impulsive — eleven clean
+        crossings say his patience is an asset. But a trooper with
+        fingers near his jacket lining is an endpoint, not a delay,
+        and he has been paid too much to let this crossing end in
+        detention. He fires to create separation, moves for the open
+        desert where checkpoint comms have blind spots, and trusts
+        his client's extraction plan to do the rest.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Flat, uninflected Basic with a Zabrak's slight rolled
+        consonants. "There's nothing in the lining." A pause
+        that's a fraction too short. The blaster comes out.
+      hostile: true
+      combat_behavior: evasive
+      fallback_lines:
+        - "*He fires past the barrier post and moves for the desert
+          edge rather than back toward the city.*"
+        - "*The data chip stays in the lining. He is not stopping
+          to retrieve anything.*"
+        - "*'The pickup is in four hours.' He fires again, still
+          moving.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # CITY OUTSKIRTS - SCAVENGER MARKET — 1 NPC
+  # (Gran Market Enforcer)
+  # The scavenger market runs on Jawa trust networks and salvage
+  # margins that leave no room for additional overhead. A Gran
+  # crew has been working the market for six weeks, collecting
+  # "licensing fees" from each Jawa trading post in exchange for
+  # not reporting their location to the municipal inspectors who
+  # care about import certification. Most Jawas pay. A new cluster
+  # arrived this week from the eastern canyon circuit and declined.
+  # The Gran enforcer is here to explain the arrangement.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Scavenger Market Enforcer
+    room: "City Outskirts - Scavenger Market"
+    species: Gran
+    description: >-
+      A Gran male with all three eyestalks scanning the market stalls
+      with the practiced coverage of someone who does not miss movement
+      in a crowd. His clothing is dusty Outer Rim practical, the kind
+      that never draws a second look at any checkpoint between here and
+      the Arkanis sector. He is moving through the Jawa trading posts
+      with a handheld scanner logging which stalls are active, which
+      have new inventory, and which have not yet paid. He calls the
+      weekly fee "municipal facilitation." The Jawas at the eastern
+      canyon stalls who declined to pay this morning have never heard
+      that phrase before and do not intend to start. The Gran's blaster
+      comes out when he reaches the stall where that conversation
+      ended.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 3D+2
+        brawling: 3D+1
+        intimidation: 4D
+        dodge: 3D
+        streetwise: 3D+2
+        search: 3D+1
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Gran protection enforcer running a collection route through
+        the outskirts scavenger market. He prefers intimidation to
+        shooting — shooting disrupts the market, which disrupts the
+        fees that make this worth doing. But the eastern Jawas have
+        now publicly declined, which is a message to every other
+        stall operator in the market about what non-payment looks
+        like. He fires once to make a point, not to end a fight,
+        and follows through until the point is made.
+      knowledge: []
+      faction: hutt
+      dialogue_style: >-
+        Blunt, three-eyed-contact-holding Basic. "You owe from
+        last week too." The blaster comes out before he finishes
+        the sentence.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He fires across the market stall and steps forward
+          rather than back.*"
+        - "*'The fee doubles when I have to come back.' He does
+          not stop moving.*"
+        - "*Three eyestalks track you simultaneously. He does
+          not miss.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # MOS EISLEY STREET - GOVERNMENT QUARTER — 1 NPC
+  # (Human CIS Data Thief)
+  # The regional prefect's office keeps land deeds, weapon licenses,
+  # and court appearance records for the entire Tatooine district.
+  # Some of those records trace the ownership of off-world accounts
+  # that the Bureau of Ships and Services has not yet connected to
+  # CIS front organizations. A Human operative embedded as a legal
+  # records researcher has been working through them for five weeks.
+  # This morning the prefect's new assistant asked for her research
+  # credentials. They are excellent forgeries. The assistant has
+  # asked for them twice.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Legal Records Infiltrator
+    room: "Mos Eisley Street - Government Quarter"
+    species: Human
+    description: >-
+      A Human woman in the plain professional clothing of a civil
+      records researcher, carrying a datapad loaded with legitimate
+      reference materials and a secondary partition she has never
+      opened on this device where the actual extraction is running.
+      She has been in the government quarter for five weeks on a
+      research visa that checked out every time the clerk looked at
+      it, because the same people who gave her the target file
+      numbers gave her the visa. The prefect's new assistant has
+      now asked for her credentials twice in the past three minutes,
+      each time with a slightly different expression. She is
+      seventeen files from completion. She is not leaving the
+      government quarter without them.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 3D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D+1
+        technical: 3D
+      skills:
+        blaster: 3D
+        dodge: 3D+1
+        con: 4D+2
+        computer_ops: 4D+1
+        search: 3D+2
+        streetwise: 3D
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A CIS intelligence operative embedded in the Mos Eisley
+        government quarter as a legal records researcher for five
+        weeks. She is methodical — the entire operation is built
+        on patient document access, not confrontation. But the
+        new assistant's second credentials request is a threshold
+        she knows the sound of, and she has seventeen files left.
+        She fires to suppress and disable rather than kill, moves
+        to complete the extraction if a viable window opens, and
+        heads for the extraction point if it does not.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Precise, neutral Basic with the practiced confidence of
+        a researcher who belongs here. "I already showed you
+        those." The hold-out comes out of a document sleeve in
+        the same smooth motion as her research credentials.
+      hostile: true
+      combat_behavior: evasive
+      fallback_lines:
+        - "*She fires past the clerk's station and moves for
+          the records annex rather than the exit.*"
+        - "*The datapad goes into her bag. The extraction is
+          still running.*"
+        - "*'Walk away from this.' The hold-out does not lower.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # SPACEPORT CUSTOMS OFFICE — 1 NPC
+  # (Sullustan Contraband Fence)
+  # The customs office holds a rotating inventory of confiscated goods:
+  # cargo manifested incorrectly, contraband pulled from inspected
+  # ships, impounded equipment pending ownership verification. Most
+  # of it sits in a back cage for months before anyone processes it.
+  # A Sullustan fence has had a shipment of navigation components
+  # sitting in that cage for eleven days while the customs inspector
+  # is on medical leave and the substitute inspector is working
+  # through a five-week backlog. Today the substitute reached his
+  # shipment. He is here to resolve the situation before the
+  # paperwork does.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Contraband Recovery Specialist
+    room: "Spaceport Customs Office"
+    species: Sullustan
+    description: >-
+      A Sullustan male with the large-eyed, round-cheeked face of
+      his species and the expression of a professional who has spent
+      considerable effort getting to this specific office at this
+      specific moment and has no patience for new complications.
+      He is at the counter with a recovery authorization form that
+      was generated this morning by a document service he uses for
+      situations like this, arguing with the substitute inspector
+      about why the cage release code on his form does not match
+      the cage code in the inspector's terminal. The argument is
+      taking longer than expected. The sporting blaster in his
+      jacket is not part of the plan, but eleven days of waiting
+      for navigation components he has already sold twice over has
+      its own arithmetic.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 3D
+        strength: 2D
+        technical: 2D+1
+      skills:
+        blaster: 3D+1
+        dodge: 3D
+        con: 3D+2
+        bargain: 3D+2
+        streetwise: 4D
+        security: 3D
+      weapon: sporting_blaster
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Sullustan contraband fence who has navigation components
+        sitting in the customs cage that he has already sold twice
+        over and needs recovered before the paperwork catches up.
+        He is not here to fight — the plan was a forged recovery
+        authorization and a cooperative substitute inspector.
+        The inspector is not cooperating, the form doesn't match,
+        and his buyers have a deadline. He draws as a last resort
+        and immediately tries to break contact — a shooting in a
+        customs office creates exactly the investigation he cannot
+        afford.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Rapid-fire Basic with a Sullustan's round-cheeked urgency,
+        switching between smooth negotiation and blunt demand mid-
+        sentence. "This is a standard recovery. You can check the
+        code again." Then the form goes on the counter and the
+        sporting blaster comes up.
+      hostile: true
+      combat_behavior: evasive
+      fallback_lines:
+        - "*He fires past the counter and moves for the cage
+          wing rather than the exit.*"
+        - "*The authorization form scatters. He does not look
+          at it.*"
+        - "*'I just need thirty seconds in the cage.' The
+          blaster does not lower.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # MOS EISLEY SPACEPORT CONTROL TOWER — 1 NPC
+  # (Rodian Traffic-Jam Saboteur)
+  # The control tower manages departure sequencing and transponder
+  # verification for every ship leaving Mos Eisley. A Rodian
+  # technician contracted for routine sensor calibration has spent
+  # the last four hours doing excellent calibration work and also
+  # installing a signal-delay relay on the departure sequencing
+  # channel that will create a predictable forty-second window in
+  # transponder verification coverage when his client's ship
+  # files for departure in ninety minutes. The J9-5 worker droid
+  # has just noticed a cable that should not be there.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Transponder Relay Saboteur
+    room: "Mos Eisley Spaceport Control Tower"
+    species: Rodian
+    description: >-
+      A Rodian male in the unmarked grey of a contracted sensor
+      technician, working at the departure sequencing panel with
+      the careful attention of someone doing the job they were
+      hired to do and also an entirely different job they were
+      not. His sucker-tipped fingers move through the panel's
+      calibration sequence with practiced speed. Behind the
+      legitimate sensor alignment he is completing, a signal-delay
+      relay is now attached to the transponder verification channel
+      with a cable that matches the panel housing color almost
+      perfectly. The J9-5 droid has rotated toward the panel.
+      The Rodian's multifaceted eyes have registered this. The
+      heavy blaster on his tool belt is rated for this altitude.
+      The relay is already installed.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 4D+2
+        dodge: 3D+2
+        sneak: 3D+2
+        computer_ops: 3D+2
+        search: 3D+1
+        streetwise: 3D
+      weapon: heavy_blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Rodian technical saboteur contracted to install a
+        transponder delay relay in the Mos Eisley control tower
+        departure sequencing channel. The relay is already in
+        place — the job is done. What remains is extraction
+        without triggering a tower lockdown that would reset
+        the sequencing channel and remove the relay before his
+        client's departure window. He fires to disable rather
+        than to kill, targeting sensors and the droid rather
+        than organic crew, and needs a clean sixty-second
+        window to reach the stairwell before a lockdown alert
+        goes through.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Hissing Rodian-accented Basic, clipped to essentials.
+        "Calibration complete." Then the tool belt opens and
+        the heavy blaster comes out without further explanation.
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*He fires at the sensor bank rather than at you
+          and moves for the stairwell.*"
+        - "*The relay cable is already in the housing. He
+          does not need to be here.*"
+        - "*A precise burst — disable the droid, reach the
+          stairs, gone.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # TATOOINE MILITIA HEADQUARTERS — 1 NPC
+  # (Twi'lek Intelligence Operative)
+  # The militia headquarters maintains a shared comm terminal with
+  # the Republic garrison detachment nominally stationed here for
+  # "Outer Rim support operations." That terminal receives automated
+  # garrison status reports, patrol rotation schedules, and resupply
+  # requisitions that include the coordinates of every Republic
+  # logistics waypoint between Tatooine and the Outer Rim front.
+  # A Twi'lek assistant coordinator hired through the municipal
+  # staffing office three months ago has been reading them. The
+  # garrison's new comms officer has noticed a pattern in the
+  # terminal access logs. Today she raised it with the militia
+  # commander. The assistant coordinator is at the terminal.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Militia Comm Terminal Spy
+    room: "Tatooine Militia Headquarters"
+    species: "Twi'lek"
+    description: >-
+      A Twi'lek woman whose deep violet lekku are wound back in
+      the practical administrative style of municipal staff, sitting
+      at the shared comm terminal with the focused stillness of
+      someone reading a report rather than copying one. Her
+      coordinator's badge is genuine — it passed every municipal
+      check when the staffing office submitted it because the
+      staffing office has a clerk who has been in a similar
+      arrangement for considerably longer. She has been extracting
+      garrison logistics waypoints from the automated report queue
+      for eleven weeks. The comms officer's access-log review is
+      four desks away. The militia commander has just stood up
+      from his chair. Her blaster is in the document drawer she
+      is currently closing with her left hand.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 3D+2
+        dodge: 3D+1
+        con: 4D+1
+        computer_ops: 3D+1
+        search: 3D
+        streetwise: 3D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Twi'lek CIS intelligence operative embedded as a militia
+        assistant coordinator for three months, extracting Republic
+        garrison logistics waypoints from the shared comm terminal.
+        She is disciplined and patient — eleven clean weeks of
+        access say her cover held. But the comms officer has the
+        access logs and the commander has stood up, and that
+        sequence of events has exactly one trajectory. She fires
+        to suppress and moves for the exit immediately — the
+        extraction point is three blocks from the headquarters,
+        and there is still enough time if she does not hesitate.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Smooth, professional Basic with a Twi'lek's slight
+        musical inflection — the kind that sounds like someone
+        who has been in this building every workday for three
+        months and belongs here. "Commander, I was just
+        finishing the log entry—" The document drawer opens.
+      hostile: true
+      combat_behavior: evasive
+      fallback_lines:
+        - "*She fires past the comm station and moves for
+          the exit rather than deeper into the building.*"
+        - "*The coordinator's badge hits the floor. She
+          is not coming back.*"
+        - "*'Eleven weeks and you noticed now.' She does
+          not stop moving.*"
