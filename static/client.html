@@ -5269,7 +5269,6 @@ a { color: inherit; text-decoration: none; }
     <div class="switch-grp">
       <button class="switch" data-switch="EVADE"     data-cmd="evade"             title="Stage '+evade'"><div class="switch-body"><div class="switch-slider"></div></div><span class="switch-label">EVADE</span></button>
       <button class="switch" data-switch="SHLDF"     data-cmd="shields forward"   title="Stage 'shields forward'"><div class="switch-body"><div class="switch-slider"></div></div><span class="switch-label">SHLD&nbsp;F</span></button>
-      <button class="switch" data-switch="BOOST"     data-cmd="speed +1"          title="Stage 'speed +1'"><div class="switch-body"><div class="switch-slider"></div></div><span class="switch-label">BOOST</span></button>
       <button class="switch" data-switch="JUMP"      data-cmd="hyperspace"        title="Stage 'hyperspace &lt;dest&gt;'"><div class="switch-body"><div class="switch-slider"></div></div><span class="switch-label">JUMP</span></button>
       <button class="switch" data-switch="DISENGAGE" data-cmd="disengage"         title="Stage 'disengage'"><div class="switch-body"><div class="switch-slider"></div></div><span class="switch-label">DISENG</span></button>
     </div>
@@ -10813,7 +10812,9 @@ function handleAchievementUnlocked(data) {
   showToast({ head: '🏆 ACHIEVEMENT', body: data.name || 'Unlocked!', sub: data.description || '' });
 }
 function handleRankUp(data) {
-  showToast({ head: '⬆ RANK UP · ' + (data.faction || ''), body: data.new_rank || 'Promoted!', sub: data.benefits || '' });
+  // sub left empty: the rank_up producer (engine/organizations.py) emits
+  // faction/new_rank only — `benefits` was never sent (dead read removed).
+  showToast({ head: '⬆ RANK UP · ' + (data.faction || ''), body: data.new_rank || 'Promoted!', sub: '' });
 }
 function handleRepChange(data) {
   var sign = data.delta > 0 ? '+' : '';
