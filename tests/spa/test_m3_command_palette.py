@@ -32,23 +32,25 @@ M3_PALETTE = str(REPO_ROOT / "static" / "spa" / "m3_command_palette.js")
 CLIENT_HTML = REPO_ROOT / "static" / "client.html"
 
 # ── Sample corpus injected into every DOM test ───────────────────────────────
+# All entries carry is_command:true — this corpus represents registered command
+# verbs. Tests that need a mixed command+topic corpus use _MIXED_CORPUS_JS.
 _CORPUS_JS = """
 var corpus = [
-  { key: 'look',     title: 'Look',       category: 'Movement',    summary: 'Examine your surroundings.' },
-  { key: 'attack',   title: 'Attack',     category: 'Combat',      summary: 'Initiate a melee attack.' },
-  { key: '+sheet',   title: 'Character Sheet', category: 'Info',   summary: 'View your character stats.' },
-  { key: 'craft',    title: 'Craft',      category: 'Economy',     summary: 'Craft an item from a schematic.' },
-  { key: 'survey',   title: 'Survey',     category: 'Exploration', summary: 'Survey the area for resources.' },
-  { key: 'bounties', title: 'Bounties',   category: 'Jobs',        summary: 'Open the bounty board.' },
-  { key: 'pose',     title: 'Pose',       category: 'Social',      summary: 'Perform an emote or action pose.' },
-  { key: 'say',      title: 'Say',        category: 'Social',      summary: 'Speak aloud to the room.' },
-  { key: 'whisper',  title: 'Whisper',    category: 'Social',      summary: 'Send a private message.' },
-  { key: 'go',       title: 'Go',         category: 'Movement',    summary: 'Move to an exit.' },
-  { key: 'north',    title: 'North',      category: 'Movement',    summary: 'Move north.' },
-  { key: 'south',    title: 'South',      category: 'Movement',    summary: 'Move south.' },
-  { key: 'east',     title: 'East',       category: 'Movement',    summary: 'Move east.' },
-  { key: 'west',     title: 'West',       category: 'Movement',    summary: 'Move west.' },
-  { key: '+help',    title: 'Help',       category: 'Info',        summary: 'Access the help system.' },
+  { key: 'look',     title: 'Look',       category: 'Movement',    summary: 'Examine your surroundings.',   is_command: true },
+  { key: 'attack',   title: 'Attack',     category: 'Combat',      summary: 'Initiate a melee attack.',      is_command: true },
+  { key: '+sheet',   title: 'Character Sheet', category: 'Info',   summary: 'View your character stats.',   is_command: true },
+  { key: 'craft',    title: 'Craft',      category: 'Economy',     summary: 'Craft an item from a schematic.', is_command: true },
+  { key: 'survey',   title: 'Survey',     category: 'Exploration', summary: 'Survey the area for resources.', is_command: true },
+  { key: 'bounties', title: 'Bounties',   category: 'Jobs',        summary: 'Open the bounty board.',        is_command: true },
+  { key: 'pose',     title: 'Pose',       category: 'Social',      summary: 'Perform an emote or action pose.', is_command: true },
+  { key: 'say',      title: 'Say',        category: 'Social',      summary: 'Speak aloud to the room.',      is_command: true },
+  { key: 'whisper',  title: 'Whisper',    category: 'Social',      summary: 'Send a private message.',       is_command: true },
+  { key: 'go',       title: 'Go',         category: 'Movement',    summary: 'Move to an exit.',              is_command: true },
+  { key: 'north',    title: 'North',      category: 'Movement',    summary: 'Move north.',                   is_command: true },
+  { key: 'south',    title: 'South',      category: 'Movement',    summary: 'Move south.',                   is_command: true },
+  { key: 'east',     title: 'East',       category: 'Movement',    summary: 'Move east.',                    is_command: true },
+  { key: 'west',     title: 'West',       category: 'Movement',    summary: 'Move west.',                    is_command: true },
+  { key: '+help',    title: 'Help',       category: 'Info',        summary: 'Access the help system.',       is_command: true },
 ];
 """
 
@@ -269,3 +271,147 @@ def test_ctrl_k_handler_via_separate_listener():
     # Confirm the init call is present (so the module attaches its own listener).
     assert 'M3CommandPalette.init(' in html, \
         "M3CommandPalette.init( not found — palette Ctrl/K listener won't attach"
+
+
+# ════════════════════════════════════════════════════════════════════════
+# C. Fun-2: is_command filter — topics never staged
+# ════════════════════════════════════════════════════════════════════════
+
+# Mixed corpus: some entries have is_command=true, some false (topics).
+_MIXED_CORPUS_JS = """
+var corpus = [
+  { key: 'look',    title: 'Look',        category: 'Commands', summary: 'Examine surroundings.', is_command: true  },
+  { key: 'attack',  title: 'Attack',      category: 'Combat',   summary: 'Attack a target.',      is_command: true  },
+  { key: '+sheet',  title: 'Sheet',       category: 'Info',     summary: 'View character stats.', is_command: true  },
+  { key: 'dice',    title: 'The D6 System', category: 'Rules: D6', summary: 'How dice work.',     is_command: false },
+  { key: 'combat',  title: 'Combat Basics', category: 'Rules: Combat', summary: 'How combat works.', is_command: false },
+  { key: 'force',   title: 'The Force',   category: 'Rules: Force', summary: 'Force abilities.',  is_command: false },
+  { key: 'moseisley', title: 'Mos Eisley', category: 'World',  summary: 'The spaceport city.',   is_command: false },
+];
+"""
+
+_MIXED_BASE = _MIXED_CORPUS_JS + """
+var staged = [];
+var sent = [];
+""" + _INIT_JS + """
+window.M3CommandPalette._setCache(corpus);
+"""
+
+
+def test_topic_entries_excluded_from_palette_results():
+    """Entries with is_command=false are filtered out; only is_command=true entries appear."""
+    out = run_with_dom([M3_PALETTE], _MIXED_BASE + """
+        window.M3CommandPalette._openPalette();
+        // Empty query: returns all scoreable entries — but only commands
+        window.M3CommandPalette._renderResults('');
+        var results = window.M3CommandPalette._getResults();
+        result = {
+            count: results.length,
+            keys:  results.map(function(e){ return e.key; })
+        };
+    """)
+    # Only the 3 is_command=true entries should appear
+    assert out['count'] == 3, \
+        f"Expected 3 command entries, got {out['count']}. Keys: {out['keys']}"
+    assert 'look'   in out['keys'], f"'look' missing from filtered results: {out['keys']}"
+    assert 'attack' in out['keys'], f"'attack' missing from filtered results: {out['keys']}"
+    assert '+sheet' in out['keys'], f"'+sheet' missing from filtered results: {out['keys']}"
+    # Topic keys must be absent
+    for topic_key in ('dice', 'combat', 'force', 'moseisley'):
+        assert topic_key not in out['keys'], \
+            f"Topic key {topic_key!r} leaked into palette results: {out['keys']}"
+
+
+def test_selecting_topic_never_stages_it():
+    """If a topic somehow reached _results (legacy cache), _stageEntry is safe.
+
+    More importantly: with the is_command filter active, searching for a topic
+    key produces zero results, so _stageEntry(0) is a no-op and staged stays empty.
+    """
+    out = run_with_dom([M3_PALETTE], _MIXED_BASE + """
+        window.M3CommandPalette._openPalette();
+        window.M3CommandPalette._renderResults('dice');
+        var results = window.M3CommandPalette._getResults();
+        // Try to stage index 0 — should do nothing because results is empty
+        window.M3CommandPalette._stageEntry(0);
+        result = {
+            resultCount: results.length,
+            stagedCount: staged.length
+        };
+    """)
+    assert out['resultCount'] == 0, \
+        f"'dice' (is_command=false) should produce 0 palette results, got {out['resultCount']}"
+    assert out['stagedCount'] == 0, \
+        f"stage() should not have been called: stagedCount={out['stagedCount']}"
+
+
+def test_command_entries_still_stageable_after_filter():
+    """is_command=true entries are still staged normally (filter doesn't over-block)."""
+    out = run_with_dom([M3_PALETTE], _MIXED_BASE + """
+        window.M3CommandPalette._openPalette();
+        window.M3CommandPalette._renderResults('look');
+        var results = window.M3CommandPalette._getResults();
+        window.M3CommandPalette._stageEntry(0);
+        result = {
+            resultCount: results.length,
+            stagedCount: staged.length,
+            stagedCmd:   staged[0] || null
+        };
+    """)
+    assert out['resultCount'] >= 1, \
+        f"'look' (is_command=true) should appear in palette results, got {out['resultCount']}"
+    assert out['stagedCount'] == 1, \
+        f"stage() should have been called once: stagedCount={out['stagedCount']}"
+    assert out['stagedCmd'] is not None and 'look' in out['stagedCmd'], \
+        f"Expected 'look' in staged command, got {out['stagedCmd']!r}"
+
+
+def test_mixed_query_only_returns_command_matches():
+    """A query that matches both a command and a topic key returns only the command."""
+    out = run_with_dom([M3_PALETTE], _MIXED_BASE + """
+        // 'att' matches 'attack' (is_command=true); does NOT match any topic
+        // 'combat' topic has is_command=false and should not show.
+        window.M3CommandPalette._openPalette();
+        window.M3CommandPalette._renderResults('at');
+        var results = window.M3CommandPalette._getResults();
+        result = {
+            keys: results.map(function(e){ return e.key; })
+        };
+    """)
+    # 'attack' matches 'at' (prefix or substring) and is_command=true
+    assert 'attack' in out['keys'], \
+        f"'attack' should appear for query 'at'. Keys: {out['keys']}"
+    # 'combat' contains 'at' but is_command=false → must not appear
+    assert 'combat' not in out['keys'], \
+        f"Topic 'combat' leaked into palette for query 'at'. Keys: {out['keys']}"
+
+
+def test_enter_on_topic_result_never_stages_topic_key():
+    """Enter on a result list populated with only commands stages a command, not a topic key.
+
+    Regression guard: confirms the filter chain (corpus → is_command → _results → Enter)
+    never produces a topic key in the staged slot.
+    """
+    out = run_with_dom([M3_PALETTE], _MIXED_BASE + """
+        window.M3CommandPalette._openPalette();
+        // Render all — only commands should be in results
+        window.M3CommandPalette._renderResults('');
+        var results = window.M3CommandPalette._getResults();
+
+        // Simulate Enter: stage index 0 (the first result)
+        window.M3CommandPalette._stageEntry(0);
+
+        var topicKeys = ['dice', 'combat', 'force', 'moseisley'];
+        var stagedIsATopic = staged.length > 0 &&
+            topicKeys.some(function(k) { return staged[0] && staged[0].indexOf(k) === 0; });
+
+        result = {
+            stagedCmd: staged[0] || null,
+            stagedIsATopic: stagedIsATopic,
+            resultCount: results.length
+        };
+    """)
+    assert not out['stagedIsATopic'], \
+        f"Enter staged a topic key: {out['stagedCmd']!r}. Only command verbs should be stageable."
+    assert out['resultCount'] == 3, \
+        f"Expected 3 command results before Enter, got {out['resultCount']}"
