@@ -3885,6 +3885,14 @@ a { color: inherit; text-decoration: none; }
 .m3o-chip { background: none; border: 1px solid var(--accent-dim); color: var(--accent); cursor: pointer; font-family: var(--font-mono); font-size: 10px; padding: 3px 8px; }
 .m3o-chip:hover { color: var(--accent-bright); border-color: var(--accent-bright); }
 .m3o-chip.attempt { border-color: var(--self); color: var(--self); }
+/* FUN2 soft-lock fix: prereq checklist + locked TYPE chip */
+.m3o-prereqs { margin-bottom: 8px; }
+.m3o-prereq-label { font-size: 8px; letter-spacing: 2px; color: var(--accent-dim); margin-bottom: 3px; }
+.m3o-prereq { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 10.5px; color: var(--text-dim); padding: 1px 0; }
+.m3o-prereq-mark { color: var(--accent-dim); width: 12px; text-align: center; }
+.m3o-prereq.done { color: var(--text); }
+.m3o-prereq.done .m3o-prereq-mark { color: var(--self); }
+.m3o-chip.attempt.locked { border-color: var(--accent-dim); color: var(--text-dim); opacity: 0.7; }
 .m3o-grad { text-align: center; padding: 10px 4px; }
 .m3o-grad-glyph { font-size: 22px; color: var(--self); animation: m3o-dot-pop 0.9s ease; }
 .m3o-grad-title { font-family: var(--font-display); font-size: 13px; letter-spacing: 3px; color: var(--self); margin-top: 4px; }
@@ -5261,7 +5269,6 @@ a { color: inherit; text-decoration: none; }
     <div class="switch-grp">
       <button class="switch" data-switch="EVADE"     data-cmd="evade"             title="Stage '+evade'"><div class="switch-body"><div class="switch-slider"></div></div><span class="switch-label">EVADE</span></button>
       <button class="switch" data-switch="SHLDF"     data-cmd="shields forward"   title="Stage 'shields forward'"><div class="switch-body"><div class="switch-slider"></div></div><span class="switch-label">SHLD&nbsp;F</span></button>
-      <button class="switch" data-switch="BOOST"     data-cmd="speed +1"          title="Stage 'speed +1'"><div class="switch-body"><div class="switch-slider"></div></div><span class="switch-label">BOOST</span></button>
       <button class="switch" data-switch="JUMP"      data-cmd="hyperspace"        title="Stage 'hyperspace &lt;dest&gt;'"><div class="switch-body"><div class="switch-slider"></div></div><span class="switch-label">JUMP</span></button>
       <button class="switch" data-switch="DISENGAGE" data-cmd="disengage"         title="Stage 'disengage'"><div class="switch-body"><div class="switch-slider"></div></div><span class="switch-label">DISENG</span></button>
     </div>
@@ -10805,7 +10812,9 @@ function handleAchievementUnlocked(data) {
   showToast({ head: '🏆 ACHIEVEMENT', body: data.name || 'Unlocked!', sub: data.description || '' });
 }
 function handleRankUp(data) {
-  showToast({ head: '⬆ RANK UP · ' + (data.faction || ''), body: data.new_rank || 'Promoted!', sub: data.benefits || '' });
+  // sub left empty: the rank_up producer (engine/organizations.py) emits
+  // faction/new_rank only — `benefits` was never sent (dead read removed).
+  showToast({ head: '⬆ RANK UP · ' + (data.faction || ''), body: data.new_rank || 'Promoted!', sub: '' });
 }
 function handleRepChange(data) {
   var sign = data.delta > 0 ? '+' : '';

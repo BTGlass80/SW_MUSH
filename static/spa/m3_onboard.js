@@ -225,18 +225,39 @@ function render(bodyEl, data, stage, onDismiss){
       el('span', {class: 'm3o-next-text', text: data.next_hint})
     ]));
   }
+  // FUN2 soft-lock fix: render the step's ordered prerequisites as a LIVE
+  // checklist so the player SEES what gates the main action (instead of the
+  // talk silently stalling). Each row shows done/pending; the TYPE chip below
+  // locks until all are done. Additive — absent on steps with no requires_first.
+  var _prereqsLocked = false;
+  if (data.prereqs && data.prereqs.length){
+    _prereqsLocked = !data.prereqs_met;
+    var checkWrap = el('div', {class: 'm3o-prereqs'});
+    checkWrap.appendChild(el('div', {class: 'm3o-prereq-label', text: 'FIRST'}));
+    data.prereqs.forEach(function(p){
+      var row = el('div', {class: 'm3o-prereq' + (p.done ? ' done' : '')});
+      row.appendChild(el('span', {class: 'm3o-prereq-mark',
+        text: p.done ? '✓' : '○'}));
+      row.appendChild(el('span', {class: 'm3o-prereq-cmd', text: p.command}));
+      checkWrap.appendChild(row);
+    });
+    bodyEl.appendChild(checkWrap);
+  }
   // NPE-A (2026-06-20): spotlight the single "type this next" command
   // above the teach chips when the corpus authored one. Reuses the
-  // .m3o-chips row + .m3o-chip.attempt prominent style (no new CSS) and
-  // stages the FULL runnable command via the data-teach-cmd path.
-  // skill_check_passed steps carry no command_to_type — teachChips
-  // already renders their dedicated ATTEMPT chip, so there is no overlap.
+  // .m3o-chips row + .m3o-chip.attempt prominent style and stages the FULL
+  // runnable command via the data-teach-cmd path. skill_check_passed steps
+  // carry no command_to_type — teachChips already renders their dedicated
+  // ATTEMPT chip, so there is no overlap. When prereqs are unmet the chip
+  // renders LOCKED (it still stages — the engine refuses + speaks the hint).
   if (data.command_to_type){
     var spotRow = el('div', {class: 'm3o-chips'});
     spotRow.appendChild(el('button', {
-      class: 'm3o-chip attempt', type: 'button',
+      class: 'm3o-chip attempt' + (_prereqsLocked ? ' locked' : ''),
+      type: 'button',
       'data-teach-cmd': data.command_to_type,
-      text: 'TYPE · ' + data.command_to_type
+      text: (_prereqsLocked ? 'DO THE STEPS ABOVE FIRST · ' : 'TYPE · ')
+            + data.command_to_type
     }));
     spotRow.onclick = function(ev){
       var t = ev.target;

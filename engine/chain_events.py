@@ -1493,7 +1493,7 @@ def build_onboarding_state(char: dict, era: Optional[str] = None
     try:
         info = get_active_step_info(char, era)
         if info is not None:
-            return {
+            payload = {
                 "active": True,
                 "chain_id": info["chain_id"],
                 "chain_name": info["chain_name"],
@@ -1517,6 +1517,35 @@ def build_onboarding_state(char: dict, era: Optional[str] = None
                 # (additive; "" suppresses it).
                 "command_to_type": info.get("command_to_type", ""),
             }
+            # FUN2 soft-lock fix: surface the step's ordered prerequisites
+            # (requires_first) as a LIVE CHECKLIST so the player SEES that the
+            # main action is gated and on what — instead of the talk silently
+            # stalling. Additive (absent on steps with no requires_first).
+            # `prereqs_met` lets the panel lock the TYPE chip until they're done.
+            try:
+                attrs = _load_attrs(char)
+                from engine.tutorial_chains import (
+                    _TUTORIAL_CHAIN_KEY, get_satisfied_prereqs,
+                )
+                corpus = _get_corpus(era)
+                a_chain, a_step = _get_active_step(
+                    attrs, corpus, _TUTORIAL_CHAIN_KEY)
+                rf = ((a_step.completion or {}).get("requires_first")
+                      if a_step is not None else None)
+                if isinstance(rf, list) and rf:
+                    satisfied = set(get_satisfied_prereqs(
+                        attrs, _TUTORIAL_CHAIN_KEY))
+                    checklist = []
+                    for i, p in enumerate(rf):
+                        cmd = p.get("command") if isinstance(p, dict) else None
+                        checklist.append(
+                            {"command": cmd or "", "done": i in satisfied})
+                    payload["prereqs"] = checklist
+                    payload["prereqs_met"] = all(
+                        c["done"] for c in checklist)
+            except Exception:
+                pass  # checklist is purely additive; never break the panel
+            return payload
 
         # No ACTIVE chain — distinguish "graduated" from "never had one".
         attrs = _load_attrs(char)
@@ -1538,4 +1567,47 @@ def build_onboarding_state(char: dict, era: Optional[str] = None
         }
     except Exception:
         log.debug("build_onboarding_state failed", exc_info=True)
+        return None
+
+
+def npe_prereq_hint(char: dict, npc_name: str,
+                    era: Optional[str] = None) -> Optional[str]:
+    """If the player talked to the active NPE step's NPC but the step's
+    `requires_first` prerequisites aren't all satisfied (so the chain
+    silently won't advance), return a one-line hint naming what's still
+    needed. Returns None when there's no active step, the NPC isn't this
+    step's NPC, the step has no requires_first, or all prereqs are met.
+    Never raises (FUN2 soft-lock fix — pairs with the panel checklist)."""
+    try:
+        info = get_active_step_info(char, era)
+        if not info:
+            return None
+        a = (info.get("npc") or "").strip().lower()
+        b = (npc_name or "").strip().lower()
+        if not a or not b or (a not in b and b not in a):
+            return None  # not the active step's NPC
+        attrs = _load_attrs(char)
+        from engine.tutorial_chains import (
+            _TUTORIAL_CHAIN_KEY, get_satisfied_prereqs,
+        )
+        corpus = _get_corpus(era)
+        _chain, a_step = _get_active_step(attrs, corpus, _TUTORIAL_CHAIN_KEY)
+        if a_step is None:
+            return None
+        rf = (a_step.completion or {}).get("requires_first")
+        if not isinstance(rf, list) or not rf:
+            return None
+        satisfied = set(get_satisfied_prereqs(attrs, _TUTORIAL_CHAIN_KEY))
+        missing = [
+            (rf[i].get("command") if isinstance(rf[i], dict) else None)
+            for i in range(len(rf)) if i not in satisfied
+        ]
+        missing = [m for m in missing if m]
+        if not missing:
+            return None
+        cmds = ", ".join("`%s`" % m for m in missing)
+        npc = info.get("npc") or "They"
+        return ("  %s isn't ready for you yet — do %s first, then talk again."
+                % (npc, cmds))
+    except Exception:
         return None
