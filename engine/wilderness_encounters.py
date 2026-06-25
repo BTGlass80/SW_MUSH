@@ -283,7 +283,7 @@ ANIMAL_EXCLUDER_KEY = "animal_excluder"
 ANIMAL_EXCLUDER_AVERT_CHANCE = 0.5
 
 
-def roll_encounter(
+def _roll_encounter_impl(
     region,
     *,
     new_x: int,
@@ -398,6 +398,136 @@ def roll_encounter(
         entry=chosen,
         reason="ok",
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T3.19 telemetry — mob-density (encounter-spawn) funnel
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _emit_wild_encounter_telemetry(region, char, result,
+                                   tile_band_rating) -> None:
+    """Emit one mob-density telemetry event for a wilderness encounter roll.
+
+    The complement to the grind-kill faucet emitter
+    (``engine/hunting_rewards.emit_grind_kill``): grind_kill captures what a
+    kill PAYS; this captures how often the wilderness even OFFERS a huntable
+    encounter — the encounter-spawn DENSITY leg of the grind funnel. Joined to
+    ``grind_kill`` on ``char_id`` it closes the loop (rolls → fires → kills →
+    reward), so post-launch tuning of encounter pacing
+    (``base_chance_per_move``, the 60-second cooldown, threat-band pool
+    authoring) rests on real movement data instead of guesses — directly
+    answering "does the wilderness the grind loop was just redirected into
+    actually spawn enough to grind?" (the 2026-06-24 mob-grind realignment
+    stripped 158 civic-core/SECURED placements, concentrating grind into the
+    wilderness + dangerous-contested bands).
+
+    The ``reason`` field is the pacing signal:
+      - ``chance_miss``        — the dominant base-rate outcome (the denominator)
+      - ``on_cooldown``        — the 60-second per-character gate biting
+      - ``no_eligible_entries``— chance HIT but a THIN/misconfigured pool had
+                                 nothing matching this tile's terrain/band/gates
+                                 (the content-gap signal the grind redirect cares
+                                 about most)
+      - ``averted_by_excluder``— the animal-excluder flavor path
+      - ``ok``                 — an encounter fired
+    ``band`` + ``region``/``zone``/``planet`` localize it; on a fire,
+    ``entry_id``/``entry_type`` say WHAT spawned (a hostile/non_hostile entry
+    whose payload names an ``npc_template`` is the creature-library huntable
+    path).
+
+    DELIBERATELY SKIPS the ``no_pool_configured`` outcome: a move through a
+    region with no encounter system at all is not a roll against a pool and
+    carries zero pacing signal; emitting it would swamp the stream (it fires on
+    every move through an unpooled region) while pool coverage is already
+    derivable from region config. Pacing analysis only wants rolls against a
+    LIVE pool. (A documented skip, not a silent drop — ask for it if
+    pool-coverage analytics are wanted later.)
+
+    Sampling honours ``telemetry.wild_encounter_sample`` (default 1.0). Uniform
+    sampling preserves every relative frequency this exists to show — fire-rate,
+    the reason distribution, the per-band split — so a post-launch volume
+    dial-down loses absolute counts but not the shape (the same argument as
+    ``telemetry.command_sample``). Fail-open: wraps the already-fail-open
+    ``emit()`` and guards the field assembly + tunable read, so a telemetry
+    break can NEVER sink a wilderness move.
+    """
+    try:
+        reason = getattr(result, "reason", "")
+        # Skip the pool-less passthrough — see docstring (flood, no signal).
+        if reason == "no_pool_configured":
+            return
+        char_id = (char or {}).get("id", 0) if isinstance(char, dict) else 0
+        try:
+            char_id = int(char_id)
+        except (TypeError, ValueError):
+            char_id = 0
+        fields: dict = {
+            "char_id": char_id,
+            "fired": bool(getattr(result, "fired", False)),
+            "reason": reason,
+            "band": tile_band_rating,
+        }
+        slug = getattr(region, "slug", "")
+        if slug:
+            fields["region"] = slug
+        zone = getattr(region, "zone", "")
+        if zone:
+            fields["zone"] = zone
+        planet = getattr(region, "planet", "")
+        if planet:
+            fields["planet"] = planet
+        entry = getattr(result, "entry", None)
+        if entry is not None:
+            fields["entry_id"] = getattr(entry, "id", "")
+            fields["entry_type"] = getattr(entry, "type", "")
+        try:
+            from engine.tunables import get_tunable
+            sample = float(get_tunable("telemetry.wild_encounter_sample", 1.0))
+        except Exception:
+            sample = 1.0
+        from engine.telemetry import emit as _tele_emit
+        _tele_emit("wild_encounter", fields, sample=sample)
+    except Exception:
+        log.debug("[wenc] telemetry emit failed", exc_info=True)
+
+
+def roll_encounter(
+    region,
+    *,
+    new_x: int,
+    new_y: int,
+    terrain: str,
+    char: dict,
+    db=None,
+    rng=None,
+    now: Optional[float] = None,
+    carried_keys: Optional[set] = None,
+    tile_band_rating: int = 2,
+) -> EncounterRollResult:
+    """Roll for a wilderness encounter + emit one mob-density telemetry event.
+
+    Thin chokepoint wrapper over :func:`_roll_encounter_impl` (which holds the
+    full selector logic + the cooldown mutation). Splitting the emit out keeps
+    a SINGLE telemetry seam observing every outcome — fired or not — without
+    threading an ``emit`` into each of the impl's early returns. The return
+    value is the impl's result verbatim, so every caller + existing test is
+    unaffected. See :func:`_emit_wild_encounter_telemetry` for the T3.19
+    rationale.
+    """
+    result = _roll_encounter_impl(
+        region,
+        new_x=new_x,
+        new_y=new_y,
+        terrain=terrain,
+        char=char,
+        db=db,
+        rng=rng,
+        now=now,
+        carried_keys=carried_keys,
+        tile_band_rating=tile_band_rating,
+    )
+    _emit_wild_encounter_telemetry(region, char, result, tile_band_rating)
+    return result
 
 
 # ─────────────────────────────────────────────────────────────────────────────

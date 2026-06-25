@@ -179,6 +179,20 @@ telemetry.cp_spend_sample: 1.0        # fraction of CP-advancement events emitte
 # cap already bounds a grinder's kill volume, so 1.0 (full capture) is affordable
 # and sampling down would blur the very cap-pressure curve it exists to show.
 telemetry.grind_kill_sample: 1.0      # fraction of mob-grind kills emitted (0..1]
+# Keep-rate for the mob-DENSITY (encounter-spawn) leg of the grind funnel
+# (engine/wilderness_encounters.py `roll_encounter`). The complement to
+# grind_kill: grind_kill captures what a kill PAYS, this captures how often the
+# wilderness OFFERS a huntable encounter. Each roll against a LIVE encounter pool
+# emits one `wild_encounter` event with `fired` + a `reason` (chance_miss /
+# on_cooldown / no_eligible_entries / averted_by_excluder / ok) + threat `band` +
+# region/zone/planet (and entry_id/entry_type on a fire). Joined to grind_kill on
+# char_id it closes the loop rolls→fires→kills→reward — the signal for tuning
+# base_chance_per_move, the 60s cooldown, and threat-band pool authoring after the
+# 2026-06-24 grind redirect into the wilderness. Pool-less passthroughs
+# (no_pool_configured) are deliberately NOT emitted (flood, no pacing signal).
+# Uniform sampling preserves fire-rate / reason / band ratios, so a dial-down keeps
+# the shape; 1.0 (full capture) is the launch default.
+telemetry.wild_encounter_sample: 1.0  # fraction of pooled encounter rolls emitted (0..1]
 
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
