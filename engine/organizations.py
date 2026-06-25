@@ -1252,6 +1252,40 @@ async def promote(char: dict, org_code: str, db,
     )
 
 
+# ── Rank-benefit summary (player-facing) ─────────────────────────────────────
+
+def rank_benefits_summary(faction_code: str, rank: dict, rank_level: int) -> str:
+    """Concise, player-facing summary of the concrete perks reaching a rank
+    confers. Used by the `rank_up` web toast `sub` line — previously a phantom
+    field: `static/client.html::handleRankUp` rendered `data.benefits` but no
+    producer ever sent it, so the toast's sub-line was always blank — and the
+    matching telnet line for parity. Mirrors what `promote()` actually grants:
+    the rank's weekly stipend (`STIPEND_TABLE`) plus its newly-issued equipment
+    (`rank.equipment`), respecting the same spec-faction rank-1 deferral.
+    """
+    parts: list[str] = []
+
+    stipend = STIPEND_TABLE.get((faction_code, rank_level), 0)
+    if stipend:
+        parts.append(f"{stipend} cr/week stipend")
+
+    # Mirror promote()'s equipment-issuance gate: spec-eligible factions defer
+    # rank-1 gear to SpecializeCommand, so don't promise gear we won't issue.
+    try:
+        equip = json.loads(rank.get("equipment", "[]")) or []
+    except (TypeError, ValueError):
+        equip = []
+    if equip and not (faction_has_specialization(faction_code) and rank_level == 1):
+        names = [EQUIPMENT_CATALOG.get(code, {}).get("name", code)
+                 for code in equip]
+        if len(names) <= 2:
+            parts.append(" + ".join(names))
+        else:
+            parts.append(f"{names[0]} + {names[1]} + {len(names) - 2} more")
+
+    return " · ".join(parts)
+
+
 # ── Auto-promotion on rep threshold ──────────────────────────────────────────
 
 async def check_auto_promote(char: dict, faction_code: str, db,
@@ -1289,14 +1323,18 @@ async def check_auto_promote(char: dict, faction_code: str, db,
 
             promoted = True
             if session:
-                await session.send_line(
-                    f"\n  \033[1;32m★ RANK UP! ★\033[0m {msg}"
-                )
+                benefits = rank_benefits_summary(
+                    faction_code, next_rank, next_level)
+                line = f"\n  \033[1;32m★ RANK UP! ★\033[0m {msg}"
+                if benefits:
+                    line += f"\n    \033[0;37mBenefits: {benefits}\033[0m"
+                await session.send_line(line)
                 try:
                     await session.send_json("rank_up", {
                         "faction": faction_code,
                         "new_rank": next_rank["title"],
                         "new_level": next_level,
+                        "benefits": benefits,
                     })
                 except Exception:
                     pass  # Web event is optional
