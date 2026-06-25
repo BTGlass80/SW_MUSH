@@ -35,7 +35,7 @@ Ran `tools/_audit_wf.js` (read-only, adversarially-verified) — **0 blockers, 4
 From the audit + fun pass, clear fixes I did NOT land (to wrap at a clean state):
 - **Dead consumers**: `auth_status` message handler with no producer; `rank_up` toast reads `data.benefits` never emitted (static/client.html) — pure dead-code removal.
 - **Async task-reference hygiene** (minor GC-hazard): Director paid-turn task, telnet read-loop task, ws reader task spawned without a held reference (engine/director.py, server/game_server.py).
-- **`+check` funnel**: `parser/d6_commands.py` resolves OOC dice inline via `difficulty_check` instead of `perform_skill_check` (no buffs/telemetry) — minor funnel-compliance.
+- **`+check` funnel**: `parser/d6_commands.py` resolves OOC dice inline via `difficulty_check` instead of `perform_skill_check` (no buffs/telemetry) — minor funnel-compliance. ✅ **DONE** (OpusLoop `e36fc8c` drop check-funnel-compliance, 2026-06-25): `+check` now routes through `perform_skill_check` (buffs/tool/env/lead + skill_check telemetry), output shows effective pool + crit/complication + tool credit; 6 tests.
 - **Onboarding copy**: separatist_agent step 3 says "cannot be retried" but the engine allows retry; smuggler step 4 fallback hint is unreachable (parser/chain_commands.py) — soften copy.
 - **Help see_also**: already done in era-clean drop.
 
