@@ -1015,6 +1015,13 @@ class PortalAPI:
         for entry in mgr._entries.values():
             if getattr(entry, "access_level", 0) > max_level:
                 continue
+            # Skip internal sentinel keys (dunder-wrapped, e.g. legacy no-op
+            # stubs). They are not typeable verbs, so they must never surface
+            # in the reference browser or the command palette (phantom-verb
+            # guard at the consumer boundary the palette stages from).
+            _k = getattr(entry, "key", "") or ""
+            if _k.startswith("__") and _k.endswith("__"):
+                continue
             flat.append(self._summary_view(entry))
         # Stable order — keys, lowercased.
         flat.sort(key=lambda e: e["key"].lower())

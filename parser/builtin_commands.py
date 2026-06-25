@@ -3162,7 +3162,7 @@ class BactaPackUseCommand(BaseCommand):
     registered against any command keyword. Treat it as removed.
     """
 
-    key = "__bacta_pack_legacy__"  # not a real command keyword
+    key = ""  # intentionally unregistered — see docstring ("Treat it as removed")
     aliases = []
     help_text = ""
     usage = ""
