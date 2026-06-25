@@ -536,7 +536,7 @@ class AmbientLifeManager:
                 if ex.get("to_room_id") == from_room_id:
                     return ex.get("direction") or "the corridor"
         except Exception:
-            pass
+            log.debug("ambient_life: exit-direction lookup failed", exc_info=True)
         return "the corridor"
 
 
