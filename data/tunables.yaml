@@ -193,6 +193,17 @@ telemetry.grind_kill_sample: 1.0      # fraction of mob-grind kills emitted (0..
 # Uniform sampling preserves fire-rate / reason / band ratios, so a dial-down keeps
 # the shape; 1.0 (full capture) is the launch default.
 telemetry.wild_encounter_sample: 1.0  # fraction of pooled encounter rolls emitted (0..1]
+# Keep-rate for the dark-side-cult MENACE ESCALATION leg (engine/
+# communal_objective_runtime.py `advance_and_resolve`). Completes the communal
+# events triad: `objective` start/complete bookend the uprising, `communal_strike`
+# captures player participation (menace pushed DOWN), and this captures the
+# uncontested climb UP — the only telemetry record of menace rising between
+# strikes. Each escalation tick that moves menace emits one `communal_menace`
+# event (menace_before/after, elapsed minutes, tier transition, contributor
+# count, staged flag) — the signal for tuning MENACE_PER_MINUTE / DEADLINE_HOURS
+# and whether a small community can keep pace. At most one uprising on a 120s
+# cadence → very low volume, so 1.0 (full capture) is the launch default.
+telemetry.communal_menace_sample: 1.0 # fraction of menace escalation ticks emitted (0..1]
 
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.

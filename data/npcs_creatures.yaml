@@ -1311,3 +1311,184 @@ npcs:
       difficulty: 9            # extracting intact shell segments from a live worm safely
       note: "The accumulated-alloy shell segments are a salvage good; field-dressed on kill."
     source: "COTG §2.5 (WEG40080), creatures_of_the_galaxy_extraction_v1.md §2.5. Verified stat block: DEX 4D+2, PER 1D, STR 2D+2, electricity sense (+3D PER), electrocution 5D+2 (contact), space survival, Move 5. Era strip applied per the extraction doc note (companion weapon item recast as a generic black-market prototype, off-era framing removed)."
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # GRIND-REDIRECT round 2 (2026-06-24) — Jundland Wastes fauna.
+  #
+  # Three new D6-stat entries for the Tatooine Jundland Wastes wilderness
+  # region (tatooine_jundland.yaml). All are D6 re-stats FROM SCRATCH per the
+  # WEG R&E conventions in WEG40120:
+  #   - canyon_womp_rat  — the 2m pack rodent named in SoT §2/§10 and already
+  #                         in the jundland_beggars_canyon room description.
+  #                         "re-stat to D6 from scratch" flag in
+  #                         secrets_of_tatooine_extraction_v1.md §10.
+  #   - rock_wart        — venomous insectoid that lays eggs in living hosts
+  #                         (SoT §10 stat gap); hides in canyon crevices.
+  #   - scurrier         — small fast vermin at the margins of settlements and
+  #                         outskirts (SoT §10 stat gap); the jundland scrub
+  #                         fringe variant.
+  #
+  # Calibration anchors (WEG40120 p.214+ creature family):
+  #   gornt   STR 1D  (0.5m prey animal)
+  #   dewback STR 5D  (2.5m riding beast)
+  #   wrix    STR 3D  (2.5m pack carnivore, preys on banthas)
+  # A 2m womp rat is a tier between the wrix and the gornt: STR 2D+2.
+  # Non-intelligent: KNO/MEC/TEC = 0D per R&E creature convention.
+  # ════════════════════════════════════════════════════════════════════════════
+
+  # ── Canyon Womp Rat ────────────────────────────────────────────────────────
+  # Consumer: tatooine_jundland.yaml `womp_rat_pack` (hostile, terrains
+  # [canyon, rocky_outcrop], count [3,6]). Named directly in the existing
+  # jundland_beggars_canyon room description: "Womp Rats nest in the
+  # crevices — some growing nearly two metres long." SoT §10 flags womp rat
+  # as one of the two D6-stat gaps most worth filling.
+  - id: canyon_womp_rat
+    name: Canyon Womp Rat
+    species: Womp Rat
+    scale: creature
+    size: "~2m long"
+    hostile: true            # aggressive pack predator; harries anything smaller
+    pack_count: [3, 6]
+    description: >-
+      Lean and low-slung with a ridged spine and a long, naked tail, the canyon
+      womp rat grows to almost two metres along the body — large enough that a
+      pack of them can harry a full-grown Bantha calf to a standstill. They
+      nest in crevices and boulder fields and hunt by harrying their prey in
+      relay shifts, one pack biting from the front while the rest arc around.
+      The Jundland settlers drive their young in skyhoppers to run and pick
+      them off from the air; the womp rats have learned to scatter into the
+      rocks at the sound of a repulsor engine.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        perception: 2D
+        strength: 2D+2
+        knowledge: 0D
+        mechanical: 0D
+        technical: 0D
+      skills:
+        brawling: 3D+2        # pack bite-and-tear; relay attacks
+        sneak: 3D             # crevice ambush
+        running: 3D           # harassment sprints
+      move: 12               # quick chase sprints across broken rock
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    natural_attack:
+      name: bite
+      to_hit_skill: brawling
+      damage: "STR+1D"       # STR 2D+2 -> 3D+2; the relay-bite threat
+    special:
+      - "Pack relay attack: one womp rat bites from the front while others arc around."
+      - "Scatter reflex: at repulsorlift engine sound, pack breaks and hides in rocks."
+    harvest:
+      good: "womp_rat_pelt"
+      resource: "organic"    # rough hide → crafting organic stock
+      note: "Coarse banded hide; field-dressed on kill."
+    source: "D6 re-stat from scratch per secrets_of_tatooine_extraction_v1.md §10 (SoT WTC11839 is WotC d20; d20 block discarded per WEG-only invariant). Calibrated to R&E creature family in WEG40120: wrix STR 3D (2.5m pack carnivore), gornt STR 1D (0.5m prey). Canyon womp rat at ~2m sits between them at STR 2D+2. Jundland room description (jundland_beggars_canyon) is the in-repo size reference: 'nearly two metres long.'"
+
+  # ── Rock Wart ──────────────────────────────────────────────────────────────
+  # Consumer: tatooine_jundland.yaml `rock_wart_ambush` (hostile, terrains
+  # [rocky_outcrop, cave], count [1,3]). SoT §10 stat gap: "rock wart
+  # (venomous insectoid that lays eggs in living hosts)." Not in COTG.
+  # Statted to D6 from scratch following R&E small-predator conventions.
+  # Small enough to be low-STR (like the hitcher crab STR 1D) but dangerous
+  # via its paralytic venom. Gated: min_band 2 (the paralyzing venom + egg
+  # infestation is a high-risk threat for a character who doesn't know it).
+  - id: rock_wart
+    name: Rock Wart
+    species: Rock Wart
+    scale: creature
+    size: "20-35cm"
+    hostile: false           # cryptic; attacks when stepped on or reached into
+    pack_count: [1, 3]
+    description: >-
+      Flat as a scale and sand-coloured as the stone it flattens itself
+      against, the rock wart is nearly impossible to see until it stings you.
+      It haunts the shadowed undersides of boulders and the cool clefts in
+      the canyon face — anywhere a warm hand might reach. Its sting delivers
+      a paralysing venom, and the females of the species locate paralysed prey
+      not as a meal but as a nursery: they lay eggs just below the skin,
+      preferring the thigh or the shoulder, and the larvae feed for three to
+      five days before boring out. Healers on Tatooine know the signs and the
+      treatment; the settlers who lose animals to them do not usually realise
+      what happened until the larvae emerge.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        perception: 1D+2
+        strength: 1D
+        knowledge: 0D
+        mechanical: 0D
+        technical: 0D
+      skills:
+        sneak: 4D             # virtually invisible against rock; the whole defense
+      move: 3
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    natural_attack:
+      name: sting
+      to_hit_skill: brawling
+      damage: "STR+1 (plus venom below)"  # STR 1D -> 1D+1; sting is the venom delivery
+    special:
+      - "Camouflage: nearly impossible to see against rock; +3 difficulty to spot."
+      - "Paralytic venom: Moderate STR roll or paralysed 1D rounds per sting."
+      - "Egg incubation: paralysed prey at risk of larval implantation (1-in-3 chance; field-treatable with a Moderate first_aid roll within 1 hour; larvae emerge 3-5 days later)."
+    special_attack:
+      poison:
+        damage: "0D"          # paralytic, not damage — modelled as a stun rider
+        rounds: 2
+        onset: 0
+        note: "Paralytic sting: Moderate STR or incapacitated for 1D rounds; egg-incubation risk on extended paralysis."
+    source: "D6 re-stat from scratch per secrets_of_tatooine_extraction_v1.md §10 (SoT WTC11839 is WotC d20; d20 block discarded per WEG-only invariant). Calibrated to R&E small-predator conventions in WEG40120: hitcher crab STR 1D (1.3m, venomous), spor crawler STR 0D+2 (8cm, lethal venom). Rock wart at 20-35cm with paralytic-only venom sits between them. Lore anchor: SoT §10 'venomous insectoid that lays eggs in living hosts.'"
+
+  # ── Scurrier ───────────────────────────────────────────────────────────────
+  # Consumer: tatooine_jundland.yaml `scurrier_colony` (non_hostile, terrains
+  # [rocky_outcrop, scrubland], count [4,8]). SoT §10 stat gap: "scurrier
+  # (urban vermin)." Appears in fringe and outskirt zones; the Jundland scrub
+  # is the natural habitat edge. Non-hostile — forager/scavenger that flees.
+  - id: scurrier
+    name: Scurrier
+    species: Scurrier
+    scale: creature
+    size: "10-25cm"
+    hostile: false           # flees at threat; bites only if grabbed
+    pack_count: [4, 8]       # colonies of 20+ occupy rock crevices
+    description: >-
+      A small, fast-footed lizard-like creature with a plated back and a
+      fidgeting, anxious head on a neck that seems always in motion. Scurriers
+      live in colonies of twenty or more, nesting in rock crevices and scrub
+      thickets at the edge of the Jundland canyons. They are harmless — they
+      scatter at any loud noise or quick movement — and they make reasonable
+      eating in a survival situation, which is why Jawas and moisture farm
+      children have caught them for generations. A colony moving suddenly and
+      in the same direction is worth paying attention to: scurriers have better
+      threat-detection than their nervous system has any right to.
+    char_sheet:
+      attributes:
+        dexterity: 4D+1       # very fast; the primary defense is escape
+        perception: 3D        # alert colony-animal with good threat-detection
+        strength: 1D
+        knowledge: 0D
+        mechanical: 0D
+        technical: 0D
+      skills:
+        sneak: 4D             # low profile and colony-camouflage
+        running: 5D           # explosive scatter reflex
+      move: 14               # fast-moving small lizard
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    natural_attack:
+      name: bite
+      to_hit_skill: brawling
+      damage: "STR"          # STR 1D; trivial — the scurrier never fights, only bites if grabbed
+    special:
+      - "Scatter reflex: the whole colony bolts simultaneously at a threat; warning signal to observers."
+      - "Prey animal: the bite is reflexive; a scurrier flees before it fights."
+    harvest:
+      good: "scurrier_meat"
+      resource: "organic"    # small lizard → crafting organic stock / survival food
+      note: "Jawa subsistence food; field-dressed on kill."
+    source: "D6 re-stat from scratch per secrets_of_tatooine_extraction_v1.md §10 (SoT WTC11839 is WotC d20; d20 block discarded per WEG-only invariant). Calibrated to R&E small-creature conventions in WEG40120: gornt DEX 1D+2, PER 1D, STR 1D (0.5m prey animal). Scurrier is faster and sharper-eyed (colony-alarm animal, 10-25cm) at DEX 4D+1, PER 3D, STR 1D. Lore anchor: SoT §10 'scurrier (urban vermin)' — placed in the fringe scrub, not a city interior, as the Jundland is its natural habitat edge."

@@ -594,8 +594,45 @@ async def advance_and_resolve(db, session_mgr,
         except Exception:
             log.debug("[communal_rt] escalation persist failed", exc_info=True)
         # nudge when the cult crosses into a worse tier
-        if CO.menace_tier(menace) != CO.menace_tier(cur_menace):
+        tier_changed = CO.menace_tier(menace) != CO.menace_tier(cur_menace)
+        if tier_changed:
             await _broadcast(session_mgr, CO.escalation_broadcast(cult, menace))
+        # T3.19 telemetry: the menace ESCALATION leg — the uncontested climb the
+        # strike + completion events can't reconstruct. Between strikes THIS tick
+        # is the only record of menace rising, so it's the direct tuning signal
+        # for MENACE_PER_MINUTE / DEADLINE_HOURS / strike balance: does the cult
+        # outrun a small community? are losses driven by the timer or by menace
+        # maxing? is the community keeping pace (contributors) with the climb?
+        # One uprising at a time on a 120s cadence → low volume, full capture by
+        # default (sample-tunable). Only emits on a real climb (skips a zero-
+        # elapsed no-op). Fail-open: a telemetry break never disturbs escalation.
+        if menace > cur_menace:
+            try:
+                from engine.telemetry import emit as _tele_emit
+                from engine import staged_event as _SE_t
+                _co = _parse_json(active.get("contributions_json"), {})
+                _contribs = sum(1 for _k in _co
+                                if str(_k).lstrip("-").isdigit())
+                try:
+                    from engine.tunables import get_tunable
+                    _sample = float(get_tunable(
+                        "telemetry.communal_menace_sample", 1.0))
+                except Exception:
+                    _sample = 1.0
+                _tele_emit("communal_menace", {
+                    "cult": active.get("cult_key", ""),
+                    "menace_before": round(float(cur_menace), 1),
+                    "menace_after": round(float(menace), 1),
+                    "minutes": round(float(minutes), 2),
+                    "tier_before": CO.menace_tier(cur_menace),
+                    "tier_after": CO.menace_tier(menace),
+                    "tier_changed": bool(tier_changed),
+                    "contributors": int(_contribs),
+                    "staged": bool(_SE_t.is_staged(cult.key)),
+                    "rotation": int(active.get("rotation") or 0),
+                }, sample=_sample)
+            except Exception as _e:
+                log.debug("communal_menace telemetry emit failed: %s", _e)
         return CO.STATE_ACTIVE
 
     # win or loss
