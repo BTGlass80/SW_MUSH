@@ -251,6 +251,55 @@ encounters:
         vendor_template: geonosian_scavenger_goods
         duration_minutes: 5
 
+    # ── GRIND BREADTH additions (2026-06-25): crater + dune + shore ───────────
+    # Three entries closing three gaps in the ey_akh pool:
+    # (1) preying_makthier_crater — fills the crater terrain hostile gap; COTG
+    #     §2.3 cave flyer roosts in Golbah's Pit glassed crevices. min_band 2,
+    #     weight 2, faction_gate ey_akh_default. Matches draagax_pack pressure.
+    # (2) dune_fringe_shredder_bats — plugs outer-dune tier1 gap; the dune
+    #     terrain currently has only mip_scouts (tier1) and merdeth_advance
+    #     (tier2, min_distance 4). Shredder bat is a verified library creature
+    #     (L544) already present in two other regions. min_band 1, no faction_gate.
+    # (3) ebon_shore_bone_field — non_hostile ambient beat giving the shore
+    #     terrain a non-combat pacing moment; empty npc_template mirrors the
+    #     existing merdeth_shell_field pattern.
+    # payload.npc_template: preying_makthier (new id), shredder_bat (existing
+    # L544). ebon_shore_bone_field has empty template — no spawner dependency.
+    # makthier constriction corrected to 1D/round (COTG §2.3 / extraction doc);
+    # NOT STR+1D (proposal had a fidelity slip — fixed in the creature block).
+
+    # ── Preying Makthier — crater roost (COTG §2.3) ──────────────────────────
+    - id: preying_makthier_crater
+      type: hostile
+      weight: 2
+      terrains: [crater]
+      min_band: 2            # paralytic stun-cascade in a pack of 5-10 is band-2 appropriate
+      faction_gate: ey_akh_default
+      narrative: "The rim of Golbah's Pit is wrong — there are shapes hanging in the crevices of the glassed rock that are too regular to be stone. Then one unfolds, and the rest follow it out in a wave, sonar clicks audible even over the wind, and the swarm fills the air between you and the sky. Preying makthiers, out of their crater roost and hunting. They do not need to see you to find you."
+      payload:
+        npc_template: preying_makthier
+        count: [5, 10]
+        tier: tier2
+
+    # ── Shredder bats — dune fringe (COTG §3) ────────────────────────────────
+    - id: dune_fringe_shredder_bats
+      type: hostile
+      weight: 2
+      terrains: [dune]
+      min_band: 1            # Frontier-eligible; pushed out of rock onto open sand
+      narrative: "A sound like a sharp intake of breath — then the air fills with winged shapes, black against the sky, folding into dives. Shredder bats, pushed out of the rock where the hive's shadow ends and onto the open sand in search of prey. They hunt by hearing. They are already on your frequency."
+      payload:
+        npc_template: shredder_bat
+        count: [6, 12]
+        tier: tier1
+
+    # ── Ebon shore bone field — ambient atmospheric beat ──────────────────────
+    - id: ebon_shore_bone_field
+      type: non_hostile
+      weight: 2
+      terrains: [ebon_sea_shore]
+      narrative: "The mudflat ahead is paved with bones — acklay legs, merdeth shell-shards, things you cannot name pressed flat into the black mud by seasons of flood and weight. The Ebon Sea does not give its kills back cleanly. Whatever fed here is somewhere beneath the film, resting, and the shore is entirely, deliberately quiet."
+
 # ─── Landmarks ───────────────────────────────────────────────────────────────
 landmarks:
 

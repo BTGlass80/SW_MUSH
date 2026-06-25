@@ -34,11 +34,13 @@ if PROJECT_ROOT not in sys.path:
 _MIGRATED_FILES = [
     "parser/crew_commands.py",
     "engine/vendor_droids.py",
+    "db/database.py",
 ]
 
 # Source tags introduced by this tranche (grouped, dashboard-legible).
 _EXPECTED_TAGS = {
     "parser/crew_commands.py": ["crew_wage"],
+    "db/database.py": ["crew_wages"],
     "engine/vendor_droids.py": [
         "vendor_droid_deploy",
         "vendor_purchase",
@@ -75,8 +77,15 @@ class TestDrop1b1MigrationComplete(unittest.TestCase):
         )
 
     def test_no_direct_log_credit_remains(self):
+        # db/database.py is excluded here: it *defines* log_credit and
+        # adjust_credits (which internally calls log_credit).  The check
+        # targets external call-sites that bypassed adjust_credits by
+        # calling log_credit directly — not the implementation file itself.
+        _LOG_CREDIT_EXEMPT = {"db/database.py"}
         offenders = {}
         for rel in _MIGRATED_FILES:
+            if rel in _LOG_CREDIT_EXEMPT:
+                continue
             if re.findall(r"\blog_credit\s*\(", _read(rel)):
                 offenders[rel] = True
         self.assertEqual(offenders, {},

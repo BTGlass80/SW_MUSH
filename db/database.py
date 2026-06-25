@@ -2937,9 +2937,10 @@ class Database:
         column going forward: routing every faucet and sink through here is
         what makes the economy measurable (the ``@economy`` dashboard,
         velocity, and the whale/farming/inflation alerts all read
-        ``credit_log``). Writing credits via ``save_character(credits=...)``
-        bypasses the ledger and is the thing the economy audit (F1) flagged
-        — those sites are being migrated to call this instead.
+        ``credit_log``). Writing the credits column directly via
+        ``save_character`` bypasses the ledger and is the thing the economy
+        audit (F1) flagged — those sites are being migrated to call this
+        instead.
 
         Args:
             char_id: Character whose balance moves. Pass ``0`` for a
@@ -3650,7 +3651,12 @@ class Database:
                 await self.dismiss_npc(npc["id"])
 
         if total_deducted > 0:
-            await self.save_character(char_id, credits=credits)
+            # Route through the ledger chokepoint so the recurring wage sink
+            # is visible to @economy velocity and credit_log queries.  Tag
+            # "crew_wages" (plural) is the group-able recurring-sink tag;
+            # "crew_wage" (singular) is the one-off first-day charge logged
+            # at hire time in parser/crew_commands.py.
+            await self.adjust_credits(char_id, -total_deducted, "crew_wages")
 
         return total_deducted, departed
 

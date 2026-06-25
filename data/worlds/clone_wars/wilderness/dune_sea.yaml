@@ -388,6 +388,44 @@ encounters:
       payload:
         salvage_table: speeder_wreck_table
 
+    # ── GRIND BREADTH additions (2026-06-25): bantha herd + oasis predator ──────
+    # Two entries closing two gaps in the dune_sea pool:
+    # (1) tusken_bantha_herd — iconic ambient fauna beat that signals Tusken
+    #     proximity; non-hostile, weight 2 so common enough to read as a living
+    #     desert without padding the hostile list.
+    # (2) oasis_predator_stalk — closes the gornt_herd narrative hook ("the
+    #     predators that follow them will not be far behind"); min_band 2 so a
+    #     fresh Frontier character at an oasis edge is not ambushed by a
+    #     constrictor they cannot handle.
+    # krayt_kills_site anomaly OMITTED: no real salvage_table consumer exists
+    # for the dragon-pearl reward (no phantom producer shipped).
+    # payload.npc_template values: bantha (new), stalker_lizard (existing id
+    # confirmed in npcs_creatures.yaml). Validated by
+    # test_wilderness_encounter_template_resolution.py global guard.
+
+    # ── Bantha herd — ambient fauna (WEG40120 p.215) ─────────────────────────
+    - id: tusken_bantha_herd
+      type: non_hostile
+      weight: 2
+      terrains: [dune, rocky_outcrop]
+      narrative: "The dune ahead heaves — not from below, but across it, a slow brown tide of shaggy bulk and spiral horns. A bantha herd, thirty or more, moving on one of the ancient migration routes the desert people follow. There are no riders visible. That means the Tusken outriders are watching from somewhere you cannot see, and you are standing between them and their herd. Move slowly. Move aside."
+      payload:
+        npc_template: bantha
+        count: [4, 8]
+        tier: tier1
+
+    # ── Oasis stalker — predator follows the gornt herd (COTG §2.1) ──────────
+    - id: oasis_predator_stalk
+      type: hostile
+      weight: 1
+      terrains: [oasis]
+      min_band: 2            # constriction STR+2D+2 is too lethal for a Frontier edge tile
+      narrative: "The gornt herd at the water's edge bolts all at once — every animal sprinting in the same direction, away from the scrub to your left. The scrub does not move. Then it does: a dune-blue shape separating from the low brush and extending into a dead sprint, closing the gap in seconds. A stalker lizard has been here longer than you have, waiting for exactly this moment."
+      payload:
+        npc_template: stalker_lizard
+        count: [1, 1]
+        tier: tier1
+
 # Landmarks — the authoritative roster of named places in the region.
 # Each landmark becomes a `rooms` row at world-build time with
 # `wilderness_region_id = 'tatooine_dune_sea'` and coordinates stored
