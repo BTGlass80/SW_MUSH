@@ -1927,27 +1927,7 @@
     }
   ],
   "design_calls_pending_brian": [
-    {
-      "id": "FUN2.tutorial_step1_silent_softlock",
-      "status": "OPEN",
-      "title": "Starter tutorial step 1 silently SOFT-LOCKS: 'talk Major Tarrn' is gated behind requires_first:[look,+sheet] with ZERO feedback — talk before +sheet and the chain never advances, stranding the player in the SECURED briefing room (combat refused). Reproducible kills-it from the fun re-run.",
-      "origin": "Fun re-run 2026-06-25 (against the fixed b57b000, after first-session-unblock opened the door): new-player lens, reproducible. The door is now open (movement/tour fixed) — this is the NEXT blocker on the first-session path.",
-      "premise_verified_at_head": "data/worlds/clone_wars/tutorials/chains.yaml republic_soldier step 1 completion.requires_first:[{command:look},{command:+sheet}]; engine/chain_events.py Phase-3 makes requires_first GATING (the talk completion is silently refused until both prereqs fire — no hint). requires_first is an intentional, TESTED mechanism (tests/test_f8c2b5_requires_first.py TestTwoPrereqs pins republic_soldier step 1) used by 3 chain steps — so this is a design change, not a free edit.",
-      "fork": "(A) RECOMMENDED: make an unmet requires_first SPEAK — when talk matches the NPC but a prereq is unmet, emit a system/NPC line naming what's missing ('Confirm your gear with +sheet before reporting in, trooper'), and render the step's ordered sub-steps as a live checklist (look[done]/+sheet[ ]/talk[locked]). Keeps the +sheet teaching beat (the best surface in the game) AND removes the silent trap. Engine (chain_events.py) + a small panel change + update test_f8c2b5. (B) Cheapest: drop requires_first from republic_soldier step 1 (data-only) — removes the trap but loses the gear-check gate and breaks TestTwoPrereqs (move its fixture).",
-      "lane_note": "engine/chain_events.py (shared requires_first path — careful) + onboarding panel + test_f8c2b5_requires_first.py. NOT blind-fixed unattended because it changes a tested intentional mechanism. HIGH priority — it's a reproducible first-session kills-it.",
-      "decision_needed": "Pick A (make-it-speak + checklist, recommended) or B (drop the gate). I can implement either on your OK."
-    },
-    {
-      "id": "FUN2.bare_attack_usage_error_and_issued_gear_not_equipped",
-      "status": "OPEN",
-      "title": "Two combat-onboarding snags from the fun re-run: (a) the tutorial's TYPE hint is bare 'attack' which errors (needs a target), and the two sim droids are both named '...Droid' so 'attack droid' is ambiguous; (b) auto-ISSUED gear (DC-17/DC-15A + armor on spawn/specialize) is never auto-EQUIPPED, so +sheet shows WEAPON: none equipped.",
-      "origin": "Fun re-run 2026-06-25, new-player + min-maxer lenses (major-drag each). Both block the first-combat payoff once the player reaches the sim.",
-      "premise_verified_at_head": "(a) chains.yaml republic_soldier step 2 + the t5 sim step use command_to_type:'attack'; AttackCommand returns usage when args empty; the sim droids are 'B1 Sim Droid Alpha'/'Bravo' (data/worlds/clone_wars/npcs_drop_f8c2b2_combat_templates.yaml) so a single 'attack droid' partial-matches BOTH → ambiguous. (b) gear is issued but equipped_weapon/worn_armor stay empty (related to the known TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES debt); sheet's renderSheetWeapon shows 'none equipped'.",
-      "fork": "(a) RECOMMENDED: make bare 'attack' auto-target the nearest/sole hostile in the room (engine, AttackCommand — broad benefit beyond the tutorial), and/or set the hint to a unique target. (b) Auto-equip issued combat gear on spawn/specialize/faction-join and resolve the equipped-weapon key to a display name in the sheet (echo 'Rifle readied').",
-      "lane_note": "(a) parser/combat_commands.py AttackCommand (combat lane — careful). (b) the gear-issue seam + engine/items.py equip path + the sheet renderer. Both touch combat/equipment — staged rather than blind-fixed.",
-      "decision_needed": "OK to (a) auto-target bare attack and (b) auto-equip issued gear? Both are clear wins; flagged because they touch combat/equipment."
-    },
-    {
+            {
       "id": "FUN2.feed_and_combat_render_INVESTIGATED",
       "status": "INFO (likely not a bug — verification notes for Brian)",
       "title": "Fun re-run's #1 cross-lens finding was 'ground-feed/exits don't re-sync on room change' + 'combat-feed never renders' — my live probes indicate this is LIKELY AI MISATTRIBUTION + downstream of the soft-lock, not a real resync bug. Recorded so it isn't chased blind.",
@@ -1957,27 +1937,7 @@
       "lane_note": "Verification-only. The probes are in tests/e2e/ (gate-excluded).",
       "decision_needed": "None — informational. Confirms the resync 'bug' is likely a measurement artifact; the real next step is the soft-lock/attack fixes + a re-run."
     },
-    {
-      "id": "FUN.combat_zero_cp_reward_loop",
-      "status": "OPEN",
-      "title": "Combat pays ZERO CP by design, so the action/min-maxer archetype has no kill -> loot -> power-up loop to chase — keep the RP-first CP economy, or add an early-game combat-progress signal?",
-      "origin": "Fun-assessment pass 2026-06-25 (tools/_fun_wf_run.js), min-maxer + new-player lenses. reward_cadence was the lowest-scored axis across lenses (min-maxer 1/5); the min-maxer would quit even with the movement door open.",
-      "premise_verified_at_head": "engine/hunting_rewards.py grants credits (15/kill, 400/day soft cap) but no CP; CP comes from RP/idle/kudos capped ~2/week while one die-step costs 4-6 CP — so there is no kill->advancement tick. This is a deliberate RP-first stance, not a bug.",
-      "fork": "(A) Keep the RP-first CP economy unchanged (combat is for credits/survival, advancement is earned through play/RP). (B) Add a small, capped early-game combat-progress signal (e.g. a first-kill/first-session guaranteed CP or a visible advancement tick) so session one ends on a win the player can see on their sheet — conservative numbers, sunset after the NPE.",
-      "lane_note": "Engine economy/progression (engine/hunting_rewards.py + the CP-award seam). Conservative-on-balance-numbers applies. Touches the same telemetry the Opus loop instruments — coordinate.",
-      "decision_needed": "Pick A or B. If B, set the early-combat CP amount + cap + whether it sunsets post-graduation."
-    },
-    {
-      "id": "FUN.chargen_template_chain_identity_collision",
-      "status": "OPEN",
-      "title": "Chargen lets you pick a TEMPLATE (e.g. Smuggler) and, separately, a TUTORIAL CHAIN (e.g. Republic Soldier); the obvious first-of-each force-joins the Republic + issues a clone uniform + addresses you as 'trooper' while your sheet still shows smuggler skills/description — couple them, warn, or allow?",
-      "origin": "Fun-assessment pass 2026-06-25, new-player + rp-social lenses: 'the player's self-authored character is silently overwritten into a different faction and archetype' in the first 60 seconds on an RP-first MUSH.",
-      "premise_verified_at_head": "Template (engine/creation.py TEMPLATES) and the tutorial chain are independent chargen choices; the Republic Soldier chain force-joins GAR + equips a clone uniform regardless of the chosen template, with no coherence signal. (Verify the exact force-join seam before building.)",
-      "fork": "(A) Couple template -> a coherent default chain (Smuggler -> an independent/smuggler chain) and highlight the matching chain at the chain step, warning on a clash. (B) Stop the silent faction force-join / clone re-skin when template+chain disagree; surface the consequence before commit. (C) Allow it but make the consequence explicit at selection.",
-      "lane_note": "Chargen (engine/creation.py + the wizard + the chain-join seam). Mostly a coupling/validation + copy change; identity-authoring is one of the few RP surfaces that already works, so protect it.",
-      "decision_needed": "Pick A/B/C and confirm whether a template<->chain clash should be blocked, warned, or silently allowed."
-    },
-    {
+            {
       "id": "FUN.shop_verb_and_natural_verb_surface",
       "status": "OPEN",
       "title": "'shop' means 'manage your OWN vendor droid', not 'browse a store and buy'; and many natural verbs (+attributes, skills, inventory, equipment, +goals, objectives, exits) error out though the data exists behind a panel — rename + alias, or leave?",
@@ -1987,27 +1947,7 @@
       "lane_note": "Parser verb surface + the planned command-syntax-rework. Additive aliasing is low-risk; the 'shop' rename is a breaking-ish change to muscle memory — sequence with the syntax rework.",
       "decision_needed": "Confirm whether to (A) do an additive alias pass now (which verbs), and whether the 'shop' rename folds into the command-syntax-rework or ships standalone."
     },
-    {
-      "id": "AUDIT.boost_switch_phantom_verb",
-      "status": "OPEN",
-      "title": "The cockpit BOOST switch stages an unregistered verb 'speed +1' -> 'Huh? Unknown command: speed' — remove the dead switch, or add a real sublight-throttle verb?",
-      "origin": "Launch-readiness audit 2026-06-25 (tools/_audit_wf.js), phantom-producer/consumer dimension (MAJOR, confirmed).",
-      "premise_verified_at_head": "static/client.html ~line 5260: the space-strip BOOST switch stages 'speed +1'; no 'speed'/throttle verb is registered in the parser, so it dead-ends.",
-      "fork": "(A) RECOMMENDED (safe, no-phantom): remove the BOOST switch from the space strip until a throttle verb exists. (B) Add a real sublight-throttle/speed parser command and wire BOOST to it (new engine surface — space movement).",
-      "lane_note": "static/client.html (+ engine space-movement if B). I can implement (A) immediately on your OK; (B) is a small new feature.",
-      "decision_needed": "Pick A (remove) or B (build the throttle verb). Default recommendation: A for launch, B post-launch."
-    },
-    {
-      "id": "AUDIT.command_palette_surfaces_help_topics",
-      "status": "OPEN",
-      "title": "The Ctrl+K command palette (Drop 7) surfaces non-typeable help-TOPIC keys as if they were commands, so selecting one stages a string that dead-ends at 'Huh?' — distinguish commands from topics in the reference index?",
-      "origin": "Launch-readiness audit 2026-06-25, phantom-producer/consumer dimension (MAJOR, confirmed).",
-      "premise_verified_at_head": "server/web_portal.py handle_reference_index emits both code-derived commands AND markdown/TOPIC_HELP help entries with no is_command flag; static/spa/m3_command_palette.js stages any selected entry's key as a command — topic keys aren't typeable verbs.",
-      "fork": "(A) RECOMMENDED: add an is_command:bool to HelpEntry (true only for auto-registered commands), emit it from handle_reference_index, and have the palette stage only is_command entries (show topics as non-stageable info or hide them). (B) Filter topics out of the reference index entirely (loses topic discoverability in the palette).",
-      "lane_note": "data/help_topics.py + server/web_portal.py + static/spa/m3_command_palette.js. Self-contained; I can implement (A) on your OK.",
-      "decision_needed": "Confirm (A) is_command distinction (preferred) vs (B) drop topics from the palette."
-    },
-    {
+            {
       "id": "UX.sound_atmosphere_asset_sourcing",
       "status": "OPEN",
       "title": "UX.sound_atmosphere (zone-keyed ambient audio) is code-ready in design but BLOCKED on an audio-asset decision — source CC0/licensed loops, and embed-vs-CDN?",
@@ -2098,6 +2038,48 @@
     }
   ],
   "design_calls_resolved_recent": [
+    {
+      "id": "FUN2.tutorial_step1_silent_softlock",
+      "raised_date": "2026-06-25",
+      "raised_by": "fun re-run / launch-readiness audit (2026-06-25 session)",
+      "severity": "fun/UX (path-to-first-fun)",
+      "status": "RESOLVED 2026-06-25 (drop fun2-batch): chose A (make-it-speak + checklist). build_onboarding_state emits prereqs/prereqs_met; m3_onboard renders the look/+sheet checklist + locks the TYPE chip until met; npe_prereq_hint() makes TalkCommand speak the unmet prereq. requires_first gating logic unchanged (test_f8c2b5 green)."
+    },
+    {
+      "id": "FUN2.bare_attack_usage_error_and_issued_gear_not_equipped",
+      "raised_date": "2026-06-25",
+      "raised_by": "fun re-run / launch-readiness audit (2026-06-25 session)",
+      "severity": "fun/UX (path-to-first-fun)",
+      "status": "RESOLVED 2026-06-25 (drop fun2-batch): bare `attack` auto-targets the first hostile in the room (AttackCommand); issue_equipment auto-equips weapon/armor into empty slots so spawn/specialize/faction-join/rank-up gear shows on +sheet."
+    },
+    {
+      "id": "FUN.combat_zero_cp_reward_loop",
+      "raised_date": "2026-06-25",
+      "raised_by": "fun re-run / launch-readiness audit (2026-06-25 session)",
+      "severity": "fun/UX (path-to-first-fun)",
+      "status": "RESOLVED 2026-06-25 (drop fun2-batch): chose 'add early-game combat CP'. First 5 combat kills each grant +1 CP via the milestone funnel (tag early_combat); tunable combat.early_cp_kill_cap=5; capped + one-time-early so the RP-first economy is intact."
+    },
+    {
+      "id": "FUN.chargen_template_chain_identity_collision",
+      "raised_date": "2026-06-25",
+      "raised_by": "fun re-run / launch-readiness audit (2026-06-25 session)",
+      "severity": "fun/UX (path-to-first-fun)",
+      "status": "RESOLVED 2026-06-25 (drop fun2-batch): chose 'couple + warn'. Template->default-chain affinity map marks the recommended chain; picking a chain that enrolls you in a war faction differing from your template (incl. the canonical Smuggler+Republic-Soldier) surfaces a consequence warning + confirm gate before commit."
+    },
+    {
+      "id": "AUDIT.boost_switch_phantom_verb",
+      "raised_date": "2026-06-25",
+      "raised_by": "fun re-run / launch-readiness audit (2026-06-25 session)",
+      "severity": "fun/UX (path-to-first-fun)",
+      "status": "RESOLVED 2026-06-25 (drop fun2-batch): chose 'remove'. The dead BOOST switch (staged a non-existent `speed +1`) was removed from the cockpit strip."
+    },
+    {
+      "id": "AUDIT.command_palette_surfaces_help_topics",
+      "raised_date": "2026-06-25",
+      "raised_by": "fun re-run / launch-readiness audit (2026-06-25 session)",
+      "severity": "fun/UX (path-to-first-fun)",
+      "status": "RESOLVED 2026-06-25 (drop fun2-batch): chose 'is_command'. HelpEntry.is_command (True only for real verbs) is emitted in the reference index; the palette only stages commands, so a row never dead-ends at 'Huh?'."
+    },
     {
       "id": "ITEM.unified_item_registry",
       "raised_date": "2026-06-17",
