@@ -1855,6 +1855,73 @@ a { color: inherit; text-decoration: none; }
 .here-btn.btn-claim   { color: var(--warn); border-color: var(--warn); }
 .here-btn.btn-claim:hover { background: rgba(255,110,74,0.15); }
 
+/* ── UX Drop 5: SCENE card (hud.active_scene) — RP scene header ── */
+.scene-card { display: flex; flex-direction: column; gap: 4px; }
+.scene-head {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.scene-title {
+  flex: 1; font-size: 11px; color: var(--accent-bright); font-weight: bold;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.scene-type-chip {
+  font-size: 8.5px; letter-spacing: 1px; padding: 1px 5px;
+  border: 1px solid var(--accent-dim); color: var(--text-dim);
+  border-radius: 2px; flex-shrink: 0;
+}
+.scene-meta {
+  display: flex; gap: 8px; align-items: baseline;
+  font-size: 9.5px; color: var(--text-dim);
+}
+.scene-pose-total { color: var(--accent); }
+.scene-creator {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.scene-roster {
+  display: flex; flex-direction: column; gap: 2px; margin-top: 2px;
+}
+.scene-part {
+  display: flex; align-items: center; gap: 5px;
+  padding: 2px 0; border-top: 1px dashed var(--accent-dim);
+}
+.scene-part:first-child { border-top: none; }
+.scene-part-icon { font-size: 12px; flex-shrink: 0; }
+.scene-part-name {
+  flex: 1; font-size: 11px; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.scene-pose-chip {
+  font-size: 9px; letter-spacing: 1px; padding: 0 6px; min-width: 14px;
+  text-align: center; border: 1px solid var(--accent-dim);
+  color: var(--accent-bright); border-radius: 8px; flex-shrink: 0;
+}
+.scene-pose-chip.zero { color: var(--text-dim); }
+
+/* ── UX Drop 5: ONLINE / presence card (/api/portal/who) ── */
+.presence-row {
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 0; border-bottom: 1px dashed var(--accent-dim);
+}
+.presence-row:last-child { border-bottom: none; }
+.presence-icon { font-size: 12px; flex-shrink: 0; }
+.presence-namewrap {
+  flex: 1; min-width: 0; display: flex; flex-direction: column;
+}
+.presence-name {
+  font-size: 11px; color: var(--accent-bright);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.presence-loc {
+  font-size: 9px; color: var(--text-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.presence-idle {
+  font-size: 9px; color: var(--text-dim); flex-shrink: 0;
+}
+.presence-empty {
+  font-size: 10px; color: var(--text-dim); padding: 4px 0; font-style: italic;
+}
+
 /* ── Ground-UX: ACTIVE JOBS panel (active_jobs) ── */
 .job-entry {
   display: flex; align-items: flex-start; gap: 6px;
@@ -4706,6 +4773,17 @@ a { color: inherit; text-decoration: none; }
         </div>
 
         <!-- Ground-UX: HERE panel — persistent room occupants (G5) -->
+        <!-- UX Drop 5: active RP scene header — who's posing in this room.
+             Hidden when no scene is live (hud.active_scene absent). -->
+        <div class="side-panel" id="scene-panel" style="display:none;">
+          <div class="side-panel-head" onclick="toggleSidePanel('scene-panel')">
+            <span class="sp-title">SCENE</span>
+            <span class="sp-count" id="scene-count"></span>
+            <span class="sp-toggle">▾</span>
+          </div>
+          <div class="side-panel-body" id="scene-body"></div>
+        </div>
+
         <div class="side-panel" id="here-panel" style="display:none;">
           <div class="side-panel-head" onclick="toggleSidePanel('here-panel')">
             <span class="sp-title">HERE</span>
@@ -4713,6 +4791,17 @@ a { color: inherit; text-decoration: none; }
             <span class="sp-toggle">▾</span>
           </div>
           <div class="side-panel-body" id="here-body"></div>
+        </div>
+
+        <!-- UX Drop 5: global who's-online roster — social proof / discovery.
+             Polls /api/portal/who ONLY while expanded (collapsed = no poll). -->
+        <div class="side-panel collapsed" id="presence-panel" style="display:none;">
+          <div class="side-panel-head" onclick="togglePresencePanel()">
+            <span class="sp-title">ONLINE</span>
+            <span class="sp-count" id="presence-count"></span>
+            <span class="sp-toggle">▾</span>
+          </div>
+          <div class="side-panel-body" id="presence-body"></div>
         </div>
 
         <!-- Ground-UX: Active Jobs panel — full job list (G7) -->
@@ -5427,6 +5516,8 @@ a { color: inherit; text-decoration: none; }
 <script src="/static/spa/m3_tier_registry.js"></script>
 <script src="/static/spa/m3_region.js"></script>
 <script src="/static/spa/m3_situation_board.js"></script>
+<script src="/static/spa/m3_scene_panel.js"></script>
+<script src="/static/spa/m3_presence_panel.js"></script>
 <script src="/static/spa/m3_inventory.js"></script>
 <script src="/static/spa/m3_shop.js"></script>
 <script src="/static/spa/m3_board.js"></script>
@@ -7006,6 +7097,11 @@ function handleHudUpdate(data) {
   renderZoneIntel(false);
   // G5: persistent HERE panel (room_contents — NPCs/players/vendor droids)
   renderHerePanel(data);
+  // UX Drop 5: SCENE card (hud.active_scene — RP scene header). Absent ⇒ hidden.
+  renderScenePanel(data);
+  // UX Drop 5: surface the global ONLINE roster once in-game (poll-free until
+  // expanded). Idempotent; only un-hides the collapsed card.
+  showPresencePanel();
   // G7: active jobs full-list panel
   renderActiveJobsPanel(data);
 
@@ -9173,6 +9269,74 @@ function renderHerePanel(data) {
       body.appendChild(row);
     })(vdroids[k]);
   }
+}
+
+/* UX Drop 5: SCENE card — render the active RP scene header from
+   hud.active_scene. Absent/empty active_scene ⇒ hide the card. The card is a
+   header only; real-time pose fidelity stays in the main event log via the
+   typed pose_event stream (never blocked here). */
+function renderScenePanel(data) {
+  var panel = $('scene-panel');
+  var body  = $('scene-body');
+  var countEl = $('scene-count');
+  if (!panel || !body) return;
+
+  var scene = data && data.active_scene;
+  if (!scene || typeof scene !== 'object' || !window.M3ScenePanel) {
+    panel.style.display = 'none';
+    body.innerHTML = '';
+    if (countEl) countEl.textContent = '';
+    return;
+  }
+
+  // Lazy DI init (mirror handleSituationState): route title/names through the
+  // shared escapeHtml (XSS contract).
+  if (typeof window.M3ScenePanel.init === 'function' &&
+      typeof escapeHtml === 'function') {
+    window.M3ScenePanel.init({ escapeHtml: escapeHtml });
+  }
+
+  var node = window.M3ScenePanel.render(scene);
+  if (!node) {
+    panel.style.display = 'none';
+    body.innerHTML = '';
+    if (countEl) countEl.textContent = '';
+    return;
+  }
+
+  body.innerHTML = '';
+  body.appendChild(node);
+  panel.style.display = '';
+  // Count badge = participant count (glanceable "who's here posing").
+  var parts = Array.isArray(scene.participants) ? scene.participants.length : 0;
+  if (countEl) countEl.textContent = parts > 0 ? String(parts) : '';
+}
+
+/* UX Drop 5: ONLINE / presence card. The card is collapsed by default and
+   polls /api/portal/who ONLY while expanded. The toggle flips the collapse
+   class AND starts/stops the poll so a collapsed card costs nothing. */
+function togglePresencePanel() {
+  var panel = $('presence-panel');
+  if (!panel || !window.M3PresencePanel) return;
+  panel.classList.toggle('collapsed');
+  var expanded = !panel.classList.contains('collapsed');
+  if (expanded) {
+    if (typeof window.M3PresencePanel.init === 'function' &&
+        typeof escapeHtml === 'function') {
+      window.M3PresencePanel.init({ escapeHtml: escapeHtml });
+    }
+    window.M3PresencePanel.start($('presence-body'), $('presence-count'));
+  } else {
+    window.M3PresencePanel.stop();
+  }
+}
+
+/* The ONLINE roster is a global, always-relevant card — show it once the
+   player is in-game so they can discover other humans. (Body stays empty +
+   poll-free until the player expands it.) */
+function showPresencePanel() {
+  var panel = $('presence-panel');
+  if (panel && panel.style.display === 'none') panel.style.display = '';
 }
 
 // E) Active Jobs Panel — full job list (G7 client gap).
@@ -14079,6 +14243,10 @@ function connect() {
 
   ws.onclose = function() {
     setConnStatus('disconnected');
+    // UX Drop 5: halt the who's-online poll on disconnect (no polling a dead
+    // socket; mirrors M3Board.stop() interval discipline). Re-armed only when
+    // the player re-expands the ONLINE card.
+    if (window.M3PresencePanel) M3PresencePanel.stop();
     // If we were logged in, surface a reconnect prompt; otherwise reset
     // to boot state so the login form isn't stuck visible without a live
     // socket underneath it.

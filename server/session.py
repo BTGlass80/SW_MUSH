@@ -1388,6 +1388,103 @@ class Session:
         }
         hud["room_services"] = _derive_room_services(npcs, vendor_droids, room_props)
 
+    async def _hud_scene_context(self, hud: dict, db, room_id) -> None:
+        """UX Drop 5: surface the active RP scene running in this room.
+
+        Read-only HUD marshalling over the existing scene model
+        (`engine.scenes.get_active_scene` — None when the room is idle).
+        When a scene is live it stamps a header block onto the HUD:
+
+            hud['active_scene'] = {
+                scene_id, title, type, started_at, creator_name,
+                pose_count,                          # total IC poses
+                participants: [{id, name, pose_count}],
+            }
+
+        Absent key ⇒ no scene ⇒ the client clears its scene card. This is
+        a header only — real-time pose fidelity continues to flow over the
+        existing typed ``pose_event`` broadcast; nothing here gates pace.
+
+        No credit/dice/influence movement, so no funnel obligation. Called
+        from ``send_hud_update`` immediately after ``_hud_room_contents``
+        and, like every HUD block, is independently try/except guarded by
+        the caller — a failure here just omits the card.
+        """
+        from engine import scenes as _scenes
+
+        scene = await _scenes.get_active_scene(db, room_id)
+        if not scene:
+            # Idle room → leave the key absent so the client clears the card.
+            return
+
+        scene_id = scene["id"]
+
+        # Per-participant IC pose counts (is_ooc=0; system poses carry
+        # char_id IS NULL and are naturally excluded by the GROUP BY join
+        # below since we only look up counts by real char_id).
+        counts: dict = {}
+        try:
+            rows = await db.fetchall(
+                "SELECT char_id, COUNT(*) AS n FROM scene_poses "
+                "WHERE scene_id = ? AND is_ooc = 0 AND char_id IS NOT NULL "
+                "GROUP BY char_id",
+                (scene_id,),
+            )
+            for r in rows:
+                counts[r["char_id"]] = r["n"]
+        except Exception:
+            log.debug("_hud_scene_context: pose-count query failed", exc_info=True)
+
+        # Participants = every PC the HUD already lists for this room PLUS
+        # the viewer themselves (room_contents['players'] excludes self by
+        # design — but the scene card must show the viewer's own pose count
+        # too, so we add them back). De-duped by id.
+        roster: list = []
+        seen_ids: set = set()
+        char = self.character or {}
+        my_id = char.get("id")
+        if my_id is not None:
+            roster.append({"id": my_id, "name": char.get("name", "You")})
+            seen_ids.add(my_id)
+        rc = hud.get("room_contents") or {}
+        for p in (rc.get("players") or []):
+            pid = p.get("id")
+            if pid is None or pid in seen_ids:
+                continue
+            roster.append({"id": pid, "name": p.get("name", "Someone")})
+            seen_ids.add(pid)
+
+        participants = [
+            {"id": p["id"], "name": p["name"],
+             "pose_count": int(counts.get(p["id"], 0))}
+            for p in roster
+        ]
+
+        # creator_name: the scenes row only carries creator_id. Resolve the
+        # name from the assembled roster when the creator is co-present
+        # (cheap, no extra query); else leave None — the card degrades.
+        creator_id = scene.get("creator_id")
+        creator_name = None
+        for p in roster:
+            if p["id"] == creator_id:
+                creator_name = p["name"]
+                break
+
+        hud["active_scene"] = {
+            "scene_id": scene_id,
+            "title": scene.get("title") or "",
+            "type": scene.get("scene_type"),
+            "started_at": scene.get("started_at"),
+            "creator_name": creator_name,
+            # Sum only the PRESENT participants' poses so the header total is
+            # consistent with the roster the card shows. A character who posed
+            # then left the room is in `counts` but not in the live card, so
+            # counting their poses in the header would make it self-contradict
+            # (header > sum of visible rows).
+            "pose_count": sum(p["pose_count"] for p in participants),
+            "participants": participants,
+        }
+
     async def _hud_area_map(self, hud: dict, db, room_id, session_mgr=None) -> None:
         """Build area map for minimap context panel.
 
@@ -2202,6 +2299,14 @@ class Session:
                     hud, db, room_id, room_props, security_level, session_mgr)
             except Exception:
                 pass  # Non-critical
+
+        # ── 14b. Active scene (UX Drop 5) — RP scene header card. Read-only;
+        #         depends on room_contents['players'] built just above. ──
+        if db and room_id:
+            try:
+                await self._hud_scene_context(hud, db, room_id)
+            except Exception:
+                log.debug("send_hud_update: scene_context failed", exc_info=True)
 
         # ── 15. Area map ──
         if db and room_id:
