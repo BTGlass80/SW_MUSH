@@ -872,6 +872,189 @@ class EconomyCommand(BaseCommand):
                  if getattr(ctx.session, "account", None) else "admin")
 
 
+class BalanceCommand(BaseCommand):
+    """@balance — Admin telemetry dashboard: the read-side of T3.19.
+
+    The @economy board reads LIVE DB state (who holds what right now).
+    @balance reads the append-only TELEMETRY dump (engine/telemetry.py) — the
+    behavioural record of how players actually earn/spend/progress over time —
+    and rolls it up into the balance-tuning signals (grind cap pressure, CP
+    source mix, objective funnels, encounter pacing, cult menace). It is the
+    in-game companion to reading the raw JSON-line dumps offline."""
+    key = "@balance"
+    aliases = ["@bal"]
+    access_level = AccessLevel.ADMIN
+    help_text = (
+        "Admin telemetry dashboard (T3.19 read-side).\n"
+        "  @balance            — overview: event mix + headline rollups\n"
+        "  @balance grind      — mob-grind kill volume, payout, cap pressure\n"
+        "  @balance cp         — CP-income source mix + weekly-cap pressure\n"
+        "  @balance objectives — mission/bounty/smuggling start→complete funnel\n"
+        "  @balance encounters — wilderness encounter roll→fire rate by band\n"
+        "  @balance events     — communal-objective menace + strike outcomes\n"
+        "  @balance raw [N]    — the last N raw telemetry records (default 20)\n"
+        "  (reads engine/telemetry.py's dump; fail-open, never blocks the loop)"
+    )
+    usage = "@balance [grind|cp|objectives|encounters|events|raw [N]]"
+
+    async def execute(self, ctx: CommandContext):
+        parts = (ctx.args or "").split()
+        sub = parts[0].lower() if parts else "all"
+
+        from engine import telemetry
+
+        if sub == "raw":
+            n = 20
+            if len(parts) > 1:
+                try:
+                    n = max(1, min(200, int(parts[1])))
+                except (TypeError, ValueError):
+                    n = 20
+            events = await telemetry.read_recent_async(limit=n)
+            lines = ["\033[1;36m══════════════════════════════════════════\033[0m",
+                     f"  \033[1;37m@BALANCE — last {len(events)} raw events\033[0m",
+                     "\033[1;36m──────────────────────────────────────────\033[0m"]
+            if not events:
+                lines.append("  (no telemetry recorded yet)")
+            for ev in events:   # already capped to n by read_recent_async(limit=n)
+                et = ev.get("ev", "?")
+                extra = {k: v for k, v in ev.items()
+                         if k not in ("ts", "seq", "ev")}
+                lines.append(f"  \033[1m{et:<16}\033[0m {extra}")
+            lines.append("\033[1;36m══════════════════════════════════════════\033[0m")
+            await ctx.session.send_line("\n".join(lines))
+            return
+
+        events = await telemetry.read_recent_async()
+        summary = telemetry.summarize(events)
+        st = telemetry.get_sink().stats()
+
+        lines = ["\033[1;36m══════════════════════════════════════════\033[0m",
+                 "  \033[1;37m@BALANCE DASHBOARD\033[0m  \033[2m(telemetry T3.19)\033[0m",
+                 "\033[1;36m──────────────────────────────────────────\033[0m"]
+
+        total = summary["total"]
+        if not total:
+            sink_state = ("\033[1;32menabled\033[0m" if st["enabled"]
+                          else "\033[1;31mDISABLED\033[0m")
+            lines += [
+                "  No telemetry events recorded yet.",
+                f"  Sink: {sink_state}  ({st['path']})",
+                "\033[1;36m══════════════════════════════════════════\033[0m",
+            ]
+            await ctx.session.send_line("\n".join(lines))
+            return
+
+        span = ""
+        if summary["first_ts"] and summary["last_ts"]:
+            span = (f"  Window: {_time_ago(summary['first_ts'])} → "
+                    f"{_time_ago(summary['last_ts'])}")
+        lines.append(f"  Events: {total:,} in view"
+                     f"  (buffered {st['buffered']}, dropped {st['dropped_overflow']})")
+        if span:
+            lines.append(span)
+
+        show_all = sub in ("all",)
+
+        if show_all:
+            lines.append("  \033[1;33mEVENT MIX\033[0m")
+            for et, cnt in summary["by_type"][:12]:
+                lines.append(f"    {et:<20}  {cnt:>8,}")
+
+        if show_all or sub == "grind":
+            self._render_grind(lines, summary["grind"])
+        if show_all or sub == "cp":
+            self._render_cp(lines, summary["cp_income"])
+        if show_all or sub in ("objectives", "objective", "missions"):
+            self._render_objectives(lines, summary["objective"])
+        if show_all or sub in ("encounters", "encounter"):
+            self._render_encounters(lines, summary["wild_encounter"])
+        if show_all or sub in ("events", "communal"):
+            self._render_communal(lines, summary["communal"])
+
+        lines.append("\033[1;36m══════════════════════════════════════════\033[0m")
+        await ctx.session.send_line("\n".join(lines))
+
+    @staticmethod
+    def _pct(num, denom) -> str:
+        if not denom:
+            return "—"
+        return f"{(100.0 * num / denom):.0f}%"
+
+    def _render_grind(self, lines, g):
+        lines.append("  \033[1;33mMOB GRIND\033[0m")
+        kills = g["kills"]
+        if not kills:
+            lines.append("    (no grind kills recorded)")
+            return
+        avg = g["credits"] // kills if kills else 0
+        lines += [
+            f"    Kills         : {kills:,}  by {g['grinders']} grinder(s)",
+            f"    Paid          : {g['credits']:,} cr  (avg {avg:,}/kill)",
+            f"    At soft cap   : {g['at_cap']:,}  ({self._pct(g['at_cap'], kills)})",
+            f"    Over-cap floor: {g['over_cap']:,}  ({self._pct(g['over_cap'], kills)})",
+        ]
+        if g["npcs"]:
+            top = ", ".join(f"{name}×{cnt}" for name, cnt in g["npcs"][:5])
+            lines.append(f"    Top farmed    : {top}")
+
+    def _render_cp(self, lines, c):
+        lines.append("  \033[1;33mCP INCOME\033[0m")
+        ev = c["events"]
+        if not ev:
+            lines.append("    (no CP income recorded)")
+            return
+        lines += [
+            f"    Awards        : {ev:,}  ({c['cp']:,} CP, {c['ticks']:,} ticks)",
+            f"    Weekly-capped : {c['at_cap']:,}  ({self._pct(c['at_cap'], ev)})",
+        ]
+        if c["by_source"]:
+            lines.append("    By source:")
+            for src, cnt in c["by_source"][:8]:
+                lines.append(f"      {src:<18}  {cnt:>6,}  ({self._pct(cnt, ev)})")
+
+    def _render_objectives(self, lines, obj):
+        lines.append("  \033[1;33mOBJECTIVE FUNNEL\033[0m")
+        if not obj:
+            lines.append("    (no objective events recorded)")
+            return
+        lines.append(f"    {'kind':<12} {'start':>6} {'compl':>6} {'aband':>6}  "
+                     f"{'rate':>5}  reward")
+        for kind in sorted(obj):
+            d = obj[kind]
+            rate = self._pct(d["complete"], d["start"])
+            lines.append(
+                f"    {kind:<12} {d['start']:>6,} {d['complete']:>6,} "
+                f"{d['abandon']:>6,}  {rate:>5}  {d['reward']:,} cr")
+
+    def _render_encounters(self, lines, e):
+        lines.append("  \033[1;33mWILDERNESS ENCOUNTERS\033[0m")
+        rolls = e["rolls"]
+        if not rolls:
+            lines.append("    (no encounter rolls recorded)")
+            return
+        lines.append(
+            f"    Rolls         : {rolls:,}  fired {e['fired']:,} "
+            f"({self._pct(e['fired'], rolls)})")
+        if e["by_band"]:
+            band_str = ", ".join(f"band {b}: {cnt}"
+                                 for b, cnt in e["by_band"].items())
+            lines.append(f"    By threat band: {band_str}")
+
+    def _render_communal(self, lines, c):
+        lines.append("  \033[1;33mCOMMUNAL OBJECTIVES\033[0m")
+        if not (c["menace_events"] or c["strikes"]):
+            lines.append("    (no communal events recorded)")
+            return
+        lines += [
+            f"    Menace ticks  : {c['menace_events']:,}  "
+            f"(tier escalations {c['tier_escalations']:,})",
+            f"    Strikes       : {c['strikes']:,}  "
+            f"succeeded {c['strike_success']:,} "
+            f"({self._pct(c['strike_success'], c['strikes'])})",
+        ]
+
+
 class LoreCommand(BaseCommand):
     """@lore — Admin world lore management."""
     key = "@lore"
@@ -1296,6 +1479,7 @@ class AIStatusCommand(BaseCommand):
 def register_director_commands(registry) -> None:
     registry.register(DirectorCommand())
     registry.register(EconomyCommand())
+    registry.register(BalanceCommand())
     registry.register(LoreCommand())
     registry.register(HazardCommand())
     registry.register(RoomStateCommand())
