@@ -1287,6 +1287,26 @@ class GameServer:
         session.invalidate_char_obj()  # v22: clear cached Character object
         session.state = SessionState.IN_GAME
 
+        # T3.19 telemetry: the player has entered the world (IN_GAME with a bound
+        # character). Stamp the login time — the session-end emit in
+        # SessionManager.remove() reads it to report play duration distinctly
+        # from the connect→disconnect span — and emit one fail-open `session`
+        # login event (the connect→login→duration engagement funnel). On a
+        # +char/switch this re-enters _character_select and re-fires, which is
+        # correct: a different character entering the world is a fresh login.
+        import time as _t
+        session.login_at = _t.time()
+        try:
+            from engine import telemetry as _tele
+            _tele.emit_session(
+                "login",
+                char_id=(char.get("id") if char else None),
+                account_id=(session.account or {}).get("id"),
+                transport=getattr(session.protocol, "value", ""),
+            )
+        except Exception:
+            log.debug("session login telemetry failed", exc_info=True)
+
         # Push the skill-descriptions catalog to WS clients so the
         # sheet panel's right-rail can render rich tooltips without
         # a per-skill round-trip.  Sent once at session start; cached

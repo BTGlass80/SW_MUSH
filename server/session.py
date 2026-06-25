@@ -395,6 +395,11 @@ class Session:
         self.height = height
         self.connected_at = time.time()
         self.last_activity = time.time()
+        # T3.19 telemetry: stamped when this session actually enters the world
+        # (reaches IN_GAME with a bound character, in game_server._character_select).
+        # None until login; lets the session-end emit in SessionManager.remove()
+        # report play duration (login→logout) distinctly from connect→disconnect.
+        self.login_at: Optional[float] = None
 
         # Source IP of the connecting client, captured at the transport seam
         # (telnet/WS peername; the aiohttp web port resolves it spoof-
@@ -2295,6 +2300,50 @@ class Session:
         return self.state == SessionState.IN_GAME
 
 
+def _emit_session_end(session: "Session") -> None:
+    """Assemble + emit the session-end telemetry event from a torn-down session.
+
+    Kept module-level (not a method) and fail-open so SessionManager.remove()
+    stays a pure-mechanical teardown. The session→fields mapping lives here, on
+    the producing side — engine/telemetry.py never imports server.* (layering).
+    """
+    try:
+        from engine import telemetry as _tele
+        now = time.time()
+        char = session.character
+        acct = session.account
+        login_at = session.login_at
+        # reached_game (and the play-duration it carries) requires BOTH a login
+        # stamp AND a character still bound at teardown. A disconnect in the
+        # brief +char/switch window — character already cleared, login_at not yet
+        # re-stamped for the incoming character — would otherwise report
+        # reached_game=True with char_id=None and a stale duration anchored to
+        # the departed character; gating on `char` makes that case correctly
+        # report reached_game=False with no duration.
+        reached = login_at is not None and char is not None
+        try:
+            connected_s = now - float(session.connected_at)
+        except (TypeError, ValueError):
+            connected_s = None
+        duration_s = None
+        if reached:
+            try:
+                duration_s = now - float(login_at)
+            except (TypeError, ValueError):
+                duration_s = None
+        _tele.emit_session(
+            "logout",
+            char_id=(char.get("id") if char else None),
+            account_id=(acct.get("id") if acct else None),
+            transport=getattr(session.protocol, "value", ""),
+            duration_s=duration_s,
+            connected_s=connected_s,
+            reached_game=reached,
+        )
+    except Exception:
+        log.debug("session-end telemetry failed", exc_info=True)
+
+
 class SessionManager:
     """
     Central registry of all active sessions.
@@ -2309,7 +2358,7 @@ class SessionManager:
         log.info("Session added: %s (total: %d)", session, len(self._sessions))
 
     def remove(self, session: Session):
-        self._sessions.pop(session.id, None)
+        existed = self._sessions.pop(session.id, None) is not None
         # Cancel any tutorial hint-timer for this session — every disconnect path
         # funnels through here, so this stops the per-session _hint_loop task from
         # leaking and spinning send_line() on a dead transport (verify-fix
@@ -2319,6 +2368,13 @@ class SessionManager:
             cancel_hint_timer(session)
         except Exception as _e:
             log.debug("session teardown: cancel_hint_timer failed: %s", _e)
+        # T3.19 telemetry: this is the documented single chokepoint for every
+        # disconnect path, so the session-end event fires here. `existed` guards
+        # once-only emit — remove() is called again from the transport finally
+        # block after an idle-timeout / duplicate-login kick already removed the
+        # session. Fail-open: telemetry can never disturb teardown.
+        if existed:
+            _emit_session_end(session)
         log.info("Session removed: %s (total: %d)", session, len(self._sessions))
 
     def get(self, session_id: int) -> Optional[Session]:

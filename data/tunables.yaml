@@ -204,6 +204,19 @@ telemetry.wild_encounter_sample: 1.0  # fraction of pooled encounter rolls emitt
 # and whether a small community can keep pace. At most one uprising on a 120s
 # cadence → very low volume, so 1.0 (full capture) is the launch default.
 telemetry.communal_menace_sample: 1.0 # fraction of menace escalation ticks emitted (0..1]
+# Keep-rate for the session-lifecycle sink (server/game_server.py IN_GAME login
+# seam + server/session.py SessionManager.remove teardown chokepoint). The
+# engagement/retention primitive the economy funnels above can't see: one
+# `session` event tagged phase=login (a character entered the world) and one
+# phase=logout per torn-down connection (carrying play duration login→logout, the
+# full connect→disconnect span, transport telnet-vs-web, and reached_game so a
+# bounce at the login screen is the funnel denominator). Joined offline it gives
+# the session-length distribution, the connect→login conversion, and the web-vs-
+# purist mix — the signal for tuning idle_timeout + reading real DAU/session
+# length without a DB scan (there is no login ledger). One event per connect/
+# disconnect = very low volume, so 1.0 (full capture) is the launch default;
+# sampling down would blur the very session-length curve it exists to show.
+telemetry.session_sample: 1.0         # fraction of session lifecycle events emitted (0..1]
 
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
