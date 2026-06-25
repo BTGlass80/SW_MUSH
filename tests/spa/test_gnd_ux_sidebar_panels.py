@@ -128,10 +128,27 @@ def _extract_fn(html: str, fn_name: str) -> str:
 
 
 def test_here_panel_npc_action_buttons_wire_sendCmd():
-    """NPC action buttons in renderHerePanel call sendCmd(action + ' ' + npc.name)."""
+    """NPC action buttons in renderHerePanel dispatch the action verb via sendCmd.
+
+    UX Drop 1 routed the per-verb command through
+    M3Affordances.commandForAction(action, npc), which returns the legacy
+    "<verb> <name>" for every verb EXCEPT the new 'claim' verb (→ the real
+    bare '+bounty/collect'). The dispatch contract (a button issues a command
+    built from the action) is preserved; only the literal shape moved into the
+    module. Assert the new dispatch path still ends in sendCmd(cmd).
+    """
     block = _extract_fn(_html(), "renderHerePanel")
-    assert re.search(r"sendCmd\s*\(\s*action\s*\+\s*['\"] ['\"]", block), (
-        "renderHerePanel action buttons should call sendCmd(action + ' ' + npc.name)"
+    assert "commandForAction" in block, (
+        "renderHerePanel should build the command via M3Affordances.commandForAction"
+    )
+    assert "sendCmd(cmd)" in block, (
+        "renderHerePanel action buttons should dispatch the built command via sendCmd"
+    )
+    # And the module's mapping still produces "<verb> <name>" for non-claim verbs.
+    aff = (REPO_ROOT / "static" / "spa" / "m3_affordances.js").read_text(
+        encoding="utf-8")
+    assert re.search(r"action\s*\+\s*' '\s*\+", aff), (
+        "commandForAction lost the legacy '<verb> <name>' mapping"
     )
 
 

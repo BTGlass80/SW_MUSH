@@ -88,6 +88,23 @@ def _classify_npc_role(npc_row: dict) -> str:
         except Exception:
             ai_cfg = {}
 
+    # ── Guide-protect (UX Drop 1) ──────────────────────────────────────
+    # Quest-givers and guides must NEVER be classed huntable/hostile/guard —
+    # a player attacking the NPC a chain step says to `talk` to is a hard
+    # immersion + onboarding break. Check the protective markers BEFORE the
+    # hostile flag and the name-keyword guard heuristic so a non-hostile
+    # quest-giver whose name happens to contain a guard keyword (e.g. a
+    # "Sergeant"/"Squad-Lead" recruiter) is never given an attack affordance.
+    # The marker is positive + explicit (ai_config `quest_giver`/`guide`/
+    # `quest`, or an authored `role: quest`/`guide`); the `quest` role is
+    # consumed by `_npc_actions` (talk-only, no attack).
+    _quest_flag = str(ai_cfg.get("quest", "")).strip().lower()
+    if (ai_cfg.get("quest_giver") or ai_cfg.get("guide")
+            or _quest_flag in ("true", "1", "yes")
+            or str(ai_cfg.get("role", "")).lower() in ("quest", "guide",
+                                                       "quest_giver")):
+        return "quest"
+
     # Check explicit hostile flag first
     if ai_cfg.get("hostile"):
         return "hostile"
@@ -98,11 +115,17 @@ def _classify_npc_role(npc_row: dict) -> str:
 
     # Check faction-based roles
     name_lower = npc_row.get("name", "").lower()
+    combat_beh = (ai_cfg.get("combat_behavior") or "").lower()
 
-    # Guard / patrol detection
+    # Guard / patrol detection. Guide-protect: the name heuristic only
+    # promotes to `guard` (an attackable role in unsecured zones) when a
+    # corroborating combat signal is present — a purely peaceful NPC that
+    # merely *reads* like a guard (name keyword, no aggressive behavior)
+    # stays neutral and never gets an attack affordance it shouldn't.
     if any(kw in name_lower for kw in ("guard", "patrol", "trooper", "sentry",
                                         "soldier", "enforcer")):
-        return "guard"
+        if combat_beh in ("aggressive", "patrol", "defensive") or ai_cfg.get("hostile"):
+            return "guard"
 
     # Mechanic / shipwright detection
     if any(kw in name_lower for kw in ("mechanic", "shipwright", "technician",
@@ -113,8 +136,7 @@ def _classify_npc_role(npc_row: dict) -> str:
     if any(kw in name_lower for kw in ("bartender", "barkeep", "wuher")):
         return "bartender"
 
-    # Combat behavior suggests guard role
-    combat_beh = (ai_cfg.get("combat_behavior") or "").lower()
+    # Combat behavior suggests guard role (combat_beh resolved above).
     if combat_beh in ("aggressive", "patrol"):
         return "guard"
 
@@ -141,6 +163,11 @@ def _npc_actions(role: str, hostile: bool, in_combat: bool,
     elif role == "mechanic":
         actions.extend(["talk", "repair"])
     elif role == "bartender":
+        actions.append("talk")
+    elif role == "quest":
+        # Guide-protect (UX Drop 1): quest-givers / guides are talk-only;
+        # never surface an attack affordance for the NPC a chain step
+        # tells the player to talk to.
         actions.append("talk")
     else:
         actions.append("talk")
@@ -1271,13 +1298,43 @@ class Session:
         except Exception:
             log.debug("_hud_room_contents: vendor droid load failed", exc_info=True)
 
-        # Detect combat
+        # Detect combat (UX Drop 1: replace the dead `engine.combat.get_combat`
+        # hook — that symbol never existed, so the ImportError was swallowed and
+        # `in_combat` was always False). Active combats live in the parser-level
+        # registry `parser.combat_commands._active_combats`, keyed by
+        # `_combat_key_for(char)` which folds in wilderness coords — a bare
+        # room_id lookup would miss/collide on wilderness tiles. Read it through
+        # that helper so the key matches how combats are actually registered.
         in_combat = False
         try:
-            from engine.combat import get_combat
-            in_combat = get_combat(room_id) is not None
+            from parser.combat_commands import (
+                _active_combats, _combat_key_for, _combat_finished,
+            )
+            combat = _active_combats.get(_combat_key_for(char))
+            # Live-fight signal: a registered combat that isn't already decided.
+            # `_combat_finished` is the canonical predicate the flee/disengage
+            # paths use — it returns True for a fight that's resolved (e.g. the
+            # last hostile is down) but not yet torn down, so we don't surface a
+            # stale FLEE affordance in that teardown window. (Bare
+            # `active_combatants` would still count the surviving PC there.)
+            in_combat = combat is not None and not _combat_finished(combat)
         except Exception as e:
             log.debug("_hud_room_contents: combat check failed: %s", e)
+
+        # Bounty cross-check (UX Drop 1): is any NPC in this room the caller's
+        # OWN claimed bounty target standing here? The board is the in-memory
+        # singleton, so this is an O(npcs) dict scan — no N+1 DB query. Note
+        # `find_by_npc` already filters to status==CLAIMED but NOT by hunter, so
+        # we additionally require `claimed_by == str(char_id)` (claimed_by is
+        # stored as a string). Best-effort: a board failure must never crash the
+        # HUD push.
+        board = None
+        try:
+            from engine.bounty_board import get_bounty_board
+            board = get_bounty_board()
+        except Exception as e:
+            log.debug("_hud_room_contents: bounty board unavailable: %s", e)
+        my_char_id = str(char.get("id"))
 
         # Enhanced NPC entries
         npc_entries = []
@@ -1291,13 +1348,34 @@ class Session:
                     ai_cfg = {}
             is_hostile = ai_cfg.get("hostile", False)
             actions = _npc_actions(role, is_hostile, in_combat, security_level)
+
+            # Is this NPC the caller's OWN claimed bounty target?
+            is_bounty_target = False
+            if board is not None:
+                try:
+                    contract = board.find_by_npc(n["id"])
+                    is_bounty_target = bool(
+                        contract and str(contract.claimed_by) == my_char_id
+                    )
+                except Exception:
+                    is_bounty_target = False
+            if is_bounty_target and "claim" not in actions:
+                # CLAIM → the real `+bounty/collect` verb (no argument; it
+                # operates on the caller's single active contract).
+                actions = actions + ["claim"]
+
             npc_entries.append({
                 "id": n["id"],
                 "name": n["name"],
                 "role": role,
                 "hostile": is_hostile,
                 "actions": actions,
+                "is_bounty_target": is_bounty_target,
             })
+
+        # UX Drop 1: surface combat state to the client so the qa-row can inject
+        # a FLEE affordance. Top-level field; absent consumers are unaffected.
+        hud["in_combat"] = in_combat
 
         hud["room_contents"] = {
             "npcs": npc_entries,
