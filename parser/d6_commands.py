@@ -5,9 +5,10 @@ Lets players use the dice engine directly in-game.
 """
 from parser.commands import BaseCommand, CommandContext, AccessLevel
 from engine.dice import (
-    DicePool, roll_d6_pool, difficulty_check, opposed_roll, Difficulty,
+    DicePool, roll_d6_pool, opposed_roll, Difficulty,
 )
 from engine.character import Character, SkillRegistry
+from engine.skill_checks import perform_skill_check
 from server import ansi
 import logging
 
@@ -191,9 +192,14 @@ class CheckCommand(BaseCommand):
             await ctx.session.send_line(f"  Unknown skill: '{skill_str}'")
             return
 
-        char_obj = Character.from_db_dict(char)
-        pool = char_obj.get_skill_pool(sd.name, skill_reg)
-        result = difficulty_check(pool, target)
+        # Funnel compliance (hard invariant: ALL out-of-combat dice resolve
+        # through perform_skill_check). Routing +check through the funnel means
+        # a player's manual skill check now honors active buffs/debuffs, a
+        # carried-tool bonus, the SANDSTORM perception penalty, and a staged
+        # combined-action lead bonus — and emits the skill_check telemetry event
+        # — exactly like every system-driven check. The old inline
+        # dice path (a raw pool roll vs the target) did none of that.
+        result = perform_skill_check(char, sd.name, target, skill_reg)
 
         diff_name = Difficulty.describe(target)
         if result.success:
@@ -201,9 +207,19 @@ class CheckCommand(BaseCommand):
         else:
             outcome = ansi.red(f"FAILURE by {abs(result.margin)}")
 
+        # result.roll is the int total; result.pool_str is the EFFECTIVE pool
+        # (after buffs/tool/lead), so the player sees what was actually rolled.
+        detail = f"{result.pool_str} = {result.roll}"
+        if result.critical_success:
+            detail += " " + ansi.bright_white("(critical!)")
+        elif result.fumble:
+            detail += " " + ansi.yellow("(complication!)")
+        if result.tool_name:
+            detail += f" [{result.tool_name}]"
+
         await ctx.session.send_line(
             f"  {ansi.cyan(sd.name)} vs {diff_name} ({target}): "
-            f"{result.roll.display()} -> {outcome}"
+            f"{detail} -> {outcome}"
         )
 
         # Room sees abbreviated result
