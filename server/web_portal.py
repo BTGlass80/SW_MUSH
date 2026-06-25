@@ -984,6 +984,11 @@ class PortalAPI:
             "summary":      getattr(entry, "summary", "") or "",
             "tags":         list(getattr(entry, "tags", []) or []),
             "access_level": getattr(entry, "access_level", 0),
+            # Palette staging guard: only True for code-derived command verbs
+            # (set by HelpManager.auto_register_commands). Help-only TOPIC_HELP
+            # entries and markdown-loaded entries carry False — the palette
+            # filters them so selecting never stages a non-typeable string.
+            "is_command":   bool(getattr(entry, "is_command", False)),
         }
 
     @staticmethod

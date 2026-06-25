@@ -33,6 +33,11 @@ class HelpEntry:
     examples: list[dict] = field(default_factory=list)      # [{"cmd": "...", "description": "..."}]
     tags: list[str] = field(default_factory=list)           # search/filter tags
     updated_at: str = ""                                    # ISO-8601 from frontmatter or file mtime
+    # Palette staging flag: True only for verbs that auto_register_commands()
+    # derives from the live command registry (i.e. typeable verbs). Help-only
+    # TOPIC_HELP entries and markdown-loaded entries default to False so the
+    # command palette never stages a non-verb that would dead-end at "Huh?".
+    is_command: bool = False
 
 
 class HelpManager:
@@ -264,6 +269,7 @@ class HelpManager:
                 body=body,
                 aliases=[a.lower() for a in cmd.aliases],
                 access_level=cmd.access_level,
+                is_command=True,  # code-derived from registry → typeable verb
             )
             self.register(entry)
 

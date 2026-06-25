@@ -355,9 +355,13 @@ function _renderResults(q) {
 
   var corpus = _cache || [];
 
-  // Score and sort
+  // Score and sort. Filter to is_command entries only: help-only TOPIC_HELP
+  // entries carry is_command=false from the server; selecting them would stage
+  // a non-typeable key that dead-ends at "Huh?". Topics are reachable via the
+  // Reference sidebar; the palette is exclusively for typeable verb shortcuts.
   var scored = [];
   for (var i = 0; i < corpus.length; i++) {
+    if (!corpus[i].is_command) continue;
     var s = _score(corpus[i], q);
     if (s > 0) scored.push({ e: corpus[i], s: s });
   }
