@@ -201,11 +201,23 @@ class TalkCommand(BaseCommand):
             await self._list_npcs(ctx)
             return
 
-        parts = ctx.args.split(None, 1)
-        npc_name = parts[0]
-        message = parts[1] if len(parts) > 1 else "Hello."
-
-        npc_row = await _find_npc_in_room(ctx, npc_name)
+        # Multi-word NPC names (e.g. "Major Tarrn") must resolve as the NPC,
+        # not split as "talk <first-word> <rest-as-message>". The tutorial's
+        # first instructed action is `talk Major Tarrn` to START a conversation;
+        # the naive first-word split sent "Tarrn" as a message to "Major"
+        # instead of opening dialogue (fun-assessment finding). So try the FULL
+        # argument as an NPC name first (→ default greeting), and only fall back
+        # to the <npc> <message> split when the whole thing isn't an NPC here.
+        full = ctx.args.strip()
+        npc_row = await _find_npc_in_room(ctx, full)
+        if npc_row:
+            npc_name = full
+            message = "Hello."
+        else:
+            parts = ctx.args.split(None, 1)
+            npc_name = parts[0]
+            message = parts[1] if len(parts) > 1 else "Hello."
+            npc_row = await _find_npc_in_room(ctx, npc_name)
         if not npc_row:
             await ctx.session.send_line(f"  You don't see '{npc_name}' here.")
             return

@@ -13840,10 +13840,25 @@ document.addEventListener('keydown', function(e) {
   }
 }, true);
 
+// Suppress an ambient bark identical to the most-recent one within a short
+// window — the server re-emits the same ambient line on a cadence (e.g.
+// "Distant thunder rolls...") and a steady repeat buries the player's own
+// command output (fun-assessment finding). Distinct lines always render, and
+// the same line returns after the window, so atmosphere is kept, not spammed.
+var _lastAmbientBarkText = '';
+var _lastAmbientBarkTs = 0;
+var _AMBIENT_BARK_DEDUP_MS = 20000;
 function handleAmbientBark(msg) {
-  if (msg.text || msg.data) {
-    appendEvent({ t: 'desc-inline', text: msg.text || msg.data });
+  var text = msg.text || msg.data;
+  if (!text) return;
+  var now = Date.now();
+  if (text === _lastAmbientBarkText &&
+      (now - _lastAmbientBarkTs) < _AMBIENT_BARK_DEDUP_MS) {
+    return;   // recent identical bark — skip the repeat
   }
+  _lastAmbientBarkText = text;
+  _lastAmbientBarkTs = now;
+  appendEvent({ t: 'desc-inline', text: text });
 }
 function handleChatMsg(msg) {
   // Channel chat routed to pose log as comm-in
