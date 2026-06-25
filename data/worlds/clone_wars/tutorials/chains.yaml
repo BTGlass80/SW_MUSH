@@ -2506,6 +2506,186 @@ chains:
           The Crooked Wheel is broken. Dorae's good word travels the market
           floor — freelance work finds those who finish it.
 
+  # T3.24 third slice (2026-06-25). The THIRD accessible kind:questline
+  # chain, set on Coruscant's lower city (vs Nar Shaddaa / Tatooine) and
+  # exercising a THIRD distinct skill spread (persuasion + sneak). A
+  # rescue/recovery story shape, not a racket-bust. Reuses the live
+  # questline engine with NO new engine code/slot/event type.
+  - chain_id: coruscant_lower_lost_courier
+    chain_name: "The Lost Courier"
+    description: >
+      A lower-city fixer's young courier vanished two days ago carrying a
+      client's data-spike into the Southern Underground and never came back.
+      The warren that saw the grab is too scared to talk, the trail runs
+      through a sealed bolt-hole in the Petrax sublevels, and a Trandoshan
+      enforcer is holding the kid in the Factory District until a buyer
+      collects. Talk the warren open, slip the bolt-hole, and get the courier
+      back. A freelance favor — open to anyone, no faction required.
+    archetype_label: "Freelance Recovery"
+    faction_alignment: independent
+    starting_zone: southern_underground
+    starting_room: crystal_jewel_cantina
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["lost_courier_found"]
+      drop_room: crystal_jewel_cantina
+      follow_up_hint: >
+        Sashi Renko keeps her word, and word travels the lower city fast. A
+        fixer who vouches for you is worth more than the cut — freelance work
+        finds those who finish it.
+
+    steps:
+      - step: 1
+        title: "The Fixer's Booth"
+        location: crystal_jewel_cantina
+        npc: "Sashi Renko"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Sashi Renko in her booth at the Crystal Jewel Cantina."
+        npc_intro: >
+          "You look like you can keep your mouth shut and your eyes open. Good —
+          that's the job. I'm Sashi, I match jobs to hands down here. Two days
+          ago I put a kid named Tav on a simple data-run and he never came back.
+          My contacts have all gone suddenly deaf about it. Somebody grabbed him,
+          and the whole warren near his last stop is too scared to say what they
+          saw. Go down there and `talk` them open — the truth's in that warren if
+          you can pry it loose."
+        completion:
+          type: talk_to_npc
+          npc: "Sashi Renko"
+        npc_complete: >
+          "Start at the Refugee Warren — that was Tav's last stop before he went
+          dark. They saw the grab, I'd bet my booth on it. They won't volunteer
+          it, though; you'll have to `persuade` someone to talk. Be gentle. Half
+          of them are one bad week from being grabbed themselves."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to the Lower City Refugee Warren and `persuade` a witness to talk — `chain attempt`."
+
+      - step: 2
+        title: "The Warren That Forgot"
+        location: lower_refugee_warren
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["persuasion"]
+        objective: "Persuade a frightened witness in the Refugee Warren to talk."
+        npc_intro: >
+          [The Refugee Warren is a low maze of curtained alcoves and watchful
+          eyes; everyone here saw something and no one will be the one who said
+          it.] Somebody watched the kid get taken. Find them, read the fear, and
+          `persuade` them it's safer to talk to you than to keep carrying it —
+          use `chain attempt` to make the case.
+        completion:
+          type: skill_check_passed
+          skill: "persuasion"
+          difficulty: 10
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [An old spacer with shaking hands finally lets it out: a Trandoshan
+          dragged the kid toward the old Petrax sublevels two nights back, into a
+          maintenance hatch the locals know to stay clear of. "Sealed bolt-hole,"
+          she whispers. "Watched. Don't go loud or you'll join him."]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "The trail runs to a watched bolt-hole in the Petrax sublevels. Slip it quietly — `sneak`, `chain attempt`."
+
+      - step: 3
+        title: "The Bolt-Hole"
+        location: petrax_sublevels
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["sneak"]
+        objective: "Sneak past the lookout into the Petrax sublevels bolt-hole."
+        npc_intro: >
+          [The Petrax sublevels are black and dripping, and a lookout sits where
+          the only passage narrows — go loud and the kid pays for it.] You don't
+          have to fight your way in; you have to *not be seen*. Use your `sneak` —
+          time the lookout, take the dead ground, slip the bolt-hole — and find
+          where they're holding Tav. `chain attempt` when you make your move.
+        completion:
+          type: skill_check_passed
+          skill: "sneak"
+          difficulty: 12
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [Past the lookout, the cell is empty — but a fresh scuff of drag-marks
+          and a dropped courier's tag tell the story: they moved him at
+          shift-change, up to a stripped holding cell in the Factory District,
+          waiting on a buyer. He's alive. He won't stay that way once the
+          hand-off happens.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "Tav's been moved to a holding cell in the Factory District. Get there before the buyer does."
+
+      - step: 4
+        title: "The Holding Cell"
+        location: factory_district
+        npc: "Skarn Vex"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Confront Skarn Vex in the Factory District and free the courier — `attack`, `dodge`."
+        npc_intro: >
+          [The Factory District's dead conveyor lines swallow every sound, which
+          is exactly why the grab job ends here. Tav is chained to a stanchion,
+          bruised but whole. Skarn Vex pushes off the line, reads the whole trail
+          on your face, and the lazy menace finally sharpens.] "You traced the
+          kid all the way down here, soft-skin? Now I have to keep two of you
+          quiet."
+        completion:
+          type: combat_won
+          enemy_template: "coruscant_lost_courier_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Skarn Vex goes down against the dead conveyor. The cell key and the
+          recovered data-spike are on his harness; Tav, shaking the chains off,
+          can barely get the thanks out. The buyer is going to arrive to an empty
+          cell and a dead enforcer — and no merchandise.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "Tav's free and the spike's recovered. Walk him back up to Sashi at the Crystal Jewel."
+
+      - step: 5
+        title: "Squaring the Job"
+        location: crystal_jewel_cantina
+        npc: "Sashi Renko"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Sashi Renko to close the job."
+        npc_intro: >
+          "You walked him right back in the door." [Sashi turns the data-pad
+          face-up for the first time in two days, some of the stillness going out
+          of her shoulders.] "Spike recovered, kid breathing, and a freelance
+          enforcer down a job. That's the cleanest run anybody's done me in a
+          long while. Here's your cut, and then some."
+        completion:
+          type: talk_to_npc
+          npc: "Sashi Renko"
+        npc_complete: >
+          "Square. You did honest work and you brought a kid home — that buys you
+          my word on the lower-city floor, which down here is worth more than the
+          credits. Anyone leans on you about freelance, you tell them Sashi Renko
+          vouches. Walk easy."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The Lost Courier is home. Sashi's good word travels the Southern
+          Underground — freelance work finds those who finish it.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════

@@ -1,0 +1,175 @@
+# Generalized Questline Drop — "The Lost Courier" (T3.24 third slice, 2026-06-25)
+#
+# The THIRD accessible (non-t5, non-tutorial) `kind: questline` chain, after
+# "The Ghost Shipment" (nar_freight_ghost_shipment, Nar Shaddaa) and "The
+# Crooked Wheel" (mos_eisley_crooked_wheel, Tatooine/Mos Eisley). It reuses the
+# SAME live questline engine (engine/tutorial_chains.py + chain_events.py: the
+# `kind: questline` type + `active_questline` slot) with NO new engine code,
+# no new slot, and no new event type — the sanctioned right-of-launch widening
+# per quest_expansion_postlaunch_path_v1.md (T3.24): author MORE questlines on
+# the proven pattern.
+#
+# Deliberately set on CORUSCANT's lower city (the Southern Underground), so the
+# three accessible questlines now span three planets (Nar Shaddaa / Tatooine /
+# Coruscant) rather than clustering. Like the first two it is ACCESSIBLE: any
+# post-chargen character can take it (prerequisites: chargen_complete; no
+# faction rep gate), it runs in normal Coruscant lower-city rooms,
+# faction-neutral (independent), and pays a modest credit/rep reward + a
+# lower-tier achievement (cp_reward 3, matching the Ghost Shipment / Crooked
+# Wheel band, vs the t5 trainer chains' 5). It exercises a THIRD distinct skill
+# spread — PERSUASION + SNEAK (vs search+streetwise on the Ghost Shipment and
+# investigation+gambling on the Crooked Wheel) — so the three accessible
+# questlines teach distinct play. It is also a different STORY SHAPE: a
+# rescue/recovery, not a racket-bust.
+#
+# Premise: a lower-city fixer's young courier vanished two days ago carrying a
+# client's data-spike into the Southern Underground and never came back. The
+# warren saw the grab but is too frightened to talk; the trail runs through a
+# sealed bolt-hole in the Petrax sublevels to a Trandoshan enforcer holding the
+# kid in the Factory District. Talk the warren open, slip the bolt-hole, and
+# get the courier back.
+#
+# These NPCs back the `coruscant_lower_lost_courier` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Sashi Renko    — the fixer who offers + closes the quest (step-1 npc =
+#                      the questline's start-NPC, per get_questline_offer).
+#   * Skarn Vex      — the combat-step enforcer (ai_config.chain_enemy_template
+#                      coruscant_lost_courier_enforcer; the step-4 combat_won
+#                      foil).
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures.
+# Provenance: stats matched to the shipped accessible-questline antagonist band
+# (Gorvahn Brusk / Brakkis Vone) — same small-time-criminal archetype, beatable
+# by a fresh post-chargen character but a real fight. WEG40120 PDF is local-only
+# (gitignored) and absent in this tree; the band is cited against the in-repo
+# reference NPCs, not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The fixer — Sashi Renko (questline GIVER + closer)
+  # Questline: coruscant_lower_lost_courier ("The Lost Courier")
+  # Placement: Coruscant - Crystal Jewel Cantina (crystal_jewel_cantina,
+  #            zone southern_underground). Step-1 + step-5 NPC.
+  # NOTE: she is a regular/fixer who works the corner booth — NOT Vella,
+  # the cantina's established bartender. Distinct presence, same room.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Sashi Renko
+    room: "Coruscant - Crystal Jewel Cantina"
+    species: Devaronian
+    description: >-
+      A red-skinned Devaronian woman with filed-down horns and a data-pad she
+      keeps face-down on the table, working the corner booth of the Crystal
+      Jewel like an office. She is a fixer — she matches small jobs to lower-city
+      hands who need the work and clients who can't be seen hiring, and she keeps
+      her word because in the Southern Underground a reputation is the only
+      collateral worth anything. Two days ago she put a kid courier named Tav on
+      a simple data-run and he never came back. She has spent both nights leaning
+      on contacts who suddenly don't remember him, and it has put a hard, careful
+      stillness into her — the look of someone deciding whether the stranger
+      across her booth is muscle she can trust or just another dead end.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 3D+1
+        mechanical: 2D
+        perception: 3D+2
+        strength: 2D
+        technical: 2D
+      skills:
+        persuasion: 4D+2
+        con: 4D+1
+        streetwise: 4D+1
+        investigation: 4D
+        bargain: 3D+2
+        bureaucracy: 3D+1
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A lower-city fixer, sharp and unsentimental, who nonetheless takes the
+        loss of her courier personally — Tav is a kid, and she sent him. Not a
+        fighter; she trades favors and reads people. Honest in her own
+        transactional way: she pays what she promises and never forgets who
+        delivered. Slow to trust, total once it's earned.
+      knowledge:
+        - "She runs small off-the-books jobs out of the Crystal Jewel booth, matching lower-city hands to clients who can't be seen hiring."
+        - "Two days ago she sent a young courier named Tav on a data-spike run into the Southern Underground; he never reported back and her contacts have gone quiet about it."
+        - "She has no proof who took him, only that the warren near his last stop saw something and is too scared to say — the lower-city enforcers won't touch a missing courier nobody official is asking about."
+        - "She pays a fair cut up front and stays clear of cartel and faction politics — she just wants the kid back and the data-spike recovered before the client comes asking."
+      faction: independent
+      dialogue_style: >-
+        Quiet, clipped, lower-city dry. Talks jobs, cuts, and contacts, not war.
+        Lets a beat of silence do her arguing.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'I sent a kid on a simple run and the whole warren forgot his name overnight. That's not luck, that's somebody leaning.'"
+        - "*Sashi turns the data-pad face-down and watches the cantina door for a long moment.*"
+        - "'Bring Tav back and recover that spike, and there's a fair cut in it — and my word on the floor, which is worth more.'"
+
+  # ── Questline antagonist: Skarn Vex (combat step 4) ─────────────────
+  # Single hostile instance in the Factory District holding cell. Matches
+  # the coruscant_lower_lost_courier step-4 combat_won enemy_template.
+
+  - name: Skarn Vex
+    room: "Coruscant - Factory District"
+    species: Trandoshan
+    description: >-
+      A scarred Trandoshan in a reinforced enforcer's harness, lounging against a
+      dead conveyor line where the Factory District's noise swallows anything
+      that happens here. He runs grabs for whoever pays — debt skips, witnesses,
+      the occasional courier carrying something a client wants back — and he
+      keeps the merchandise breathing in a stripped maintenance cell until the
+      buyer arrives, because a live delivery pays better than a dead one. Tav is
+      chained to a stanchion behind him, bruised but whole. When he reads the
+      trail on your face — the warren, the bolt-hole, all of it leading straight
+      to his quiet little holding spot — the lazy patience goes out of him,
+      because a rescuer who found the cell is the one complication a grab job
+      can't survive.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+2
+        brawling: 4D+2
+        intimidation: 4D+1
+        streetwise: 3D+1
+        melee_combat: 4D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: coruscant_lost_courier_enforcer
+      personality: >-
+        A freelance enforcer who runs grabs for hire, all lazy menace until the
+        job is threatened. He would rather intimidate a rescuer into walking away
+        than fight, but he will absolutely shoot someone who has traced a held
+        courier to the cell. Combat foil for the questline's confrontation beat.
+      knowledge:
+        - "He runs grabs for hire in the lower city — debt skips, witnesses, couriers — and holds live merchandise in a stripped Factory District maintenance cell until a buyer collects."
+        - "He took the courier Tav for the data-spike he was carrying and keeps him alive because a live hand-off pays better; he silences anyone who traces the grab to the cell."
+      faction: criminal
+      dialogue_style: >-
+        Low Trandoshan rasp, unhurried and amused, until it isn't. Calls people
+        'soft' right up until he calls them a loose end.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'You traced the kid all the way down here, soft-skin? Now I have to keep two of you quiet.'"
+        - "*Skarn Vex pushes off the conveyor line, and the lazy amusement drains out of his slit eyes.*"
+        - "'Nothing personal. The merchandise stays breathing — you, I make no promises.'"

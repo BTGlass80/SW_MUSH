@@ -435,3 +435,17 @@ achievements:
     icon: "🎲"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "mos_eisley_crooked_wheel"}
+
+  # T3.24 generalized-questline arc (2026-06-25): the THIRD accessible
+  # (non-t5, non-tutorial) questline. Earned by tracing a grabbed courier
+  # through Coruscant's Southern Underground and freeing the kid from a
+  # Trandoshan enforcer for the fixer Sashi Renko. Same lower-tier band as
+  # the Ghost Shipment / Crooked Wheel (cp_reward 3 vs the t5 trainer
+  # chains' 5): open freelance side-content, not a rep-gated trial.
+  - key: lost_courier_found
+    name: "The Lost Courier"
+    description: "Talked a frightened warren open, slipped a watched bolt-hole, and brought a fixer's grabbed courier home alive from the Coruscant underworld. Some jobs are only simple until somebody disappears."
+    category: profession
+    icon: "🛰️"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "coruscant_lower_lost_courier"}
