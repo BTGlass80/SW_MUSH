@@ -218,6 +218,13 @@ telemetry.communal_menace_sample: 1.0 # fraction of menace escalation ticks emit
 # sampling down would blur the very session-length curve it exists to show.
 telemetry.session_sample: 1.0         # fraction of session lifecycle events emitted (0..1]
 
+# ── Combat CP (engine/combat_cp.py) ──
+# Early-game combat CP faucet: the first N hostile NPC kills each grant +1 CP
+# (lifetime seal per character). Funds ~one die-step on first session without
+# disturbing the long-term RP-first economy. Per-kill award is fixed at 1 CP;
+# only the cap is tunable. Set to 0 to disable entirely.
+combat.early_cp_kill_cap: 5
+
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
 # Brian decision #7 (2026-06-16): T3.14 cities are OPTIONAL at launch.

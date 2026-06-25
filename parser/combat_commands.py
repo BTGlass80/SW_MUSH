@@ -385,6 +385,7 @@ async def _try_auto_resolve(combat, ctx):
         # But we DO need to apply wear and persist wounds immediately
         await _apply_combat_wear(combat, ctx, _pre_npcs)
         await _award_mob_grind_rewards(combat, ctx, _pre_npcs)
+        await _award_early_combat_cp(combat, ctx, _pre_npcs)
 
         # Phase 7c (May 23 2026): city-guard combat-round triggers.
         # Check if any city guards in this room should now join
@@ -998,6 +999,65 @@ async def _award_mob_grind_rewards(combat, ctx, pre_npcs):
         except Exception as _e:
             log.warning("Mob-grind reward error for NPC %s: %s",
                         getattr(c, "id", None), _e, exc_info=True)
+
+
+async def _award_early_combat_cp(combat, ctx, pre_npcs):
+    """Early-game combat CP faucet (fun2-combat-cp, 2026-06-25).
+
+    For each NPC that LEFT combat this round at wound_level DEAD and whose
+    killing blow is attributed to a live PC, check whether that PC still has
+    early_combat_cp kills remaining under the lifetime cap. If so, award +1 CP
+    via the milestone funnel (tagged ``"early_combat"``) and emit a brief
+    player-visible line. After the first 5 kills the faucet is permanently dry
+    for that character.
+
+    Mirrors ``_award_mob_grind_rewards`` structurally: iterates ``pre_npcs``,
+    uses ``last_attacker_id`` for kill attribution, gates on a live online
+    session, and wraps every NPC iteration in a per-NPC try/except so a
+    single bad NPC row can never abort the rest of the loop or disturb combat.
+    The outer function itself is never called unless ``pre_npcs`` is truthy.
+    """
+    if not pre_npcs:
+        return
+    try:
+        from engine.character import WoundLevel as _WLCP
+        from engine.combat_cp import award_early_combat_cp
+    except Exception:
+        return
+
+    for c in pre_npcs:
+        try:
+            if c.id in combat.combatants:
+                continue  # NPC survived the round — not killed
+            if not (c.char and c.char.wound_level.value >= _WLCP.DEAD.value):
+                continue  # left combat for another reason (fled), not killed
+
+            _kid = c.last_attacker_id
+            if _kid is None or not ctx.session_mgr:
+                continue
+            _sess = ctx.session_mgr.find_by_character(int(_kid))
+            if not (_sess and _sess.character):
+                continue  # killer offline / not a live PC
+
+            summary = await award_early_combat_cp(ctx.db, _sess.character)
+            if summary:
+                if summary["faucet_sealed"]:
+                    # Reached the cap on this kill — tell the player once.
+                    await _sess.send_line(
+                        "  \033[1;32m[+1 CP — combat experience]\033[0m "
+                        "Your instincts are sharpened. "
+                        "(Early combat bonus complete — advancement continues "
+                        "through roleplay and missions.)"
+                    )
+                else:
+                    await _sess.send_line(
+                        f"  \033[1;32m[+1 CP — combat experience]\033[0m "
+                        f"({summary['kills_credited']}/{summary['cap']} "
+                        f"early kills credited.)"
+                    )
+        except Exception as _ce:
+            log.warning("Early-combat CP error for NPC %s: %s",
+                        getattr(c, "id", None), _ce, exc_info=True)
 
 
 async def _apply_combat_wear(combat, ctx, pre_npcs=None):
@@ -2636,6 +2696,7 @@ class ResolveCommand(BaseCommand):
         # Admin resolve skips posing — auto-generate all poses and flush
         await _apply_combat_wear(combat, ctx, _pre_npcs)
         await _award_mob_grind_rewards(combat, ctx, _pre_npcs)
+        await _award_early_combat_cp(combat, ctx, _pre_npcs)
 
         # Phase 7c: city-guard combat-round triggers (also fires
         # on admin resolve so the behavior is consistent across
