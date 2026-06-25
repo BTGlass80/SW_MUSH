@@ -229,7 +229,11 @@ function buildInitiativeLadder(p, order) {
         fontWeight: 700, textAlign: 'center', letterSpacing: 0.5,
       }
     }, ['init ' + o.init]));
-    children.push(htmlEl('div', null, [
+    // UX Drop 2 (combat HUD): cover label on the ladder row. `o.cover` is
+    // the COVER_NAMES short label ("1/2 COVER") the live wiring passes when
+    // the combatant is behind cover; absent ⇒ no label (zero DOM), matching
+    // the buildConditionChips returns-null-when-empty convention.
+    var nameChildren = [
       htmlEl('div', {
         style: {
           fontSize: 10.5, color: c, letterSpacing: 0.5,
@@ -239,7 +243,14 @@ function buildInitiativeLadder(p, order) {
       htmlEl('div', {
         style: { fontSize: 9, color: p.inkDim }
       }, [o.action || '']),
-    ]));
+    ];
+    if (o.cover) {
+      nameChildren.push(htmlEl('div', {
+        className: 'init-cover',
+        style: { fontSize: 8, color: p.cyan, letterSpacing: 1, marginTop: 1 }
+      }, ['◣ ' + o.cover]));
+    }
+    children.push(htmlEl('div', null, nameChildren));
     if (o.current) {
       children.push(htmlEl('span', {
         style: {
@@ -518,6 +529,14 @@ function buildYourStatus(p, status) {
     chips:   ['IN COVER', 'AIM USED', 'FP 2'],
   };
 
+  // UX Drop 2 (combat HUD wound track): the live wiring passes a
+  // severity-keyed color (from client.html's woundColor()) so the track
+  // grades green→amber→red as wounds stack, instead of a flat red. When
+  // absent (the prototype default fixture / existing tests), fall back to
+  // the original red-lit / green-label vocabulary so nothing regresses.
+  var litColor   = status.woundColor || p.red;     // lit pip + wound label
+  var labelColor = status.woundColor || p.green;   // wound-level word
+
   var header = htmlEl('div', {
     style: { fontSize: 9, letterSpacing: 3, color: p.amber, fontWeight: 600, marginBottom: 6 }
   }, ['▮▮ ' + status.name]);
@@ -526,7 +545,7 @@ function buildYourStatus(p, status) {
     style: { display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, alignItems: 'baseline' }
   }, [
     htmlEl('span', {
-      style: { fontFamily: "'Space Grotesk'", fontSize: 12, fontWeight: 600, color: p.green }
+      style: { fontFamily: "'Space Grotesk'", fontSize: 12, fontWeight: 600, color: labelColor }
     }, [status.wound]),
     htmlEl('span', {
       style: { fontSize: 9, color: p.red, letterSpacing: 1.5 }
@@ -541,9 +560,9 @@ function buildYourStatus(p, status) {
   }, status.pips.map(function(on) {
     return htmlEl('div', { style: {
       flex: 1, height: 5,
-      background: on ? p.red : 'rgba(0,0,0,0.4)',
-      border: '1px solid ' + (on ? p.red : p.inkFaint),
-      boxShadow: on ? '0 0 3px ' + p.red : 'none',
+      background: on ? litColor : 'rgba(0,0,0,0.4)',
+      border: '1px solid ' + (on ? litColor : p.inkFaint),
+      boxShadow: on ? '0 0 3px ' + litColor : 'none',
     }});
   }));
 
