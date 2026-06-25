@@ -211,6 +211,35 @@ a { color: inherit; text-decoration: none; }
 .combatant-wound.hurt    { color: var(--accent); }
 .combatant-wound.bad     { color: var(--warn); }
 
+/* UX Drop 2 (combat HUD) — cover indicator on the pip meta line. Compact,
+   cyan, only rendered when cover > 0 (the engine already sends `cover`). */
+.combatant-cover {
+  font-family: var(--font-display);
+  color: var(--cock-cyan, #6ee8ff);
+  letter-spacing: 0.5px;
+}
+/* UX Drop 2 (combat HUD) — brief hit/wound flash. Reuses the existing
+   combatPulse keyframe but runs it ONCE for ~550ms (≤600ms cap) rather
+   than as an infinite phase pulse. Applied to the targeted pip + your
+   wound track when a hit lands on you or your declared target. Honours
+   prefers-reduced-motion. */
+.cmb-hit-flash {
+  animation: combatPulse 0.55s ease-in-out 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cmb-hit-flash { animation: none; }
+}
+/* UX Drop 2 (combat HUD) — round-flow coaching subtitle. Renders zero DOM
+   when empty (display toggled off); a quiet hint line under the strip. */
+.combat-coach {
+  font-size: 9px; letter-spacing: 0.5px; line-height: 1.4;
+  color: var(--accent-dim); margin-top: 4px; font-style: italic;
+}
+/* UX Drop 2 (combat HUD) — "your status" wound-track slot. Holds the
+   M3CombatTheater.buildYourStatus render; hidden when you're not a
+   combatant in the current fight. */
+.combat-yourstatus { margin-top: 6px; }
+
 /* UI-3 — combat condition chip rail (poison / restraint). Token-only; the
    biting-poison and restraint chips pulse (opacity + a currentColor glow) to
    read as active threats. Display-only — no chip stages a command. */
@@ -4848,6 +4877,11 @@ a { color: inherit; text-decoration: none; }
           <span class="cs-label">WAITING ON:</span>
           <span class="cs-waiting" id="cs-waiting"></span>
         </div>
+        <!-- UX Drop 2 (combat HUD): your-own wound track. Populated by
+             M3CombatTheater.buildYourStatus from the viewer's combatant
+             dict (wound_level + stun_count), colored via woundColor.
+             Hidden when the viewer isn't in this fight. -->
+        <div class="combat-yourstatus" id="combat-yourstatus" style="display:none;"></div>
       </div>
     </div>
     <!-- G4 (T3.18 ground-UX): compact damage feed. Populated from
@@ -4855,6 +4889,10 @@ a { color: inherit; text-decoration: none; }
          render green, hits you take red, misses/parries/soaks dim. Hidden
          until the first resolved attack arrives. -->
     <div class="combat-feed" id="combat-feed" style="display:none;"></div>
+    <!-- UX Drop 2 (combat HUD): round-flow coaching subtitle. A teaching
+         hint off phase + waiting_for + your_actions ("You've declared.
+         Waiting for Jane & Throk."). Hidden when there's nothing to say. -->
+    <div class="combat-coach" id="combat-coach" style="display:none;"></div>
     <!-- D-client.2: Declaration panel (theatre-conditional action buttons).
          Renders only when phase === 'declaration' AND viewer hasn't declared.
          Action set, tooltips, and button tones come from RE_DECL_ACTIONS in
@@ -5433,6 +5471,42 @@ function stunCap(strengthDice) {
   var n = Number(strengthDice);
   return (isFinite(n) && n > 0) ? n : 3;  // conservative fallback
 }
+
+// ── UX Drop 2 (combat HUD) ───────────────────────────────────────────
+// Cover labels — mirror engine/combat.py COVER_NAMES (0..4). Used by the
+// pip meta line + the initiative ladder. Index 0 (None) renders nothing.
+var COVER_NAMES = ['', '1/4 COVER', '1/2 COVER', '3/4 COVER', 'FULL COVER'];
+function coverLabel(level) {
+  var n = Number(level);
+  return (n >= 1 && n < COVER_NAMES.length) ? COVER_NAMES[n] : '';
+}
+
+// combat-hud localStorage toggle — mirrors the fk_clean_mode flag idiom.
+// 'Full' (default) = wound track + cover + coaching + hit flashes.
+// 'Flashes-only'   = same, but only the hit flash is the "extra" (kept
+//                    for parity with the prototype's tri-state); we treat
+//                    it as Full-minus-nothing here since cover/track are
+//                    cheap legibility, not motion.
+// 'Off'            = suppress the hit FLASH only (static chrome stays —
+//                    never gate information, only the motion).
+function combatHudMode() {
+  try {
+    var v = localStorage.getItem('combat-hud');
+    if (v === 'Off' || v === 'Flashes-only' || v === 'Full') return v;
+  } catch (_) {}
+  return 'Full';
+}
+function combatFlashEnabled() {
+  // The hit flash is the only motion the toggle gates. 'Off' kills it;
+  // 'Flashes-only' and 'Full' keep it.
+  return combatHudMode() !== 'Off';
+}
+
+// Per-round flash rate-limit + last-seen feed signature for event diffing.
+var _combatLastRound = null;
+var _combatFlashesThisRound = 0;
+var _COMBAT_FLASH_MAX_PER_ROUND = 3;
+var _combatLastEvents = [];   // last push's event slice (the ring repeats; de-dup across pushes)
 
 // F13 — title-case condition keys (engine returns "Light Damage" etc.)
 var CONDITION_COLORS = {
@@ -12469,12 +12543,26 @@ function handleCombatState(data) {
     // intentionally NOT added so we never mask the inline color via CSS.
     var woundStyle = wColor ? ' style="color:' + wColor + '"' : '';
 
+    // UX Drop 2 (combat HUD): cover indicator. `cover` (0-4) is already in
+    // to_hud_dict; the client previously dropped it. Render a compact label
+    // on its own meta row only when the combatant is behind cover (>0) —
+    // zero DOM at cover 0, matching the returns-null-when-empty convention.
+    var coverTxt = coverLabel(c.cover);
+    var coverRow = coverTxt
+      ? '<div class="combatant-meta"><span class="combatant-cover">◣ ' +
+          escapeHtml(coverTxt) + '</span></div>'
+      : '';
+
+    // data-cid lets the hit-flash pass locate this pip by combatant id.
+    pip.setAttribute('data-cid', String(c.id));
+
     pip.innerHTML =
       '<div class="combatant-name" title="' + escapeHtml(c.name) + '">' + escapeHtml(c.name) + '</div>' +
       '<div class="combatant-meta">' +
         '<span class="combatant-init">⏵ ' + initLbl + '</span>' +
         '<span class="combatant-wound"' + woundStyle + '>' + escapeHtml(woundLabel) + '</span>' +
       '</div>' +
+      coverRow +
       '<div class="combatant-action' + (c.action_summary ? '' : ' empty') + '" title="' + actionTxt + '">' +
         actionTxt +
       '</div>';
@@ -12514,8 +12602,20 @@ function handleCombatState(data) {
     waitBlock.style.display = 'none';
   }
 
-  // G4: compact damage feed (last few attack outcomes).
+  // UX Drop 2 (combat HUD): your-own wound track + round-flow coaching.
+  // Both read data already in the push; render zero DOM when not applicable.
+  renderYourStatus(data, theatre);
+  renderCombatCoaching(data);
+
+  // G4: compact damage feed (last few attack outcomes). Rendered BEFORE the
+  // hit flash so the feed row is always present immediately — the flash is
+  // pure motion layered on top and must never delay the text.
   renderCombatFeed(data.events);
+
+  // UX Drop 2 (combat HUD): brief hit/wound flash. Diffs data.events for a
+  // hit landing on you or your declared target; rate-limited per round and
+  // gated by the combat-hud toggle. Runs after renderCombatFeed by design.
+  applyCombatHitFlash(data);
 
   // D-client.2: render or hide the declaration button panel based on
   // current phase + whether the viewer has declared.
@@ -12524,6 +12624,233 @@ function handleCombatState(data) {
   // D-client.3: render or hide the posing panel based on phase. Starts
   // its own 500ms tick when visible; cleared when hidden.
   renderPosingPanel(data, theatre);
+}
+
+// ── UX Drop 2 (combat HUD) — viewer-facing builders ──────────────────
+
+// Build a flat palette `p` for the M3CombatTheater builders out of the FK
+// token set the combat strip already uses, theatre-aware. The right-rail
+// builders expect amber/red/green/cyan/ink* keys (see m3_combat_theater.js).
+function _combatHudPalette(theatre) {
+  var space = (theatre === 'space');
+  return {
+    amber:     space ? FK.cockAmber : FK.padAmber,
+    red:       space ? FK.cockRed   : FK.padRed,
+    green:     space ? FK.cockGreen : FK.padGreen,
+    cyan:      space ? FK.cockCyan  : FK.padAmberBright,
+    ink:       space ? FK.cockText  : FK.padText,
+    inkBright: space ? FK.cockText  : FK.padAmberBright,
+    inkDim:    space ? FK.cockTextDim : FK.padTextDim,
+    inkFaint:  space ? FK.cockMetalLight : FK.padBezel,
+    sky:       space ? FK.cockScreen : FK.padScreen,
+    skyDeep:   space ? FK.cockScreenDim : FK.padScreenDim,
+  };
+}
+
+// Find the viewer's own combatant dict in the push, if present.
+function _viewerCombatant(data) {
+  var meId = lastHud && lastHud.character_id;
+  if (!meId) return null;
+  var list = (data && data.combatants) || [];
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].id === meId) return list[i];
+  }
+  return null;
+}
+
+// Your-own wound track. Wires M3CombatTheater.buildYourStatus from the
+// viewer's combatant dict — a 7-rung track keyed off wound_level, colored
+// via woundColor. Hidden when the viewer isn't a combatant here.
+function renderYourStatus(data, theatre) {
+  var slot = $('combat-yourstatus');
+  if (!slot) return;
+  var me = _viewerCombatant(data);
+  if (!me || !window.M3CombatTheater || !M3CombatTheater.buildYourStatus) {
+    slot.style.display = 'none';
+    slot.innerHTML = '';
+    return;
+  }
+
+  var lvl = me.wound_level || 0;
+  var rung = (typeof woundRung === 'function') ? woundRung(lvl)
+                                               : { label: me.wound_name || '', pen: '', sev: 'ok' };
+  var theme = (theatre === 'space') ? 'cockpit' : 'pad';
+  var wColor = (typeof woundColor === 'function') ? woundColor(rung.sev, theme) : null;
+
+  // 7-rung track (0..6 mirroring WoundLevel). Light every rung at or below
+  // the current wound_level so the bar fills as damage climbs.
+  var pips = [];
+  for (var i = 0; i < WOUND_RUNGS.length; i++) {
+    pips.push(i <= lvl);
+  }
+
+  // Chips: stun count (penalty hint) when stunned. stun_count is the one
+  // new engine field this drop adds; -len(stun_timers)D is the stun penalty.
+  var chips = [];
+  var stun = me.stun_count || 0;
+  if (stun > 0) chips.push('STUN ×' + stun + ' (−' + stun + 'D)');
+
+  var status = {
+    name:          (me.name || 'YOU').toUpperCase(),
+    wound:         rung.label || (me.wound_name || ''),
+    woundPen:      rung.pen || '',
+    woundProgress: lvl + '/' + (WOUND_RUNGS.length - 1),
+    pips:          pips,
+    chips:         chips,
+    woundColor:    wColor || undefined,
+  };
+
+  var p = _combatHudPalette(theatre);
+  slot.innerHTML = '';
+  try {
+    slot.appendChild(M3CombatTheater.buildYourStatus(p, status));
+    slot.style.display = '';
+  } catch (_) {
+    slot.style.display = 'none';
+  }
+}
+
+// Round-flow coaching subtitle. Composes a short teaching line off phase +
+// waiting_for + your_actions. Returns-null-when-empty convention: hide the
+// element (zero DOM cost) when there's nothing useful to say.
+function buildCombatCoaching(data) {
+  if (!data) return null;
+  var phase = (data.phase || '').toLowerCase();
+  var waiting = data.waiting_for || [];
+  var declared = (data.your_actions && data.your_actions.length > 0);
+
+  if (phase === 'declaration') {
+    if (declared) {
+      if (waiting.length > 0) {
+        return "You've declared. Waiting for " + _joinNames(waiting) + '.';
+      }
+      return "You've declared. Resolving the round…";
+    }
+    return 'Declare your action — pick a target and a skill.';
+  }
+  if (phase === 'posing') {
+    return 'Pose your action before the timer runs out.';
+  }
+  if (phase === 'initiative') {
+    return 'Rolling initiative — highest Perception acts first.';
+  }
+  if (phase === 'resolution') {
+    return 'Resolving declared actions…';
+  }
+  // Unknown phase but someone's still on the clock.
+  if (waiting.length > 0) {
+    return 'Waiting for ' + _joinNames(waiting) + '.';
+  }
+  return null;
+}
+
+// Human-friendly name join: "Jane", "Jane & Throk", "Jane, Throk & Rex".
+function _joinNames(names) {
+  names = names || [];
+  if (names.length === 0) return '';
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return names[0] + ' & ' + names[1];
+  return names.slice(0, -1).join(', ') + ' & ' + names[names.length - 1];
+}
+
+function renderCombatCoaching(data) {
+  var el = $('combat-coach');
+  if (!el) return;
+  var txt = buildCombatCoaching(data);
+  if (!txt) {
+    el.style.display = 'none';
+    el.textContent = '';
+    return;
+  }
+  el.textContent = txt;
+  el.style.display = '';
+}
+
+// Brief hit/wound flash. On each combat_state, diff data.events for a hit
+// whose target is you OR your declared target; pulse that pip + your wound
+// track for ≤600ms. Rate-limited per round and gated by the combat-hud
+// toggle. MUST run after renderCombatFeed so the feed row is never delayed.
+function applyCombatHitFlash(data) {
+  if (!data || !combatFlashEnabled()) return;
+  var events = data.events || [];
+
+  if (data.round !== _combatLastRound) {
+    _combatLastRound = data.round;
+    _combatFlashesThisRound = 0;
+    _combatLastEvents = [];
+  }
+  // De-dup across pushes: the events ring repeats the last few each tick, so
+  // without this a single hit would re-flash every push. Signature is a nested
+  // helper (self-contained for the jsdom harness; no event id exists at HEAD).
+  function _sig(e) { return e ? (e.attacker||'') + '|' + (e.target||'') + '|' + (e.result||'') + '|' + (e.weapon||'') : ''; }
+  var prevSigs = {};
+  for (var j = 0; j < _combatLastEvents.length; j++) prevSigs[_sig(_combatLastEvents[j])] = true;
+  _combatLastEvents = events.slice();
+  if (!events.length || _combatFlashesThisRound >= _COMBAT_FLASH_MAX_PER_ROUND) return;
+
+  var me = _viewerCombatant(data);
+  var myName = me ? me.name : null;
+  // My declared target's NAME (your_actions carries "attack <name> with...").
+  var myTargetName = _viewerDeclaredTargetName(data);
+
+  // Scan the WHOLE new slice -- the viewer's hit may not be the last-resolved
+  // action of the round. Only result:'hit' (a wound) flashes; a 'soaked'
+  // connection (engine/combat.py:1259) is intentionally NOT flashed (the flash
+  // is a *wound* cue; the feed row already reads "soaked"). The budget
+  // increments ONLY on a genuine flash, so no-op events never eat it.
+  for (var i = 0; i < events.length; i++) {
+    if (_combatFlashesThisRound >= _COMBAT_FLASH_MAX_PER_ROUND) break;
+    var ev = events[i];
+    if (!ev || ev.result !== 'hit') continue;
+    if (prevSigs[_sig(ev)]) continue;
+    var hitsMe       = myName && ev.target === myName;
+    var hitsMyTarget = myTargetName && ev.target === myTargetName;
+    if (!hitsMe && !hitsMyTarget) continue;
+    var flashed = false;
+    var pip = _findPipByName(ev.target);
+    if (pip) { _pulseOnce(pip); flashed = true; }
+    if (hitsMe) {
+      var slot = $('combat-yourstatus');
+      if (slot && slot.style.display !== 'none') { _pulseOnce(slot); flashed = true; }
+    }
+    if (flashed) _combatFlashesThisRound++;
+  }
+}
+
+// The viewer's declared attack target name, parsed from your_actions
+// ("attack <name> with <skill>"). Null if not attacking.
+function _viewerDeclaredTargetName(data) {
+  var acts = (data && data.your_actions) || [];
+  for (var i = 0; i < acts.length; i++) {
+    var m = /^attack\s+(.+?)\s+with\s+/i.exec(acts[i]);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+function _findPipByName(name) {
+  if (!name) return null;
+  var stripEl = $('combatant-strip');
+  if (!stripEl) return null;
+  var pips = stripEl.querySelectorAll('.combatant-pip');
+  for (var i = 0; i < pips.length; i++) {
+    var nameEl = pips[i].querySelector('.combatant-name');
+    if (nameEl && nameEl.textContent === name) return pips[i];
+  }
+  return null;
+}
+
+// Run the combatPulse keyframe once (~550ms). Re-triggerable: remove +
+// reflow + re-add so a fresh hit re-pulses even mid-animation.
+function _pulseOnce(el) {
+  if (!el) return;
+  el.classList.remove('cmb-hit-flash');
+  // Force reflow so removing + re-adding restarts the animation.
+  void el.offsetWidth;
+  el.classList.add('cmb-hit-flash');
+  setTimeout(function() {
+    if (el) el.classList.remove('cmb-hit-flash');
+  }, 600);
 }
 
 // G4 (T3.18 ground-UX): render the compact damage feed from combat_state.events.

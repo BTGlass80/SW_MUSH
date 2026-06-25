@@ -187,6 +187,60 @@ class TestFeedRingAndPayload:
         assert payload["events"] == []
 
 
+# ── UX Drop 2 (combat HUD): stun_count on the combatant dict ─────────────
+# The web wound-track surfaces a viewer's stun state. stun_count mirrors
+# len(Character.stun_timers); it is the ONLY engine field this drop adds and
+# must appear on BOTH the in-order loop and the late-joiner loop.
+
+class TestStunCountPayload:
+    def _combatant_dict(self, payload, cid):
+        for c in payload["combatants"]:
+            if c["id"] == cid:
+                return c
+        raise AssertionError("combatant %r not in payload" % cid)
+
+    def test_stun_count_in_order_loop(self):
+        # Both combatants are in initiative_order → both go through the
+        # in-order loop. One is stunned twice, one healthy.
+        combat = _combat_with_two()
+        combat.roll_initiative()
+        combat.combatants[1].char.stun_timers = [1, 1]   # 2 active stuns
+        combat.combatants[2].char.stun_timers = []       # healthy
+        payload = combat.to_hud_dict(viewer_id=1)
+
+        han = self._combatant_dict(payload, 1)
+        greedo = self._combatant_dict(payload, 2)
+        assert han["stun_count"] == 2, "stun_count must equal len(stun_timers)"
+        assert greedo["stun_count"] == 0, "healthy combatant has stun_count 0"
+        # And it is keyed to len() exactly, not a bool.
+        assert han["stun_count"] == len(combat.combatants[1].char.stun_timers)
+
+    def test_stun_count_late_joiner_loop(self):
+        # A combatant added but NOT yet in initiative_order goes through the
+        # late-joiner branch of to_hud_dict. stun_count must survive there too.
+        combat = _combat_with_two()
+        combat.roll_initiative()                  # adds the first two to order
+        late = _fighter("Boba", 3)
+        late.stun_timers = [1, 1, 1]              # 3 active stuns
+        combat.add_combatant(late)               # NOT in initiative_order
+        assert 3 not in combat.initiative_order, "precondition: late joiner"
+
+        payload = combat.to_hud_dict(viewer_id=1)
+        boba = self._combatant_dict(payload, 3)
+        assert boba["initiative"] == 0, "late joiner sentinel initiative"
+        assert boba["stun_count"] == 3, (
+            "stun_count must be emitted on the late-joiner loop too"
+        )
+
+    def test_stun_count_present_on_every_combatant(self):
+        combat = _combat_with_two()
+        combat.roll_initiative()
+        payload = combat.to_hud_dict(viewer_id=1)
+        for c in payload["combatants"]:
+            assert "stun_count" in c, "every combatant dict must carry stun_count"
+            assert isinstance(c["stun_count"], int)
+
+
 # ── End-to-end: a resolved round populates the feed ──────────────────────
 
 class TestFeedEndToEnd:

@@ -835,6 +835,10 @@ class CombatInstance:
                 "is_player": not c.is_npc,
                 "wound_level": wound_lvl,
                 "wound_name": wound_name,
+                # UX Drop 2 (combat HUD): per-stun expiry timer count. The web
+                # wound-track surfaces this so a stunned combatant reads as
+                # such; stun penalty = -len(stun_timers)D (see Character).
+                "stun_count": len(c.char.stun_timers) if c.char else 0,
                 "initiative": c.initiative,
                 "declared": bool(c.actions),
                 "action_summary": action_summary,
@@ -856,6 +860,9 @@ class CombatInstance:
                     "is_player": not c.is_npc,
                     "wound_level": wound_lvl,
                     "wound_name": wound_name,
+                    # UX Drop 2 (combat HUD): mirror the in-order loop so a
+                    # late joiner's pip/wound-track also carries stun state.
+                    "stun_count": len(c.char.stun_timers) if c.char else 0,
                     "initiative": 0,
                     "declared": bool(c.actions),
                     "action_summary": None,
