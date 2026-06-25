@@ -2070,6 +2070,26 @@ class Session:
             "region": block,
         }))
 
+    async def _hud_situation_digest(self, db, zone_key, session_mgr) -> None:
+        """Push the lean living-world situation digest (UX Drop 4).
+
+        Mirrors _hud_zone_influence's gate: only fires when the player stands
+        in a Director-tracked zone (a non-empty zone_key string, i.e.
+        hud['zone_type']). Pure read-only mirror — rides the existing HUD tick,
+        adds no socket cadence. Telnet keeps +news/+holonet, so the situation
+        message is web-only (send_json no-ops the type for telnet).
+
+        The digest itself is assembled by the Director (compile_situation_digest,
+        the single producer); this helper is the thin push wrapper.
+        """
+        if not zone_key:
+            return
+        from engine.director import get_director
+        digest = await get_director().compile_situation_digest(
+            db, zone_key, session_mgr,
+        )
+        await self.send_json("situation_state", digest)
+
     # ── Main HUD orchestrator ─────────────────────────────────────────────
 
     async def send_hud_update(self, db=None, session_mgr=None):
@@ -2255,6 +2275,15 @@ class Session:
                 await self._hud_sidebar_region(db, room_id)
             except Exception:
                 pass  # Wilderness-region tables may not exist
+
+            # Living-world situation digest (UX Drop 4). Same in-a-zone guard
+            # as _hud_zone_influence: zone_key is the Director zone-key string
+            # staged into hud['zone_type'] by _hud_zone.
+            try:
+                await self._hud_situation_digest(
+                    db, hud.get("zone_type", ""), session_mgr)
+            except Exception:
+                pass  # Non-critical — situation board just won't refresh
 
     # ── Input ──
 

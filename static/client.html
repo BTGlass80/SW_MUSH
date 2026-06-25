@@ -4656,6 +4656,17 @@ a { color: inherit; text-decoration: none; }
           <div class="side-panel-body" id="region-body"></div>
         </div>
 
+        <!-- UX Drop 4: living-world situation board (SIT) — influence ladder,
+             live world events, active uprising, recent headlines. Read-only
+             mirror of the situation_state push; hides when not in a zone. -->
+        <div class="side-panel" id="situation-panel" style="display:none;">
+          <div class="side-panel-head" onclick="toggleSidePanel('situation-panel')">
+            <span class="sp-title">SITUATION</span>
+            <span class="sp-toggle">▾</span>
+          </div>
+          <div class="side-panel-body" id="situation-body"></div>
+        </div>
+
         <!-- Ground-UX: room detail card — security + desc + services -->
         <div class="side-panel" id="roomdetail-panel" style="display:none;">
           <div class="side-panel-head" onclick="toggleSidePanel('roomdetail-panel')">
@@ -5415,6 +5426,7 @@ a { color: inherit; text-decoration: none; }
 <script src="/static/spa/m3_tier_interior_body.js"></script>
 <script src="/static/spa/m3_tier_registry.js"></script>
 <script src="/static/spa/m3_region.js"></script>
+<script src="/static/spa/m3_situation_board.js"></script>
 <script src="/static/spa/m3_inventory.js"></script>
 <script src="/static/spa/m3_shop.js"></script>
 <script src="/static/spa/m3_board.js"></script>
@@ -6951,6 +6963,10 @@ function handleHudUpdate(data) {
       // the new room is in a wilderness region, so leaving a region to a city
       // hides it cleanly.
       hideRegionPanel();
+      // UX Drop 4: same idiom for the situation board — a room change clears
+      // it; the situation_state push that follows (only when in a tracked
+      // zone) re-shows it, so leaving a zone hides it cleanly.
+      hideSituationPanel();
       // Then desc
       if (data.room_description) {
         appendEvent({ t: 'desc', text: data.room_description });
@@ -8649,6 +8665,38 @@ function hideRegionPanel() {
   var panel = $('region-panel');
   if (panel) panel.style.display = 'none';
   if (window.M3Region) M3Region.stop();
+}
+
+/* UX Drop 4 — living-world situation board. Mirror of handleRegionState:
+   render the situation_state push into the SIT sidebar panel. Pure read-only;
+   every fact is already reachable via +news / +holonet. Empty influence AND
+   no events AND no uprising AND no news → hide (nothing to show). */
+function handleSituationState(data) {
+  var state = (data && data.situation) || data;
+  var panel = $('situation-panel');
+  if (!panel) return;
+  if (!state || !window.M3SituationBoard) { hideSituationPanel(); return; }
+  var hasInfluence = Array.isArray(state.influence) && state.influence.length > 0;
+  var hasEvents    = Array.isArray(state.events) && state.events.length > 0;
+  var hasNews      = Array.isArray(state.news) && state.news.length > 0;
+  var hasUprising  = !!(state.uprising && state.uprising.cult_key);
+  if (!hasInfluence && !hasEvents && !hasNews && !hasUprising) {
+    hideSituationPanel();
+    return;
+  }
+  // Route headlines/event copy through the shared escapeHtml (XSS contract).
+  if (typeof window.M3SituationBoard.init === 'function' && typeof escapeHtml === 'function') {
+    window.M3SituationBoard.init({ escapeHtml: escapeHtml });
+  }
+  var body = $('situation-body');
+  body.innerHTML = '';
+  body.appendChild(M3SituationBoard.render(state));
+  panel.style.display = '';
+}
+
+function hideSituationPanel() {
+  var panel = $('situation-panel');
+  if (panel) panel.style.display = 'none';
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -13971,6 +14019,7 @@ function connect() {
         case 'mail_status':           handleMailStatus(msg); return;
         case 'places_status':         handlePlacesStatus(msg); return;
         case 'region_state':          handleRegionState(msg); return;
+        case 'situation_state':       handleSituationState(msg); return;
         case 'space_choices':         handleSpaceChoices(msg); return;
         case 'space_choices_dismiss': dismissEncounter(); return;
         case 'space_choices_countdown': updateChoiceCountdown(msg); return;

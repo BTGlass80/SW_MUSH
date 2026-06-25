@@ -734,7 +734,7 @@ function buildRightCartridge(p, cartridge, hooks) {
   hooks = hooks || {};
   cartridge = cartridge || 'MAP';
 
-  var tabs = ['MAP', 'INV', 'JOBS', 'LORE'];
+  var tabs = ['MAP', 'INV', 'JOBS', 'LORE', 'SIT'];
   var tabPills = [];
   for (var i = 0; i < tabs.length; i++) {
     var t = tabs[i];
@@ -778,6 +778,11 @@ function buildRightCartridge(p, cartridge, hooks) {
     case 'INV':  bodyContent = buildMiniInv(p);          break;
     case 'JOBS': bodyContent = buildMiniJobs(p);         break;
     case 'LORE': bodyContent = buildMiniLore(p, hooks);  break;
+    // Living-world situation board (UX Drop 4). The 'SIT' tab key is the
+    // live cartridge value; 'SITUATION' is accepted as an alias.
+    case 'SIT':
+    case 'SITUATION':
+      bodyContent = buildMiniSituation(p, hooks);        break;
     default:     bodyContent = buildMiniMap(p, hooks);  break;
   }
   var body = htmlEl('div', {
@@ -1152,6 +1157,46 @@ function buildMiniLore(p, hooks) {
   ]);
 
   return htmlEl('div', null, [header, factionCard, lastOpened]);
+}
+
+// ────────────────────────────────────────────────────────────────────
+// MINI SITUATION — the SIT cartridge body (UX Drop 4).
+// Renders the living-world situation board via M3SituationBoard.render
+// over hooks.situation (the latest situation_state push). Degrades to a
+// labeled placeholder if the board module or live data isn't present.
+// ────────────────────────────────────────────────────────────────────
+function buildMiniSituation(p, hooks) {
+  hooks = hooks || {};
+
+  var header = htmlEl('div', {
+    style: {
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      marginBottom: 8,
+    },
+  }, [
+    htmlEl('span', {
+      style: { fontSize: 9, letterSpacing: 3, color: p.amber, fontWeight: 600 },
+    }, ['▮▮ SITUATION · LIVE GALAXY']),
+  ]);
+
+  var bodyEl = null;
+  if (window.M3SituationBoard && typeof window.M3SituationBoard.render === 'function'
+      && hooks.situation) {
+    try { bodyEl = window.M3SituationBoard.render(hooks.situation); }
+    catch (e) { bodyEl = null; }
+  }
+  if (!bodyEl) {
+    bodyEl = htmlEl('div', {
+      'data-sit-placeholder': '1',
+      style: {
+        padding: 14, textAlign: 'center',
+        border: '1px solid ' + p.inkFaint, background: 'rgba(0,0,0,0.3)',
+        color: p.inkDim, fontSize: 10, letterSpacing: 1,
+      },
+    }, ['No situation data yet — enter a tracked zone.']);
+  }
+
+  return htmlEl('div', { 'data-mini-situation': '1' }, [header, bodyEl]);
 }
 
 // ════════════════════════════════════════════════════════════════════

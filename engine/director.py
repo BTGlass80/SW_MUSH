@@ -192,6 +192,18 @@ log.info(
 MIN_INFLUENCE = 0
 MAX_INFLUENCE = 100
 
+# director_log carries internal/admin event types alongside the player-facing
+# news. The situation-board news feed (compile_situation_digest) filters these
+# out so a player only ever sees player-facing headlines — the same legibility
+# the +news command already curates. These are the three verified internal
+# types actually written to director_log (faction_turn at the turn boundary,
+# era_milestone on era progression, economic_nudge on a soft opportunity seed).
+INTERNAL_NEWS_EVENTS = frozenset({
+    "faction_turn",
+    "era_milestone",
+    "economic_nudge",
+})
+
 # Max delta per Director adjustment
 MAX_DELTA = 5
 
@@ -907,6 +919,88 @@ class DirectorAI:
             log.debug("[director] faction_status skipped: %s", _fac_exc)
 
         return digest
+
+    async def compile_situation_digest(
+        self, db, zone_key: str, session_mgr=None,
+    ) -> dict:
+        """Lean, player-facing situation snapshot for the web Situation board.
+
+        A read-only mirror of state the Director already produced — extends the
+        digest PATH (no new producer, no DB write): zone-faction influence for
+        the player's current zone, the live world-events scoped to that zone,
+        the active communal uprising (cult scenario), and the last 5
+        player-facing news headlines (internal/admin types filtered out).
+
+        Mirrors the leanness of compile_digest's economy-eyes block: no economy
+        dump, no player records, no per-faction prose. Every sub-read is guarded
+        so one missing producer degrades that section to empty rather than
+        sinking the whole push (same contract as send_hud_update). ``zone_key``
+        is the Director zone-key string (the room's zone ``environment`` prop,
+        i.e. hud['zone_type']) — NOT the territory zone_id.
+        """
+        # ── Zone-faction influence ladder (in-memory _zones; no DB) ──
+        influence = []
+        try:
+            zs = self._zones.get(zone_key)
+            if zs is not None:
+                influence = [
+                    {"faction": f, "score": int(zs.get_faction(f))}
+                    for f in sorted(VALID_FACTIONS)
+                ]
+        except Exception:
+            log.debug("[director] situation influence skipped", exc_info=True)
+
+        # ── Active world events, scoped to this zone (global events carry no
+        #    zones → always shown). Reuses the WorldEventManager singleton. ──
+        events = []
+        try:
+            from engine.world_events import get_world_event_manager
+            for e in get_world_event_manager().get_status():
+                zones = e.get("zones") or []
+                if (not zones) or (zone_key in zones):
+                    events.append(e)
+        except Exception:
+            log.debug("[director] situation events skipped", exc_info=True)
+
+        # ── Active communal uprising (cult scenario), or None ──
+        uprising = None
+        if db is not None:
+            try:
+                from engine import communal_objective_runtime
+                active = await communal_objective_runtime.get_active(db)
+                if active:
+                    uprising = {
+                        "cult_key":   active.get("cult_key", ""),
+                        "zone_label": active.get("zone_label", ""),
+                        "menace":     round(float(active.get("menace") or 0), 1),
+                        "state":      active.get("state", ""),
+                    }
+            except Exception:
+                log.debug("[director] situation uprising skipped", exc_info=True)
+
+        # ── Last 5 player-facing headlines (internal/admin types dropped) ──
+        news = []
+        if db is not None:
+            try:
+                # Fetch wide: a sustained active Director can fill the recent
+                # window with internal faction_turn rows, which the filter below
+                # drops — starving the board's news to empty. Fetch 40, then keep
+                # the 5 most-recent PLAYER-FACING rows.
+                recent = await self.get_recent_log(db, 40)
+                news = [
+                    r for r in recent
+                    if r.get("event_type") not in INTERNAL_NEWS_EVENTS
+                ][:5]
+            except Exception:
+                log.debug("[director] situation news skipped", exc_info=True)
+
+        return {
+            "zone":      zone_key,
+            "influence": influence,
+            "events":    events,
+            "uprising":  uprising,
+            "news":      news,
+        }
 
     # ── Director Log ──
 
