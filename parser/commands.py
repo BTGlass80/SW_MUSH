@@ -479,6 +479,41 @@ class CommandParser:
                     await self._execute(move_cmd, ctx)
                     return
 
+            # Named (non-compass) room exits: the client advertises exits by
+            # NAME (e.g. "corridor") and players type/click that name, but the
+            # compass-only fallback above rejects it — only MoveCommand resolves
+            # a named exit. If the unknown word matches a REAL exit of the
+            # caller's current room, route it to MoveCommand. Reuses
+            # MoveCommand._match_exit so we route iff move would actually
+            # resolve it — a typo still falls through to "Unknown command".
+            # (Fixes the first-session "the advertised exit does nothing"
+            # killer surfaced by the fun-assessment pass.)
+            move_cmd = self.registry.get("move")
+            _mv_char = session.character
+            _mv_wild = False
+            if _mv_char:
+                try:
+                    from engine.wilderness_movement import in_wilderness
+                    _mv_wild = in_wilderness(_mv_char)
+                except Exception:
+                    _mv_wild = False
+            if (move_cmd is not None and _mv_char
+                    and _mv_char.get("room_id") is not None
+                    # Wilderness movement is tile/edge-based (handled above via
+                    # custom edge dirs) — no DB room-exits to match, so skip the
+                    # get_exits round-trip on the unknown-command error path.
+                    and not _mv_wild):
+                try:
+                    matched_exit = await move_cmd._match_exit(
+                        ctx, _mv_char, cmd_name)
+                except Exception:
+                    matched_exit = None
+                if matched_exit:
+                    ctx.args = cmd_name
+                    ctx.args_list = [cmd_name]
+                    await self._execute(move_cmd, ctx)
+                    return
+
             # ── Natural Language Combat Intercept ──────────────────────
             # If the player is in active combat and types something that
             # isn't a registered command, try the IntentParser before

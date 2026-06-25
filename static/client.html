@@ -3898,11 +3898,15 @@ a { color: inherit; text-decoration: none; }
 @keyframes m3o-qa-pulse { 0%, 100% { box-shadow: none; } 50% { box-shadow: 0 0 9px rgba(255,200,87,0.55); border-color: var(--accent-bright); } }
 
 /* First-run tour overlay */
-.m3o-tour-overlay { position: fixed; inset: 0; z-index: 230; background: rgba(0,0,0,0.55); display: none; }
+/* pointer-events:none so the first-run tour NEVER eats clicks/typing meant
+   for the UI underneath (the command bar, exit chips, panels) — only the
+   tour card below re-enables pointer events. Fixes the "game looks frozen on
+   spawn" first-session killer. */
+.m3o-tour-overlay { position: fixed; inset: 0; z-index: 230; background: rgba(0,0,0,0.55); display: none; pointer-events: none; }
 .m3o-tour-overlay.show { display: block; }
 .m3o-tour-ring { position: fixed; border: 2px solid var(--accent-bright); box-shadow: 0 0 0 4000px rgba(0,0,0,0.55), 0 0 14px rgba(255,200,87,0.5); pointer-events: none; transition: all 0.25s ease; }
 .m3o-tour-overlay.show { background: transparent; }  /* the ring's spread shadow does the dimming */
-.m3o-tour-card { position: fixed; background: var(--screen); border: 1px solid var(--accent); padding: 10px 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+.m3o-tour-card { position: fixed; background: var(--screen); border: 1px solid var(--accent); padding: 10px 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); pointer-events: auto; }
 .m3o-tour-step { font-size: 9px; letter-spacing: 2px; color: var(--accent-dim); margin-bottom: 4px; }
 .m3o-tour-text { font-size: 11.5px; color: var(--text); line-height: 1.5; margin-bottom: 9px; }
 .m3o-tour-actions { display: flex; gap: 6px; justify-content: flex-end; }
@@ -6147,7 +6151,10 @@ function buildRow(ev) {
       // Wire chip clicks
       Array.prototype.forEach.call(row.querySelectorAll('.exit-chip'), function(chip) {
         chip.addEventListener('click', function() {
-          sendCmd(chip.getAttribute('data-dir'));
+          // Send "move <dir>" — a bare NAMED exit (e.g. "corridor") is NOT a
+          // compass word, so the parser's direction fallback rejects it; only
+          // MoveCommand resolves named exits. Compass dirs work either way.
+          sendCmd('move ' + chip.getAttribute('data-dir'));
         });
       });
       break;
@@ -6732,7 +6739,9 @@ function rebuildDirectionButtons(exits) {
     var btn = document.createElement('button');
     btn.className = 'qa-btn';
     btn.setAttribute('data-qa', ex.dir.toUpperCase());
-    btn.setAttribute('data-cmd', ex.dir);
+    // "move <dir>" so NAMED (non-compass) exits resolve via MoveCommand —
+    // a bare named dir is rejected by the parser's compass-only fallback.
+    btn.setAttribute('data-cmd', 'move ' + ex.dir);
     btn.setAttribute('data-action', 'move');
     btn.textContent = ex.dir.toUpperCase();
     btn.title = 'Go ' + (ex.label || ex.dir);
@@ -13814,6 +13823,23 @@ function endOnboardTour() {
 window.showOnboardTour = showOnboardTour;
 window.advanceOnboardTour = advanceOnboardTour;
 window.endOnboardTour = endOnboardTour;
+
+// First-session safety (fun-pass kills-it): the tour must NEVER trap the
+// player. Escape closes it, and the moment the player types into a command
+// input it auto-dismisses (the keystroke still lands — no preventDefault).
+// Combined with the overlay's pointer-events:none, the command bar is always
+// usable even while the tour is up.
+function _onboardTourActive() { return _onboardTourIdx >= 0; }
+document.addEventListener('keydown', function(e) {
+  if (!_onboardTourActive()) return;
+  if (e.key === 'Escape' || e.key === 'Esc') { endOnboardTour(); return; }
+  var t = e.target;
+  if (t && (t.id === 'cmd-input-ground' || t.id === 'cmd-input-space' ||
+            (t.classList && t.classList.contains('cmd-input')))) {
+    endOnboardTour();   // typing = "I'm playing now" → get out of the way
+  }
+}, true);
+
 function handleAmbientBark(msg) {
   if (msg.text || msg.data) {
     appendEvent({ t: 'desc-inline', text: msg.text || msg.data });
