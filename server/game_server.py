@@ -56,6 +56,7 @@ from server.tick_handlers_economy import (
     morale_aura_expiry_tick,
     hazard_tick,
     credit_velocity_alert_tick,
+    ambient_npc_life_tick,
 )
 from server.tick_handlers_progression import (
     playtime_heartbeat_tick,
@@ -163,6 +164,7 @@ from engine.missions import get_mission_board
 from engine.smuggling import get_smuggling_board
 from engine.party import get_party_manager
 from engine.ambient_events import get_ambient_manager
+from engine.ambient_life import get_ambient_life_manager
 from engine.world_events import get_world_event_manager
 from engine.director import get_director
 from engine.npc_space_traffic import get_traffic_manager
@@ -466,6 +468,7 @@ class GameServer:
         self.smuggling_board  = get_smuggling_board()
         self.party_mgr        = get_party_manager()
         self.ambient_mgr      = get_ambient_manager()
+        self.ambient_life_mgr = get_ambient_life_manager()
         self.world_event_mgr  = get_world_event_manager()
         self.director         = get_director()
         self.traffic_mgr      = get_traffic_manager()
@@ -598,6 +601,11 @@ class GameServer:
         # notice expiry. Best-effort; per-building exceptions logged
         # individually.
         self._tick_scheduler.register("building_construction", building_construction_tick, interval=300, offset=120)
+        # ── T3.22 Phase 1: ambient NPC life (every 5 min, offset 180 to
+        #    land between building_construction/hazard (120) and the
+        #    next cluster). ZERO mechanical effects; purely positional +
+        #    room-channel narration.
+        self._tick_scheduler.register("ambient_npc_life",     ambient_npc_life_tick,     interval=300, offset=180)
         self._tick_scheduler.register("docking_fee",         docking_fee_tick,         interval=86400,  offset=21600)
         # Proactive credit-velocity alerting (economy audit #17 / R1): hourly
         # server-wide net-flow band check; pages staff on breach. offset 2100

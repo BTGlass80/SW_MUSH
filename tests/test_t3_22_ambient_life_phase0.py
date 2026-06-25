@@ -282,13 +282,17 @@ class TestAccessorStubs(unittest.TestCase):
 
 class TestInertness(unittest.TestCase):
 
-    def test_no_production_reader_of_ambient_tables(self):
-        # Phase 0 is INERT: nothing in engine/ parser/ server/ reads the
-        # ambient tables yet (the sim is post-launch). Only db/database.py
-        # (the accessors) and the tick-free scaffolding may mention them.
-        # This guards against accidentally wiring a consumer in Phase 0.
-        import re
-        roots = ("engine", "parser", "server")
+    def test_no_parser_reader_of_ambient_tables(self):
+        # Phase 1 NOTE: the Phase 0 test originally asserted that *nothing* in
+        # engine/ parser/ server/ referenced the ambient accessors, because the
+        # sim was scaffolding-only.  Phase 1 (T3.22) deliberately wires the
+        # accessors in engine/ambient_life.py and server/tick_handlers_economy.py,
+        # so that blanket assertion would now fire on its own intended production
+        # code. The invariant is NARROWED here: the ``parser/`` tree (player-
+        # facing commands) must never reference the ambient tables directly —
+        # command handlers go through the engine layer.  The engine/ and server/
+        # trees are exempt from this check (they ARE the sim).
+        roots = ("parser",)
         offenders = []
         for root in roots:
             base = os.path.join(PROJECT_ROOT, root)
@@ -308,8 +312,9 @@ class TestInertness(unittest.TestCase):
                         offenders.append(os.path.relpath(path, PROJECT_ROOT))
         self.assertEqual(
             offenders, [],
-            f"Phase 0 must stay inert — found ambient-table references in: "
-            f"{offenders}. The sim is POST-LAUNCH (Phase 1+).")
+            f"Parser commands must not directly reference ambient DB tables — "
+            f"they must go through engine/ambient_life.py. Found: {offenders}"
+        )
 
 
 if __name__ == "__main__":

@@ -378,6 +378,27 @@ encounters:
         npc_template: winged_xendrite
         count: [10, 20]
 
+    # ── GRIND-REDIRECT addition (2026-06-24): infrastructure pest ─────────────
+    # The Raen Sovra (COTG §2.5) fills the ferrocrete_corridor + service_tunnel
+    # gap where there was no spawnable hostile creature. The worm is the right
+    # flavor — metal-eating, electricity-conducting, spreads station-to-station
+    # via docking ships, found in exactly the conduit-runs and maintenance shafts
+    # these terrain types represent. Payload.npc_template resolves to the
+    # `raen_sovra` id in data/npcs_creatures.yaml.
+
+    # ── Raen Sovra — conduit-worm infestation (COTG §2.5) ────────────────────
+    - id: raen_sovra_infestation
+      type: hostile
+      weight: 2
+      terrains: [service_tunnel, industrial_ruin, ferrocrete_corridor]
+      min_distance_from_edge: 2
+      min_band: 2  # gate: raen_sovra 5D+2 electrocution is too lethal for Frontier band (grind-realignment balance, mirrors maze_predator)
+      narrative: "The conduit pipe at head-height is humming at the wrong frequency, and the casing has a metallic bloom on it — oxidized from the inside out. Something is eating the wall. Then the casing splits along a seam that was not a seam, and a length of dark segmented worm slides out of the gap and brushes the back of your hand. The current is immediate and severe."
+      payload:
+        npc_template: raen_sovra
+        count: [2, 4]
+        tier: tier1
+
 # ─── Sign-off ───────────────────────────────────────────────────────
 # Drop T2.3 (May 24 2026). Single-level Coruscant Underworld
 # wilderness region, parity with Dune Sea's minimal substrate.

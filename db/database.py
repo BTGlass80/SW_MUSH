@@ -3874,6 +3874,17 @@ class Database:
         )
         return [dict(r) for r in rows]
 
+    async def get_ambient_enabled_npc_rows(self) -> list:
+        """id/name/room_id/ai_config_json for every NPC whose ai_config_json
+        has ambient_enabled=true (T3.22 ambient-life bootstrap). json_extract =
+        JSON1, mirroring engine/contest.py. Public accessor so the sim never
+        touches the private _db handle (None before connect())."""
+        rows = await self._db.execute_fetchall(
+            "SELECT id, name, room_id, ai_config_json FROM npcs "
+            "WHERE json_extract(ai_config_json, '$.ambient_enabled') = 1"
+        )
+        return [dict(r) for r in rows]
+
     async def cp_add_character_points(self, char_id: int, amount: int) -> None:
         """Add CP to characters.character_points (floor at 0)."""
         await self._db.execute(
