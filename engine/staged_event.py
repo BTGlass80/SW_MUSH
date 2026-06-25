@@ -35,23 +35,49 @@ KIND_BOSS = "boss"
 # for solo viability while rewarding a group; tune in playtest. `skills` = the
 # WEG skill keys that satisfy the stage, so a slicer / face matters alongside the
 # soldiers, and the boss rewards the fighters.
+#
+# events_playable_scenarios_design_v1 (2026-06-24): each stage also names the
+# LIVE wilderness-anomaly instance it spawns at the site, so the stage is real
+# gameplay (go to the location, fight waves / slice the terminal / drop the boss)
+# rather than a counter:
+#   anomaly_template — a key in engine.wilderness_anomalies (the SCENARIO_TEMPLATES
+#                      authored for this cult). Combat/boss stages map to a
+#                      multi-phase combat template; skill stages map to a
+#                      resolution:"skill" template (NOT the inert skill_gate seam).
+#   anomaly_tier     — 1 = single-shot (skill, or one combat group); 2 = multi-
+#                      phase wave/boss. Selects the spawn duration band + which
+#                      reward path fires. Tier is the anomaly schema tier, not a
+#                      difficulty rating.
 HOLLOW_SUN_STAGES = [
     {"key": "shrines", "kind": KIND_COMBAT, "need": 4,
      "name": "Break the Shrines",
      "objective": "Fight through the sun-maddened zealots guarding the desert shrines.",
-     "skills": ["brawling", "blaster", "melee_combat", "dodge", "blaster_artillery"]},
+     "skills": ["brawling", "blaster", "melee_combat", "dodge", "blaster_artillery"],
+     "anomaly_template": "hollow_sun_shrine_assault", "anomaly_tier": 2},
     {"key": "tithes", "kind": KIND_SKILL, "need": 3,
      "name": "Cut the Water Tithes",
      "objective": "Slice the shrine cisterns (security / computer programming) or turn "
                   "the moisture farms they prey on (persuasion / con) to cut their tithes.",
-     "skills": ["security", "computer_programming", "persuasion", "con", "bargain"]},
+     "skills": ["security", "computer_programming", "persuasion", "con", "bargain"],
+     "anomaly_template": "hollow_sun_cistern_slice", "anomaly_tier": 1},
     {"key": "hierophant", "kind": KIND_BOSS, "need": 5,
      "name": "Confront the Hierophant",
      "objective": "Bring down the Hollow Sun's Hierophant and scatter the faithful.",
-     "skills": ["brawling", "blaster", "melee_combat", "dodge", "lightsaber"]},
+     "skills": ["brawling", "blaster", "melee_combat", "dodge", "lightsaber"],
+     "anomaly_template": "hollow_sun_hierophant", "anomaly_tier": 2},
 ]
 
 STAGED_CULTS = {"hollow_sun": HOLLOW_SUN_STAGES}
+
+# The wilderness region each staged cult's scenario site anchors in. Mirrors the
+# CultDef.world_key → region used by the anomaly substrate. Vertical slice:
+# hollow_sun only.
+STAGED_CULT_REGION = {"hollow_sun": "tatooine_dune_sea"}
+
+
+def scenario_region(cult_key: str) -> "str | None":
+    """The wilderness region slug the cult's scenario site anchors in."""
+    return STAGED_CULT_REGION.get(cult_key)
 
 
 def is_staged(cult_key: str) -> bool:
@@ -63,15 +89,44 @@ def stages_for(cult_key: str):
 
 
 def get_stage_state(contribs: dict) -> dict:
-    """Read the {idx, progress} stage state out of contributions_json."""
+    """Read the stage state out of contributions_json.
+
+    Returns at minimum {idx, progress}; carries the scenario-site keys
+    (site_room_id, anomaly_id) when present so the live-scenario orchestrator
+    can find the active anomaly. Back-compat: the two original keys are always
+    present and an absent/garbled blob defaults to a fresh stage 0.
+    """
     st = contribs.get("_stage") if isinstance(contribs, dict) else None
     if not isinstance(st, dict):
         return {"idx": 0, "progress": 0}
-    return {"idx": int(st.get("idx", 0)), "progress": int(st.get("progress", 0))}
+    out = {"idx": int(st.get("idx", 0)), "progress": int(st.get("progress", 0))}
+    # Optional live-scenario keys (events_playable_scenarios_design_v1). Read
+    # defensively; a None means "no site/anomaly armed yet".
+    if st.get("site_room_id") is not None:
+        try:
+            out["site_room_id"] = int(st["site_room_id"])
+        except (TypeError, ValueError):
+            pass
+    if st.get("anomaly_id") is not None:
+        try:
+            out["anomaly_id"] = int(st["anomaly_id"])
+        except (TypeError, ValueError):
+            pass
+    return out
 
 
 def set_stage_state(contribs: dict, state: dict) -> None:
-    contribs["_stage"] = {"idx": int(state["idx"]), "progress": int(state["progress"])}
+    """Persist the stage state back into contributions_json["_stage"].
+
+    Always writes {idx, progress}; carries the scenario-site keys through when
+    the caller supplies them (drops them when explicitly None so a freshly armed
+    stage starts clean)."""
+    blob = {"idx": int(state["idx"]), "progress": int(state["progress"])}
+    if state.get("site_room_id") is not None:
+        blob["site_room_id"] = int(state["site_room_id"])
+    if state.get("anomaly_id") is not None:
+        blob["anomaly_id"] = int(state["anomaly_id"])
+    contribs["_stage"] = blob
 
 
 def current_stage(cult_key: str, state: dict):
@@ -82,8 +137,27 @@ def current_stage(cult_key: str, state: dict):
     return stages[idx] if 0 <= idx < len(stages) else None
 
 
+def current_stage_anomaly_spec(cult_key: str, state: dict):
+    """The (template_key, tier) the CURRENT stage spawns at the site, or None.
+
+    Used by the live-scenario orchestrator to know which authored anomaly to
+    arm for the active stage. None once all stages are cleared, or for a stage
+    that declares no anomaly (defensive)."""
+    stage = current_stage(cult_key, state)
+    if not stage:
+        return None
+    tmpl = stage.get("anomaly_template")
+    if not tmpl:
+        return None
+    return (tmpl, int(stage.get("anomaly_tier", 1)))
+
+
 def advance(cult_key: str, state: dict, success: bool):
-    """Apply one strike outcome. Returns (new_state, stage_cleared, all_cleared)."""
+    """Apply one strike outcome. Returns (new_state, stage_cleared, all_cleared).
+
+    This is the legacy `rally strike` COUNTER advance (used only when no live
+    site is armed). The site-scenario path (clearing a stage's anomaly) uses
+    `complete_current_stage` instead, which jumps the whole stage in one step."""
     stages = stages_for(cult_key)
     if not stages:
         return state, False, False
@@ -100,6 +174,22 @@ def advance(cult_key: str, state: dict, success: bool):
             if idx >= len(stages):
                 all_cleared = True
     return {"idx": idx, "progress": progress}, stage_cleared, all_cleared
+
+
+def complete_current_stage(cult_key: str, state: dict):
+    """Mark the CURRENT stage fully cleared (site-scenario path: one anomaly
+    clear = one stage). Advances the cursor to the next stage and resets
+    progress. Returns (new_state, all_cleared). The site-keys are NOT carried
+    here — the orchestrator re-stamps site_room_id / arms the next anomaly_id."""
+    stages = stages_for(cult_key)
+    if not stages:
+        return state, False
+    idx = int(state["idx"])
+    if idx >= len(stages):
+        return {"idx": idx, "progress": 0}, True
+    idx += 1
+    all_cleared = idx >= len(stages)
+    return {"idx": idx, "progress": 0}, all_cleared
 
 
 def _pips_of(dice_str) -> int:
@@ -132,8 +222,17 @@ def stage_pool_pips(cult_key, state, skills: dict, attrs: dict, fallback_pips: i
     return best if best > 0 else fallback_pips
 
 
-def stage_tracker_lines(cult_name: str, cult_key: str, state: dict) -> list:
-    """Render the staged tracker shown by `rally`."""
+def stage_tracker_lines(cult_name: str, cult_key: str, state: dict,
+                        site_label: "str | None" = None) -> list:
+    """Render the staged tracker shown by `rally`.
+
+    When the live scenario site is armed (an anomaly_id is present in `state`),
+    `rally` reads as a *locator*: it points the player to the site and tells them
+    to `investigate` there — that is where the real gameplay (waves / slice /
+    boss) happens. `site_label` is the human room/zone name the runtime resolves;
+    when absent the tracker degrades to the stage objective only. Back-compat:
+    the signature gains an optional trailing arg, so existing two/three-arg
+    callers are unaffected."""
     stages = stages_for(cult_key)
     if not stages:
         return []
@@ -149,9 +248,19 @@ def stage_tracker_lines(cult_name: str, cult_key: str, state: dict) -> list:
         out.append(f"    {mark} Stage {i + 1} — {s['name']}  ({label})")
     cur = current_stage(cult_key, state)
     if cur:
-        verb = {KIND_COMBAT: "fight the next wave",
-                KIND_SKILL: "work the objective",
-                KIND_BOSS: "engage the leader"}.get(cur["kind"], "act")
         out.append(f"  Now: {cur['objective']}")
-        out.append(f"  `rally strike` to {verb}.")
+        live = state.get("anomaly_id") is not None
+        if live:
+            where = f" at {site_label}" if site_label else ""
+            verb = {KIND_COMBAT: "fight through the waves",
+                    KIND_SKILL: "work the objective",
+                    KIND_BOSS: "bring down the leader"}.get(cur["kind"], "act")
+            out.append(
+                f"  The site is active{where}. Travel there and "
+                f"`investigate` to {verb}.")
+        else:
+            verb = {KIND_COMBAT: "fight the next wave",
+                    KIND_SKILL: "work the objective",
+                    KIND_BOSS: "engage the leader"}.get(cur["kind"], "act")
+            out.append(f"  `rally strike` to {verb}.")
     return out

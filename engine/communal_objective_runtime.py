@@ -183,7 +183,17 @@ async def maybe_post(db, session_mgr, now_ms: "int | None" = None) -> "dict | No
                   rotation=int(rotation), zone=cult.world_key)
     except Exception as _e:
         log.debug("communal objective telemetry emit failed: %s", _e)
-    return await get_active(db)
+    posted = await get_active(db)
+    # events_playable_scenarios: arm the first stage's site for a staged cult so
+    # the scenario is immediately playable. Best-effort; a failure leaves the
+    # objective postable as the (legacy) tracker until a `rally`/tick re-arms it.
+    try:
+        armed = await arm_stage_site(db, session_mgr, posted, now_ms=now)
+        if armed is not None:
+            posted = armed
+    except Exception:
+        log.debug("[communal_rt] post-arm scenario failed", exc_info=True)
+    return posted
 
 
 # ── strikes (player participation) ─────────────────────────────────────────────
@@ -328,6 +338,198 @@ async def record_strike(db, session_mgr, char: dict,
     )
 
 
+# ── staged-event scenario orchestration ──────────────────────────────────────
+# events_playable_scenarios_design_v1 (2026-06-24): a STAGED cult (hollow_sun)
+# is a PLAYABLE SITE SCENARIO. Instead of grinding the `rally strike` counter,
+# players travel to an anchored site and `investigate` a LIVE anomaly per stage:
+# a wave-combat anomaly, then a skill anomaly (slice the cistern), then a boss.
+# Clearing the stage's anomaly advances the stage cursor and arms the next; the
+# menace meter stays as the failure timer. All gameplay + rewards ride the
+# EXISTING wilderness-anomaly machinery — no new system, no new faucet.
+#
+# These helpers are best-effort and guarded exactly like the rest of the
+# runtime: any failure logs and degrades, never aborting a command or tick. The
+# Situation-Board contract (get_active row columns) is untouched — scenario
+# state lives entirely in contributions_json["_stage"].
+
+async def _resolve_scenario_site_room(db, cult) -> "tuple[int, int | None] | None":
+    """Pick the anchor room + zone for a staged cult's scenario site, reusing
+    the anomaly substrate's landmark-anchor logic. Returns (room_id, zone_id)
+    or None."""
+    try:
+        from engine import staged_event as SE
+        region = SE.scenario_region(cult.key)
+        if not region:
+            return None
+        import random as _random
+        from engine.wilderness_anomalies import _pick_anchor_room
+        return await _pick_anchor_room(db, region, _random.Random())
+    except Exception:
+        log.debug("[communal_rt] scenario site resolve failed", exc_info=True)
+        return None
+
+
+async def _site_label(db, room_id: "int | None") -> "str | None":
+    if room_id is None:
+        return None
+    try:
+        room = await db.get_room(int(room_id))
+        return (room or {}).get("name") if room else None
+    except Exception:
+        return None
+
+
+async def arm_stage_site(db, session_mgr, active: dict,
+                         now_ms: "int | None" = None) -> "dict | None":
+    """Arm the CURRENT stage of a staged cult: ensure the site room is chosen
+    and the stage's live anomaly is spawned, recording the site_room_id +
+    anomaly_id into contributions_json["_stage"]. Idempotent — if the current
+    stage already has a live (unresolved) anomaly, this is a no-op.
+
+    Returns the updated active row dict, or None if not staged / nothing to do.
+    """
+    if not active:
+        return None
+    try:
+        from engine import staged_event as SE
+        from engine import wilderness_anomalies as WA
+    except Exception:
+        return None
+
+    cult = CO.CULT_BY_KEY.get(active.get("cult_key", ""))
+    if cult is None or not SE.is_staged(cult.key):
+        return None
+
+    contribs = _parse_json(active.get("contributions_json"), {})
+    state = SE.get_stage_state(contribs)
+
+    spec = SE.current_stage_anomaly_spec(cult.key, state)
+    if spec is None:
+        return None  # all stages cleared, or no anomaly for this stage
+    template_key, tier = spec
+
+    # Already have a live anomaly for this stage?
+    existing_id = state.get("anomaly_id")
+    if existing_id is not None:
+        anom = WA.find_anomaly_globally(int(existing_id))
+        if anom is not None and not anom.resolved:
+            return active  # still live — nothing to do
+
+    # Resolve / reuse the site room.
+    room_id = state.get("site_room_id")
+    zone_id = None
+    if room_id is None:
+        site = await _resolve_scenario_site_room(db, cult)
+        if site is None:
+            log.debug("[communal_rt] no scenario site room for %s", cult.key)
+            return None
+        room_id, zone_id = site
+
+    region = SE.scenario_region(cult.key)
+    try:
+        anomaly = await WA.spawn_scenario_anomaly(
+            db, region, template_key, int(room_id),
+            tier=int(tier), zone_id=zone_id,
+            session_mgr=session_mgr,
+        )
+    except Exception:
+        log.warning("[communal_rt] scenario anomaly spawn failed", exc_info=True)
+        return None
+    if anomaly is None:
+        return None
+
+    state["site_room_id"] = int(room_id)
+    state["anomaly_id"] = int(anomaly.id)
+    SE.set_stage_state(contribs, state)
+    try:
+        await db.execute(
+            "UPDATE communal_objective SET contributions_json = ? WHERE id = ?",
+            (json.dumps(contribs), int(active["id"])),
+        )
+        await db.commit()
+    except Exception:
+        log.warning("[communal_rt] arm_stage_site persist failed", exc_info=True)
+        return None
+
+    log.info("[communal_rt] armed stage %d (%s) for %s at room %s (anomaly #%d)",
+             state["idx"] + 1, template_key, cult.key, room_id, anomaly.id)
+    return await get_active(db)
+
+
+async def on_scenario_progress(db, session_mgr, active: dict,
+                               now_ms: "int | None" = None) -> "dict | None":
+    """If a staged cult's current-stage anomaly has been RESOLVED, advance the
+    stage cursor and arm the next stage's anomaly (or finalize the win on the
+    last stage). Poll-driven: called from the `rally` view and the tick, so the
+    scenario advances without modifying the anomaly kill hook.
+
+    Returns the updated active row dict (or None if not staged / no change).
+    """
+    if not active:
+        return None
+    try:
+        from engine import staged_event as SE
+        from engine import wilderness_anomalies as WA
+    except Exception:
+        return None
+
+    cult = CO.CULT_BY_KEY.get(active.get("cult_key", ""))
+    if cult is None or not SE.is_staged(cult.key):
+        return None
+
+    now = int(now_ms if now_ms is not None else _now_ms())
+    contribs = _parse_json(active.get("contributions_json"), {})
+    state = SE.get_stage_state(contribs)
+
+    anomaly_id = state.get("anomaly_id")
+    if anomaly_id is None:
+        # No live anomaly recorded — try to arm the current stage.
+        return await arm_stage_site(db, session_mgr, active, now_ms=now)
+
+    anom = WA.find_anomaly_globally(int(anomaly_id))
+    if anom is not None and not anom.resolved:
+        return None  # stage anomaly still in play — gameplay ongoing
+
+    # The stage's anomaly is no longer actively in play. is_expired is purely
+    # time-based, so a RESOLVED anomaly lingers (findable, resolved=True) until its
+    # expiry; this poll runs every tick and reliably catches resolved=True before
+    # prune. Therefore find->None means the anomaly aged out UNcleared: re-arm the
+    # SAME stage rather than free-advancing on a timeout. A staged scenario must be
+    # CLEARED, not won by waiting — the menace timer is the overall failure clock.
+    if not (anom is not None and anom.resolved):
+        return await arm_stage_site(db, session_mgr, active, now_ms=now)
+
+    # Cleared (a real resolve) — advance the stage cursor (one clear = one stage).
+    new_state, all_cleared = SE.complete_current_stage(cult.key, state)
+    # Drop the consumed anomaly id; keep the site room for the next stage.
+    new_state["site_room_id"] = state.get("site_room_id")
+    new_state["anomaly_id"] = None
+    SE.set_stage_state(contribs, new_state)
+    try:
+        await db.execute(
+            "UPDATE communal_objective SET contributions_json = ? WHERE id = ?",
+            (json.dumps(contribs), int(active["id"])),
+        )
+        await db.commit()
+    except Exception:
+        log.warning("[communal_rt] scenario advance persist failed", exc_info=True)
+
+    log.info("[communal_rt] %s scenario advanced: stage now %d (all_cleared=%s)",
+             cult.key, new_state["idx"] + 1, all_cleared)
+
+    refreshed = await get_active(db)
+    if all_cleared:
+        # Final stage cleared → win the objective through the existing payout.
+        await _finalize(db, session_mgr, refreshed or active, contribs,
+                        won=True, now_ms=now)
+        return CO.STATE_WON   # explicit win signal — the caller no longer infers
+        #                       a win from get_active() returning None (which also
+        #                       fires on a transient DB error: see advance_and_resolve).
+
+    # Arm the next stage's anomaly.
+    return await arm_stage_site(db, session_mgr, refreshed or active, now_ms=now)
+
+
 # ── escalation + resolution (tick-driven) ────────────────────────────────────
 async def advance_and_resolve(db, session_mgr,
                               now_ms: "int | None" = None) -> "str | None":
@@ -341,6 +543,25 @@ async def advance_and_resolve(db, session_mgr,
         return None
 
     now = int(now_ms if now_ms is not None else _now_ms())
+
+    # events_playable_scenarios: advance a staged cult's site scenario (poll the
+    # current stage's anomaly; arm the next stage on clear, win on last clear).
+    # If the scenario just won the objective, it's finalized and no longer active.
+    try:
+        from engine import staged_event as _SE
+        if _SE.is_staged(cult.key):
+            scenario_result = await on_scenario_progress(
+                db, session_mgr, active, now_ms=now)
+            if scenario_result == CO.STATE_WON:
+                return CO.STATE_WON  # scenario cleared the final stage (explicit)
+            active = await get_active(db)
+            if not active:
+                # No active row: a transient get_active failure OR the objective
+                # ended elsewhere — do NOT infer a win (that was the old bug).
+                return None
+    except Exception:
+        log.debug("[communal_rt] tick scenario progress failed", exc_info=True)
+
     advanced_at = float(active.get("advanced_at") or active.get("started_at") or now)
     minutes = max(0.0, (now - int(advanced_at)) / 60000.0)
 
@@ -597,7 +818,14 @@ async def force_post(db, session_mgr, cult_key=None, now_ms=None) -> "dict | Non
         f"Citizens are called to rally.",
     )
     log.info("[communal_rt] ADMIN force_post: %s (rotation %d)", cult.key, rotation)
-    return await get_active(db)
+    posted = await get_active(db)
+    try:
+        armed = await arm_stage_site(db, session_mgr, posted, now_ms=now)
+        if armed is not None:
+            posted = armed
+    except Exception:
+        log.debug("[communal_rt] force_post scenario arm failed", exc_info=True)
+    return posted
 
 
 async def force_resolve(db, session_mgr, won: bool,
