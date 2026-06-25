@@ -135,6 +135,8 @@ In addition to the tick economy, certain achievements award CP directly as one-t
 
 **Profession chain completion** also awards CP bonuses when profession milestones are reached.
 
+**Early-combat "first blood" bonus.** The first few NPC kills your character *ever* lands in combat each grant **+1 CP** on the spot — a one-time early-game faucet (tunable `combat.early_cp_kill_cap`, default 5) that funds roughly one early die-step so an action-first player sees a visible first-session win. It runs through the same milestone funnel as the bonuses above (so it's outside the weekly tick cap and shows up in the `@balance` telemetry), and it is **lifetime-sealed**: once you've credited the cap (five kills by default), combat pays zero CP forever after. It fires on *any* kill you land in a fight — a roaming mob, a bounty target, an anomaly spawn — not just mob-grinding. This is the *only* way combat touches your CP total; the per-kill credit-and-prestige trickle (see [Ground Combat](#/guide/ground-combat) §12) never pays CP.
+
 Completing every Ship's Log milestone is worth **410 CP** in total — equivalent to roughly 400 weeks of passive tick accumulation. Because the thresholds are tiered, an active explorer banks meaningful CP early (the first zone/ship/run tier each pays out fast) and keeps earning toward the capstones. This gives exploring players a substantial advantage over those who only grind ticks.
 
 ---
