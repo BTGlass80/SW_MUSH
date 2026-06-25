@@ -188,6 +188,69 @@ encounters:
         count: [1, 1]
         tier: tier2
 
+    # ── GRIND-REDIRECT additions (2026-06-24): Geonosis cave/rock fauna ────────
+    # Three COTG §2.3 creatures (arqet, draagax, keejin) fill the badlands terrain
+    # and crater terrain gaps. Payload.npc_template resolves to ids in
+    # data/npcs_creatures.yaml; validated by test_grind_redirect_wilderness.py.
+
+    # ── Arqet — rocky ambush predator (COTG §2.3) ─────────────────────────────
+    - id: arqet_ambush
+      type: hostile
+      weight: 2
+      terrains: [badlands]
+      min_distance_from_edge: 2
+      faction_gate: ey_akh_default
+      narrative: "The broken rock ahead is the right shape except for one edge. Then the edge opens — not a crevice, an eye — and the thing that was a boulder comes off the ground all at once, horns low, faster than anything that armoured has any right to be."
+      payload:
+        npc_template: arqet
+        count: [1, 2]
+        tier: tier2
+
+    # ── Draagax pack — berserk cave pack hunters (COTG §2.3) ──────────────────
+    - id: draagax_pack
+      type: hostile
+      weight: 2
+      terrains: [badlands, crater]
+      min_distance_from_edge: 3
+      faction_gate: ey_akh_default
+      min_band: 2            # draagax pack is a mid-tier threat — gated out of the shallowest frontier fringe
+      narrative: "Something is moving in the ravine below at a speed that does not fit its body size. More than one of them, spreading wide, and the air carries a chemical sweetness — the narcotic plant they feed on. The draagax are berserk, and they have the angle on you already."
+      payload:
+        npc_template: draagax
+        count: [3, 5]
+        tier: tier2
+
+    # ── Keejin — cave crawlers dropping from above (COTG §2.3) ───────────────
+    - id: keejin_wall_drop
+      type: non_hostile
+      weight: 2
+      terrains: [badlands]
+      narrative: "Something skitters away the instant your shadow touches the rock face — fast, flat, near-invisible even now that it is moving. A keejin, flushed from the crevice you were about to put your hand in. The larger ones do not flush. They drop."
+      payload:
+        npc_template: keejin
+        count: [2, 4]
+
+    # ── Abandoned battle site — anomaly salvage at the badlands ───────────────
+    - id: battle_site_debris
+      type: anomaly
+      weight: 1
+      terrains: [badlands]
+      min_distance_from_edge: 2
+      narrative: "A scatter of blasted equipment across a flat stretch of rock — a skirmish, weeks or months old, no bodies, the scorch marks still readable. Something moved through here in force and met something. Whatever it was, neither side carried off all their gear."
+      payload:
+        salvage_table: battle_debris_table
+
+    # ── Wandering scavenger band — non-hostile trader stop ────────────────────
+    - id: geonosian_scavenger_camp
+      type: trader_caravan
+      weight: 1
+      terrains: [dune, badlands]
+      min_distance_from_edge: 2
+      narrative: "A dust-trace resolves into a trio of Geonosians moving at an efficient clip, carrying salvage frames loaded with shell fragments and scorched metal. They stop when they see you — not hostile, assessing. One clicks out a short phrase. A trade might be possible."
+      payload:
+        vendor_template: geonosian_scavenger_goods
+        duration_minutes: 5
+
 # ─── Landmarks ───────────────────────────────────────────────────────────────
 landmarks:
 

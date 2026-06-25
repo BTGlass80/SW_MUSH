@@ -340,6 +340,54 @@ encounters:
         npc_template: shredder_bat
         count: [6, 12]
 
+    # ── GRIND-REDIRECT additions (2026-06-24): oasis + canyon variety ──────────
+    # The oasis terrain had zero encounters and the canyon had only two.
+    # New additions cover gornt prey herds (COTG §4) at oasis, a vaporator
+    # anomaly at the oasis, and a voroos variant at canyon.
+    # All payload.npc_template values resolve to ids in data/npcs_creatures.yaml
+    # (validated by test_grind_redirect_wilderness.py and the global phantom-
+    # producer guard test_wilderness_encounter_template_resolution.py).
+
+    # ── Gornt herd — oasis prey animals (COTG §4) ─────────────────────────────
+    - id: gornt_herd
+      type: non_hostile
+      weight: 2
+      terrains: [oasis, dune]
+      narrative: "A cluster of round, stubby shapes crowds the shadow at the water's edge — gornts, a small feral herd, drinking and watching you with the wide-eyed anxiety of prey animals that know what they are. Where gornts drink, the water is clean. Where the water is clean, the things that hunt them will not be far behind."
+      payload:
+        npc_template: gornt
+        count: [4, 8]
+
+    # ── Desert water prospecting — anomaly at oasis ────────────────────────────
+    - id: oasis_vaporator_array
+      type: anomaly
+      weight: 1
+      terrains: [oasis]
+      narrative: "Three moisture vaporators stand in a rough line at the water's edge, unattended, each collection tank full to the indicator line. Registered to a claim that lapsed — or a claimant who did not. Either way the water is here and no one is watching it."
+      payload:
+        salvage_table: vaporator_table
+
+    # ── Voroos at a canyon choke point ────────────────────────────────────────
+    - id: canyon_voroos
+      type: hostile
+      weight: 1
+      terrains: [canyon]
+      min_distance_from_edge: 2
+      narrative: "The canyon narrows here, and the floor is smooth rock — too smooth. The mound against the far wall is the wrong density for stone, the surface wrong for sand. The canyon voroos is large and patient and it has positioned itself across the only way through."
+      payload:
+        npc_template: voroos
+        count: [1, 1]
+
+    # ── Desert hermit's abandoned cache — canyon anomaly ──────────────────────
+    - id: canyon_supply_cache
+      type: anomaly
+      weight: 1
+      terrains: [canyon, rocky_outcrop]
+      min_distance_from_edge: 3
+      narrative: "In the shadow of an overhang where the canyon bends: a weathered supply pack, wedged between stones at knee height. Someone left this here deliberately. The pack has not been opened recently, but neither has it been touched by scavengers — it is off the main travel lines."
+      payload:
+        salvage_table: speeder_wreck_table
+
 # Landmarks — the authoritative roster of named places in the region.
 # Each landmark becomes a `rooms` row at world-build time with
 # `wilderness_region_id = 'tatooine_dune_sea'` and coordinates stored
