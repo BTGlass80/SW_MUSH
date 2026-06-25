@@ -38,6 +38,8 @@ SINGLETON_BINDINGS = [
     ("space_grid",        "engine.starships",            "get_space_grid"),
     ("ship_registry",     "engine.starships",            "get_ship_registry"),
     ("weapon_registry",   "engine.weapons",              "get_weapon_registry"),
+    # T3.22 Phase 1: ambient ground-side NPC life manager.
+    ("ambient_life_mgr",  "engine.ambient_life",         "get_ambient_life_manager"),
 ]
 
 

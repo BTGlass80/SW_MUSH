@@ -492,6 +492,19 @@ async def docking_fee_tick(ctx: TickContext) -> None:
             log.warning("docking_fee_tick: failed for owner %d", owner_id, exc_info=True)
 
 
+# ── Ambient NPC Life (T3.22 Phase 1) ─────────────────────────────────────────
+
+async def ambient_npc_life_tick(ctx: TickContext) -> None:
+    """Ambient ground-side NPC simulation: goals + intra-zone movement.
+
+    Every 300 ticks (~5 min). ZERO mechanical effects (no credit / market /
+    faction / combat writes). Purely positional + room-channel narration.
+    See engine/ambient_life.py for full invariant notes.
+    """
+    from engine.ambient_life import get_ambient_life_manager
+    await get_ambient_life_manager().tick(ctx.db, ctx.session_mgr)
+
+
 # ── Idle Queue (Ollama GPU utilization) ──────────────────────────────────────
 
 async def idle_queue_tick(ctx) -> None:
