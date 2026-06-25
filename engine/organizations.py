@@ -279,8 +279,15 @@ async def issue_equipment(char: dict, org_code: str, db,
     in WeaponRegistry (weapon/armor items). Fall back to EQUIPMENT_CATALOG
     stub for narrative props (comlink_basic, slicing_kit, etc.) that are
     legitimately registry-less.
+
+    FUN2 fix (2026-06-25): auto-equip issued weapon/armor items into the
+    matching slot if that slot is currently empty. Never displaces an
+    already-equipped item — only equips when the slot is None. Uses the
+    canonical read_equipment / write_equipment path. Non-weapon/armor slots
+    (misc, narrative props) are skipped silently.
     """
     from engine.weapons import get_weapon_registry
+    from engine.items import read_equipment, write_equipment, ItemInstance
     issued_names = []
     try:
         org = await db.get_organization(org_code)
@@ -323,6 +330,23 @@ async def issue_equipment(char: dict, org_code: str, db,
             # Record issuance
             await db.issue_equipment(char["id"], org["id"], key, item_name)
             issued_names.append(item_name)
+
+            # FUN2: auto-equip into an empty slot (weapon or armor only).
+            # Never clobbers an existing equipped item — only equips when
+            # the slot is unoccupied. Misc/narrative props (item_slot not in
+            # {"weapon","armor"}) are skipped. Uses the canonical
+            # read_equipment / write_equipment funnel so the stored JSON
+            # always round-trips correctly.
+            if item_slot in ("weapon", "armor"):
+                current_equip = char.get("equipment", "{}")
+                slots = read_equipment(current_equip)
+                if slots[item_slot] is None:
+                    inst = ItemInstance(key=key)
+                    new_weapon = inst if item_slot == "weapon" else slots["weapon"]
+                    new_armor  = inst if item_slot == "armor"  else slots["armor"]
+                    new_eq_str = write_equipment(weapon=new_weapon, armor=new_armor)
+                    char["equipment"] = new_eq_str
+                    await db.save_character(char["id"], equipment=new_eq_str)
 
         if issued_names and session:
             items_str = ", ".join(issued_names)

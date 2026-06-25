@@ -1695,12 +1695,21 @@ class AttackCommand(BaseCommand):
 
     # ── Pipeline orchestrator ────────────────────────────────────────
     async def execute(self, ctx: CommandContext):
-        if not ctx.args:
-            await self._usage_help(ctx)
-            return
-
         char = ctx.session.character
         room_id = char["room_id"]
+
+        if not ctx.args:
+            # FUN2: bare 'attack' auto-targets the first hostile NPC in the
+            # room so newcomers following the tutorial panel hint ("attack")
+            # don't get a usage error. If there are no hostiles, fall through
+            # to the normal usage help.
+            auto_target = await self._auto_target_hostile(ctx, room_id, char)
+            if auto_target is None:
+                await self._usage_help(ctx)
+                return
+            # Mutate args to the hostile's name; the rest of the pipeline
+            # treats this identically to a manually typed target name.
+            ctx.args = auto_target
 
         # CRAFT.HOOK.restraints: bound hands can't wield a weapon. A cuffed
         # prisoner can't initiate an attack (mirrors the retreat-refusal gate
@@ -1829,6 +1838,26 @@ class AttackCommand(BaseCommand):
         await _try_auto_resolve(combat, ctx)
 
     # ── Phase helpers ────────────────────────────────────────────────
+
+    async def _auto_target_hostile(self, ctx, room_id: int, char: dict):
+        """Return the first hostile NPC name in the room, or None.
+
+        FUN2: Called when the player types bare 'attack' with no args.
+        Hostility is determined by is_hostile() from engine.npc_combat_ai,
+        the same classification the AI aggro system uses. Returns the NPC's
+        name string so it can be injected into ctx.args and the normal
+        _find_target pipeline proceeds without duplication.
+        """
+        from engine.npc_combat_ai import is_hostile
+        npcs = await ctx.db.get_npcs_in_room(room_id)
+        # Wilderness: if the character is on a tile, filter NPCs by tile
+        # (matches the constraint _find_target already applies via match_in_room
+        # source_char= path — belt-and-braces, NPCs are stored with room_id
+        # only today, so this loop naturally returns room-scope results).
+        for npc in npcs:
+            if is_hostile(npc):
+                return npc["name"]
+        return None
 
     async def _usage_help(self, ctx):
         await ctx.session.send_line(
