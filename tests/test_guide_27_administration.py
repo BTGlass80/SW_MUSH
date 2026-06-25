@@ -88,6 +88,7 @@ _TAUGHT = [
     # §3 Director / world (ADMIN)
     ("@director", AccessLevel.ADMIN),
     ("@economy", AccessLevel.ADMIN),
+    ("@balance", AccessLevel.ADMIN),       # §3 — T3.19 telemetry read-side
     ("@lore", AccessLevel.ADMIN),
     ("@hazard", AccessLevel.ADMIN),
     ("@roomstate", AccessLevel.ADMIN),
@@ -147,6 +148,7 @@ class TestAliases:
         ("@gca", "@getcharattr"),   # §6
         ("@sca", "@setcharattr"),   # §6
         ("@bounty", "@setbounty"),  # §6 (alias)
+        ("@bal", "@balance"),       # §3 (alias)
     ])
     def test_alias_resolves_to_key(self, reg, alias, key):
         a, k = reg.get(alias), reg.get(key)
@@ -200,6 +202,49 @@ class TestDirectorSubcommands:
     @pytest.mark.parametrize("sub", ["budget", "influence", "fidelity", "cult"])
     def test_guide_documents_key_subs(self, guide_text, sub):
         assert sub in guide_text
+
+
+# ── @balance (T3.19 telemetry read-side) — guide must match the live command ───
+class TestBalanceDashboard:
+    """The `t319-balance-dashboard` drop shipped `@balance` as the behavioural
+    read-side companion to `@economy`; this pass added it to §3.  Pin the guide's
+    claims against the live `BalanceCommand` so a future rename/removal fails here.
+    """
+
+    def test_balance_resolves_admin(self, reg):
+        cmd = reg.get("@balance")
+        assert cmd is not None and cmd.access_level == AccessLevel.ADMIN
+        assert type(cmd).__name__ == "BalanceCommand"
+
+    def test_guide_pairs_the_two_boards(self, guide_text):
+        # The guide must teach BOTH boards and the live-vs-telemetry distinction.
+        assert "@economy" in guide_text and "@balance" in guide_text
+        lowered = guide_text.lower()
+        assert "telemetry" in lowered
+        assert "live db state" in lowered  # the @economy side of the contrast
+
+    @pytest.mark.parametrize("sub", [
+        "grind", "cp", "objectives", "encounters", "events", "raw",
+    ])
+    def test_guide_documents_balance_subforms(self, guide_text, sub):
+        assert f"@balance {sub}" in guide_text, (
+            f"Guide_27 §3 should document the @balance {sub!r} sub-board"
+        )
+
+    @pytest.mark.parametrize("sub", [
+        "grind", "cp", "objectives", "encounters", "events", "raw",
+    ])
+    def test_subform_is_really_dispatched(self, sub):
+        # Each documented sub-board must actually be handled by execute().
+        src = _read(DIRECTOR_SRC)
+        # Slice out the BalanceCommand class body so the match is scoped to it.
+        start = src.index("class BalanceCommand")
+        nxt = src.find("\nclass ", start + 1)
+        body = src[start:nxt if nxt != -1 else len(src)]
+        assert re.search(rf'(["\']){sub}\1', body), (
+            f"@balance {sub!r} is documented but no longer handled in "
+            f"BalanceCommand.execute()"
+        )
 
 
 # ── The "does not exist" denials must stay true ───────────────────────────────
