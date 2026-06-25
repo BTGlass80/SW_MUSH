@@ -38,7 +38,7 @@ ROOT = _find_root()
 # create_character INSERT on the regular path — not a running-economy faucet.
 ALLOWLIST = {"server/api.py"}
 
-SCAN_ROOTS = ("engine", "parser", "server")
+SCAN_ROOTS = ("engine", "parser", "server", "db")
 
 
 def _raw_credit_write_sites():
