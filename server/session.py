@@ -2060,6 +2060,144 @@ class Session:
             self._last_chain_step = None
             await self.send_json("onboarding_state", payload)
 
+    async def _hud_sidebar_goals(self, db, char, char_id) -> None:
+        """UX Drop 6: consolidated GOALS / objectives sidebar push.
+
+        A read-only MIRROR that consolidates the graduated player's active,
+        persistent goals into one ``goals_status`` message — the mid-game
+        questline step (``active_questline`` slot), the one accepted mission,
+        and the claimed/active bounty — so the keyboard player always has an
+        answer to "what am I working toward, and what do I type?" without
+        paging a board.
+
+        Composes three EXISTING readers; no new system, no DB write, no schema:
+          · questline → engine.chain_events.get_questline_status(char)
+          · mission   → get_mission_board() singleton (the same authoritative
+                        in-memory source _hud_active_jobs reads), visibility
+                        filtered via is_chain_mission_visible_to
+          · bounty    → get_bounty_board() singleton, claimed-by-viewer,
+                        visibility filtered via is_chain_bounty_visible_to
+
+        Discipline (mirrors _hud_sidebar_onboarding):
+          · The questline slice is SUPPRESSED while the onboarding/tutorial
+            chain is still active — the TRAINING panel owns the player during
+            the NPE; GOALS picks up after graduation (no duplicate surface).
+          · EARLY-RETURN (sends nothing) when all three slots are empty, so a
+            player with no goals gets no panel — zero cost when ignored.
+          · No new credit/dice/influence movement → no funnel obligation. This
+            is pure read-only HUD marshalling.
+          · Each ``stage_cmd`` / ``command_to_type`` is a literal authored by a
+            real producer (the questline corpus, ``+missions``, ``JOBS``) — the
+            panel never invents a verb. Everything here is already reachable by
+            typing (``quests``/``chain status``, ``+missions``, ``+bounties``).
+
+        Called from send_hud_update immediately after _hud_sidebar_onboarding
+        and, like every sidebar block, independently try/except guarded by the
+        caller — a failure here just omits the panel.
+        """
+        char_id_str = str(char_id)
+
+        # ── Questline slice (suppressed during the active NPE chain) ──────────
+        questline = None
+        try:
+            from engine.chain_events import (
+                get_questline_status, build_onboarding_state,
+            )
+            onboarding = build_onboarding_state(char)
+            npe_active = bool(onboarding and onboarding.get("active"))
+            if not npe_active:
+                q = get_questline_status(char)
+                if q is not None:
+                    questline = {
+                        "chain_id": q.get("chain_id"),
+                        "title": q.get("title") or "",
+                        "objective": q.get("objective") or "",
+                        "step": q.get("step"),
+                        "total_steps": q.get("chain_total_steps"),
+                        "next_hint": q.get("next_hint") or "",
+                        # Authored literal (may be "" → client suppresses the
+                        # TYPE chip). The panel cannot invent a verb.
+                        "command_to_type": q.get("command_to_type") or "",
+                    }
+        except Exception:
+            log.debug("_hud_sidebar_goals: questline lookup failed",
+                      exc_info=True)
+
+        # Viewer attributes (for the chain visibility filters), parsed once.
+        attrs = char.get("attributes", "{}")
+        if isinstance(attrs, str):
+            try:
+                attrs = json.loads(attrs) if attrs else {}
+            except Exception:
+                attrs = {}
+        if not isinstance(attrs, dict):
+            attrs = {}
+
+        # ── Mission slice (the one accepted mission, if visible) ──────────────
+        mission = None
+        try:
+            from engine.missions import get_mission_board, MissionStatus
+            from engine.chain_missions import is_chain_mission_visible_to
+            board = get_mission_board()
+            for m in board._missions.values():
+                if (m.accepted_by == char_id_str
+                        and m.status == MissionStatus.ACCEPTED
+                        and is_chain_mission_visible_to(m, attrs)):
+                    mission = {
+                        "id": m.id,
+                        "title": m.title or "",
+                        "objective": m.objective or "",
+                        "reward": int(getattr(m, "reward", 0) or 0),
+                        # +missions is the real board verb (telnet + web).
+                        "stage_cmd": "+missions",
+                    }
+                    break
+        except Exception:
+            log.debug("_hud_sidebar_goals: mission lookup failed",
+                      exc_info=True)
+
+        # ── Bounty slice (the viewer's claimed/active contract, if visible) ───
+        bounty = None
+        try:
+            from engine.bounty_board import get_bounty_board, BountyStatus
+            from engine.chain_missions import is_chain_bounty_visible_to
+            bboard = get_bounty_board()
+            now = time.time()
+            for c in bboard._contracts.values():
+                if (getattr(c, "claimed_by", None) == char_id_str
+                        and getattr(c, "status", "") == BountyStatus.CLAIMED
+                        and is_chain_bounty_visible_to(c, attrs)):
+                    tier = getattr(c, "tier", "")
+                    tier_str = getattr(tier, "value", tier) or ""
+                    exp = getattr(c, "expires_at", None)
+                    expires_in = (max(0, int(exp - now))
+                                  if exp is not None else None)
+                    bounty = {
+                        "id": c.id,
+                        "target_name": getattr(c, "target_name", "Unknown"),
+                        "tier": tier_str,
+                        "reward": int(getattr(c, "reward", 0) or 0),
+                        "expires_in_secs": expires_in,
+                        # 'bounties' is the bounty-board verb (the JOBS toolbar
+                        # button sends the same). NOT 'jobs' — that aliases
+                        # +missions, which would open the wrong board.
+                        "stage_cmd": "bounties",
+                    }
+                    break
+        except Exception:
+            log.debug("_hud_sidebar_goals: bounty lookup failed",
+                      exc_info=True)
+
+        # ── Early-return on an all-empty board → no panel, zero cost. ─────────
+        if questline is None and mission is None and bounty is None:
+            return
+
+        await self.send_json("goals_status", {
+            "questline": questline,
+            "mission": mission,
+            "bounty": bounty,
+        })
+
     async def _hud_sidebar_mail(self, db, char_id) -> None:
         """Send mail_status sidebar message."""
         mail_rows = await db.fetchall(
@@ -2358,6 +2496,15 @@ class Session:
                 await self._hud_sidebar_onboarding(char)
             except Exception:
                 log.debug("send_hud_update: sidebar onboarding failed",
+                          exc_info=True)
+
+            # UX Drop 6: consolidated GOALS panel (questline + mission +
+            # bounty). Read-only mirror; early-returns when the player has no
+            # goals. Rides this same HUD tick — no new socket cadence.
+            try:
+                await self._hud_sidebar_goals(db, char, char_id)
+            except Exception:
+                log.debug("send_hud_update: sidebar goals failed",
                           exc_info=True)
         if db and char_id:
             try:

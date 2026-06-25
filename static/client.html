@@ -3834,6 +3834,33 @@ a { color: inherit; text-decoration: none; }
 .m3o-tour-btn.next { border-color: var(--accent); color: var(--accent); }
 .m3o-tour-btn:hover { color: var(--accent-bright); border-color: var(--accent-bright); }
 
+/* UX Drop 6: consolidated GOALS / objectives tracker. Reuses the onboard
+   chip / objective / rail vocabulary; lean, no animation that competes with
+   reading (the one live element is the bounty countdown text). */
+.m3g-root { display: flex; flex-direction: column; gap: 9px; }
+.m3g-row { border: 1px solid var(--accent-dim); border-left: 3px solid var(--accent-dim); background: rgba(0,0,0,0.18); padding: 6px 8px; }
+.m3g-row.m3g-quest { border-left-color: var(--accent); }
+.m3g-row.m3g-mission { border-left-color: var(--accent-bright); }
+.m3g-row.m3g-bounty { border-left-color: var(--warn); }
+.m3g-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
+.m3g-kind { font-size: 8px; letter-spacing: 2px; color: var(--accent-dim); }
+.m3g-step { font-size: 8px; letter-spacing: 1px; color: var(--text-dim); }
+.m3g-reward { font-size: 9.5px; color: var(--self); }
+.m3g-title { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m3g-obj { font-size: 10.5px; color: var(--text-dim); line-height: 1.4; margin-bottom: 4px; }
+.m3g-tier { display: inline-block; font-size: 8.5px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
+.m3g-rail { display: flex; gap: 6px; margin: 2px 0 6px; }
+.m3g-dot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--accent-dim); background: transparent; }
+.m3g-dot.done { background: var(--self); border-color: var(--self); }
+.m3g-dot.current { border-color: var(--accent-bright); box-shadow: 0 0 5px rgba(255,200,87,0.4); }
+.m3g-next { border-left: 2px solid var(--accent-dim); padding: 2px 7px; margin-bottom: 5px; }
+.m3g-next-label { display: block; font-size: 8px; letter-spacing: 2px; color: var(--accent-dim); }
+.m3g-next-text { font-size: 10px; color: var(--text-dim); line-height: 1.4; }
+.m3g-count { font-size: 10px; color: var(--warn); letter-spacing: 1px; margin-bottom: 4px; }
+.m3g-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.m3g-chip { background: none; border: 1px solid var(--accent-dim); color: var(--accent); cursor: pointer; font-family: var(--font-mono); font-size: 10px; padding: 3px 8px; }
+.m3g-chip:hover { color: var(--accent-bright); border-color: var(--accent-bright); }
+
 /* Top bar: identity + points strip */
 .sheet-head {
   flex: 0 0 auto;
@@ -4667,6 +4694,21 @@ a { color: inherit; text-decoration: none; }
             <span class="sp-toggle">▾</span>
           </div>
           <div class="side-panel-body" id="onboard-body"></div>
+        </div>
+
+        <!-- UX Drop 6: consolidated GOALS / objectives tracker. Driven by the
+             goals_status push; surfaces the graduated player's active
+             questline step + accepted mission + claimed bounty in one place.
+             Read-only mirror of text-reachable state (quests / +missions /
+             +bounties); hidden when the player has no goals. Sits right after
+             TRAINING — it's the post-graduation continuation of "what next?" -->
+        <div class="side-panel" id="goals-panel" style="display:none;">
+          <div class="side-panel-head" onclick="toggleSidePanel('goals-panel')">
+            <span class="sp-title">GOALS</span>
+            <span class="sp-count" id="goals-count"></span>
+            <span class="sp-toggle">▾</span>
+          </div>
+          <div class="side-panel-body" id="goals-body"></div>
         </div>
 
         <div class="side-panel" id="rep-panel" style="display:none;">
@@ -5517,6 +5559,7 @@ a { color: inherit; text-decoration: none; }
 <script src="/static/spa/m3_region.js"></script>
 <script src="/static/spa/m3_situation_board.js"></script>
 <script src="/static/spa/m3_scene_panel.js"></script>
+<script src="/static/spa/m3_goals.js"></script>
 <script src="/static/spa/m3_presence_panel.js"></script>
 <script src="/static/spa/m3_inventory.js"></script>
 <script src="/static/spa/m3_shop.js"></script>
@@ -8793,6 +8836,58 @@ function handleSituationState(data) {
 function hideSituationPanel() {
   var panel = $('situation-panel');
   if (panel) panel.style.display = 'none';
+}
+
+/* ── UX Drop 6: consolidated GOALS / objectives tracker ───────────────
+   Driven by the goals_status push (server _hud_sidebar_goals). Mirrors
+   handleSituationState: hide when no goals, else render the questline +
+   mission + bounty rows. Action chips STAGE (never auto-send) via
+   stageRawCommand — the player presses Enter. The bounty countdown is the
+   only client interval; it is armed only while the panel is visible. */
+function handleGoalsStatus(data) {
+  var panel = $('goals-panel'), body = $('goals-body'),
+      countEl = $('goals-count');
+  if (!panel || !body) return;
+  var hasQuest  = !!(data && data.questline);
+  var hasMission = !!(data && data.mission);
+  var hasBounty = !!(data && data.bounty);
+  if (!window.M3Goals || (!hasQuest && !hasMission && !hasBounty)) {
+    hideGoalsPanel();
+    return;
+  }
+  // Lazy DI init (mirror handleScene/Situation): route server text through the
+  // shared escapeHtml (XSS contract).
+  if (typeof window.M3Goals.init === 'function' && typeof escapeHtml === 'function') {
+    window.M3Goals.init({ escapeHtml: escapeHtml });
+  }
+  var node = window.M3Goals.render(data, stageFromGoals);
+  if (!node) { hideGoalsPanel(); return; }
+  if (typeof window.M3Goals.stop === 'function') window.M3Goals.stop();
+  body.innerHTML = '';
+  body.appendChild(node);
+  panel.style.display = '';
+  // Count badge = number of active goal slots (glanceable).
+  var n = (hasQuest ? 1 : 0) + (hasMission ? 1 : 0) + (hasBounty ? 1 : 0);
+  if (countEl) countEl.textContent = n > 0 ? String(n) : '';
+  // Arm the live bounty countdown only while the panel is visible.
+  if (typeof window.M3Goals.start === 'function') window.M3Goals.start(body);
+}
+
+function hideGoalsPanel() {
+  var panel = $('goals-panel'), body = $('goals-body'),
+      countEl = $('goals-count');
+  if (window.M3Goals && typeof window.M3Goals.stop === 'function') {
+    window.M3Goals.stop();   // clear the countdown interval (no leak)
+  }
+  if (panel) panel.style.display = 'none';
+  if (body) body.innerHTML = '';
+  if (countEl) countEl.textContent = '';
+}
+
+function stageFromGoals(cmd) {
+  // Panel, not modal — stays open while the player works the goal. Stages the
+  // authored literal into the input; the player still presses Enter.
+  stageRawCommand(cmd);
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -14196,6 +14291,7 @@ function connect() {
         case 'board_state':           handleBoardState(msg); return;
         case 'crafting_state':        handleCraftingState(msg); return;
         case 'onboarding_state':      handleOnboardingState(msg); return;
+        case 'goals_status':          handleGoalsStatus(msg); return;
         case 'sheet_data':            handleSheetData(msg); return;
         case 'skill_descriptions':    handleSkillDescriptions(msg); return;
         case 'pose_event':
