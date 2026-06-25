@@ -1758,6 +1758,16 @@ a { color: inherit; text-decoration: none; }
 .here-name.mechanic { color: var(--accent); }
 .here-name.bartender { color: var(--pad-amber); }
 .here-name.player  { color: var(--accent-bright); }
+.here-name.quest   { color: var(--self); }
+/* UX Drop 1: clickable entity name (examine). Affordance only — keyboard
+   focusable, underline-on-hover; no animation (reduced-motion safe). */
+.here-name-clickable { cursor: pointer; }
+.here-name-clickable:hover,
+.here-name-clickable:focus { text-decoration: underline; outline: none; }
+/* UX Drop 1: the caller's own bounty target standing in the room. Reuses the
+   hostile-glow warn vocabulary so the win condition reads at a glance. */
+.here-entry.bounty-target { box-shadow: inset 2px 0 0 var(--warn); }
+.here-entry.bounty-target .here-name { color: var(--warn); }
 .here-actions { display: flex; gap: 3px; flex-wrap: wrap; }
 .here-btn {
   padding: 1px 5px; font-size: 9px; letter-spacing: 1px;
@@ -1770,6 +1780,8 @@ a { color: inherit; text-decoration: none; }
 .here-btn.btn-buy     { color: var(--pad-amber);   }
 .here-btn.btn-train   { color: var(--self);         }
 .here-btn.btn-repair  { color: var(--accent);       }
+.here-btn.btn-claim   { color: var(--warn); border-color: var(--warn); }
+.here-btn.btn-claim:hover { background: rgba(255,110,74,0.15); }
 
 /* ── Ground-UX: ACTIVE JOBS panel (active_jobs) ── */
 .job-entry {
@@ -5326,6 +5338,7 @@ a { color: inherit; text-decoration: none; }
 <script src="/static/spa/m3_board.js"></script>
 <script src="/static/spa/m3_onboard.js"></script>
 <script src="/static/spa/m3_craft.js"></script>
+<script src="/static/spa/m3_affordances.js"></script>
 
 <script>
 /* ════════════════════════════════════════════════════════════════════
@@ -5464,6 +5477,8 @@ var _roomHasTrainer    = false;
 var _roomHasCrafting   = false;
 var _playerCP          = 0;
 var _lastWoundLevel    = 0;
+var _inCombat          = false;   // UX Drop 1: hud.in_combat → FLEE affordance
+var _roomHasBountyTarget = false; // UX Drop 1: own bounty target here → CLAIM
 
 // Pose log state — both ground and space share the same log array; we render to whichever is visible.
 var poseEvents = [];           // typed events
@@ -6380,6 +6395,15 @@ function _buildExploreButtons() {
   var base = QUICK_MODES.explore.slice();
   var inject = [];
 
+  // UX Drop 1: context affordances (FLEE in combat, CLAIM on own bounty
+  // target present). Mirrors the TRAIN/CRAFT injection seam; the descriptors
+  // come from M3Affordances so the verb mapping stays in the module.
+  if (window.M3Affordances) {
+    var extra = M3Affordances.extraQuickButtons(
+      { inCombat: _inCombat, hasBountyTarget: _roomHasBountyTarget });
+    for (var ex = 0; ex < extra.length; ex++) inject.push(extra[ex]);
+  }
+
   if (_lastWoundLevel > 0) {
     inject.push({ label: 'HEAL', qa: 'HEAL', cmd: 'heal',
                   action: 'send', tip: 'Use a medpac to treat your wounds' });
@@ -6861,6 +6885,17 @@ function handleHudUpdate(data) {
                        contents.some(function(n) { return n && n.role === 'trainer'; });
     _roomHasCrafting = services.indexOf('crafting') !== -1 ||
                        contents.some(function(n) { return n && n.role === 'mechanic'; });
+  }
+  // UX Drop 1: bounty-target presence. room_contents is the object form
+  // {npcs,...}; the helper reads npcs[].is_bounty_target tolerantly.
+  if (data.room_contents !== undefined) {
+    _roomHasBountyTarget = window.M3Affordances
+      ? M3Affordances.roomHasBountyTarget(data.room_contents)
+      : false;
+  }
+  // UX Drop 1: combat state for the FLEE affordance (server top-level field).
+  if (data.in_combat !== undefined) {
+    _inCombat = !!data.in_combat;
   }
   // Wound level (numeric rung 0=healthy … 6=dead)
   if (data.wound_level !== undefined) {
@@ -8844,7 +8879,8 @@ function renderHerePanel(data) {
       iconEl.className = 'here-role-icon';
       iconEl.textContent = (role === 'hostile' || npc.hostile)
         ? '⚔️'                          // swords for hostile
-        : (_HERE_ROLE_ICONS[role] || '○');
+        : (role === 'quest' ? '❗'      // quest-giver / guide marker
+        : (_HERE_ROLE_ICONS[role] || '○'));
       iconEl.title = role.charAt(0).toUpperCase() + role.slice(1);
       row.appendChild(iconEl);
 
@@ -8855,9 +8891,15 @@ function renderHerePanel(data) {
       else if (role === 'trainer')   nameCls += ' trainer';
       else if (role === 'mechanic')  nameCls += ' mechanic';
       else if (role === 'bartender') nameCls += ' bartender';
+      else if (role === 'quest')     nameCls += ' quest';
       nameEl.className = nameCls;
       nameEl.textContent = npc.name;
+      // UX Drop 1: clickable name → examine (look <name>)
+      if (window.M3Affordances) M3Affordances.makeNameClickable(nameEl, npc.name);
       row.appendChild(nameEl);
+
+      // UX Drop 1: highlight the caller's own bounty target standing here.
+      if (window.M3Affordances) M3Affordances.decorateBountyRow(row, npc);
 
       // Action buttons — server sends the valid verb list
       var actions = npc.actions || ['look', 'talk'];
@@ -8867,15 +8909,25 @@ function renderHerePanel(data) {
         (function(action) {
           var btn = document.createElement('button');
           var btnCls = 'here-btn';
-          if (_HERE_BTN_CLASS[action]) btnCls += ' ' + _HERE_BTN_CLASS[action];
+          if (action === 'claim') btnCls += ' btn-claim';
+          else if (_HERE_BTN_CLASS[action]) btnCls += ' ' + _HERE_BTN_CLASS[action];
           btn.className = btnCls;
           btn.textContent = action;
           if (action === 'attack') btn.title = 'Attack ' + npc.name;
           else if (action === 'buy')    btn.title = 'Browse ' + npc.name + '\'s wares';
           else if (action === 'train')  btn.title = 'Train with ' + npc.name;
           else if (action === 'repair') btn.title = 'Request repairs from ' + npc.name;
+          else if (window.M3Affordances) {
+            var t = M3Affordances.titleForAction(action, npc);
+            if (t) btn.title = t;
+          }
           btn.addEventListener('click', function() {
-            sendCmd(action + ' ' + npc.name);
+            // UX Drop 1: 'claim' → the real `+bounty/collect` verb (no arg);
+            // every other verb keeps the legacy "<verb> <name>" contract.
+            var cmd = window.M3Affordances
+              ? M3Affordances.commandForAction(action, npc)
+              : (action + ' ' + npc.name);
+            sendCmd(cmd);
           });
           actionsWrap.appendChild(btn);
         })(actions[ai]);
@@ -8899,6 +8951,8 @@ function renderHerePanel(data) {
       var nameEl = document.createElement('span');
       nameEl.className = 'here-name player';
       nameEl.textContent = pc.name;
+      // UX Drop 1: clickable name → look <name>
+      if (window.M3Affordances) M3Affordances.makeNameClickable(nameEl, pc.name);
       row.appendChild(nameEl);
 
       var actionsWrap = document.createElement('div');
@@ -8927,6 +8981,8 @@ function renderHerePanel(data) {
       var nameEl = document.createElement('span');
       nameEl.className = 'here-name';
       nameEl.textContent = vd.name || 'Vendor Droid';
+      // UX Drop 1: clickable name → examine the shop (look <name>)
+      if (window.M3Affordances) M3Affordances.makeNameClickable(nameEl, vd.name || 'Vendor Droid');
       row.appendChild(nameEl);
 
       var actionsWrap = document.createElement('div');
@@ -8936,6 +8992,17 @@ function renderHerePanel(data) {
       btnBuy.textContent = 'buy';
       btnBuy.addEventListener('click', function() { sendCmd('buy ' + (vd.name || '')); });
       actionsWrap.appendChild(btnBuy);
+      // UX Drop 1: SELL when the player carries sellable loadout. `sell` verb
+      // validates the actual sale server-side; presence of hud.loadout is the
+      // client-derivable "has something to sell" signal.
+      if (window.M3Affordances && M3Affordances.hasSellableLoadout(data)) {
+        var btnSell = document.createElement('button');
+        btnSell.className = 'here-btn btn-buy';
+        btnSell.textContent = 'sell';
+        btnSell.title = 'Sell goods to ' + (vd.name || 'this vendor');
+        btnSell.addEventListener('click', function() { sendCmd('sell'); });
+        actionsWrap.appendChild(btnSell);
+      }
       row.appendChild(actionsWrap);
       body.appendChild(row);
     })(vdroids[k]);
@@ -12979,6 +13046,13 @@ M3CombatInspector.init({
 M3CombatTheater.init({
   escapeHtml: escapeHtml,
 });
+
+/* UX Drop 1 — M3Affordances: clickable entity names + context affordances
+   (CLAIM / SELL / FLEE). DI'd the shared sendCmd dispatcher so the module
+   issues real parser commands without reaching into client.html internals. */
+if (window.M3Affordances) {
+  M3Affordances.init({ sendCmd: sendCmd });
+}
 
 /* DROP 4.6 — M3Sheet bound but not yet wired to the +sheet command.
    This module ships the character-sheet renderer ported from

@@ -148,6 +148,9 @@ EXPECTED_SPA_LOAD_ORDER = [
     # onboarding_state push).
     "m3_onboard.js",
     "m3_craft.js",
+    # UX Drop 1: context-aware clickable affordances (CLAIM/SELL/FLEE +
+    # clickable entity names). Independent module; loaded after the craft tag.
+    "m3_affordances.js",
 ]
 
 
