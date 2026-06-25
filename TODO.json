@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "last_updated": "2026-06-24",
-  "last_updated_note_prev": "2026-06-24 (ux-drop2-combat-hud): UX DROP 2 combat HUD — cover indicator + own wound-track (wires buildYourStatus; 1-line engine stun_count) + rate-limited/toggleable hit-flash + round-flow coaching. Review caught 2 MAJOR+minor flash bugs (soaked-not-flashed documented, budget counts only genuine flashes, scan-all-events with cross-push de-dup) — all fixed + regression-tested. 23 spa tests + 3 engine. Web-only, read-only HUD, no phantom verbs/fields; era-clean. Next: UX Drop 3 dice.",
+  "last_updated_note_prev": "2026-06-24 (ux-drop3-dice): UX DROP 3 dice animation — animates the signature D6 on DRAMATIC combat resolutions. Engine = ONE field: pure classify_drama() + a `drama` flag on the existing combat_resolution_event (no new push; combat.py avoid-lane untouched). New m3_dice_roll.js renders real dice (per-die SVG, wild die, explosion); fixed overlay (no reflow), rate-limited (1/2.5s), click-skip, reduced-motion-safe, toggle (sw_dice_anim, default minimal), text-first, zero DOM when not dramatic. Review's 3 minors fixed. 18 engine + 16 spa tests; invariant-auditor clean. Next: UX Drop 4 situation board.",
   "architecture_of_record": "sw_d6_mush_architecture_v52.md",
   "_notes": [
     "2026-06-24 (ambient-tatooine-despot-commerce, Sonnet loop): World content -- 4 non-hostile ambient NPCs filling 4 Mos Eisley commercial/criminal-hospitality rooms (Transport Depot/Heff's Souvenirs/Lucky Despot Grand Staircase/Lucky Despot Star Chamber Cafe); Yvonne Targis/Moplin/Naressa Vell/Calos Renk; all Q1-compliant, era-clean, no schema change",
