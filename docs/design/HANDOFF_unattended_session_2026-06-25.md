@@ -46,8 +46,17 @@ From the audit + fun pass, clear fixes I did NOT land (to wrap at a clean state)
 - **Workflow scripts** (uncommitted, in `tools/`): `_fun_wf_run.js` (fun pass, re-runnable), `_audit_wf.js` (launch-readiness audit), `_wildcontent_wf.js` (content proposer). Re-run via the Workflow tool with `scriptPath`.
 - **Throwaway probe artifacts** in `tests/e2e/` (`_move_probe.py`, `_unblock_probe.py`, `_chip_probe.py`, `_tut_probe.py`, `_talk_probe.py`, `_fun_preflight.py`, the `_fun_*/` screenshot dirs, the workflow `fun_*.py`) — safe to delete; gate-excluded (tests/e2e conftest ignores unless RUN_E2E=1).
 
+## Fun re-run (round 2 — DONE, against the fixed `b57b000`)
+I re-ran the full 7-lens fun pass after the unblock to validate + find the next tier. **My core fix is confirmed working** — the new-player lens now *reaches the Combat Simulator* (was stuck in spawn; immersion rose 3→4). The synthesis stayed 3/10 but reframed: "the gap is retention, not depth … fun IS reachable on a narrow happy path (the combat lens briefly rendered two real 'You → Sand Raider: HIT' rows) — which is exactly why it's fixable." The next-tier blockers (all STAGED in `design_calls_pending_brian` as `FUN2.*`):
+- **`FUN2.tutorial_step1_silent_softlock`** (reproducible kills-it) — `talk Major Tarrn` is gated behind `requires_first:[look,+sheet]` with no feedback; talk-before-+sheet silently soft-locks you in the SECURED briefing room. requires_first is a TESTED intentional mechanism (so staged, not blind-fixed) — fork: make-it-speak+checklist (recommended) vs drop-the-gate.
+- **`FUN2.bare_attack_usage_error_and_issued_gear_not_equipped`** — the tutorial's `attack` hint errors (needs a target; 2 same-named sim droids make `attack droid` ambiguous); issued gear (DC-17/DC-15A) is never auto-equipped so the sheet shows "none equipped".
+- **`FUN2.feed_and_combat_render_INVESTIGATED`** (INFO, likely NOT a bug) — the synthesis ranked "ground-feed/exits don't re-sync on room change" as the #1 kills-it across 5 lenses, BUT my live probes (`_chip_probe.py`, `_feed_probe.py`) show the header + exit-chips + room-detail/HERE panels DO re-sync on move; `#ground-feed-col` is the event-LOG, not the room view — so it's likely the agents reading the wrong element. The "combat-feed empty" is most likely downstream of the soft-lock/attack-error (no fight ever starts). **Recommendation: fix the soft-lock + attack issues, then re-run; only chase a combat-feed bug if it persists once a fight actually starts.** Don't rewrite feed-resync on the current probe-contradicted evidence.
+
 ## Suggested next session
-1. **Re-run the fun pass** (`tools/_fun_wf_run.js`) now the door is open — get the real fun read with the Drop 4-8 surfaces reachable.
-2. Knock out the **ready obvious-fix backlog** (above) as one QA-cleanup drop.
-3. Resolve the **7 staged forks** — several (BOOST, command-palette) are ready-to-implement on your one-word OK.
-4. The **tutorial determinism** finding (step-2 sim-room) — re-probe post-unblock to confirm what (if anything) still strands; much was downstream of the movement/tour block.
+1. Resolve the **`FUN2.*` round-2 forks** (above) — the soft-lock is the top first-session blocker; the attack/gear fixes are clear wins on your OK.
+2. **Re-run the fun pass once more** after the FUN2 fixes — confirm the first fight resolves on screen (settles the combat-feed question).
+3. Resolve the **7 round-1 staged forks** — several (BOOST, command-palette) are ready-to-implement on your one-word OK.
+4. Knock out the **ready obvious-fix backlog** (dead consumers, async refs, `+check`, onboarding copy) as one QA-cleanup drop.
+
+## Verdict
+The 8-drop UX roadmap is **done**, the first-session **door is open** (the master blocker is fixed + verified), and the path to first-fun is now a short, well-characterized list of round-2 tutorial/combat fixes — all staged with verification notes so nothing gets chased blind. The bones (sheet, palette, writing, living-world, dice) consistently rate strong across every lens.

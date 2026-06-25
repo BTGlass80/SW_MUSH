@@ -1928,6 +1928,36 @@
   ],
   "design_calls_pending_brian": [
     {
+      "id": "FUN2.tutorial_step1_silent_softlock",
+      "status": "OPEN",
+      "title": "Starter tutorial step 1 silently SOFT-LOCKS: 'talk Major Tarrn' is gated behind requires_first:[look,+sheet] with ZERO feedback — talk before +sheet and the chain never advances, stranding the player in the SECURED briefing room (combat refused). Reproducible kills-it from the fun re-run.",
+      "origin": "Fun re-run 2026-06-25 (against the fixed b57b000, after first-session-unblock opened the door): new-player lens, reproducible. The door is now open (movement/tour fixed) — this is the NEXT blocker on the first-session path.",
+      "premise_verified_at_head": "data/worlds/clone_wars/tutorials/chains.yaml republic_soldier step 1 completion.requires_first:[{command:look},{command:+sheet}]; engine/chain_events.py Phase-3 makes requires_first GATING (the talk completion is silently refused until both prereqs fire — no hint). requires_first is an intentional, TESTED mechanism (tests/test_f8c2b5_requires_first.py TestTwoPrereqs pins republic_soldier step 1) used by 3 chain steps — so this is a design change, not a free edit.",
+      "fork": "(A) RECOMMENDED: make an unmet requires_first SPEAK — when talk matches the NPC but a prereq is unmet, emit a system/NPC line naming what's missing ('Confirm your gear with +sheet before reporting in, trooper'), and render the step's ordered sub-steps as a live checklist (look[done]/+sheet[ ]/talk[locked]). Keeps the +sheet teaching beat (the best surface in the game) AND removes the silent trap. Engine (chain_events.py) + a small panel change + update test_f8c2b5. (B) Cheapest: drop requires_first from republic_soldier step 1 (data-only) — removes the trap but loses the gear-check gate and breaks TestTwoPrereqs (move its fixture).",
+      "lane_note": "engine/chain_events.py (shared requires_first path — careful) + onboarding panel + test_f8c2b5_requires_first.py. NOT blind-fixed unattended because it changes a tested intentional mechanism. HIGH priority — it's a reproducible first-session kills-it.",
+      "decision_needed": "Pick A (make-it-speak + checklist, recommended) or B (drop the gate). I can implement either on your OK."
+    },
+    {
+      "id": "FUN2.bare_attack_usage_error_and_issued_gear_not_equipped",
+      "status": "OPEN",
+      "title": "Two combat-onboarding snags from the fun re-run: (a) the tutorial's TYPE hint is bare 'attack' which errors (needs a target), and the two sim droids are both named '...Droid' so 'attack droid' is ambiguous; (b) auto-ISSUED gear (DC-17/DC-15A + armor on spawn/specialize) is never auto-EQUIPPED, so +sheet shows WEAPON: none equipped.",
+      "origin": "Fun re-run 2026-06-25, new-player + min-maxer lenses (major-drag each). Both block the first-combat payoff once the player reaches the sim.",
+      "premise_verified_at_head": "(a) chains.yaml republic_soldier step 2 + the t5 sim step use command_to_type:'attack'; AttackCommand returns usage when args empty; the sim droids are 'B1 Sim Droid Alpha'/'Bravo' (data/worlds/clone_wars/npcs_drop_f8c2b2_combat_templates.yaml) so a single 'attack droid' partial-matches BOTH → ambiguous. (b) gear is issued but equipped_weapon/worn_armor stay empty (related to the known TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES debt); sheet's renderSheetWeapon shows 'none equipped'.",
+      "fork": "(a) RECOMMENDED: make bare 'attack' auto-target the nearest/sole hostile in the room (engine, AttackCommand — broad benefit beyond the tutorial), and/or set the hint to a unique target. (b) Auto-equip issued combat gear on spawn/specialize/faction-join and resolve the equipped-weapon key to a display name in the sheet (echo 'Rifle readied').",
+      "lane_note": "(a) parser/combat_commands.py AttackCommand (combat lane — careful). (b) the gear-issue seam + engine/items.py equip path + the sheet renderer. Both touch combat/equipment — staged rather than blind-fixed.",
+      "decision_needed": "OK to (a) auto-target bare attack and (b) auto-equip issued gear? Both are clear wins; flagged because they touch combat/equipment."
+    },
+    {
+      "id": "FUN2.feed_and_combat_render_INVESTIGATED",
+      "status": "INFO (likely not a bug — verification notes for Brian)",
+      "title": "Fun re-run's #1 cross-lens finding was 'ground-feed/exits don't re-sync on room change' + 'combat-feed never renders' — my live probes indicate this is LIKELY AI MISATTRIBUTION + downstream of the soft-lock, not a real resync bug. Recorded so it isn't chased blind.",
+      "origin": "Fun re-run 2026-06-25 synthesis ranked feed-resync as the top kills-it (5 lenses). I verified directly before acting.",
+      "premise_verified_at_head": "Live probes (tests/e2e/_chip_probe.py, _feed_probe.py) on b57b000: on a move the ROOM header updates AND the new room's exit-chips render (Briefing->Main Corridor, chips ['corridor','arrivals','admin'...]). The room DESCRIPTION/contents render via renderRoomDetailPanel + renderHerePanel + the header from hud_update.room_contents — NOT in #ground-feed-col, which is the EVENT/POSE LOG. So 'ground-feed frozen on the old room' is the agents reading the event-log expecting the room view; the room view DOES re-sync. The 'combat-feed empty / first fight never resolves' is most likely DOWNSTREAM of the step-1 soft-lock + bare-attack error (no combat is ever actually initiated), not a broken combat-feed.",
+      "fork": "No fix proposed yet. RECOMMENDED: fix FUN2.tutorial_step1_silent_softlock + the bare-attack issue, then RE-RUN the fun pass — if combat still doesn't render in #combat-feed once a fight actually starts, THEN investigate _send_combat_state / handleCombatState as a real bug. Do not chase a feed-resync rewrite on the current (probe-contradicted) evidence.",
+      "lane_note": "Verification-only. The probes are in tests/e2e/ (gate-excluded).",
+      "decision_needed": "None — informational. Confirms the resync 'bug' is likely a measurement artifact; the real next step is the soft-lock/attack fixes + a re-run."
+    },
+    {
       "id": "FUN.combat_zero_cp_reward_loop",
       "status": "OPEN",
       "title": "Combat pays ZERO CP by design, so the action/min-maxer archetype has no kill -> loot -> power-up loop to chase — keep the RP-first CP economy, or add an early-game combat-progress signal?",
