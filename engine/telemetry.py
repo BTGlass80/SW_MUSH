@@ -19,6 +19,10 @@ Design (the "never slow the game loop" contract):
   - The buffer is a bounded ``deque`` — a stalled or disabled flush can never
     grow memory without bound; overflow silently drops the OLDEST events and
     counts the drop (visible via ``stats()``).
+  - The on-disk sink is bounded too: the append-only file is rotated when it
+    reaches ``max_file_bytes`` (keeping ``backup_count`` backups), so broad
+    default-on capture over a launch can never exhaust the disk. Rotation runs
+    on the flush executor thread and is itself fail-open.
   - Telemetry is fail-open everywhere: a missing/unwritable sink degrades to
     dropping events, never to disturbing gameplay. A credit move, a skill
     check, or a CP award must succeed even if telemetry is broken.
@@ -56,6 +60,18 @@ _DEFAULT_MAX_BUFFER = 10_000
 # seek to the last N bytes and parse only that window. ~4 MiB ≈ 25k events.
 _MAX_READ_BYTES = 4 * 1024 * 1024
 
+# On-disk sink cap. The in-memory buffer (above) is bounded, but the
+# append-only FILE was not — a default-on, broad-capture sink grows without
+# bound over a launch and can eventually exhaust the disk. When the current
+# file reaches this size it is rotated (``events.jsonl`` -> ``events.jsonl.1``,
+# older backups shift up to ``.<BACKUP_COUNT>``, the oldest discarded), so
+# on-disk telemetry is bounded at roughly ``(BACKUP_COUNT + 1) * MAX_FILE_BYTES``.
+# The cap is set well above the read window (``_MAX_READ_BYTES``) so the
+# @balance read view stays full in steady state (it reads only the current
+# file). Overridable via env; ``0`` disables rotation (unbounded growth).
+_DEFAULT_MAX_FILE_BYTES = 64 * 1024 * 1024   # 64 MiB
+_DEFAULT_BACKUP_COUNT = 3
+
 
 def _env_enabled() -> bool:
     """Default-on unless explicitly disabled.
@@ -71,6 +87,17 @@ def _env_enabled() -> bool:
     return raw.strip().lower() not in ("0", "false", "no", "off", "")
 
 
+def _env_int(name: str, default: int) -> int:
+    """Read a non-negative int env override, falling back on anything bad."""
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        return max(0, int(raw.strip()))
+    except (TypeError, ValueError):
+        return default
+
+
 class TelemetrySink:
     """Bounded in-memory buffer + append-only JSON-line flush.
 
@@ -83,11 +110,20 @@ class TelemetrySink:
 
     def __init__(self, path: Optional[str] = None, *,
                  enabled: Optional[bool] = None,
-                 max_buffer: int = _DEFAULT_MAX_BUFFER) -> None:
+                 max_buffer: int = _DEFAULT_MAX_BUFFER,
+                 max_file_bytes: Optional[int] = None,
+                 backup_count: Optional[int] = None) -> None:
         self.path = path if path is not None else os.environ.get(
             "SWMUSH_TELEMETRY_FILE", _DEFAULT_PATH)
         self.enabled = _env_enabled() if enabled is None else bool(enabled)
         self._buffer: deque[str] = deque(maxlen=max(1, int(max_buffer)))
+        # On-disk rotation cap (0 disables). See _DEFAULT_MAX_FILE_BYTES.
+        self.max_file_bytes = (
+            _env_int("SWMUSH_TELEMETRY_MAX_BYTES", _DEFAULT_MAX_FILE_BYTES)
+            if max_file_bytes is None else max(0, int(max_file_bytes)))
+        self.backup_count = (
+            _env_int("SWMUSH_TELEMETRY_BACKUPS", _DEFAULT_BACKUP_COUNT)
+            if backup_count is None else max(0, int(backup_count)))
         self._seq = 0
         # Lightweight counters for ops / tests (stats()).
         self._emitted = 0
@@ -95,6 +131,7 @@ class TelemetrySink:
         self._dropped_overflow = 0
         self._flushed = 0
         self._write_errors = 0
+        self._rotations = 0
 
     # ── ingress ──────────────────────────────────────────────────────────
     def emit(self, event_type: str, fields: Optional[dict] = None, *,
@@ -171,6 +208,7 @@ class TelemetrySink:
             directory = os.path.dirname(self.path)
             if directory:
                 os.makedirs(directory, exist_ok=True)
+            self._maybe_rotate()
             with open(self.path, "a", encoding="utf-8") as fh:
                 fh.write("\n".join(lines))
                 fh.write("\n")
@@ -181,6 +219,52 @@ class TelemetrySink:
             log.debug("telemetry.flush write failed (events dropped)",
                       exc_info=True)
             return 0
+
+    def _maybe_rotate(self) -> None:
+        """Roll the sink file when it exceeds ``max_file_bytes``, keeping
+        ``backup_count`` backups.
+
+        The buffer is already bounded; only the append-only FILE was not, so a
+        default-on broad-capture sink could grow without bound over a launch and
+        eventually exhaust the disk. When the current file reaches the cap it is
+        rolled to ``<path>.1`` (older backups shift up to ``.<backup_count>``,
+        the oldest discarded), bounding on-disk telemetry at roughly
+        ``(backup_count + 1) * max_file_bytes``.
+
+        Runs on the executor thread (inside ``_write_lines``), never on the
+        event loop. Fail-open: any rotation error is swallowed and we keep
+        appending to the current file — telemetry must never disturb gameplay,
+        and a failed roll is strictly better than a lost write. The brief
+        post-rotation window where the current file is small (and the @balance
+        read view shows less history) self-heals as the new file fills; the cap
+        is set far above ``_MAX_READ_BYTES`` so this is rare.
+        """
+        try:
+            cap = self.max_file_bytes
+            if cap <= 0:
+                return  # rotation disabled → unbounded (opt-out / tests)
+            if not os.path.exists(self.path):
+                return
+            if os.path.getsize(self.path) < cap:
+                return
+            backups = self.backup_count
+            if backups <= 0:
+                # No history kept: discard the full file and start fresh.
+                os.remove(self.path)
+                self._rotations += 1
+                return
+            # Shift .{i} -> .{i+1} from oldest to newest, then path -> .1.
+            # os.replace is atomic and overwrites, so the oldest backup
+            # (.<backups>) is dropped without an explicit remove.
+            for i in range(backups - 1, 0, -1):
+                src = "%s.%d" % (self.path, i)
+                if os.path.exists(src):
+                    os.replace(src, "%s.%d" % (self.path, i + 1))
+            os.replace(self.path, self.path + ".1")
+            self._rotations += 1
+        except Exception:
+            log.debug("telemetry rotate failed (continuing on current file)",
+                      exc_info=True)
 
     async def flush_async(self) -> int:
         """Drain on the loop thread, write on a thread executor.
@@ -211,6 +295,9 @@ class TelemetrySink:
             "dropped_overflow": self._dropped_overflow,
             "flushed": self._flushed,
             "write_errors": self._write_errors,
+            "max_file_bytes": self.max_file_bytes,
+            "backup_count": self.backup_count,
+            "rotations": self._rotations,
         }
 
 
@@ -485,8 +572,15 @@ def emit_session(phase: str, char_id: Any = None, *, account_id: Any = None,
 
 
 def configure(*, path: Optional[str] = None, enabled: Optional[bool] = None,
-              max_buffer: Optional[int] = None) -> TelemetrySink:
-    """(Re)build the singleton with explicit settings. For boot + tests."""
+              max_buffer: Optional[int] = None,
+              max_file_bytes: Optional[int] = None,
+              backup_count: Optional[int] = None) -> TelemetrySink:
+    """(Re)build the singleton with explicit settings. For boot + tests.
+
+    Unspecified settings (including the on-disk rotation cap / backup count)
+    are carried forward from the current sink so a re-``configure`` never
+    silently drops the rotation policy.
+    """
     global _sink
     cur = get_sink()
     _sink = TelemetrySink(
@@ -494,6 +588,10 @@ def configure(*, path: Optional[str] = None, enabled: Optional[bool] = None,
         enabled=cur.enabled if enabled is None else enabled,
         max_buffer=int(max_buffer) if max_buffer is not None
         else (cur._buffer.maxlen or _DEFAULT_MAX_BUFFER),
+        max_file_bytes=cur.max_file_bytes if max_file_bytes is None
+        else max_file_bytes,
+        backup_count=cur.backup_count if backup_count is None
+        else backup_count,
     )
     return _sink
 
