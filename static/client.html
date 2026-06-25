@@ -10812,9 +10812,10 @@ function handleAchievementUnlocked(data) {
   showToast({ head: '🏆 ACHIEVEMENT', body: data.name || 'Unlocked!', sub: data.description || '' });
 }
 function handleRankUp(data) {
-  // sub left empty: the rank_up producer (engine/organizations.py) emits
-  // faction/new_rank only — `benefits` was never sent (dead read removed).
-  showToast({ head: '⬆ RANK UP · ' + (data.faction || ''), body: data.new_rank || 'Promoted!', sub: '' });
+  // `benefits` IS emitted by the producer (engine/organizations.check_auto_promote
+  // ships a rank_benefits_summary as of drop rank-up-benefits) — read it so the
+  // toast shows the stipend/gear earned.
+  showToast({ head: '⬆ RANK UP · ' + (data.faction || ''), body: data.new_rank || 'Promoted!', sub: data.benefits || '' });
 }
 function handleRepChange(data) {
   var sign = data.delta > 0 ? '+' : '';

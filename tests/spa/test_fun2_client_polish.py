@@ -27,10 +27,13 @@ def test_boost_switch_removed():
     assert 'data-cmd="speed +1"' not in html, "the phantom 'speed +1' command should be gone"
 
 
-def test_rank_up_does_not_read_benefits():
+def test_rank_up_reads_benefits():
+    # The OpusLoop's rank-up-benefits drop ADDED the producer, so the consumer
+    # SHOULD read data.benefits (my earlier dead-read removal was made stale by
+    # that concurrent fix and is reverted). Guard the correct wiring.
     html = _html()
     i = html.find("function handleRankUp")
     assert i != -1, "handleRankUp missing"
     block = html[i:i + 400]
-    assert "data.benefits" not in block, (
-        "handleRankUp must not read data.benefits (never emitted by the producer)")
+    assert "data.benefits" in block, (
+        "handleRankUp must read data.benefits (now emitted by check_auto_promote)")
