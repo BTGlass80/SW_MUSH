@@ -42,23 +42,81 @@ class RallyCommand(BaseCommand):
     )
     usage = "rally [strike]"
 
+    async def _redirect_strike_to_site(self, ctx, COR) -> bool:
+        """If the active uprising is a STAGED scenario with a live site anomaly,
+        tell the player to go there and `investigate` (the real gameplay) instead
+        of running the legacy `rally strike` counter. Returns True if it handled
+        the strike (caller should stop). False = fall through to the legacy strike
+        (no active uprising, a non-staged cult, or a staged cult with no site yet
+        armed)."""
+        try:
+            from engine import staged_event as SE
+            active = await COR.get_active(ctx.db)
+            if not active or not SE.is_staged(active.get("cult_key", "")):
+                return False
+            import json as _j
+            raw = active.get("contributions_json")
+            contribs = raw if isinstance(raw, dict) else _j.loads(raw or "{}")
+            state = SE.get_stage_state(contribs)
+            if state.get("anomaly_id") is None:
+                return False  # no live site yet — let the legacy path handle it
+            await ctx.session.send_line(
+                _INDENT + ansi.dim(
+                    "This uprising is a live operation, not a slogan. Travel to "
+                    "the site shown by `rally` and `investigate` it -- fight the "
+                    "waves, work the objective, bring down the leader."))
+            await self._emit_staged_tracker(ctx, active)
+            return True
+        except Exception:
+            log.debug("[rally] strike-redirect failed", exc_info=True)
+            return False
+
     async def _emit_staged_tracker(self, ctx, active):
         """EVENT staged scenario: for a STAGED uprising (hollow_sun), print the
-        stage tracker -- which stage, the objective, progress -- so `rally` reads
-        as a multi-stage operation, not a flat counter. No-op for menace cults."""
+        stage tracker -- which stage, the objective, progress, and the live
+        SITE to travel to and `investigate` -- so `rally` reads as a locator for
+        a real multi-stage operation, not a flat counter. No-op for menace cults.
+
+        Also polls the scenario forward (events_playable_scenarios): viewing
+        `rally` advances a stage whose site anomaly has been cleared and arms the
+        next, so a player who just finished a stage sees the update immediately
+        (the tick is the slower fallback)."""
         try:
             from engine import staged_event as SE
             from engine import communal_objective as CO
+            import engine.communal_objective_runtime as COR
             ckey = active.get("cult_key", "") if active else ""
             if not SE.is_staged(ckey):
+                return
+            # Poll the scenario forward; refetch the (possibly advanced/won) row.
+            try:
+                smgr = getattr(ctx, "session_mgr", None)
+                refreshed = await COR.on_scenario_progress(ctx.db, smgr, active)
+                if refreshed is not None:
+                    active = refreshed
+                else:
+                    active = await COR.get_active(ctx.db)
+            except Exception:
+                log.debug("[rally] scenario poll failed", exc_info=True)
+            if not active:
+                await ctx.session.send_line(
+                    "  The operation is complete — watch the holonet.")
                 return
             import json as _j
             raw = active.get("contributions_json")
             contribs = raw if isinstance(raw, dict) else _j.loads(raw or "{}")
             cult = CO.CULT_BY_KEY.get(ckey)
+            state = SE.get_stage_state(contribs)
+            site_label = None
+            room_id = state.get("site_room_id")
+            if room_id is not None:
+                try:
+                    room = await ctx.db.get_room(int(room_id))
+                    site_label = (room or {}).get("name") if room else None
+                except Exception:
+                    site_label = None
             for ln in SE.stage_tracker_lines(
-                    cult.name if cult else "the cult", ckey,
-                    SE.get_stage_state(contribs)):
+                    cult.name if cult else "the cult", ckey, state, site_label):
                 await ctx.session.send_line(ln)
         except Exception:
             log.debug("[rally] staged tracker failed", exc_info=True)
@@ -81,6 +139,11 @@ class RallyCommand(BaseCommand):
                 await ctx.session.send_line(
                     _INDENT + ansi.dim("You must be in the world to do that.")
                 )
+                return
+            # events_playable_scenarios: for a STAGED uprising with a live site,
+            # `rally strike` is demoted -- the gameplay is at the site. Point the
+            # player there and `investigate`; don't advance a counter.
+            if await self._redirect_strike_to_site(ctx, COR):
                 return
             try:
                 result = await COR.record_strike(ctx.db, ctx.session_mgr, char)

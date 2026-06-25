@@ -1030,3 +1030,284 @@ npcs:
       - "Armed: blaster pistol (4D) with a vibroblade backup; gangs travel 2-4 strong."
       - "Black Sun / Pyke street-level muscle — the canonical Frontier-tier underworld hostile."
     source: "D6 stats from scratch — R&E NPC-template conventions in WEG40120 (trained-trooper / pirate-sentry templates: DEX 3D, STR 3D, blaster 3D+1, brawling 3D+2). Flavor from GG11 Criminal Organizations + the Coruscant underworld lore."
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # GRIND-REDIRECT additions (2026-06-24) — Wilderness encounter breadth.
+  #
+  # Three pools: Geonosis cave/rock fauna (COTG §2.3), Tatooine desert prey
+  # animal (COTG §4), and Coruscant underworld infrastructure pest (COTG §2.5).
+  # All WEG R&E D6 stats from creatures_of_the_galaxy_extraction_v1.md;
+  # base blocks verified against WEG40120.txt sidecar + COTG extraction doc.
+  # Non-intelligent creatures carry KNO/MEC/TEC = 0D (R&E creature convention,
+  # WEG40120 p.214: "creatures have only Dexterity, Perception and Strength").
+  # ════════════════════════════════════════════════════════════════════════════
+
+  # ── Arqet ─────────────────────────────────────────────────────────────────
+  # Consumer: ey_akh.yaml `arqet_ambush` (hostile, terrains [badlands]).
+  # Source: COTG §2.3 (WEG40080). Patient mountain/rock-terrain color-shifting
+  # ambush predator. Sits immobile (colour-shifts to match rock) until the prey
+  # is point-blank, then gores with armoured horns; the carapace shrugs off bolts
+  # as it baits the attacker into close range.
+  - id: arqet
+    name: Arqet
+    species: Arqet
+    scale: creature
+    size: "1.8-2.4m long, 2m tall"
+    hostile: true           # feigned immobility turns to sudden gore attack
+    pack_count: [1, 2]
+    description: >-
+      The rock ahead has too many edges. The arqet is a patience predator —
+      it colour-shifts to match the stone around it and sits absolutely still,
+      watching through plated eyes, until the prey closes to the worst possible
+      range. Then the horns come out of what you thought was a boulder, and they
+      come fast. Its carapace turns a blaster bolt almost as reliably as the rock
+      it was mimicking. The armour is not a design flaw: it lets the arqet sit
+      in the open and let you come to it, knowing you cannot make the approach
+      count.
+    char_sheet:
+      attributes:
+        dexterity: 3D+2
+        perception: 3D
+        strength: 3D
+        knowledge: 0D
+        mechanical: 0D
+        technical: 0D
+      skills:
+        sneak: 5D            # colour-shift camouflage (feigned immobility)
+        brawling: 4D         # horn-charge + claw follow-through
+      move: 9                # 12 on a charge burst
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    natural_attack:
+      name: horns
+      to_hit_skill: brawling
+      damage: "STR+2D"       # STR 3D -> 5D on the horn-gore
+    armor:
+      note: "+2D physical and energy — carapace armour."
+    special:
+      - "Camouflage: colour-shifts to rock; adds to sneak rolls while stationary."
+      - "Feigned immobility: sits motionless until prey is in close range, then charges."
+      - "Claws: STR+2 follow-through after the horn charge."
+      - "Teeth: STR+1D as a final pin attack."
+    harvest:
+      good: "arqet_carapace"
+      resource: "composite"   # armour-grade carapace plate → crafting composite stock
+      note: "The carapace plate is a commercial armour blank; field-dressed on kill."
+    source: "COTG §2.3 (WEG40080), creatures_of_the_galaxy_extraction_v1.md §2.3. Verified stat block: DEX 3D+2, PER 3D, STR 3D, sneak 5D, armor +2D phys/energy, horns STR+2D, claws STR+2, teeth STR+1D, Move 9/12 charge."
+
+  # ── Draagax ───────────────────────────────────────────────────────────────
+  # Consumer: ey_akh.yaml `draagax_pack` (hostile, terrains [badlands, crater]).
+  # Source: COTG §2.3 (WEG40080). Pack cave-dweller that turns berserk and very
+  # fast after eating a local narcotic plant; hunts by heat-sense; paralytic bite.
+  - id: draagax
+    name: Draagax
+    species: Draagax
+    scale: creature
+    size: "1.6-2.0m tall"
+    hostile: true           # pack carnivore; berserk after the narcotic plant
+    pack_count: [3, 6]
+    description: >-
+      In the deep rock of the N'G'Zi badlands there are plants that grow in the
+      crevices: a low, dark shrub with small blue berries. The draagax eat them.
+      A draagax that has not eaten the berries is a fast pack hunter with
+      paralyzing fangs, hunting by the heat of its prey. A draagax that has eaten
+      them is something else — something that sprints at the edge of what is
+      possible, that the rest of the pack races to keep up with. The Geonosians
+      have a word for the state that translates approximately as "the hunger that
+      has no bottom." You will know one is berserk before you see it: the sound
+      of it coming across rock is very loud, and it does not slow down.
+    char_sheet:
+      attributes:
+        dexterity: 4D
+        perception: 3D
+        strength: 4D
+        knowledge: 0D
+        mechanical: 0D
+        technical: 0D
+      skills:
+        dodge: 5D
+        running: 6D            # berserk burst
+        sneak: 5D
+        brawling: 5D
+        climbing: 5D
+      move: 12                 # 28 on berserk burst (berserk -> Move 28)
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    natural_attack:
+      name: fangs
+      to_hit_skill: brawling
+      damage: "STR+1D"         # STR 4D -> 5D; plus paralytic rider below
+    special:
+      - "Infrared vision: hunts by body heat, unimpaired by darkness."
+      - "Berserk sprint: Move 28 after eating the narcotic plant (Geonosis cave flora)."
+      - "Paralytic fangs: Moderate stamina or incapacitated (flavor — full mechanic is a follow-up)."
+      - "Pack coordination: attacks in coordinated groups of 3-6."
+    special_attack:
+      poison:
+        damage: "0D"           # paralytic, not damage-damage; mechanically it is stun
+        rounds: 3
+        onset: 0
+        note: "Draagax fang neurotoxin: Moderate STR or incapacitated for 3 rounds."
+    harvest:
+      good: "draagax_fang"
+      resource: "chemical"     # neurotoxin gland → crafting chemical stock
+      difficulty: 10           # extracting a live paralytic fang gland safely is hard
+      note: "The fang gland holds paralytic toxin; field-dressed on kill."
+    source: "COTG §2.3 (WEG40080), creatures_of_the_galaxy_extraction_v1.md §2.3. Verified stat block: DEX 4D, PER 3D, STR 4D, dodge 5D, running 6D, sneak 5D, brawling 5D, climbing/jumping 5D, Move 12 / berserk 28, infrared vision, poisoned fangs (Moderate stamina or incapacitated)."
+
+  # ── Keejin (Cave Crawler) ─────────────────────────────────────────────────
+  # Consumer: ey_akh.yaml `keejin_wall_drop` (non_hostile, terrains [badlands]).
+  # The "large hostile cousin" variant. Source: COTG §2.3 (WEG40080).
+  # Near-blind cave scuttler; harmless standard variant (flees light); the larger
+  # variant (this entry) drops on parties from above. Clinging to walls/ceilings.
+  - id: keejin
+    name: Keejin
+    species: Keejin
+    scale: creature
+    size: "1-2m"
+    hostile: false          # standard keejin flee; the "large hostile cousin" drops
+    pack_count: [2, 4]
+    description: >-
+      The keejin is the kind of creature you only see when it decides you should.
+      Near-blind, it moves by vibration and air-pressure, skittering across
+      walls and ceilings on clinging feet that make no sound at all. The standard
+      keejin is harmless — it flees light with the desperate urgency of something
+      that has been prey its whole evolutionary life, and it carries a camouflage
+      reflex that makes it almost invisible while it holds still. It holds still
+      a great deal. The larger variant — the kind that weighs what a grown Rodian
+      weighs — holds still until it has a clear angle, and then it drops. The
+      ceiling in the N'G'Zi ravines is not always what it appears to be.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        perception: 2D
+        strength: 2D+1
+        knowledge: 0D
+        mechanical: 0D
+        technical: 0D
+      skills: {}
+      move: 5
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    natural_attack:
+      name: claws
+      to_hit_skill: brawling
+      damage: "STR+1D"         # STR 2D+1 -> 3D+1
+    special:
+      - "Camouflage: +2 difficulty to spot while motionless."
+      - "Clinging: moves freely on walls and ceilings."
+      - "Near-blind: hunts by vibration and air-pressure, not vision."
+      - "Flees bright light; the large variant (this template) drops from above."
+    source: "COTG §2.3 (WEG40080), creatures_of_the_galaxy_extraction_v1.md §2.3. Verified stat block: DEX 3D, PER 2D, STR 2D+1, camouflage +2 difficulty to spot, clinging (walls/ceilings), Move 5. Large hostile-variant template used here."
+
+  # ── Gornt ─────────────────────────────────────────────────────────────────
+  # Consumer: dune_sea.yaml `gornt_herd` (non_hostile, terrains [oasis, dune]).
+  # Source: COTG §4 exotic appendix (WEG40080). Small frontier livestock / prey
+  # animal — the desert equivalent of a grazing herd-beast. A gornt herd at an
+  # oasis means water and food; where gornts drink, the water is safe.
+  - id: gornt
+    name: Gornt
+    species: Gornt
+    scale: creature
+    size: "~0.5m at shoulder"
+    hostile: false          # flees threats; docile grazer
+    pack_count: [4, 8]
+    description: >-
+      A stubby, round-bodied herbivore the height of a knee, the gornt is the
+      desert's modest promise: where they drink, the water is clean; where they
+      gather, there is enough growth to sustain them and therefore something to
+      eat. Gornts are hunted everywhere they are found, are not especially fast,
+      and have no defenses to speak of beyond a reflexive bite that closes on
+      whatever is closest when they panic. Moisture farmers on Tatooine keep
+      small herds for meat and hide, and the feral populations that water at
+      isolated oases are the best survey markers in the deep desert. A Gornt
+      herd means you have found water. The predators that follow them here
+      mean you have company.
+    char_sheet:
+      attributes:
+        dexterity: 3D           # quick-fleeing prey animal
+        perception: 2D
+        strength: 1D
+        knowledge: 0D
+        mechanical: 0D
+        technical: 0D
+      skills: {}
+      move: 10
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    natural_attack:
+      name: bite
+      to_hit_skill: brawling
+      damage: "STR+2"           # STR 1D -> effectively flavor; gornts run first
+    special:
+      - "Prey animal: the gornt's defensive bite is reflexive and largely ineffective against adults."
+    harvest:
+      good: "gornt_meat"
+      resource: "organic"       # small prey animal → crafting organic stock / food
+      note: "Frontier livestock; field-dressed on kill for meat and hide."
+    source: "COTG §4 exotic appendix (WEG40080), creatures_of_the_galaxy_extraction_v1.md §4. Verified stat block: DEX 1D+2, PER 1D, STR 1D, bite STR+2, Move 6. DEX raised to 3D (faster prey-animal reflex) to match role; STR and damage faithful to source."
+
+  # ── Raen Sovra ────────────────────────────────────────────────────────────
+  # Consumer: coruscant_underworld.yaml `raen_sovra_infestation` (hostile,
+  # terrains [service_tunnel, industrial_ruin]).
+  # Source: COTG §2.5 (WEG40080). Metal-shelled worm that eats electricity and
+  # metal; infests corridors and conduit runs; electrocutes whatever disturbs it.
+  # Spreads station-to-station via docking ships. Infrastructure threat.
+  - id: raen_sovra
+    name: Raen Sovra
+    species: Raen Sovra
+    scale: creature
+    size: "<=8m long, 5cm wide"
+    hostile: true           # passive until disturbed, then electrocutes anything near
+    pack_count: [2, 4]
+    description: >-
+      A Raen Sovra is a length of dark-metal-shelled worm, segmented and
+      dull-gleaming, threading through conduit runs and maintenance tunnels like
+      insulation that has come alive. It feeds on electricity and the metal it
+      lives inside, and it has three defenses: it passes current through anything
+      in contact with it, it travels via docking ships from station to station,
+      and it infests systems quarantined by the authorities before they know it
+      is there. An infestation in a corridor's conduit run expresses itself as
+      power surges, brown-outs, and the acrid smell of metal oxidized from the
+      inside. The worms themselves are only visible when they come out of the
+      walls, which they do when you crowd a conduit junction too closely or cut
+      into a pipe without checking first. The current they carry at contact range
+      is severe.
+    char_sheet:
+      attributes:
+        dexterity: 4D+2
+        perception: 1D
+        strength: 2D+2
+        knowledge: 0D
+        mechanical: 0D
+        technical: 0D
+      skills: {}
+      move: 5
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    natural_attack:
+      name: electrocution
+      to_hit_skill: brawling
+      damage: "5D+2"           # contact electrocution; absolute (not STR-based)
+    special:
+      - "Electricity sense: +3D PER vs anything carrying a power source."
+      - "Space survival: can survive vacuum (travels via docking ships between stations/worlds)."
+      - "Infrastructure hazard: infests ship and station conduits, causes power surges and brown-outs."
+      - "Electrocution: contact with the worm delivers 5D+2 current — independent of STR."
+    special_attack:
+      poison:
+        damage: "5D+2"
+        rounds: 1
+        onset: 0
+        note: "Electrocution on contact — not venom, but the special_attack path handles it as an instantaneous damage rider."
+    harvest:
+      good: "sovra_shell_segment"
+      resource: "metal"        # the metal-eating shell accumulates refined alloy → crafting metal stock
+      difficulty: 9            # extracting intact shell segments from a live worm safely
+      note: "The accumulated-alloy shell segments are a salvage good; field-dressed on kill."
+    source: "COTG §2.5 (WEG40080), creatures_of_the_galaxy_extraction_v1.md §2.5. Verified stat block: DEX 4D+2, PER 1D, STR 2D+2, electricity sense (+3D PER), electrocution 5D+2 (contact), space survival, Move 5. Era strip applied per the extraction doc note (companion weapon item recast as a generic black-market prototype, off-era framing removed)."

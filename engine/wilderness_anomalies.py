@@ -1798,6 +1798,239 @@ TIER3_TEMPLATES = {
 }
 
 
+# ── Staged-event scenario templates (events_playable_scenarios_design_v1) ─────
+#
+# 2026-06-24: communal events become PLAYABLE SITE SCENARIOS. A staged cult
+# (engine.staged_event) anchors a site room and walks through these authored
+# anomalies, one per stage: a multi-phase combat wave, a skill gate (slice the
+# cistern), and a boss. These reuse the EXISTING anomaly schema + resolver +
+# reward funnels verbatim — they are NOT spawned by the random tick (their
+# `regions` is empty), only by the scenario orchestrator via
+# `spawn_scenario_anomaly`, which names the template + anchor room explicitly.
+#
+# NPC specs route through the same `generate_npc(tier, archetype, species)` path
+# every other template uses, so the cult NPCs are statted by the live WEG-D6
+# archetype/tier engine (provenance: invented Clone-Wars-era dark-side cult; B3
+# era-clean — sun-cult zealots / Hierophant, no Imperial/Rebel strings, no canon
+# figures). Reward bands mirror the same-tier Dune-Sea templates above.
+#
+# The skill stage uses resolution:"skill" — the LIVE, tested one-shot skill-check
+# path, deliberately NOT the inert per-phase party-challenge seam (which is
+# guarded post-launch by the T3.23 inertness tests).
+
+SCENARIO_TEMPLATES = {
+
+    # ── Stage 1: wave combat — Break the Shrines ──────────────────────────────
+    "hollow_sun_shrine_assault": {
+        "tier": 2,
+        "scenario": "hollow_sun",
+        "regions": [],                       # orchestrator-spawned only
+        "resolution": "combat",
+        "display_name": "Hollow Sun Shrine Assault",
+        "short_desc": (
+            "Sun-maddened zealots ring the desert shrines, raving as you "
+            "approach."
+        ),
+        "long_desc": (
+            "A ring of crude sun-shrines crowns the dune, daubed with the "
+            "Hollow Sun's bleached sigil. Zealots in sun-bleached rags rise "
+            "from behind the stones, eyes burned half-blind from staring at "
+            "the twin suns. They do not parley. They throw themselves at you "
+            "to defend the shrines."
+        ),
+        "phases": [
+            {
+                "name": "Shrine Wardens",
+                "intro": (
+                    "The first ring of zealots breaks toward you — three "
+                    "of them, screaming hymns to the dying suns."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Human",
+                        "name_pool": ["Hollow Sun Zealot", "Sun-Maddened Acolyte"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "A Hollow Sun zealot, defending the shrines in a sun-struck fervor.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Human",
+                        "name_pool": ["Hollow Sun Zealot", "Sun-Maddened Acolyte"],
+                        "weapon": "blaster_pistol", "behavior": "aggressive",
+                        "personality": "A Hollow Sun zealot, defending the shrines in a sun-struck fervor.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "novice",
+                        "species": "Human",
+                        "name_pool": ["Hollow Sun Initiate", "Sun-Touched Penitent"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "A young Hollow Sun initiate, throwing herself at the unbelievers.",
+                    },
+                ],
+            },
+            {
+                "name": "The Sun-Speaker",
+                "intro": (
+                    "From the largest shrine steps a Sun-Speaker, flanked "
+                    "by two armed faithful — louder, surer, deadlier."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "thug", "tier": "veteran",
+                        "species": "Human",
+                        "name_pool": ["Hollow Sun Sun-Speaker", "Shrine Warden"],
+                        "weapon": "blaster_rifle", "behavior": "tactical",
+                        "personality": "A Hollow Sun Sun-Speaker — a zealot-leader rallying the faithful at the shrine.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Human",
+                        "name_pool": ["Hollow Sun Zealot", "Shrine Guard"],
+                        "weapon": "blaster_rifle", "behavior": "aggressive",
+                        "personality": "A Hollow Sun zealot guarding the Sun-Speaker.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Human",
+                        "name_pool": ["Hollow Sun Zealot", "Shrine Guard"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "A Hollow Sun zealot guarding the Sun-Speaker.",
+                    },
+                ],
+            },
+        ],
+        "success_reward": {
+            "credits": (400, 800),
+            "resources": [
+                ("composite", 2, 55),
+                ("metal", 2, 50),
+            ],
+            "influence": TIER2_INFLUENCE_DELTA,
+        },
+        "news_text": (
+            "The Cult of the Hollow Sun has fortified its desert shrines in "
+            "{region}. Their zealots are turning back anyone who approaches."
+        ),
+    },
+
+    # ── Stage 2: skill gate — Cut the Water Tithes ────────────────────────────
+    "hollow_sun_cistern_slice": {
+        "tier": 1,
+        "scenario": "hollow_sun",
+        "regions": [],
+        "resolution": "skill",
+        "display_name": "Hollow Sun Water Tithe",
+        "short_desc": (
+            "The cult's cistern controls bleed the moisture farms dry — "
+            "slice them, or turn the farmers."
+        ),
+        "long_desc": (
+            "The Hollow Sun taps the local moisture farms through a bank of "
+            "seized cistern controllers, siphoning the water as 'tithes' to "
+            "the dying suns. A slicer can lock them out of the controllers; a "
+            "smooth talker can convince the cowed farmers to cut the cult off "
+            "themselves. Either way, the tithes stop here."
+        ),
+        "primary_skill": "security",
+        "secondary_skill": "computer_programming",
+        "success_reward": {
+            "credits": (250, 500),
+            "resources": [
+                ("energy", 2, 55),
+                ("metal", 1, 50),
+            ],
+            "influence": TIER1_INFLUENCE_DELTA,
+        },
+        "fail_reward": {
+            "credits": (60, 120),
+            "resources": [],
+            "influence": 0,
+        },
+        "news_text": (
+            "Moisture farmers in {region} report the Hollow Sun is bleeding "
+            "their cisterns dry. Slicers and negotiators are needed to cut "
+            "the cult's water tithes."
+        ),
+    },
+
+    # ── Stage 3: boss — Confront the Hierophant ───────────────────────────────
+    "hollow_sun_hierophant": {
+        "tier": 2,
+        "scenario": "hollow_sun",
+        "regions": [],
+        "resolution": "combat",
+        "display_name": "The Hollow Sun's Hierophant",
+        "short_desc": (
+            "The Hierophant of the Hollow Sun makes a last stand amid the "
+            "faithful."
+        ),
+        "long_desc": (
+            "At the heart of the shrine-ring stands the Hierophant of the "
+            "Hollow Sun — gaunt, sun-scarred, robed in bleached cloth, a "
+            "ritual blade in one hand and a heavy blaster in the other. The "
+            "last of the faithful close ranks around their prophet. Break the "
+            "Hierophant and the cult scatters."
+        ),
+        "phases": [
+            {
+                "name": "The Faithful Close Ranks",
+                "intro": (
+                    "The Hierophant's honor guard moves first — two armed "
+                    "zealots buying their prophet time."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "thug", "tier": "veteran",
+                        "species": "Human",
+                        "name_pool": ["Hollow Sun Faithful", "Hierophant's Guard"],
+                        "weapon": "blaster_rifle", "behavior": "tactical",
+                        "personality": "A Hollow Sun honor guard, shielding the Hierophant with their life.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "veteran",
+                        "species": "Human",
+                        "name_pool": ["Hollow Sun Faithful", "Hierophant's Guard"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "A Hollow Sun honor guard, shielding the Hierophant with their life.",
+                    },
+                ],
+            },
+            {
+                "name": "The Hierophant",
+                "intro": (
+                    "The honor guard falls and the Hierophant steps forward "
+                    "alone, blade raised to the dying light. This is the end "
+                    "of the cult — or of you."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "bounty_hunter", "tier": "superior",
+                        "species": "Human",
+                        "name_pool": ["Hierophant of the Hollow Sun", "The Sun-Prophet"],
+                        "weapon": "blaster_rifle", "behavior": "tactical",
+                        "personality": "The Hierophant of the Hollow Sun — the cult's prophet, fanatical and lethal, making a last stand.",
+                    },
+                ],
+            },
+        ],
+        "success_reward": {
+            "credits": (700, 1400),
+            "resources": [
+                ("composite", 3, 60),
+                ("metal", 2, 55),
+                ("energy", 1, 55),
+            ],
+            "influence": TIER2_INFLUENCE_DELTA,
+        },
+        "news_text": (
+            "The Hierophant of the Hollow Sun has been cornered at the cult's "
+            "shrine in {region}. End the prophet and the cult breaks."
+        ),
+    },
+}
+
+
 # ── Anomaly dataclass + module-level transient state ─────────────────────────
 
 @dataclass
@@ -1840,11 +2073,12 @@ class WildernessAnomaly:
 
     @property
     def template(self) -> dict:
-        # Look in all three catalogs.
+        # Look in all three tier catalogs + the staged-event scenario catalog.
         return (
             TIER1_TEMPLATES.get(self.template_key)
             or TIER2_TEMPLATES.get(self.template_key)
             or TIER3_TEMPLATES.get(self.template_key)
+            or SCENARIO_TEMPLATES.get(self.template_key)
             or {}
         )
 
@@ -2035,6 +2269,7 @@ def _format_news(template_key: str, region_slug: str) -> str:
     tmpl = (TIER1_TEMPLATES.get(template_key)
             or TIER2_TEMPLATES.get(template_key)
             or TIER3_TEMPLATES.get(template_key)
+            or SCENARIO_TEMPLATES.get(template_key)
             or {})
     base = tmpl.get("news_text", "An anomaly has been reported in {region}.")
     region_label = region_slug.replace("_", " ").title()
@@ -2215,6 +2450,86 @@ async def spawn_anomaly_for_region(
             await session_mgr.broadcast(f"\n  \033[1;33m[News] {news}\033[0m")
         except Exception:
             log.warning("[anomaly] news broadcast failed", exc_info=True)
+
+    return anomaly
+
+
+async def spawn_scenario_anomaly(
+    db, region_slug: str, template_key: str, anchor_room_id: int,
+    *,
+    tier: int = 1,
+    zone_id: Optional[int] = None,
+    duration_secs: Optional[float] = None,
+    now: Optional[float] = None,
+    session_mgr=None,
+) -> Optional[WildernessAnomaly]:
+    """Spawn a SPECIFIC authored anomaly at a SPECIFIC room — the
+    deterministic counterpart to ``spawn_anomaly_for_region``.
+
+    Used by the staged-event scenario orchestrator
+    (engine.communal_objective_runtime) to arm one stage's anomaly at the
+    scenario site. Unlike the random tick spawner, the caller names the
+    template + anchor room explicitly, so a cult scenario walks a curated
+    sequence (wave → skill → boss) rather than a random roll. The resulting
+    WildernessAnomaly is identical in every other respect — it resolves through
+    the SAME ``investigate`` → ``_resolve_anomaly_*`` paths and pays through the
+    SAME reward funnels as any other anomaly (no new faucet/sink).
+
+    Returns the WildernessAnomaly, or None if the template is unknown. Does NOT
+    enforce per-region caps or spawn-chance (scenarios are orchestrator-driven,
+    not tick-rolled).
+    """
+    if now is None:
+        now = time.time()
+
+    tmpl = (
+        SCENARIO_TEMPLATES.get(template_key)
+        or TIER1_TEMPLATES.get(template_key)
+        or TIER2_TEMPLATES.get(template_key)
+        or TIER3_TEMPLATES.get(template_key)
+    )
+    if tmpl is None:
+        log.warning("[anomaly] spawn_scenario_anomaly: unknown template '%s'",
+                    template_key)
+        return None
+
+    if zone_id is None:
+        try:
+            room = await db.get_room(int(anchor_room_id))
+            zone_id = int(room["zone_id"]) if room and room.get("zone_id") else None
+        except Exception:
+            zone_id = None
+
+    if duration_secs is None:
+        # Scenario stages get a generous window so a small group can travel +
+        # coordinate; mirror the Tier-2 duration band for the multi-phase
+        # stages, the Tier-1 band for the one-shot skill stage.
+        duration_secs = TIER2_DURATION_SECS if tier >= 2 else TIER1_DURATION_SECS
+
+    anomaly = WildernessAnomaly(
+        id=_next_id(),
+        region_slug=region_slug,
+        zone_id=zone_id,
+        template_key=template_key,
+        anchor_room_id=int(anchor_room_id),
+        spawned_at=now,
+        expiry=now + float(duration_secs),
+        tier=int(tier),
+    )
+    _anomalies.setdefault(region_slug, []).append(anomaly)
+
+    log.info(
+        "[anomaly] spawned SCENARIO T%d #%d (%s) in %s at room %d",
+        tier, anomaly.id, template_key, region_slug, anchor_room_id,
+    )
+
+    if session_mgr is not None:
+        try:
+            news = _format_news(template_key, region_slug)
+            await session_mgr.broadcast(f"\n  \033[1;33m[News] {news}\033[0m")
+        except Exception:
+            log.warning("[anomaly] scenario news broadcast failed",
+                        exc_info=True)
 
     return anomaly
 
