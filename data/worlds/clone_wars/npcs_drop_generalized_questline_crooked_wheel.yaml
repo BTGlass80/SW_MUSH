@@ -1,0 +1,165 @@
+# Generalized Questline Drop — "The Crooked Wheel" (T3.24 next slice, 2026-06-25)
+#
+# The SECOND accessible (non-t5, non-tutorial) `kind: questline` chain, after
+# "The Ghost Shipment" (nar_freight_ghost_shipment). It reuses the SAME live
+# questline engine (engine/tutorial_chains.py + chain_events.py: the
+# `kind: questline` type + `active_questline` slot) with NO new engine code,
+# no new slot, and no new event type — the sanctioned right-of-launch widening
+# per quest_expansion_postlaunch_path_v1.md (T3.24): author MORE questlines on
+# the proven pattern.
+#
+# Deliberately set on TATOOINE / Mos Eisley (not Nar Shaddaa) so the accessible
+# side-content spreads across the galaxy rather than clustering. Like the Ghost
+# Shipment it is ACCESSIBLE: any post-chargen character can take it
+# (prerequisites: chargen_complete; no faction rep gate), it runs in normal
+# Mos Eisley civic rooms, faction-neutral (independent), and pays a modest
+# credit/rep reward + a lower-tier achievement (cp_reward 3, matching the Ghost
+# Shipment band, vs the t5 trainer chains' 5). It exercises a DIFFERENT skill
+# spread than the Ghost Shipment (investigation + gambling, vs search +
+# streetwise) so the two accessible questlines teach distinct play.
+#
+# Premise: a loan operation locals call "the Wheel" runs a rigged sabacc table
+# out of Chalmun's Cantina, traps marks in spiralling debt, then collects with
+# muscle. A small market vendor's runner got caught; now the Wheel's enforcer
+# is squeezing her stall. Expose the rigged table and run the enforcer to
+# ground.
+#
+# These NPCs back the `mos_eisley_crooked_wheel` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Dorae Vint     — the vendor who offers + closes the quest (step-1 npc =
+#                      the questline's start-NPC, per get_questline_offer).
+#   * Gorvahn Brusk  — the combat-step enforcer (ai_config.chain_enemy_template
+#                      mos_eisley_crooked_wheel_enforcer; the step-4 combat_won
+#                      foil).
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures.
+# Provenance: stats matched to the shipped accessible-questline antagonist band
+# (Brakkis Vone, npcs_drop_generalized_questline_ghost_shipment.yaml) — same
+# small-time-criminal archetype, beatable by a fresh post-chargen character but
+# a real fight. WEG40120 PDF is local-only (gitignored) and absent in this tree;
+# the band is cited against the in-repo reference NPC, not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The vendor — Dorae Vint (questline GIVER + closer)
+  # Questline: mos_eisley_crooked_wheel ("The Crooked Wheel")
+  # Placement: Market Place - Gep's Grill (market_place_geps_grill,
+  #            zone tatooine_market). Step-1 + step-5 NPC.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Dorae Vint
+    room: "Market Place - Gep's Grill"
+    species: Human
+    description: >-
+      A wiry, sun-leathered woman in a grease-stained vendor's apron, nursing a
+      cooling mug at the end of Gep's counter where she can watch the market
+      door. She runs a small parts-and-salvage stall two rows over — fair scales,
+      honest weight, the kind of stand that survives on regulars. Lately she
+      sits hunched, doing sums that won't come out right: her runner got pulled
+      into a sabacc game he couldn't win, the debt tripled overnight, and now a
+      collector keeps drifting past her stall, smiling, asking when she'll
+      "settle the account." She watches everyone who passes with a careful,
+      measuring look — not for muscle she can't pay, but for someone who might,
+      for a fair cut, find out how a game like that is rigged.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 3D
+        mechanical: 2D
+        perception: 3D+2
+        strength: 2D
+        technical: 2D+1
+      skills:
+        bargain: 4D+2
+        con: 4D
+        streetwise: 4D+1
+        value: 4D
+        persuasion: 4D
+        search: 4D+1
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A small independent market vendor, careful and tired, cornered by a
+        debt that isn't even hers. Not a fighter; she trades and watches. Honest
+        in her own transactional way — she pays what she promises and remembers
+        who helped her. Trusts slowly, but completely once earned.
+      knowledge:
+        - "She runs a small parts-and-salvage stall in the Mos Eisley market; her runner got trapped in a sabacc debt to the loan operation locals call 'the Wheel'."
+        - "The Wheel runs a rigged table out of Chalmun's Cantina, then collects spiralling debts with a smiling enforcer who 'drifts past' to remind people."
+        - "She has no proof the game is crooked and no one she trusts to dig — the marshals won't touch a debt that looks legal on paper."
+        - "She pays a fair cut and stays off cartel and faction politics — she just wants the collector to stop drifting past her stall."
+      faction: independent
+      dialogue_style: >-
+        Dry, market-floor blunt. Talks weights, debts, and odds, not war. Drops
+        a tired 'figures' when something tilts against her.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'A game you can't win isn't a game, it's a harvest. Somebody's working that table.'"
+        - "*Dorae glances at the market door, then back at her sums that won't add up.*"
+        - "'Prove the Wheel's crooked and put its collector off my stall, and there's a fair cut in it for you.'"
+
+  # ── Questline antagonist: Gorvahn Brusk (combat step 4) ─────────────
+  # Single hostile instance at the Abandoned Moisture Farm collection spot.
+  # Matches the mos_eisley_crooked_wheel step-4 combat_won enemy_template.
+
+  - name: Gorvahn Brusk
+    room: "City Outskirts - Abandoned Moisture Farm"
+    species: Klatooinian
+    description: >-
+      A heavy-shouldered Klatooinian in a dust-coloured collector's coat, the
+      smile of a man who has never once had to throw the first punch. He works
+      for the Wheel — drifts past stalls, names a number, lets the silence do
+      the threatening — and when a debt gets stubborn he invites the debtor out
+      to a quiet farm past the eastern gate to "talk it over." Re-tagged sabacc
+      chits and a worn shock-stick ride on his belt. When he realises you've
+      traced the rigged table and the spiralling debts all the way to this empty
+      farm, the smile finally drops, because a witness who understands the game
+      is the one kind of account the Wheel can't carry.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+2
+        brawling: 4D+1
+        intimidation: 4D+1
+        streetwise: 3D+2
+        melee_combat: 3D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: mos_eisley_crooked_wheel_enforcer
+      personality: >-
+        A debt enforcer for a loan operation, all menace and patience until
+        cornered. He would rather intimidate than fight, but he will absolutely
+        shoot a witness who has traced the rigged game to its collection spot.
+        Combat foil for the questline's confrontation beat.
+      knowledge:
+        - "He collects for 'the Wheel', a loan operation that runs a rigged sabacc table out of Chalmun's Cantina and traps marks in spiralling debt."
+        - "He squeezes debtors with patient menace and invites the stubborn ones out to an abandoned farm past the eastern gate; he silences anyone who proves the game is crooked."
+      faction: criminal
+      dialogue_style: >-
+        Klatooinian growl, slow and smiling, until it isn't. Calls people
+        'friend' right up until he calls them a problem.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'You traced the table all the way out here, friend? That's a problem.'"
+        - "*Gorvahn Brusk's smile finally drops; his hand settles on the blaster at his belt.*"
+        - "'The Wheel always collects. Nothing personal — it's just the house edge.'"

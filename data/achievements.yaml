@@ -422,3 +422,16 @@ achievements:
     icon: "📦"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "nar_freight_ghost_shipment"}
+
+  # T3.24 generalized-questline arc (2026-06-25): the SECOND accessible
+  # (non-t5, non-tutorial) questline. Earned by breaking "the Wheel" — a
+  # rigged-sabacc loan racket — for the market vendor Dorae Vint on Mos
+  # Eisley. Same lower-tier band as the Ghost Shipment (cp_reward 3 vs the
+  # t5 trainer chains' 5): open freelance side-content, not a rep-gated trial.
+  - key: crooked_wheel_busted
+    name: "The Crooked Wheel"
+    description: "Exposed the rigged sabacc table bleeding Mos Eisley's market vendors dry and ran the Wheel's collector to ground. Some games only end when somebody flips the table."
+    category: profession
+    icon: "🎲"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "mos_eisley_crooked_wheel"}

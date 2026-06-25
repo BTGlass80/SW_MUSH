@@ -2329,6 +2329,183 @@ chains:
           The Ghost Shipment is solved. Yelza's good word travels — freelance
           work finds those who finish it.
 
+  # ─── G2. FREELANCE INVESTIGATION — "The Crooked Wheel" ────────────────
+  # T3.24 next slice (2026-06-25). The SECOND accessible kind:questline
+  # chain, set on Tatooine/Mos Eisley (vs the Ghost Shipment's Nar Shaddaa)
+  # and exercising a DIFFERENT skill spread (investigation + gambling).
+  # Reuses the live questline engine with NO new engine code/slot/event type.
+  - chain_id: mos_eisley_crooked_wheel
+    chain_name: "The Crooked Wheel"
+    description: >
+      A loan operation locals call "the Wheel" runs a rigged sabacc table out
+      of Chalmun's Cantina, traps marks in spiralling debt, then collects with
+      muscle. A small Mos Eisley vendor's runner got caught, and now the
+      Wheel's smiling enforcer is squeezing her stall. Read the racket on the
+      market floor, sit the crooked table to expose it, and run the collector
+      to ground in the desert. A freelance favor — open to anyone, no faction
+      required.
+    archetype_label: "Freelance Investigation"
+    faction_alignment: independent
+    starting_zone: tatooine_market
+    starting_room: market_place_geps_grill
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["crooked_wheel_busted"]
+      drop_room: market_place_geps_grill
+      follow_up_hint: >
+        Dorae will remember this. Word on the Mos Eisley market floor travels
+        fast — freelance work tends to find those who finish it.
+
+    steps:
+      - step: 1
+        title: "The Vendor's Account"
+        location: market_place_geps_grill
+        npc: "Dorae Vint"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Dorae Vint at Gep's Grill in the Mos Eisley market."
+        npc_intro: >
+          "You look like you can read a room and keep your mouth shut. Good —
+          that's the job. I'm Dorae, I run a salvage stall two rows over. My
+          runner sat a sabacc game he couldn't win, the debt tripled overnight,
+          and now the Wheel's collector keeps drifting past my stand, smiling,
+          asking when I'll 'settle the account.' A game you can't win isn't a
+          game — it's a harvest. Walk the market and watch who the Wheel leans
+          on. `investigate` the pattern."
+        completion:
+          type: talk_to_npc
+          npc: "Dorae Vint"
+        npc_complete: >
+          "Start on the market floor. The Wheel doesn't squeeze everyone — just
+          the ones who can't fight back. Watch who the collector visits and
+          which stalls go quiet. `investigate` the pattern; debts that move in
+          lockstep aren't bad luck, they're a system."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Walk the Market District and `investigate` who the Wheel is squeezing."
+
+      - step: 2
+        title: "Reading the Racket"
+        location: mos_eisley_market_district
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["investigate"]
+        objective: "Investigate the Market District for the Wheel's collection pattern."
+        npc_intro: >
+          [The Market District is a churn of stalls, hagglers, and the dry rasp
+          of the desert wind.] Somewhere in the rhythm of who pays and who goes
+          quiet is the shape of the racket. `investigate` the floor — track the
+          collector's circuit, the stalls behind on a 'debt', the marks who sat
+          the table and never recovered.
+        completion:
+          type: skill_check_passed
+          skill: "investigation"
+          difficulty: 10
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [The pattern resolves: every squeezed vendor lost a stake at the same
+          sabacc table in Chalmun's back corner, and every debt grew on the
+          same impossible curve. The game is the trap. To prove it's rigged
+          you'll have to sit the table yourself — and read it from the inside.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "The trap is a sabacc table in Chalmun's Cantina. Sit it and read the game — `chain attempt`."
+
+      - step: 3
+        title: "Reading the Table"
+        location: chalmuans_cantina_main_bar
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["gambling"]
+        objective: "Sit the Wheel's sabacc table and read the rig (gambling)."
+        npc_intro: >
+          [The Wheel's table sits in a quiet corner of Chalmun's, a smiling
+          dealer and a pot that always seems to lean one way.] You don't have
+          to win — you have to *read* it. Use your `gambling` eye: watch the
+          deal, the shaved chits, the tell in the dealer's hands. Catch the rig
+          and you have your proof — and a name.
+        completion:
+          type: skill_check_passed
+          skill: "gambling"
+          difficulty: 12
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [There it is — a marked deck and a dealer feeding the house every
+          stubborn hand. The dealer, two losses deep into his own debt, gives
+          up the collector: Gorvahn Brusk, who walks the stubborn debtors out
+          to an abandoned farm past the eastern gate to 'talk it over.' He
+          won't expect one of them to come looking.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "Gorvahn Brusk runs his collections from the abandoned farm past the eastern gate. Go confront him."
+
+      - step: 4
+        title: "Settling the Account"
+        location: outskirts_abandoned_farm
+        npc: "Gorvahn Brusk"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Confront Gorvahn Brusk and end the Wheel's collection — `attack`, `dodge`."
+        npc_intro: >
+          [The abandoned moisture farm is a ring of dead vaporators and drifting
+          sand, the Wheel's quiet room for stubborn accounts. Gorvahn Brusk
+          looks up from a stack of re-tagged sabacc chits, reads the trail on
+          your face, and his smile finally drops.] "You traced the table all
+          the way out here, friend? That's a problem."
+        completion:
+          type: combat_won
+          enemy_template: "mos_eisley_crooked_wheel_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Brusk goes down among the dead vaporators. On him: the marked deck,
+          the doctored debt-ledger, and the names of every mark the Wheel was
+          bleeding — everything Dorae needs to break the debts and put the
+          collector off the market for good.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "You have the proof and the ledger. Return to Dorae at Gep's Grill."
+
+      - step: 5
+        title: "Squaring the Stall"
+        location: market_place_geps_grill
+        npc: "Dorae Vint"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Dorae Vint to close the job."
+        npc_intro: >
+          "You came back. With a marked deck, a doctored ledger, and Brusk's
+          whole collection list." [She lets out a long breath, some of the
+          weight off her shoulders.] "That's my runner's debt broken and the
+          collector off my stall. Figures the game was rigged from the deal.
+          Here's your cut, and then some."
+        completion:
+          type: talk_to_npc
+          npc: "Dorae Vint"
+        npc_complete: >
+          "Square. You did honest work for an honest stall — that's rarer than
+          it should be out here. Anyone leans on you about freelance, you tell
+          them Dorae Vint vouches for you. Walk easy."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The Crooked Wheel is broken. Dorae's good word travels the market
+          floor — freelance work finds those who finish it.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════
