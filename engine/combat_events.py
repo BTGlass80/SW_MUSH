@@ -707,6 +707,105 @@ def classify_wound_outcome(
 
 
 # ─────────────────────────────────────────────────────────────────────
+# Drama classifier — UX Drop 3 (dice animation)
+# ─────────────────────────────────────────────────────────────────────
+#
+# Per dice_animation_and_ux_polish_2026-06-22.md §3, "dramatic" is NOT a
+# hardcoded list of command types — it is a tier f(wild-die,
+# outcome-significance, criticality, category, difficulty+margin) computed
+# from signals the engine already has at the resolution chokepoint. This
+# is the combat half of that classifier (the §6 pre-launch slice: Force
+# powers + the combat finishing blow). It lives HERE — inside the
+# combat_resolution_event factory's module, classifying from the
+# resolver's *output* (the kwargs the factory already receives) — so the
+# avoid-lane engine/combat.py is untouched (§7) and the funnel stays the
+# single source of truth for drama everywhere a combat roll surfaces.
+#
+# It is a pure function (no I/O, no side effects) so the unit test can
+# drive the whole §3 matrix directly without standing up a Combatant.
+
+# The tiers the client animates by (§3). Sent as the additive `drama`
+# field on the event payload; absent/0 ⇒ the client renders zero DOM.
+DRAMA_NONE     = 0   # routine/repeated — no animation
+DRAMA_FLOURISH = 1   # quick sub-second flash (deliberate, non-routine)
+DRAMA_FULL     = 2   # full roll animation (the signature throw)
+
+# Skills whose mere use is high-stakes-by-category (§3 signal 4). The
+# Force-power skills are the WEG R&E control/sense/alter family; a Force
+# power that *resolves* (hit or opposed) always earns the throw. Matched
+# as a substring of the lowercased action skill so "control" also catches
+# combined powers (e.g. "control+sense") the resolver may label.
+_DRAMA_FORCE_SKILL_TOKENS = ("control", "sense", "alter", "lightsaber combat")
+
+# Outcome types that mean the blow *decided* something — the finishing
+# blow / killing or KO swing (§3 signal 2). These are inherently Tier 2.
+_DRAMA_DECISIVE_OUTCOMES = (OUTCOME_INCAPACITATED, OUTCOME_STUN_UNCONSCIOUS)
+
+
+def classify_drama(
+    *,
+    skill: Optional[str],
+    is_opposed: bool,
+    actor_kind: str,
+    target_kind: str,
+    attacker_pool: Optional[dict],
+    hit: bool,
+    wound_outcome: Optional[dict],
+) -> int:
+    """Classify a combat resolution into a drama tier (0/1/2) per §3.
+
+    Pure function. Reads only the already-resolved fields the
+    combat_resolution_event factory receives, so it can be unit-tested
+    against the full §3 matrix without a live combat.
+
+    Tier 2 (full throw) fires on any of:
+      - the wild die EXPLODED (a 6-cascade) or COMPLICATED (rolled 1) —
+        WEG's native drama engine (§3 signal 1);
+      - a decisive blow: the target was incapacitated / knocked
+        unconscious (the finishing blow, §3 signal 2);
+      - a high-stakes category: a Force power that resolved, or an
+        opposed PvP swing (player vs player), §3 signal 4.
+
+    Tier 1 (quick flourish) fires for a deliberate, non-routine swing
+    that isn't Tier-2 dramatic: any landed hit, or any opposed roll.
+    The client's own rate-limit + per-encounter discipline then keeps a
+    flurry of Tier-1 swings from animating (§3: pace lives on the client).
+
+    Tier 0 otherwise — a routine miss against a static target.
+
+    The function never raises; a malformed payload degrades to the
+    lowest tier consistent with what it can read.
+    """
+    pool = attacker_pool or {}
+    wo = wound_outcome or {}
+
+    # Signal 1 — the wild die. An exploding 6 (cascade) or a complication
+    # (rolled 1) is inherently dramatic regardless of outcome.
+    if pool.get("exploded") or pool.get("complication"):
+        return DRAMA_FULL
+
+    # Signal 2 — outcome significance: the decisive/finishing blow.
+    if hit and wo.get("outcome_type") in _DRAMA_DECISIVE_OUTCOMES:
+        return DRAMA_FULL
+
+    # Signal 4 — high-stakes category. A Force power that resolves is
+    # always the throw; an opposed swing between two PCs (PvP) is a real
+    # contested stake.
+    s = (skill or "").lower()
+    if any(tok in s for tok in _DRAMA_FORCE_SKILL_TOKENS):
+        return DRAMA_FULL
+    if is_opposed and actor_kind == "pc" and target_kind == "pc":
+        return DRAMA_FULL
+
+    # Tier 1 — a deliberate, non-routine swing that landed, or any
+    # opposed contest. The client rate-limits the flurry.
+    if hit or is_opposed:
+        return DRAMA_FLOURISH
+
+    return DRAMA_NONE
+
+
+# ─────────────────────────────────────────────────────────────────────
 # Top-level event factory
 # ─────────────────────────────────────────────────────────────────────
 
@@ -848,11 +947,26 @@ def make_combat_resolution_event(
     if event_id is None:
         event_id = str(uuid.uuid4())
 
+    # UX Drop 3 — drama tier (additive). Computed from the already-resolved
+    # signals above (wild die, decisive outcome, Force/PvP category) so this
+    # is the single chokepoint where every combat roll gets its drama tier.
+    # The client animates the signature D6 throw by tier; absent/0 ⇒ no DOM.
+    drama = classify_drama(
+        skill=skill,
+        is_opposed=is_opposed,
+        actor_kind=actor_kind,
+        target_kind=target_kind,
+        attacker_pool=attacker_pool,
+        hit=hit,
+        wound_outcome=wound_outcome,
+    )
+
     return {
         "msg_type": "combat_resolution_event",
         "schema_version": SCHEMA_VERSION,
         "event_id": event_id,
         "timestamp_ms": timestamp_ms,
+        "drama": drama,
         "round_num": int(round_num),
         "combat_id": combat_id,
         "actor": {

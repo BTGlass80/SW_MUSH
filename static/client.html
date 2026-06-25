@@ -240,6 +240,49 @@ a { color: inherit; text-decoration: none; }
    combatant in the current fight. */
 .combat-yourstatus { margin-top: 6px; }
 
+/* UX Drop 3 (dice animation) — the signature D6 throw on a dramatic combat
+   roll. A brief, bounded, parallel flourish: the result text/row is ALREADY
+   on screen (it renders first); this overlay never gates pace or information.
+   Fixed-position so it cannot reflow the log or push the input box. Tier-2
+   gets the full ~1s tumble; tier-1 a sub-second flash. Both are skippable
+   (click/keypress) and honour prefers-reduced-motion (override below). Render
+   zero DOM when not dramatic — M3DiceRoll mounts nothing for drama 0. */
+.dice-roll-overlay {
+  position: fixed; right: 18px; bottom: 96px; z-index: 60;
+  display: flex; gap: 6px; align-items: center;
+  padding: 8px 10px; pointer-events: auto; cursor: pointer;
+  background: rgba(0,0,0,0.62); border: 1px solid var(--accent-dim);
+  border-radius: 4px; box-shadow: 0 0 14px rgba(0,0,0,0.55);
+}
+.dice-roll-overlay.tier-2 { border-color: var(--accent-bright); }
+.dice-roll-die {
+  width: 30px; height: 30px;
+  animation: diceRollTumble 0.95s cubic-bezier(.2,.7,.2,1) 1;
+  transform-origin: 50% 50%;
+}
+.dice-roll-overlay.tier-1 .dice-roll-die {
+  animation-duration: 0.5s;
+}
+.dice-roll-die.is-wild { filter: drop-shadow(0 0 4px var(--self)); color: var(--self); }
+.dice-roll-die.is-dropped { opacity: 0.4; }
+.dice-roll-total {
+  font-family: 'Space Grotesk', monospace; font-size: 17px; font-weight: 700;
+  color: var(--accent-bright); letter-spacing: 1px; margin-left: 4px;
+}
+@keyframes diceRollTumble {
+  0%   { transform: rotate(0deg)    scale(0.6); opacity: 0; }
+  30%  { transform: rotate(220deg)  scale(1.12); opacity: 1; }
+  65%  { transform: rotate(380deg)  scale(0.96); opacity: 1; }
+  100% { transform: rotate(360deg)  scale(1); opacity: 1; }
+}
+/* Reduced-motion: keep the dice visible (it's information — the real pool)
+   but kill the tumble. The global prefers-reduced-motion block below also
+   near-zeroes animation-duration; this explicit rule makes the intent local
+   and survives even if the overlay is mounted outside the universal target. */
+@media (prefers-reduced-motion: reduce) {
+  .dice-roll-die { animation: none; }
+}
+
 /* UI-3 — combat condition chip rail (poison / restraint). Token-only; the
    biting-poison and restraint chips pulse (opacity + a currentColor glow) to
    read as active threats. Display-only — no chip stages a command. */
@@ -5361,6 +5404,7 @@ a { color: inherit; text-decoration: none; }
 <script src="/static/spa/m3_cockpit.js"></script>
 <script src="/static/spa/m3_holonet.js"></script>
 <script src="/static/spa/m3_skill_check.js"></script>
+<script src="/static/spa/m3_dice_roll.js"></script>
 <script src="/static/spa/m3_assembled_client.js"></script>
 <script src="/static/spa/m3_tier_galaxy_body.js"></script>
 <script src="/static/spa/m3_tier_system_body.js"></script>
@@ -13381,6 +13425,15 @@ if (window.M3Affordances) {
   M3Affordances.init({ sendCmd: sendCmd });
 }
 
+/* UX Drop 3 — M3DiceRoll: the signature animated D6 throw on dramatic combat
+   rolls. Mounts a brief, bounded, skippable, reduced-motion-safe flourish in
+   parallel with the combat result row (never gates the outcome line). Default
+   mounts to document.body; the overlay is fixed-position so it never reflows
+   the log or input. Off by toggle (localStorage sw_dice_anim). */
+if (window.M3DiceRoll) {
+  M3DiceRoll.init({ escapeHtml: escapeHtml });
+}
+
 /* DROP 4.6 — M3Sheet bound but not yet wired to the +sheet command.
    This module ships the character-sheet renderer ported from
    map_v3/sheet-v2.jsx with the bug-fix-sprint corrections
@@ -13564,7 +13617,16 @@ if (typeof window !== 'undefined' && window.M3TierRegistry) {
 }
 
 function handleCombatResolutionEvent(msg) {
-  return M3CombatInspector.handleCombatResolutionEvent(msg);
+  // The inspector appends the result row FIRST — the outcome text is on
+  // screen immediately. The dice animation (UX Drop 3) is a parallel
+  // flourish fired only when the server flagged the roll dramatic; it
+  // never gates the outcome line and no-ops for non-dramatic rolls / when
+  // the toggle is off / inside the rate-limit window.
+  var ret = M3CombatInspector.handleCombatResolutionEvent(msg);
+  try {
+    if (window.M3DiceRoll) M3DiceRoll.renderDiceRoll(msg);
+  } catch (_) { /* a flourish must never break combat rendering */ }
+  return ret;
 }
 
 function isDuplicateOfRecentCombatEvent(rawText) {

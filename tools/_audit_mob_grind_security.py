@@ -79,7 +79,7 @@ async def main() -> None:
                     if zrows:
                         zone_name = zrows[0]["slug"]
                 except Exception:
-                    pass
+                    zone_name = None  # best-effort; leave zone unresolved on read error
             res = {
                 "found": True, "room_id": rid, "structural": structural,
                 "effective": eff, "zone": zone_name,

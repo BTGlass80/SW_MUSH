@@ -50,6 +50,12 @@ _DEFAULT_PATH = os.path.join("logs", "telemetry", "events.jsonl")
 # worst case if the flush handler dies — bounded, never a leak.
 _DEFAULT_MAX_BUFFER = 10_000
 
+# Bounded tail read for the offline read-side (``read_recent`` / the @balance
+# admin view). The sink is append-only and can grow large over a launch; an
+# admin asking for a balance summary should never read an unbounded file, so we
+# seek to the last N bytes and parse only that window. ~4 MiB ≈ 25k events.
+_MAX_READ_BYTES = 4 * 1024 * 1024
+
 
 def _env_enabled() -> bool:
     """Default-on unless explicitly disabled.
@@ -135,6 +141,17 @@ class TelemetrySink:
         out = list(self._buffer)
         self._buffer.clear()
         return out
+
+    def peek(self) -> list[str]:
+        """Copy the buffered JSON lines WITHOUT draining (oldest first).
+
+        For the read-side (``read_recent`` / the @balance admin view): the
+        un-flushed buffer holds the most recent events not yet on disk, so a
+        summary must include them — but reading them must NOT consume them, or
+        the next flush would lose those events. Returns a snapshot copy; the
+        buffer is untouched and the flush tick still writes them normally.
+        """
+        return list(self._buffer)
 
     def flush(self) -> int:
         """Synchronously write the buffer to the sink file (append).
@@ -403,3 +420,207 @@ def reset() -> None:
     """Drop the singleton (test isolation — next get_sink() rebuilds fresh)."""
     global _sink
     _sink = None
+
+
+# ── read side (offline aggregation for the @balance admin view) ───────────
+#
+# The emit side is the hot path and stays write-only + fail-open. Everything
+# below is the COLD read side: an admin asking "what is the economy/progression
+# data telling us?" in-game. It reads the append-only dump (bounded tail) plus
+# the un-flushed buffer, then rolls events up into the balance-tuning signals
+# Brian wants (grind cap pressure, CP source mix, objective funnels, encounter
+# pacing). It is itself fail-open — a missing/corrupt sink yields an empty
+# summary, never an error — and bounded, so it cannot block or exhaust memory.
+
+def _parse_lines(lines: list[str]) -> list[dict]:
+    """Parse JSON-line records, skipping blanks and any malformed line."""
+    out: list[dict] = []
+    for ln in lines:
+        ln = (ln or "").strip()
+        if not ln:
+            continue
+        try:
+            rec = json.loads(ln)
+        except Exception:
+            continue
+        if isinstance(rec, dict):
+            out.append(rec)
+    return out
+
+
+def _read_disk_records(path: Optional[str]) -> list[dict]:
+    """Read + parse the bounded tail of the on-disk sink. Fail-open → []."""
+    try:
+        if not path or not os.path.exists(path):
+            return []
+        size = os.path.getsize(path)
+        with open(path, "rb") as fh:
+            if size > _MAX_READ_BYTES:
+                fh.seek(size - _MAX_READ_BYTES)
+                fh.readline()  # discard the partial line at the seek point
+            data = fh.read()
+        text = data.decode("utf-8", errors="replace")
+        return _parse_lines(text.splitlines())
+    except Exception:
+        log.debug("telemetry.read disk failed", exc_info=True)
+        return []
+
+
+def read_recent(limit: int = 10_000, *, include_buffer: bool = True) -> list[dict]:
+    """Read recent telemetry events: bounded on-disk tail + in-memory buffer.
+
+    Synchronous (does a file read inline) — prefer ``read_recent_async`` from
+    the event loop. ``include_buffer`` folds in the un-flushed events so a live
+    summary is current. ``limit`` keeps only the most recent N records
+    (``limit=0`` means no cap — return everything in view). The disk tail and
+    the buffer are disjoint at any instant (drain clears the buffer before the
+    write completes), so combining them never double-counts.
+    """
+    records = _read_disk_records(get_sink().path)
+    if include_buffer:
+        try:
+            records.extend(_parse_lines(get_sink().peek()))
+        except Exception:
+            log.debug("telemetry.read buffer peek failed", exc_info=True)
+    if limit and len(records) > int(limit):
+        records = records[-int(limit):]
+    return records
+
+
+async def read_recent_async(limit: int = 10_000, *,
+                            include_buffer: bool = True) -> list[dict]:
+    """Async ``read_recent``: the disk read runs on a thread executor so the
+    event loop is never blocked by the file I/O. The buffer peek happens on the
+    loop thread (the buffer is loop-thread-only by design)."""
+    buf: list[dict] = []
+    if include_buffer:
+        try:
+            buf = _parse_lines(get_sink().peek())
+        except Exception:
+            buf = []
+    try:
+        import asyncio
+        loop = asyncio.get_running_loop()
+        records = await loop.run_in_executor(
+            None, _read_disk_records, get_sink().path)
+    except Exception:
+        records = _read_disk_records(get_sink().path)
+    records.extend(buf)
+    if limit and len(records) > int(limit):
+        records = records[-int(limit):]
+    return records
+
+
+def _as_int(v: Any, default: int = 0) -> int:
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def summarize(events: list[dict]) -> dict:
+    """Aggregate parsed telemetry events into balance-tuning rollups (pure).
+
+    Generic envelope (``total``, per-event-type counts, time span) plus the
+    domain rollups that carry the live tuning signal:
+      - grind:        kill volume, payout, soft-/over-cap pressure, top mobs,
+                      distinct grinders — for BASE_REWARD / DAILY_SOFT_CAP /
+                      OVER_CAP_FLOOR.
+      - cp_income:    CP-source mix + weekly-cap pressure — for the CP levers.
+      - objective:    start→complete→abandon funnel + reward, per kind — for
+                      mission/bounty/smuggling tier pay.
+      - wild_encounter: roll→fire rate by threat band — for encounter pacing.
+      - communal:     menace escalation + strike success — for cult tuning.
+
+    Pure + total: never reads files, never raises, accepts a possibly-mixed
+    list of dicts and ignores fields it does not recognise.
+    """
+    from collections import Counter
+
+    by_type: Counter = Counter()
+    first_ts = None
+    last_ts = None
+
+    grind = {"kills": 0, "credits": 0, "at_cap": 0, "over_cap": 0,
+             "npcs": Counter()}
+    grinders: set = set()
+    cp = {"events": 0, "cp": 0, "ticks": 0, "at_cap": 0, "by_source": Counter()}
+    objective: dict = {}
+    enc = {"rolls": 0, "fired": 0, "by_band": Counter()}
+    communal = {"menace_events": 0, "tier_escalations": 0,
+                "strikes": 0, "strike_success": 0}
+
+    for ev in events:
+        if not isinstance(ev, dict):
+            continue
+        et = ev.get("ev")
+        if et:
+            by_type[et] += 1
+        ts = ev.get("ts")
+        if isinstance(ts, (int, float)):
+            if first_ts is None or ts < first_ts:
+                first_ts = ts
+            if last_ts is None or ts > last_ts:
+                last_ts = ts
+
+        if et == "grind_kill":
+            grind["kills"] += 1
+            grind["credits"] += _as_int(ev.get("reward"))
+            if ev.get("at_cap"):
+                grind["at_cap"] += 1
+            if ev.get("over_cap"):
+                grind["over_cap"] += 1
+            cid = ev.get("char_id")
+            if cid is not None:
+                grinders.add(cid)
+            name = ev.get("npc_name")
+            if name:
+                grind["npcs"][name] += 1
+        elif et == "cp_income":
+            cp["events"] += 1
+            cp["cp"] += _as_int(ev.get("cp_gained"))
+            cp["ticks"] += _as_int(ev.get("ticks"))
+            if ev.get("at_cap"):
+                cp["at_cap"] += 1
+            cp["by_source"][ev.get("source") or "?"] += 1
+        elif et == "objective":
+            kind = ev.get("kind") or "?"
+            phase = ev.get("phase") or "?"
+            d = objective.setdefault(
+                kind, {"start": 0, "complete": 0, "abandon": 0, "reward": 0})
+            if phase in ("start", "complete", "abandon"):
+                d[phase] += 1
+            if phase == "complete":
+                d["reward"] += _as_int(ev.get("reward"))
+        elif et == "wild_encounter":
+            enc["rolls"] += 1
+            if ev.get("fired"):
+                enc["fired"] += 1
+            band = ev.get("band")
+            if band is not None:
+                enc["by_band"][str(band)] += 1
+        elif et == "communal_menace":
+            communal["menace_events"] += 1
+            if ev.get("tier_changed"):
+                communal["tier_escalations"] += 1
+        elif et == "communal_strike":
+            communal["strikes"] += 1
+            if ev.get("success"):
+                communal["strike_success"] += 1
+
+    grind["grinders"] = len(grinders)
+    grind["npcs"] = grind["npcs"].most_common(8)
+    cp["by_source"] = cp["by_source"].most_common()
+    enc["by_band"] = dict(sorted(enc["by_band"].items()))
+
+    return {
+        "total": len(events),
+        "by_type": by_type.most_common(),
+        "first_ts": first_ts,
+        "last_ts": last_ts,
+        "grind": grind,
+        "cp_income": cp,
+        "objective": objective,
+        "wild_encounter": enc,
+        "communal": communal,
+    }
