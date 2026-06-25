@@ -1928,6 +1928,76 @@
   ],
   "design_calls_pending_brian": [
     {
+      "id": "FUN.combat_zero_cp_reward_loop",
+      "status": "OPEN",
+      "title": "Combat pays ZERO CP by design, so the action/min-maxer archetype has no kill -> loot -> power-up loop to chase — keep the RP-first CP economy, or add an early-game combat-progress signal?",
+      "origin": "Fun-assessment pass 2026-06-25 (tools/_fun_wf_run.js), min-maxer + new-player lenses. reward_cadence was the lowest-scored axis across lenses (min-maxer 1/5); the min-maxer would quit even with the movement door open.",
+      "premise_verified_at_head": "engine/hunting_rewards.py grants credits (15/kill, 400/day soft cap) but no CP; CP comes from RP/idle/kudos capped ~2/week while one die-step costs 4-6 CP — so there is no kill->advancement tick. This is a deliberate RP-first stance, not a bug.",
+      "fork": "(A) Keep the RP-first CP economy unchanged (combat is for credits/survival, advancement is earned through play/RP). (B) Add a small, capped early-game combat-progress signal (e.g. a first-kill/first-session guaranteed CP or a visible advancement tick) so session one ends on a win the player can see on their sheet — conservative numbers, sunset after the NPE.",
+      "lane_note": "Engine economy/progression (engine/hunting_rewards.py + the CP-award seam). Conservative-on-balance-numbers applies. Touches the same telemetry the Opus loop instruments — coordinate.",
+      "decision_needed": "Pick A or B. If B, set the early-combat CP amount + cap + whether it sunsets post-graduation."
+    },
+    {
+      "id": "FUN.chargen_template_chain_identity_collision",
+      "status": "OPEN",
+      "title": "Chargen lets you pick a TEMPLATE (e.g. Smuggler) and, separately, a TUTORIAL CHAIN (e.g. Republic Soldier); the obvious first-of-each force-joins the Republic + issues a clone uniform + addresses you as 'trooper' while your sheet still shows smuggler skills/description — couple them, warn, or allow?",
+      "origin": "Fun-assessment pass 2026-06-25, new-player + rp-social lenses: 'the player's self-authored character is silently overwritten into a different faction and archetype' in the first 60 seconds on an RP-first MUSH.",
+      "premise_verified_at_head": "Template (engine/creation.py TEMPLATES) and the tutorial chain are independent chargen choices; the Republic Soldier chain force-joins GAR + equips a clone uniform regardless of the chosen template, with no coherence signal. (Verify the exact force-join seam before building.)",
+      "fork": "(A) Couple template -> a coherent default chain (Smuggler -> an independent/smuggler chain) and highlight the matching chain at the chain step, warning on a clash. (B) Stop the silent faction force-join / clone re-skin when template+chain disagree; surface the consequence before commit. (C) Allow it but make the consequence explicit at selection.",
+      "lane_note": "Chargen (engine/creation.py + the wizard + the chain-join seam). Mostly a coupling/validation + copy change; identity-authoring is one of the few RP surfaces that already works, so protect it.",
+      "decision_needed": "Pick A/B/C and confirm whether a template<->chain clash should be blocked, warned, or silently allowed."
+    },
+    {
+      "id": "FUN.shop_verb_and_natural_verb_surface",
+      "status": "OPEN",
+      "title": "'shop' means 'manage your OWN vendor droid', not 'browse a store and buy'; and many natural verbs (+attributes, skills, inventory, equipment, +goals, objectives, exits) error out though the data exists behind a panel — rename + alias, or leave?",
+      "origin": "Fun-assessment pass 2026-06-25, min-maxer/explorer/systems/new-player lenses: a newcomer with 1000 starting credits has no obvious way to spend them; discoverability collapses when the obvious word errors out.",
+      "premise_verified_at_head": "The exit-name half is already FIXED (drop first-session-unblock — typed/clicked named exits now route). Remaining: 'shop' is the vendor-droid-owner command; browse/buy is a different verb; +attributes/skills/inventory/equipment/+goals are not registered aliases. (Re-verify each against the registry before aliasing.)",
+      "fork": "(A) Rename the vendor-owner command (e.g. +myshop/+vendor) so 'shop'/'list'/'buy' mean browse-and-buy, AND alias the obvious sheet/sidebar verbs to their existing data. (B) Leave verbs as-is and rely on the Ctrl+K palette + qa-row for discovery. NOTE: a rename/alias pass COLLIDES with the already-planned command-syntax-rework (memory [[command-syntax-rework]]) — likely fold into that, not a one-off.",
+      "lane_note": "Parser verb surface + the planned command-syntax-rework. Additive aliasing is low-risk; the 'shop' rename is a breaking-ish change to muscle memory — sequence with the syntax rework.",
+      "decision_needed": "Confirm whether to (A) do an additive alias pass now (which verbs), and whether the 'shop' rename folds into the command-syntax-rework or ships standalone."
+    },
+    {
+      "id": "AUDIT.boost_switch_phantom_verb",
+      "status": "OPEN",
+      "title": "The cockpit BOOST switch stages an unregistered verb 'speed +1' -> 'Huh? Unknown command: speed' — remove the dead switch, or add a real sublight-throttle verb?",
+      "origin": "Launch-readiness audit 2026-06-25 (tools/_audit_wf.js), phantom-producer/consumer dimension (MAJOR, confirmed).",
+      "premise_verified_at_head": "static/client.html ~line 5260: the space-strip BOOST switch stages 'speed +1'; no 'speed'/throttle verb is registered in the parser, so it dead-ends.",
+      "fork": "(A) RECOMMENDED (safe, no-phantom): remove the BOOST switch from the space strip until a throttle verb exists. (B) Add a real sublight-throttle/speed parser command and wire BOOST to it (new engine surface — space movement).",
+      "lane_note": "static/client.html (+ engine space-movement if B). I can implement (A) immediately on your OK; (B) is a small new feature.",
+      "decision_needed": "Pick A (remove) or B (build the throttle verb). Default recommendation: A for launch, B post-launch."
+    },
+    {
+      "id": "AUDIT.command_palette_surfaces_help_topics",
+      "status": "OPEN",
+      "title": "The Ctrl+K command palette (Drop 7) surfaces non-typeable help-TOPIC keys as if they were commands, so selecting one stages a string that dead-ends at 'Huh?' — distinguish commands from topics in the reference index?",
+      "origin": "Launch-readiness audit 2026-06-25, phantom-producer/consumer dimension (MAJOR, confirmed).",
+      "premise_verified_at_head": "server/web_portal.py handle_reference_index emits both code-derived commands AND markdown/TOPIC_HELP help entries with no is_command flag; static/spa/m3_command_palette.js stages any selected entry's key as a command — topic keys aren't typeable verbs.",
+      "fork": "(A) RECOMMENDED: add an is_command:bool to HelpEntry (true only for auto-registered commands), emit it from handle_reference_index, and have the palette stage only is_command entries (show topics as non-stageable info or hide them). (B) Filter topics out of the reference index entirely (loses topic discoverability in the palette).",
+      "lane_note": "data/help_topics.py + server/web_portal.py + static/spa/m3_command_palette.js. Self-contained; I can implement (A) on your OK.",
+      "decision_needed": "Confirm (A) is_command distinction (preferred) vs (B) drop topics from the palette."
+    },
+    {
+      "id": "UX.sound_atmosphere_asset_sourcing",
+      "status": "OPEN",
+      "title": "UX.sound_atmosphere (zone-keyed ambient audio) is code-ready in design but BLOCKED on an audio-asset decision — source CC0/licensed loops, and embed-vs-CDN?",
+      "origin": "UX engagement roadmap (the 9th UX feature); flagged while finishing the UI pass 2026-06-25. The toggle + zone signal are free (zone_type already on the wire); the long pole is the actual sound files.",
+      "premise_verified_at_head": "TODO UX.sound_atmosphere is DESIGNED/queued, off-by-default. No audio infra exists under static/. The manager + zone->track map are buildable; the dependency is the licensed/CC0 loop files + a host decision.",
+      "fork": "(A) Source a small set of CC0 ambient loops (cantina / spaceport / market / deep-space) and ship them embedded under static/audio/. (B) Host loops on a CDN. (C) Defer sound entirely to post-launch.",
+      "lane_note": "Web-client only; off-by-default. Asset sourcing/licensing is content work I can't safely do autonomously (licensing judgment) — needs your call on source + delivery.",
+      "decision_needed": "Decide whether sound is in scope for launch and, if so, the loop source (CC0 pack?) + embed-vs-CDN. Default: C (defer) unless you want the ambient slice."
+    },
+    {
+      "id": "UX.living_sheet_delta_semantic",
+      "status": "OPEN",
+      "title": "Living character sheet (Drop 8) highlights values changed since the LAST VIEW (per-view, default) — keep that, or make it session-cumulative 'what changed this session' until dismissed?",
+      "origin": "UX Drop 8 (drop ux-drop8-living-sheet, 2026-06-25); flagged in the TODO item's decisions field as the one open fork.",
+      "premise_verified_at_head": "static/client.html sheetComputeChanges diffs the previous opened payload vs the new one (per-view); first/identical open highlights nothing. Session-cumulative would require persisting a session baseline + a dismiss control.",
+      "fork": "(A) Keep per-view deltas (shipped default — simplest, no extra state). (B) Switch to session-cumulative deltas (highlight everything changed since login until dismissed) — more 'what did I gain this session' but needs a baseline + dismiss UI.",
+      "lane_note": "Web-client only; the shipped default is A. B is a bounded follow-up.",
+      "decision_needed": "Confirm A (keep) or request B. Low priority."
+    },
+    {
       "id": "COMM.comlink_not_planet_scoped",
       "status": "OPEN",
       "title": "comlink is documented (everywhere) as a planet-wide IC channel but is implemented as a galaxy-wide broadcast to ALL online characters — enforce planet-scoping, or rebrand it as the global IC channel?",
