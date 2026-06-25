@@ -316,7 +316,7 @@ You've graduated. The chain hint pointed you at, say, the Republic mission board
 
 A reasonable rhythm:
 
-**Minute 0–5.** Read the room description carefully. The drop room is curated — it tells you what's around. Look at the exits. Look at the NPCs. Type `+who` to see who's online; you might recognize someone from a previous session.
+**Minute 0–5.** Read the room description carefully. The drop room is curated — it tells you what's around. Then *walk it*. The tutorial rooms had no walkable exits — the chain teleported you between steps — but the live world is yours to explore on foot. The room lists its exits; to walk one, type a compass direction (`north`, or `n` for short) **or the exit's name exactly as the room lists it** — if the room shows a `corridor` exit, just type `corridor` and you'll go there. On the web client, you don't even type: click the exit's chip and it walks you through. Look at the NPCs (`look <name>`). Type `+who` to see who's online; you might recognize someone from a previous session.
 
 **Minute 5–15.** Visit your faction's main hub — the cantina, the mission board, the headquarters lobby. Talk to a couple of NPCs to get a feel for the local social texture. Check `+missions <your faction>` to browse what's available.
 
@@ -339,6 +339,8 @@ By the end of that first hour, you've completed your chargen → chain → first
 | `chain attempt` | Trigger a skill-check step's roll |
 | `talk <NPC>` | Talk to an NPC (advances NPC-completion steps) |
 | `examine <object>` | Examine an in-room object (advances examine-completion steps) |
+| `look` | Re-read the current room — its description, **exits**, and who's here |
+| `move <dir>` (or just type it) | Walk an exit: a compass direction (`n`/`s`/`e`/…) **or the exit's name** as the room lists it (e.g. `corridor`). Web client: click the exit chip |
 | `+missions <faction>` | Browse mission board (post-graduation) |
 | `+achievements` | Show your achievements (chain graduation creates one) |
 | `training` | Visit the Training Grounds hub |

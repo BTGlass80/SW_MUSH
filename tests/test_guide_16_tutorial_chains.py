@@ -86,7 +86,7 @@ def reg():
 # ── Every command Guide_16 teaches must resolve against HEAD ──────────────────
 # §4/§5 walkthroughs + §7/§8 chain + §11 training + §15 quick-ref.
 _TAUGHT_FORMS = [
-    "look", "+sheet", "attack", "dodge",
+    "look", "move", "+sheet", "attack", "dodge",
     "+missions", "accept", "complete",
     "talk", "examine", "say", "use", "give",
     "+factions", "+bounties", "scan", "survey", "+craft",
@@ -234,6 +234,58 @@ class TestStaleSurfaces:
         # The chargen picker takes a number (see creation_wizard); there is no
         # `chain <name>` set-command at chargen.
         assert "pick a chain by number" in guide_text
+
+
+# ── §14 / §15 live-world movement teaching must match HEAD ────────────────────
+# The first-session-unblock drop (266a6db) made a bare word matching a real
+# current-room exit route to MoveCommand (via MoveCommand._match_exit, which
+# matches an exit's *name*, not just its compass direction) — and the SPA exit
+# chips send `move <dir>`.  Guide_16 is the new-player guide; before that drop it
+# never taught how to walk a live-world exit at all (the #1 fun-pass killer:
+# graduates stranded in the drop room).  §14's "First Hour" beat + the §15
+# quick-ref now teach it.  Pin the prose AND the live behaviors it claims, so a
+# future refactor that breaks named-exit movement fails loudly here.
+class TestLiveWorldMovementTeaching:
+    def test_guide_teaches_moving_by_exit_name(self, guide_text):
+        assert "the exit's name" in guide_text, (
+            "Guide_16 must teach that you walk a live-world exit by typing its "
+            "name (not only a compass direction) — the first-session-unblock "
+            "behavior that un-gated the world"
+        )
+        assert "`corridor`" in guide_text, (
+            "Guide_16 should give the concrete named-exit example (`corridor`)"
+        )
+
+    def test_guide_teaches_web_client_exit_chip(self, guide_text):
+        assert "exit chip" in guide_text or "exit's chip" in guide_text, (
+            "Guide_16 should tell web-client players they can click the exit "
+            "chip to walk through it"
+        )
+
+    def test_move_resolves_against_registry(self, reg):
+        assert reg.get("move") is not None, (
+            "Guide_16 teaches `move`; it must resolve against the live registry"
+        )
+
+    def test_match_exit_still_matches_by_name(self):
+        """The guide's 'type the exit's name' claim is only true while
+        MoveCommand._match_exit matches against the exit *name*.  Pin it."""
+        import inspect
+        from parser.builtin_commands import MoveCommand
+        src = inspect.getsource(MoveCommand._match_exit)
+        assert '.get("name")' in src and 'e["name"]' in src, (
+            "MoveCommand._match_exit no longer matches an exit by name — "
+            "Guide_16 §14/§15 'type the exit's name' has gone stale"
+        )
+
+    def test_spa_exit_chip_sends_move(self):
+        """The guide's 'click the exit chip' claim is only true while the SPA
+        dispatches `move <dir>` for an exit chip/button."""
+        client_html = _read(os.path.join(PROJECT_ROOT, "static", "client.html"))
+        assert "'move ' +" in client_html, (
+            "The SPA no longer sends `move <dir>` for exit chips — Guide_16's "
+            "'click the exit chip' claim has gone stale"
+        )
 
 
 # ── §6 Jedi unlock: "five" Force-sign landmark visits must match the engine ───
