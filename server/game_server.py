@@ -955,6 +955,37 @@ class GameServer:
 
     # ── Session Handling ──
 
+    async def _emit_auth_status(self, session, ok, kind, *,
+                                username=None, reason=None, message=None):
+        """Emit a structured ``auth_status`` event to the web client.
+
+        Completes the SPA's documented producer/consumer contract (see
+        ``static/client.html`` ``handleAuthStatus``: ``{ok, kind, username?,
+        reason?, message?}``). Before this producer existed the SPA had ONLY
+        the brittle ``checkForAuthFailure`` regex-on-English-text fallback to
+        notice a failed login — so any failure whose wording it does not
+        pattern-match (e.g. the per-IP rate-limit notice) left the login form
+        hung in its ``awaitingAuth`` state forever with no error shown. The
+        structured event resolves the form deterministically, independent of
+        the error wording. Emitted on EVERY connect/create outcome so the SPA
+        no longer depends on the fragile text match at all.
+
+        Fail-open + telnet-safe: ``Session.send_json`` silently drops unknown
+        types for non-WebSocket transports, and any send failure is swallowed
+        so the authentication decision this observes is never disturbed.
+        """
+        try:
+            data = {"ok": bool(ok), "kind": kind}
+            if username is not None:
+                data["username"] = username
+            if reason is not None:
+                data["reason"] = reason
+            if message is not None:
+                data["message"] = message
+            await session.send_json("auth_status", data)
+        except Exception:
+            log.debug("auth_status emit failed", exc_info=True)
+
     async def handle_new_session(self, session: Session, reader=None):
         """
         Entry point for every new connection. Runs the login flow,
@@ -1025,6 +1056,8 @@ class GameServer:
                     await session.send_line(
                         ansi.success(f"Welcome, {account['username']}!")
                     )
+                    await self._emit_auth_status(
+                        session, True, "connect", username=account["username"])
                     await self._character_select(session)
                 else:
                     await session.send_prompt()
@@ -1035,12 +1068,12 @@ class GameServer:
                 # login loop (T3.21 Blocker 2, protocol half). Shared bucket
                 # with `create` below.
                 if not _preauth_rate_ok(session.client_ip):
-                    await session.send_line(
-                        ansi.error(
-                            "Too many login attempts from your location. "
-                            "Please wait a minute and try again."
-                        )
-                    )
+                    _rl_msg = ("Too many login attempts from your location. "
+                               "Please wait a minute and try again.")
+                    await self._emit_auth_status(
+                        session, False, "connect",
+                        reason="rate_limited", message=_rl_msg)
+                    await session.send_line(ansi.error(_rl_msg))
                     await session.send_prompt()
                     continue
                 username = parts[1]
@@ -1062,11 +1095,15 @@ class GameServer:
                     await session.send_line(
                         ansi.success(f"Welcome back, {username}!")
                     )
+                    await self._emit_auth_status(
+                        session, True, "connect", username=username)
                     await self._character_select(session)
                 else:
-                    await session.send_line(
-                        ansi.error("Invalid username or password.")
-                    )
+                    _bad_msg = "Invalid username or password."
+                    await self._emit_auth_status(
+                        session, False, "connect",
+                        reason="invalid_credentials", message=_bad_msg)
+                    await session.send_line(ansi.error(_bad_msg))
                     await session.send_prompt()
 
             elif cmd == "create" and len(parts) >= 3:
@@ -1074,12 +1111,12 @@ class GameServer:
                 # — bounds account-creation flooding / bcrypt-CPU abuse on the
                 # raw protocol login loop. Shared bucket with `connect` above.
                 if not _preauth_rate_ok(session.client_ip):
-                    await session.send_line(
-                        ansi.error(
-                            "Too many attempts from your location. "
-                            "Please wait a minute and try again."
-                        )
-                    )
+                    _rl_msg = ("Too many attempts from your location. "
+                               "Please wait a minute and try again.")
+                    await self._emit_auth_status(
+                        session, False, "create",
+                        reason="rate_limited", message=_rl_msg)
+                    await session.send_line(ansi.error(_rl_msg))
                     await session.send_prompt()
                     continue
                 username = parts[1]
@@ -1087,20 +1124,22 @@ class GameServer:
 
                 # Validate
                 if len(username) < self.config.min_username_len:
-                    await session.send_line(
-                        ansi.error(
-                            f"Username must be at least {self.config.min_username_len} characters."
-                        )
-                    )
+                    _u_msg = (f"Username must be at least "
+                              f"{self.config.min_username_len} characters.")
+                    await self._emit_auth_status(
+                        session, False, "create",
+                        reason="username_too_short", message=_u_msg)
+                    await session.send_line(ansi.error(_u_msg))
                     await session.send_prompt()
                     continue
 
                 if len(password) < self.config.min_password_len:
-                    await session.send_line(
-                        ansi.error(
-                            f"Password must be at least {self.config.min_password_len} characters."
-                        )
-                    )
+                    _p_msg = (f"Password must be at least "
+                              f"{self.config.min_password_len} characters.")
+                    await self._emit_auth_status(
+                        session, False, "create",
+                        reason="password_too_short", message=_p_msg)
+                    await session.send_line(ansi.error(_p_msg))
                     await session.send_prompt()
                     continue
 
@@ -1112,11 +1151,15 @@ class GameServer:
                     await session.send_line(
                         ansi.success(f"Account '{username}' created! Welcome to the galaxy.")
                     )
+                    await self._emit_auth_status(
+                        session, True, "create", username=username)
                     await self._character_select(session)
                 else:
-                    await session.send_line(
-                        ansi.error("That username is already taken.")
-                    )
+                    _taken_msg = "That username is already taken."
+                    await self._emit_auth_status(
+                        session, False, "create",
+                        reason="username_taken", message=_taken_msg)
+                    await session.send_line(ansi.error(_taken_msg))
                     await session.send_prompt()
             else:
                 await session.send_line(
