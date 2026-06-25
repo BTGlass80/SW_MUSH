@@ -723,11 +723,19 @@ class TalkCommand(BaseCommand):
 
         # F.8.c.2.b: CW tutorial chain — talk_to_npc completion
         try:
-            from engine.chain_events import on_talk_to_npc
+            from engine.chain_events import on_talk_to_npc, npe_prereq_hint
             _adv = await on_talk_to_npc(ctx.db, char, npc_row.get("name", ""))
             if _adv:
                 from engine.chain_graduation import execute_pending_teleport
                 await execute_pending_teleport(ctx, char)
+            else:
+                # FUN2 soft-lock fix: the talk matched the active NPE step's NPC
+                # but its requires_first prereqs aren't all met, so the chain
+                # silently won't advance. SPEAK the unmet prereq so the player
+                # isn't trapped (the panel checklist shows it too).
+                _hint = npe_prereq_hint(char, npc_row.get("name", ""))
+                if _hint:
+                    await ctx.session.send_line(_hint)
         except Exception as _e:
             log.debug("silent except in parser/npc_commands.py chain_events hook: %s", _e, exc_info=True)
 
