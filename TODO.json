@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "last_updated": "2026-06-24",
-  "last_updated_note_prev": "2026-06-24 (events-more-scenarios): 2 MORE cults converted to playable staged scenarios (Ember Court/Geonosis, Ashen Hand/Coruscant-underworld) via pure data/templates on the proven orchestrator (no new orchestration); drowned_choir/iron_veil deferred (no wilderness substrate). 6 SCENARIO_TEMPLATES + stage descriptors; reuses existing funnels (no new faucet/sink); era-clean; get_active contract preserved. Review fixed a skill-theme mismatch (ashen_hand secondary con->investigation). 27 tests; invariant-auditor clean. Engine data only; no schema.",
+  "last_updated": "2026-06-25",
+  "last_updated_note_prev": "2026-06-25 (ux-drop4-situation-board): UX DROP 4 living-world situation board — new SIT cartridge surfacing the Director's zone influence + world events + active cult-uprising (menace meter) + filtered holonet headlines, on the existing HUD tick. Engine: compile_situation_digest (read-only, guarded) + INTERNAL_NEWS_EVENTS filter; push via _hud_situation_digest (mirrors _hud_zone_influence). New m3_situation_board.js. Agent fixed an XSS double-escape + corrected 2 stale roadmap refs; review fixed a MAJOR news-starvation bug (fetch 12->40) + a title test. 16 tests; invariant-auditor clean. Next: UX Drop 5 presence/scene.",
   "architecture_of_record": "sw_d6_mush_architecture_v52.md",
   "_notes": [
     "2026-06-24 (ambient-tatooine-despot-commerce, Sonnet loop): World content -- 4 non-hostile ambient NPCs filling 4 Mos Eisley commercial/criminal-hospitality rooms (Transport Depot/Heff's Souvenirs/Lucky Despot Grand Staircase/Lucky Despot Star Chamber Cafe); Yvonne Targis/Moplin/Naressa Vell/Calos Renk; all Q1-compliant, era-clean, no schema change",
