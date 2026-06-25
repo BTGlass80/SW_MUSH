@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "last_updated": "2026-06-24",
-  "last_updated_note_prev": "2026-06-24 (wilderness-content-2): GRIND REDIRECT round 2 — new Jundland Wastes wilderness region (tatooine_jundland.yaml: 13 encounters/4 terrains/3 landmarks) + 3 D6 creatures (canyon_womp_rat/rock_wart[min_band 2]/scurrier) re-statted from SoT extraction. Additive; spoils via existing on_wild_creature_killed (no new faucet); consumer-verified, no phantom fields; global phantom guard now covers all 4 regions. 21 tests. Wilderness grind venue now 4 regions/8 new creatures. Data+test; era-clean; map-safe.",
+  "last_updated_note_prev": "2026-06-24 (events-more-scenarios): 2 MORE cults converted to playable staged scenarios (Ember Court/Geonosis, Ashen Hand/Coruscant-underworld) via pure data/templates on the proven orchestrator (no new orchestration); drowned_choir/iron_veil deferred (no wilderness substrate). 6 SCENARIO_TEMPLATES + stage descriptors; reuses existing funnels (no new faucet/sink); era-clean; get_active contract preserved. Review fixed a skill-theme mismatch (ashen_hand secondary con->investigation). 27 tests; invariant-auditor clean. Engine data only; no schema.",
   "architecture_of_record": "sw_d6_mush_architecture_v52.md",
   "_notes": [
     "2026-06-24 (ambient-tatooine-despot-commerce, Sonnet loop): World content -- 4 non-hostile ambient NPCs filling 4 Mos Eisley commercial/criminal-hospitality rooms (Transport Depot/Heff's Souvenirs/Lucky Despot Grand Staircase/Lucky Despot Star Chamber Cafe); Yvonne Targis/Moplin/Naressa Vell/Calos Renk; all Q1-compliant, era-clean, no schema change",

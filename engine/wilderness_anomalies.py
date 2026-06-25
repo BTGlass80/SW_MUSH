@@ -2028,6 +2028,445 @@ SCENARIO_TEMPLATES = {
             "shrine in {region}. End the prophet and the cult breaks."
         ),
     },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # Ember Court (Geonosis / geonosis_ey_akh) — a foundry-cult worshipping the
+    # dead fires of abandoned droid forges. events_more_scenarios (2026-06-24):
+    # the second communal objective converted to a playable site scenario,
+    # mirroring the Hollow Sun exactly (wave → skill → boss). Era-clean (B3/Q1):
+    # invented dark-side foundry-cult, no Imperial/Rebel strings, no canon
+    # figures. Reward bands mirror the same-tier templates.
+    # ══════════════════════════════════════════════════════════════════════════
+
+    # ── Stage 1: wave combat — Collapse the Forge-Tunnels ─────────────────────
+    "ember_court_forge_assault": {
+        "tier": 2,
+        "scenario": "ember_court",
+        "regions": [],                       # orchestrator-spawned only
+        "resolution": "combat",
+        "display_name": "Ember Court Forge Assault",
+        "short_desc": (
+            "Ash-streaked cultists guard the mouth of a dead droid forge, "
+            "tending fires that long ago went cold."
+        ),
+        "long_desc": (
+            "A collapsed droid-forge tunnel breathes cold ash into the "
+            "Geonosian waste. The Ember Court has claimed it — ash-streaked "
+            "ascetics who kneel before the dead crucibles and pray the fires "
+            "back to life. They take your approach as desecration. Soot-blind "
+            "and fervent, they rise from the slag to drive you off."
+        ),
+        "phases": [
+            {
+                "name": "Ashwalkers",
+                "intro": (
+                    "Three ashwalkers scramble up out of the slag-pit, "
+                    "wreathed in cold cinders, chanting to the dead forge."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Human",
+                        "name_pool": ["Ember Court Ashwalker", "Cinder-Ascetic"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "An Ember Court ashwalker, defending the dead forge in a soot-blind fervor.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Human",
+                        "name_pool": ["Ember Court Ashwalker", "Cinder-Ascetic"],
+                        "weapon": "blaster_pistol", "behavior": "aggressive",
+                        "personality": "An Ember Court ashwalker, defending the dead forge in a soot-blind fervor.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "novice",
+                        "species": "Geonosian",
+                        "name_pool": ["Ember Court Conscript", "Forge-Penitent"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "A conscripted hive-laborer pressed into the Ember Court's ranks, throwing himself at the intruders.",
+                    },
+                ],
+            },
+            {
+                "name": "The Cinder-Warden",
+                "intro": (
+                    "From the crucible's shadow steps a Cinder-Warden, two "
+                    "armed faithful at his back — surer, harder, deadlier."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "thug", "tier": "veteran",
+                        "species": "Human",
+                        "name_pool": ["Ember Court Cinder-Warden", "Forge Overseer"],
+                        "weapon": "blaster_rifle", "behavior": "tactical",
+                        "personality": "An Ember Court Cinder-Warden — a cult-leader rallying the faithful at the dead forge.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Human",
+                        "name_pool": ["Ember Court Ashwalker", "Forge Guard"],
+                        "weapon": "blaster_rifle", "behavior": "aggressive",
+                        "personality": "An Ember Court ashwalker guarding the Cinder-Warden.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Geonosian",
+                        "name_pool": ["Ember Court Ashwalker", "Forge Guard"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "An Ember Court ashwalker guarding the Cinder-Warden.",
+                    },
+                ],
+            },
+        ],
+        "success_reward": {
+            "credits": (400, 800),
+            "resources": [
+                ("metal", 2, 55),
+                ("composite", 2, 50),
+            ],
+            "influence": TIER2_INFLUENCE_DELTA,
+        },
+        "news_text": (
+            "The Ember Court has fortified a dead droid-forge in {region}. "
+            "Their ashwalkers are turning back anyone who approaches the slag."
+        ),
+    },
+
+    # ── Stage 2: skill gate — Slice the Ignition Relays ───────────────────────
+    "ember_court_relay_slice": {
+        "tier": 1,
+        "scenario": "ember_court",
+        "regions": [],
+        "resolution": "skill",
+        "display_name": "Ember Court Ignition Relays",
+        "short_desc": (
+            "The cult feeds the forges through stolen ignition relays — slice "
+            "them out, or rally the conscripted laborers."
+        ),
+        "long_desc": (
+            "The Ember Court keeps its dead forges smoldering through a bank of "
+            "stolen ignition relays, bleeding power from the surrounding works. "
+            "A slicer can lock the cult out of the relay controllers; a "
+            "persuasive voice can rally the conscripted hive-laborers to walk "
+            "off and pull the feeds themselves. Either way, the forges go dark."
+        ),
+        "primary_skill": "security",
+        "secondary_skill": "computer_programming",
+        "success_reward": {
+            "credits": (250, 500),
+            "resources": [
+                ("energy", 2, 55),
+                ("metal", 1, 50),
+            ],
+            "influence": TIER1_INFLUENCE_DELTA,
+        },
+        "fail_reward": {
+            "credits": (60, 120),
+            "resources": [],
+            "influence": 0,
+        },
+        "news_text": (
+            "Works-crews in {region} report the Ember Court is bleeding power "
+            "from their relays. Slicers and negotiators are needed to cut the "
+            "cult's ignition feeds."
+        ),
+    },
+
+    # ── Stage 3: boss — Break the Ash Forgemaster ─────────────────────────────
+    "ember_court_forgemaster": {
+        "tier": 2,
+        "scenario": "ember_court",
+        "regions": [],
+        "resolution": "combat",
+        "display_name": "The Ember Court's Forgemaster",
+        "short_desc": (
+            "The Ash Forgemaster of the Ember Court makes a last stand at the "
+            "cold crucible."
+        ),
+        "long_desc": (
+            "At the heart of the forge stands the Ash Forgemaster of the Ember "
+            "Court — broad, scarred, robed in scorched leather, a forge-hammer "
+            "in one hand and a heavy blaster in the other. The last of the "
+            "faithful close ranks around their prophet at the cold crucible. "
+            "Break the Forgemaster and the cult scatters into the slag."
+        ),
+        "phases": [
+            {
+                "name": "The Faithful Close Ranks",
+                "intro": (
+                    "The Forgemaster's wardens move first — two armed cultists "
+                    "buying their prophet time at the crucible's edge."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "thug", "tier": "veteran",
+                        "species": "Human",
+                        "name_pool": ["Ember Court Faithful", "Forgemaster's Warden"],
+                        "weapon": "blaster_rifle", "behavior": "tactical",
+                        "personality": "An Ember Court warden, shielding the Forgemaster with his life.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "veteran",
+                        "species": "Human",
+                        "name_pool": ["Ember Court Faithful", "Forgemaster's Warden"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "An Ember Court warden, shielding the Forgemaster with his life.",
+                    },
+                ],
+            },
+            {
+                "name": "The Ash Forgemaster",
+                "intro": (
+                    "The wardens fall and the Ash Forgemaster steps forward "
+                    "alone, forge-hammer raised over the cold crucible. This is "
+                    "the end of the cult — or of you."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "bounty_hunter", "tier": "superior",
+                        "species": "Human",
+                        "name_pool": ["Ash Forgemaster of the Ember Court", "The Cinder-Prophet"],
+                        "weapon": "blaster_rifle", "behavior": "tactical",
+                        "personality": "The Ash Forgemaster of the Ember Court — the cult's prophet, fanatical and lethal, making a last stand at the cold crucible.",
+                    },
+                ],
+            },
+        ],
+        "success_reward": {
+            "credits": (700, 1400),
+            "resources": [
+                ("metal", 3, 60),
+                ("composite", 2, 55),
+                ("energy", 1, 55),
+            ],
+            "influence": TIER2_INFLUENCE_DELTA,
+        },
+        "news_text": (
+            "The Ash Forgemaster of the Ember Court has been cornered at the "
+            "dead forge in {region}. End the prophet and the cult breaks."
+        ),
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # Ashen Hand (Coruscant / coruscant_underworld) — a deep-level order that
+    # recruits among the forgotten of the undercity. events_more_scenarios
+    # (2026-06-24): the third communal objective converted to a playable site
+    # scenario, mirroring the Hollow Sun (wave → skill → boss). Era-clean
+    # (B3/Q1): invented dark-side undercity order, no Imperial/Rebel strings, no
+    # canon figures. Its skill stage leans social/investigative (turn the
+    # informants) rather than slicing, matching the cult's recruit-the-desperate
+    # rally hook — the skill template names persuasion-side skills.
+    # ══════════════════════════════════════════════════════════════════════════
+
+    # ── Stage 1: wave combat — Burn Out the Warrens ───────────────────────────
+    "ashen_hand_warren_assault": {
+        "tier": 2,
+        "scenario": "ashen_hand",
+        "regions": [],
+        "resolution": "combat",
+        "display_name": "Ashen Hand Warren Assault",
+        "short_desc": (
+            "Hooded cutters hold a tangle of undercity warrens, watching every "
+            "approach from the dark."
+        ),
+        "long_desc": (
+            "Deep in the undercity the Ashen Hand has hollowed out a warren of "
+            "the forgotten — runaways, debtors, and the desperate, bound to the "
+            "order by ash-marked oaths. Hooded cutters hold the chokepoints, "
+            "knives out, and the warren's converts close ranks behind them. "
+            "They do not let outsiders walk in and walk back out."
+        ),
+        "phases": [
+            {
+                "name": "The Warren Cutters",
+                "intro": (
+                    "Three cutters peel out of the dark — ash-marked, fast, "
+                    "and silent, blades already low."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Human",
+                        "name_pool": ["Ashen Hand Cutter", "Warren Initiate"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "An Ashen Hand cutter, holding the warren chokepoints with cold devotion.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Human",
+                        "name_pool": ["Ashen Hand Cutter", "Warren Initiate"],
+                        "weapon": "blaster_pistol", "behavior": "aggressive",
+                        "personality": "An Ashen Hand cutter, holding the warren chokepoints with cold devotion.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "novice",
+                        "species": "Human",
+                        "name_pool": ["Ashen Hand Convert", "Ash-Marked Penitent"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "A desperate undercity convert bound to the Ashen Hand, throwing herself at the intruders.",
+                    },
+                ],
+            },
+            {
+                "name": "The Hand-Warden",
+                "intro": (
+                    "From a side-tunnel steps a Hand-Warden, two armed faithful "
+                    "at his shoulders — colder, surer, deadlier."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "thug", "tier": "veteran",
+                        "species": "Human",
+                        "name_pool": ["Ashen Hand Hand-Warden", "Warren Overseer"],
+                        "weapon": "blaster_rifle", "behavior": "tactical",
+                        "personality": "An Ashen Hand Hand-Warden — an order-leader rallying the faithful in the warrens.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Human",
+                        "name_pool": ["Ashen Hand Cutter", "Warren Guard"],
+                        "weapon": "blaster_rifle", "behavior": "aggressive",
+                        "personality": "An Ashen Hand cutter guarding the Hand-Warden.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Human",
+                        "name_pool": ["Ashen Hand Cutter", "Warren Guard"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "An Ashen Hand cutter guarding the Hand-Warden.",
+                    },
+                ],
+            },
+        ],
+        "success_reward": {
+            "credits": (400, 800),
+            "resources": [
+                ("composite", 2, 55),
+                ("energy", 2, 50),
+            ],
+            "influence": TIER2_INFLUENCE_DELTA,
+        },
+        "news_text": (
+            "The Ashen Hand has dug into the undercity warrens of {region}. "
+            "Their cutters are turning back anyone who comes down looking."
+        ),
+    },
+
+    # ── Stage 2: skill gate — Buy Back the Informants ─────────────────────────
+    "ashen_hand_informant_turn": {
+        "tier": 1,
+        "scenario": "ashen_hand",
+        "regions": [],
+        "resolution": "skill",
+        "display_name": "Ashen Hand Informants",
+        "short_desc": (
+            "The order owns a web of undercity informants — turn them back, or "
+            "trace their dead-drops."
+        ),
+        "long_desc": (
+            "The Ashen Hand's real strength is the web of informants it owns "
+            "across the undercity — level-dwellers cornered into selling their "
+            "neighbors for protection. A persuasive voice can buy them back and "
+            "give them somewhere safer to turn; a careful investigator can trace "
+            "the order's dead-drops and burn the web from the outside. Either "
+            "way, the Hand goes blind down here."
+        ),
+        "primary_skill": "persuasion",
+        "secondary_skill": "investigation",
+        "success_reward": {
+            "credits": (250, 500),
+            "resources": [
+                ("energy", 2, 55),
+                ("composite", 1, 50),
+            ],
+            "influence": TIER1_INFLUENCE_DELTA,
+        },
+        "fail_reward": {
+            "credits": (60, 120),
+            "resources": [],
+            "influence": 0,
+        },
+        "news_text": (
+            "Level-dwellers in {region} report the Ashen Hand has them informing "
+            "under threat. Negotiators and investigators are needed to break the "
+            "order's web of informants."
+        ),
+    },
+
+    # ── Stage 3: boss — Confront the Ashfather ────────────────────────────────
+    "ashen_hand_ashfather": {
+        "tier": 2,
+        "scenario": "ashen_hand",
+        "regions": [],
+        "resolution": "combat",
+        "display_name": "The Ashen Hand's Ashfather",
+        "short_desc": (
+            "The Ashfather of the Ashen Hand makes a last stand in the deepest "
+            "warren."
+        ),
+        "long_desc": (
+            "In the deepest warren waits the Ashfather of the Ashen Hand — "
+            "gaunt, grey-skinned, robed in ash-marked rags, a ritual knife in "
+            "one hand and a heavy blaster in the other. The last of the order's "
+            "faithful press in around their prophet. Break the Ashfather and the "
+            "warrens empty out into the light."
+        ),
+        "phases": [
+            {
+                "name": "The Faithful Close Ranks",
+                "intro": (
+                    "The Ashfather's chosen move first — two armed faithful "
+                    "buying their prophet time in the chokepoint."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "thug", "tier": "veteran",
+                        "species": "Human",
+                        "name_pool": ["Ashen Hand Faithful", "Ashfather's Chosen"],
+                        "weapon": "blaster_rifle", "behavior": "tactical",
+                        "personality": "An Ashen Hand chosen, shielding the Ashfather with his life.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "veteran",
+                        "species": "Human",
+                        "name_pool": ["Ashen Hand Faithful", "Ashfather's Chosen"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "An Ashen Hand chosen, shielding the Ashfather with his life.",
+                    },
+                ],
+            },
+            {
+                "name": "The Ashfather",
+                "intro": (
+                    "The chosen fall and the Ashfather steps forward alone, "
+                    "knife raised in the warren-dark. This is the end of the "
+                    "order — or of you."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "bounty_hunter", "tier": "superior",
+                        "species": "Human",
+                        "name_pool": ["Ashfather of the Ashen Hand", "The Ash-Prophet"],
+                        "weapon": "blaster_rifle", "behavior": "tactical",
+                        "personality": "The Ashfather of the Ashen Hand — the order's prophet, fanatical and lethal, making a last stand in the deepest warren.",
+                    },
+                ],
+            },
+        ],
+        "success_reward": {
+            "credits": (700, 1400),
+            "resources": [
+                ("composite", 3, 60),
+                ("energy", 2, 55),
+                ("metal", 1, 55),
+            ],
+            "influence": TIER2_INFLUENCE_DELTA,
+        },
+        "news_text": (
+            "The Ashfather of the Ashen Hand has been cornered in the deepest "
+            "warren of {region}. End the prophet and the order breaks."
+        ),
+    },
 }
 
 

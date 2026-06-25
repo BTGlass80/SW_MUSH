@@ -20,10 +20,18 @@ from engine import staged_event as SE
 
 
 class TestStagedRoster(unittest.TestCase):
-    def test_hollow_sun_staged_others_not(self):
+    def test_staged_roster_is_the_deliberate_wilderness_subset(self):
+        # events_more_scenarios (2026-06-24): the Hollow Sun proved the pattern;
+        # the Ember Court (Geonosis) + Ashen Hand (Coruscant) were converted next
+        # because their world has a wilderness region to anchor the site. The
+        # cults whose world lacks wilderness substrate stay on the menace path.
         self.assertTrue(SE.is_staged("hollow_sun"))
-        self.assertFalse(SE.is_staged("ember_court"))
-        self.assertEqual(len(SE.stages_for("hollow_sun")), 3)
+        self.assertTrue(SE.is_staged("ember_court"))
+        self.assertTrue(SE.is_staged("ashen_hand"))
+        self.assertFalse(SE.is_staged("drowned_choir"))  # nar_shaddaa: no wilderness
+        self.assertFalse(SE.is_staged("iron_veil"))      # kuat: no wilderness
+        for staged in ("hollow_sun", "ember_court", "ashen_hand"):
+            self.assertEqual(len(SE.stages_for(staged)), 3)
 
     def test_stage_kinds_are_combat_skill_boss(self):
         kinds = [s["kind"] for s in SE.stages_for("hollow_sun")]

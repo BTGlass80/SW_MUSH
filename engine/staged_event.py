@@ -21,9 +21,15 @@ contributions_json under the reserved "_stage" key (no schema change), and is
 community-shared, so a coordinating group clears faster -- which is exactly the
 cooperative play the doc calls for.
 
-PURE: no DB / IO (the runtime owns persistence). Vertical slice: hollow_sun only;
-the other cults keep the menace path until this is playtested and generalized.
-See docs/design/event_rework_staged_scenarios_2026-06-22.md.
+PURE: no DB / IO (the runtime owns persistence). The Hollow Sun proved the
+pattern; events_more_scenarios (2026-06-24) extends it to the Ember Court
+(Geonosis) and the Ashen Hand (Coruscant) — the cults whose world already has a
+wilderness region to anchor a site. The remaining cults keep the menace path
+(their worlds lack the wilderness substrate). All staged cults flow through the
+SAME orchestrator (engine.communal_objective_runtime); this drop adds only DATA
+(stage descriptors + their authored anomaly templates), no orchestration.
+See docs/design/event_rework_staged_scenarios_2026-06-22.md and
+docs/design/events_playable_scenarios_design_v1.md.
 """
 from __future__ import annotations
 
@@ -67,12 +73,67 @@ HOLLOW_SUN_STAGES = [
      "anomaly_template": "hollow_sun_hierophant", "anomaly_tier": 2},
 ]
 
-STAGED_CULTS = {"hollow_sun": HOLLOW_SUN_STAGES}
+# events_more_scenarios (2026-06-24): the Hollow Sun PROVED the pattern, so two
+# more communal objectives become playable site scenarios, mirroring it EXACTLY
+# (combat wave → live resolution:"skill" middle → boss). Each was chosen because
+# its CultDef.world_key already maps to a real wilderness region with landmark
+# rooms to anchor the site — the same prerequisite the Hollow Sun relies on:
+#   ember_court  → geonosis_ey_akh   (the foundry-cult of the Geonosis wastes)
+#   ashen_hand   → coruscant_underworld (the deep-level undercity order)
+# (drowned_choir/nar_shaddaa + iron_veil/kuat are left on the menace path — their
+#  worlds have no wilderness substrate to anchor a site without new map content.)
+
+EMBER_COURT_STAGES = [
+    {"key": "forge_tunnels", "kind": KIND_COMBAT, "need": 4,
+     "name": "Collapse the Forge-Tunnels",
+     "objective": "Fight through the Ember Court ashwalkers guarding the dead forge-tunnels.",
+     "skills": ["brawling", "blaster", "melee_combat", "dodge", "blaster_artillery"],
+     "anomaly_template": "ember_court_forge_assault", "anomaly_tier": 2},
+    {"key": "relays", "kind": KIND_SKILL, "need": 3,
+     "name": "Slice the Ignition Relays",
+     "objective": "Slice the cult's stolen ignition relays (security / computer programming) or "
+                  "rally the conscripted hive-laborers (persuasion / con) to cut the forges off.",
+     "skills": ["security", "computer_programming", "persuasion", "con", "bargain"],
+     "anomaly_template": "ember_court_relay_slice", "anomaly_tier": 1},
+    {"key": "forgemaster", "kind": KIND_BOSS, "need": 5,
+     "name": "Break the Ash Forgemaster",
+     "objective": "Bring down the Ember Court's Ash Forgemaster and scatter the foundry-cult.",
+     "skills": ["brawling", "blaster", "melee_combat", "dodge", "lightsaber"],
+     "anomaly_template": "ember_court_forgemaster", "anomaly_tier": 2},
+]
+
+ASHEN_HAND_STAGES = [
+    {"key": "warrens", "kind": KIND_COMBAT, "need": 4,
+     "name": "Burn Out the Warrens",
+     "objective": "Fight through the Ashen Hand cutters holding the undercity warrens.",
+     "skills": ["brawling", "blaster", "melee_combat", "dodge", "blaster_artillery"],
+     "anomaly_template": "ashen_hand_warren_assault", "anomaly_tier": 2},
+    {"key": "informants", "kind": KIND_SKILL, "need": 3,
+     "name": "Buy Back the Informants",
+     "objective": "Turn the level-dwellers the cult owns (persuasion / con / bargain) or trace "
+                  "their dead-drops (security / investigation) to break the Ashen Hand's grip.",
+     "skills": ["persuasion", "con", "bargain", "security", "investigation"],
+     "anomaly_template": "ashen_hand_informant_turn", "anomaly_tier": 1},
+    {"key": "ashfather", "kind": KIND_BOSS, "need": 5,
+     "name": "Confront the Ashfather",
+     "objective": "Bring down the Ashen Hand's Ashfather and free the warrens.",
+     "skills": ["brawling", "blaster", "melee_combat", "dodge", "lightsaber"],
+     "anomaly_template": "ashen_hand_ashfather", "anomaly_tier": 2},
+]
+
+STAGED_CULTS = {
+    "hollow_sun": HOLLOW_SUN_STAGES,
+    "ember_court": EMBER_COURT_STAGES,
+    "ashen_hand": ASHEN_HAND_STAGES,
+}
 
 # The wilderness region each staged cult's scenario site anchors in. Mirrors the
-# CultDef.world_key → region used by the anomaly substrate. Vertical slice:
-# hollow_sun only.
-STAGED_CULT_REGION = {"hollow_sun": "tatooine_dune_sea"}
+# CultDef.world_key → region used by the anomaly substrate.
+STAGED_CULT_REGION = {
+    "hollow_sun": "tatooine_dune_sea",
+    "ember_court": "geonosis_ey_akh",
+    "ashen_hand": "coruscant_underworld",
+}
 
 
 def scenario_region(cult_key: str) -> "str | None":
