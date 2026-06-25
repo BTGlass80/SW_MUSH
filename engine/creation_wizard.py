@@ -150,6 +150,56 @@ TEMPLATE_STEPS_CW = [
 SCRATCH_STEPS = SCRATCH_STEPS_LEGACY
 TEMPLATE_STEPS = TEMPLATE_STEPS_LEGACY
 
+# ── fun2: Template→chain affinity coupling ─────────────────────────────────
+# Maps each chargen template key to its recommended tutorial chain_id.
+# Used to pre-highlight the best chain for a given template and to detect
+# identity-collision clashes (e.g. Smuggler + Republic Soldier chain).
+#
+# Design rationale:
+#   - clone_trooper / republic_officer / republic_pilot: Republic faction.
+#     republic_soldier is the direct match (combat/command start on Kamino).
+#     republic_intelligence is the secondary option for officer/pilot — it's
+#     covert and skills-forward, but still Republic.
+#   - separatist_pilot / cis_field_agent: CIS faction.
+#     separatist_commando → pilot (combat entry); separatist_agent → agent
+#     (stealth/infiltration, matches cis_field_agent better).
+#   - bounty_hunter → bounty_hunter chain (Guild license, independent work).
+#   - smuggler / scoundrel → smuggler chain (independent, Hutt-adjacent).
+#     scoundrel has no dedicated chain; smuggler is the closest independent fit.
+#   - technician → shipwright_trader (craft/tech focus on Kuat; nearest match).
+TEMPLATE_CHAIN_AFFINITY: dict[str, str] = {
+    "clone_trooper":    "republic_soldier",
+    "republic_officer": "republic_soldier",
+    "republic_pilot":   "republic_soldier",
+    "separatist_pilot": "separatist_commando",
+    "cis_field_agent":  "separatist_agent",
+    "bounty_hunter":    "bounty_hunter",
+    "smuggler":         "smuggler",
+    "scoundrel":        "smuggler",
+    "technician":       "shipwright_trader",
+}
+
+# Faction code for each template — used by clash detection.
+# "independent" and guild codes are treated as neutral (no clash).
+# "republic" and "cis" are opposing war factions (clash when paired
+# with a chain from the other side).
+TEMPLATE_FACTION: dict[str, str] = {
+    "clone_trooper":    "republic",
+    "republic_officer": "republic",
+    "republic_pilot":   "republic",
+    "separatist_pilot": "cis",
+    "cis_field_agent":  "cis",
+    "bounty_hunter":    "independent",
+    "smuggler":         "independent",
+    "scoundrel":        "independent",
+    "technician":       "independent",
+}
+
+# War-faction pair that creates a genuine identity collision when crossed.
+# Only republic↔cis is a hard clash — joining the enemy side in the first
+# 60 seconds of an RP-first MUSH is a jarring contradiction.
+_WAR_FACTIONS = frozenset({"republic", "cis"})
+
 
 class CreationWizard:
     """
@@ -172,6 +222,15 @@ class CreationWizard:
         self.background = ""
         self._force_sensitive = False
         self.fmt = Fmt(width=width)
+        # fun2: track the template chosen at the template-select step so the
+        # chain-select step can show the affinity recommendation and detect
+        # faction clashes. None on scratch path or before template selection.
+        self._selected_template_key: Optional[str] = None
+        # fun2: clash-confirm gate.  When a player picks a chain whose
+        # faction collides with their template (e.g. Smuggler + Republic
+        # Soldier chain), we store the pending chain_id here and ask for
+        # explicit confirmation before committing.  None = no pending clash.
+        self._clash_confirm_pending: Optional[str] = None
 
         # ── Drop 2 (May 19 2026 evening): first-character-mandatory policy ──
         # When True (default), the tutorial-chain selection step refuses
@@ -680,10 +739,24 @@ class CreationWizard:
                 for sub in self.fmt.wrap(reason, indent=6):
                     lines.append(f"     {_dim(sub.lstrip())}")
             else:
-                lines.append(
-                    f"  {_yl(str(idx))}  {_hdr(chain.chain_name)}  "
-                    f"{_dim('(' + chain.archetype_label + ')')}"
+                # fun2: check affinity against the chosen template, if any.
+                affinity_chain = (
+                    TEMPLATE_CHAIN_AFFINITY.get(self._selected_template_key)
+                    if self._selected_template_key
+                    else None
                 )
+                is_recommended = (affinity_chain == chain.chain_id)
+                if is_recommended:
+                    lines.append(
+                        f"  {_yl(str(idx))}  {_hdr(chain.chain_name)}  "
+                        f"{_dim('(' + chain.archetype_label + ')')}"
+                        + f"  {_gr('★ recommended')}"
+                    )
+                else:
+                    lines.append(
+                        f"  {_yl(str(idx))}  {_hdr(chain.chain_name)}  "
+                        f"{_dim('(' + chain.archetype_label + ')')}"
+                    )
                 for sub in self.fmt.wrap(chain.description, indent=6):
                     lines.append(f"     {sub.lstrip()}")
                 if chain.duration_minutes:
@@ -707,6 +780,26 @@ class CreationWizard:
     def _handle_tutorial_chain(self, text):
         """Process tutorial-chain step input."""
         low = text.lower().strip()
+
+        # fun2: clash-confirm gate — player must acknowledge the faction
+        # collision before we commit the chain.
+        if self._clash_confirm_pending is not None:
+            if low in ("yes", "y", "confirm", "ok"):
+                chain_id = self._clash_confirm_pending
+                self._clash_confirm_pending = None
+                return self._commit_chain(chain_id)
+            elif low in ("no", "n", "back", "cancel"):
+                self._clash_confirm_pending = None
+                return (
+                    f"  {_dim('Cancelled. Pick a different chain below.')}\n\n"
+                    + self._render_step()
+                ), self._prompt(), False
+            else:
+                # Any other input: re-ask
+                return (
+                    f"  {_dim('Please type')} {_yl('yes')} {_dim('to continue with the mismatched chain,')} "
+                    f"{_dim('or')} {_yl('no')} {_dim('to pick a different one.')}"
+                ), self._prompt(), False
 
         if low in ("next", "skip"):
             # Drop 2 (May 19 2026): first-character-mandatory policy.
@@ -751,7 +844,7 @@ class CreationWizard:
                self._prompt(), False
 
     def _select_chain_by_id(self, chain_id: str):
-        """Internal: store the chain selection and advance to review."""
+        """Internal: validate chain selection; intercept clash → confirm gate."""
         if self._chains_corpus is None:
             self.step = STEP_REVIEW
             return self._render_step(), self._prompt(), False
@@ -766,6 +859,27 @@ class CreationWizard:
         is_locked, reason = is_chain_locked_for_character(chain, attrs)
         if is_locked:
             return (f"  {BRIGHT_RED}{reason}{RESET}", self._prompt(), False)
+
+        # fun2: faction-clash gate — warn before committing an identity
+        # collision (e.g. Smuggler template + Republic Soldier chain enrolls
+        # the character in the GAR as a clone trooper).
+        clash_msg = self._faction_clash_warning(chain_id, chain)
+        if clash_msg:
+            self._clash_confirm_pending = chain_id
+            return (
+                f"\n  {BRIGHT_RED}⚠  Faction clash warning:{RESET}\n"
+                f"  {clash_msg}\n\n"
+                f"  {_dim('Type')} {_yl('yes')} {_dim('to continue anyway, or')} "
+                f"{_yl('no')} {_dim('to pick the recommended chain.')}"
+            ), self._prompt(), False
+
+        return self._commit_chain(chain_id)
+
+    def _commit_chain(self, chain_id: str):
+        """Commit a validated chain selection and advance to review."""
+        chain = self._chains_corpus.by_id().get(chain_id)
+        if chain is None:
+            return (f"  {BRIGHT_RED}No chain '{chain_id}'.{RESET}", self._prompt(), False)
         self._selected_chain_id = chain_id
         self.step = self._next_step_after(STEP_TUTORIAL_CHAIN)
         return (f"  {_gr('Path selected: ' + chain.chain_name)}.\n"
@@ -773,6 +887,55 @@ class CreationWizard:
                 f"{_yl(chain.starting_room or '(graduation drop_room)')} "
                 f"{_dim('after final review.')}\n\n"
                 + self._render_step()), self._prompt(), False
+
+    def _faction_clash_warning(self, chain_id: str, chain) -> str:
+        """Return a warning string if the chosen chain collides with the
+        player's template faction, or '' if no clash.
+
+        A clash is defined as: the template is a war-faction template
+        (republic or cis) AND the chain belongs to the opposing war faction.
+        Independent/guild templates never generate a clash — choosing to
+        affiliate is a valid narrative choice for those archetypes.
+        """
+        if not self._selected_template_key:
+            return ""  # scratch path: no template faction to clash with
+
+        tmpl_faction = TEMPLATE_FACTION.get(self._selected_template_key, "independent")
+        chain_faction = getattr(chain, "faction_alignment", None) or "independent"
+
+        # Warn whenever the chosen chain enrolls the player in a WAR faction
+        # that differs from their template's faction. This covers BOTH:
+        #   • republic↔cis (joining the enemy side), AND
+        #   • an independent/guild template (e.g. Smuggler) picking a war-faction
+        #     chain (e.g. Republic Soldier), which silently force-joins the GAR
+        #     and reskins them as a clone trooper — the canonical identity
+        #     collision Brian flagged. A MATCHING pair (republic template +
+        #     republic chain) and an independent chain never warn.
+        if (chain_faction in _WAR_FACTIONS
+                and tmpl_faction != chain_faction):
+            tmpl_label = TEMPLATES.get(self._selected_template_key, {}).get(
+                "label", self._selected_template_key
+            )
+            chain_label = chain.chain_name
+            affinity_id = TEMPLATE_CHAIN_AFFINITY.get(self._selected_template_key)
+            affinity_chain = (
+                self._chains_corpus.by_id().get(affinity_id)
+                if affinity_id and self._chains_corpus
+                else None
+            )
+            affinity_note = (
+                f" The recommended chain for a {tmpl_label} is "
+                f"'{affinity_chain.chain_name}'."
+                if affinity_chain
+                else ""
+            )
+            return (
+                f"The '{chain_label}' path enrolls you in the "
+                f"{chain_faction.upper()} and issues {chain_faction}-faction "
+                f"kit, overriding your {tmpl_label} background."
+                f"{affinity_note} Continue?"
+            )
+        return ""
 
     def _chargen_attrs_for_chain_check(self) -> dict:
         """Build the minimal char_attrs dict for chain-prereq checking.
@@ -971,6 +1134,9 @@ class CreationWizard:
 
         if selected_key:
             self.engine.process_input(f"template {selected_key}")
+            # fun2: record which template was picked so the chain step can
+            # surface the affinity recommendation and detect clashes.
+            self._selected_template_key = selected_key
             self.step = STEP_SKILLS
             tmpl_descs = self.descs.get("templates", {})
             desc_data = tmpl_descs.get(selected_key, {})
