@@ -480,6 +480,11 @@ class GameServer:
         self._running = False
         self._tick_task: Optional[asyncio.Task] = None
         self._tick_count: int = 0  # monotonic tick counter, drives the scheduler
+        # Strong references to per-connection telnet read-loop tasks. asyncio
+        # holds only a *weak* reference to tasks created via create_task, so a
+        # fire-and-forget read loop can be garbage-collected mid-flight, silently
+        # killing a player's telnet input pipeline. See _spawn_read_loop.
+        self._read_tasks: set[asyncio.Task] = set()
 
         # ── Tick scheduler (review fix — full migration) ──────────────────────
         # All tick sub-systems are registered here. Intervals are in ticks
@@ -916,6 +921,17 @@ class GameServer:
             except asyncio.CancelledError as _e:
                 log.debug("silent except in server/game_server.py:348: %s", _e, exc_info=True)
 
+        # Cancel any outstanding telnet read loops (they normally self-terminate
+        # when their transport hits EOF, but a clean shutdown shouldn't depend on
+        # that). Snapshot first — the done-callback mutates the set.
+        for _rt in list(self._read_tasks):
+            _rt.cancel()
+        for _rt in list(self._read_tasks):
+            try:
+                await _rt
+            except (asyncio.CancelledError, Exception) as _e:
+                log.debug("read-loop cancel during shutdown: %s", _e, exc_info=True)
+
         # Disconnect all sessions
         for session in list(self.session_mgr.all):
             try:
@@ -950,9 +966,10 @@ class GameServer:
         await session.send(self.config.welcome_banner)
         await session.send_prompt()
 
-        # If Telnet, start a background task to feed input from the reader
+        # If Telnet, start a background task to feed input from the reader.
+        # Tracked so the loop can't be garbage-collected mid-flight.
         if reader is not None:
-            asyncio.create_task(self._telnet_read_loop(reader, session))
+            self._spawn_read_loop(reader, session)
 
         # Login loop
         while session.state == SessionState.CONNECTED:
@@ -1809,6 +1826,22 @@ class GameServer:
                 return
 
             await self.parser.parse_and_dispatch(session, line)
+
+    def _spawn_read_loop(self, reader, session: Session) -> asyncio.Task:
+        """Start the telnet read loop as a *tracked* background task.
+
+        asyncio keeps only a weak reference to tasks created via
+        ``create_task`` — "a task that isn't referenced elsewhere may get
+        garbage-collected at any time, even before it's done" (asyncio docs).
+        For a fire-and-forget read loop that would silently drop a player's
+        telnet input pipeline. We hold a strong reference in ``_read_tasks``
+        for the task's lifetime and discard it via a done-callback when it
+        finishes, so the set never grows unbounded.
+        """
+        task = asyncio.create_task(self._telnet_read_loop(reader, session))
+        self._read_tasks.add(task)
+        task.add_done_callback(self._read_tasks.discard)
+        return task
 
     async def _telnet_read_loop(self, reader, session: Session):
         """
