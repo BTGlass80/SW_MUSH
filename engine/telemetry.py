@@ -402,6 +402,88 @@ def emit_grind_kill(char_id: Any, *, reward: int = 0, daily_credits: int = 0,
         log.debug("telemetry.emit_grind_kill failed", exc_info=True)
 
 
+def emit_session(phase: str, char_id: Any = None, *, account_id: Any = None,
+                 transport: str = "", duration_s: Any = None,
+                 connected_s: Any = None, reached_game: Any = None,
+                 **extra: Any) -> None:
+    """Emit one session-lifecycle event (T3.19 breadth — engagement/retention).
+
+    The economy/progression funnels above show what players DO once in-game, but
+    nothing captured *how long they stay* or *how often they come back* — the
+    engagement primitive Brian wants for tuning the play loop (is ``idle_timeout``
+    cutting real sessions short? what is a typical session length? do web players
+    stay longer than telnet purists? what is the connect→login conversion?). A
+    DB scan can't answer it (no login ledger), so this is the only record.
+
+    A SINGLE event type (``session``) tagged by ``phase`` keeps the offline
+    funnel trivial, mirroring ``objective``:
+
+      phase       : the lifecycle transition —
+                    ``"login"``  = a character entered the world (reached IN_GAME)
+                    ``"logout"`` = a connection was torn down (every disconnect
+                                   path funnels through SessionManager.remove).
+      char_id     : the acting character (coerced to int when it parses, so a
+                    str-id system and an int-id system join on the same player).
+                    ``None`` for a connection that disconnected before selecting
+                    a character (a bounce at the login screen).
+      account_id  : the owning account (the retention join key across alts).
+      transport   : ``"telnet"`` / ``"websocket"`` — the web-vs-purist mix.
+      duration_s  : play time this session (login→logout), on the logout event
+                    only. ``None`` when the connection never reached the game.
+      connected_s : the full connect→disconnect span (logout only) — includes
+                    pre-auth time, so connected_s vs duration_s exposes how much
+                    of a connection is spent bouncing at the login screen.
+      reached_game: whether the connection ever entered the world — the
+                    connect→login funnel: ``count(logout)`` is connects,
+                    ``count(login)`` (== logouts with reached_game) is logins.
+      extra       : any cheap context (``None`` values dropped).
+
+    Sampling honours ``telemetry.session_sample`` (default 1.0 — one event per
+    connect/disconnect is very low frequency, and sampling would blur the very
+    session-length distribution this exists to show). Fail-open: wraps the
+    already-fail-open ``emit()`` and guards the field assembly + tunable read, so
+    a telemetry break can NEVER disturb a login or a teardown.
+    """
+    try:
+        try:
+            char_id = int(char_id)
+        except (TypeError, ValueError):
+            pass
+        fields: dict[str, Any] = {"phase": phase}
+        if char_id is not None:
+            fields["char_id"] = char_id
+        if account_id is not None:
+            try:
+                fields["account_id"] = int(account_id)
+            except (TypeError, ValueError):
+                fields["account_id"] = account_id
+        if transport:
+            fields["transport"] = str(transport)
+        if duration_s is not None:
+            try:
+                fields["duration_s"] = round(float(duration_s), 1)
+            except (TypeError, ValueError):
+                pass
+        if connected_s is not None:
+            try:
+                fields["connected_s"] = round(float(connected_s), 1)
+            except (TypeError, ValueError):
+                pass
+        if reached_game is not None:
+            fields["reached_game"] = bool(reached_game)
+        for k, v in extra.items():
+            if v is not None and k not in fields:
+                fields[k] = v
+        try:
+            from engine.tunables import get_tunable
+            sample = float(get_tunable("telemetry.session_sample", 1.0))
+        except Exception:
+            sample = 1.0
+        emit("session", fields, sample=sample)
+    except Exception:
+        log.debug("telemetry.emit_session failed", exc_info=True)
+
+
 def configure(*, path: Optional[str] = None, enabled: Optional[bool] = None,
               max_buffer: Optional[int] = None) -> TelemetrySink:
     """(Re)build the singleton with explicit settings. For boot + tests."""
