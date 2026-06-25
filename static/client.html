@@ -4176,6 +4176,44 @@ a { color: inherit; text-decoration: none; }
 .sheet-points .sp-value.fs      { color: #6ea3ff; }
 .sheet-points .sp-value.fs.dim  { color: var(--text-dim); }
 
+/* ── Living sheet (Drop 8): delta highlight + Force/dark-side identity ─────
+   A value that changed since the player last opened the sheet gets a quiet,
+   sustained marker (1px ring + soft glow) — never a strobe or loop. The
+   optional one-beat fade is layered on top and is auto-neutralized by the
+   global prefers-reduced-motion block (animation-duration → ~0), leaving the
+   static ring/glow intact for reduced-motion users. box-shadow only → no
+   reflow. */
+.sheet-val-changed {
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--accent), 0 0 6px rgba(255, 200, 87, 0.45);
+  animation: sheetValPulse 0.5s ease-out 1;
+}
+.app[data-mode="space"] .sheet-val-changed {
+  box-shadow: 0 0 0 1px var(--accent), 0 0 6px rgba(110, 232, 255, 0.45);
+}
+@keyframes sheetValPulse {
+  from { background-color: rgba(255, 200, 87, 0.28); }
+  to   { background-color: transparent; }
+}
+/* Force / dark-side visual identity — gated by .sheet-force-theme on the panel
+   (added only when payload.force is truthy AND the toggle is on). Restyles the
+   EXISTING FORCE-tab tiles + DSP pip; adds no DOM. */
+.sheet-panel.sheet-force-theme .sheet-force-attr {
+  border-color: rgba(110, 163, 255, 0.55);
+  box-shadow: inset 0 0 12px rgba(110, 163, 255, 0.12);
+}
+.sheet-panel.sheet-force-theme .sheet-force-attr .sfa-value { color: #8fb8ff; }
+.sheet-panel.sheet-force-theme .sheet-force-attr .sfa-label { color: #6ea3ff; }
+/* The dark side deepens the DSP pip toward red as DSP rises (data-dsp tiers). */
+.sheet-panel.sheet-force-theme .sh-stat-value.dsp { color: #c87b7b; }
+.sheet-panel.sheet-force-theme[data-dsp="warn"] .sh-stat-value.dsp {
+  color: #d85a4a; text-shadow: 0 0 6px rgba(216, 90, 74, 0.5);
+}
+.sheet-panel.sheet-force-theme[data-dsp="crit"] .sh-stat-value.dsp {
+  color: #ff5a4a; text-shadow: 0 0 8px rgba(255, 90, 74, 0.7);
+}
+.sheet-panel.sheet-force-theme .sheet-power-row .spr-dsp { color: #ff5a4a; }
+
 /* Center column: skill list / force powers / etc. */
 .sheet-center-toolbar {
   padding: 0 14px 8px;
@@ -11893,6 +11931,79 @@ var SHEET_WOUND_RUNGS = [
 var SHEET_ATTR_ORDER = ['dexterity', 'knowledge', 'mechanical',
                         'perception', 'strength', 'technical'];
 
+/* ── Living character sheet (Drop 8) — delta highlight + Force identity ────
+   Two power-user localStorage flags, default ON, mirroring the combat-hud /
+   fk_clean_mode flag idiom (a player who wants the static sheet sets them to
+   '0'). sheetPanelDataPrev holds the *previous* opened payload; sheetChanged
+   is the changed-set computed at open time and read by the renderers to add
+   the .sheet-val-changed decoration. Both are decoration-only: values always
+   render fully and immediately regardless of these (never gate pace/info). */
+var sheetPanelDataPrev = null;        // payload from the previous +sheet open
+var sheetChanged = null;              // changed-set for the current render
+
+function sheetDeltasEnabled() {
+  try { return localStorage.getItem('sheet-deltas') !== '0'; } catch (_) { return true; }
+}
+function sheetForceThemeEnabled() {
+  try { return localStorage.getItem('sheet-force-theme') !== '0'; } catch (_) { return true; }
+}
+
+/* Pure diff: which sheet values changed since the player last VIEWED the
+   sheet. First-ever view (no prev) → empty set (nothing is "new" the first
+   time you look). No DOM, no side effects — kept self-contained so it is
+   unit-testable by extraction. References only SHEET_ATTR_ORDER. */
+function sheetComputeChanges(prev, cur) {
+  var ch = { attrs: {}, skills: {}, specs: {}, force: {}, points: {}, wound: false };
+  if (!prev || !cur) return ch;
+  var poolEq = function(a, b) {
+    a = a || {}; b = b || {};
+    return (a.d || 0) === (b.d || 0) && (a.p || 0) === (b.p || 0);
+  };
+  var pa = prev.attributes || {}, ca = cur.attributes || {};
+  for (var ai = 0; ai < SHEET_ATTR_ORDER.length; ai++) {
+    var ak = SHEET_ATTR_ORDER[ai];
+    if (!poolEq(pa[ak], ca[ak])) ch.attrs[ak] = true;
+  }
+  var ps = prev.skills || {}, cs = cur.skills || {};
+  for (var sk in cs) {
+    if (!cs.hasOwnProperty(sk)) continue;
+    var cv = cs[sk];
+    if (!cv) continue;        // malformed/empty skill entry → nothing to diff
+    var pv = ps[sk];
+    if (!pv || !poolEq(pv.total, cv.total) || !poolEq(pv.bonus, cv.bonus)) {
+      ch.skills[sk] = true;   // newly-trained OR pool moved
+    }
+  }
+  var specKey = function(s) { return (s.skill || '') + '::' + (s.name || ''); };
+  var pmap = {};
+  (prev.specializations || []).forEach(function(s) { if (s) pmap[specKey(s)] = s; });
+  (cur.specializations || []).forEach(function(s) {
+    if (!s) return;
+    var pvs = pmap[specKey(s)];
+    if (!pvs || !poolEq(pvs.total, s.total) || !poolEq(pvs.bonus, s.bonus)) {
+      ch.specs[specKey(s)] = true;
+    }
+  });
+  var pf = prev.force || {}, cf = cur.force || {};
+  if (cur.force) {
+    ['control', 'sense', 'alter'].forEach(function(k) {
+      if (!poolEq(pf[k], cf[k])) ch.force[k] = true;
+    });
+  }
+  var pp = prev.points || {}, cp = cur.points || {};
+  ['credits', 'fp', 'cp', 'dsp'].forEach(function(k) {
+    if ((pp[k] || 0) !== (cp[k] || 0)) ch.points[k] = true;
+  });
+  if (!!pp.force_sensitive !== !!cp.force_sensitive) ch.points.force_sensitive = true;
+  if (((prev.wound || {}).level || 0) !== ((cur.wound || {}).level || 0)) ch.wound = true;
+  return ch;
+}
+
+/* Decoration helper: toggle the changed marker on an element. */
+function sheetMarkChanged(el, on) {
+  if (el) el.classList.toggle('sheet-val-changed', !!on);
+}
+
 function sheetPoolToStr(p) {
   if (!p) return '0D';
   var d = (p.d || 0), pp = (p.p || 0);
@@ -11920,7 +12031,14 @@ function handleSkillDescriptions(msg) {
 // Open the panel with a fresh payload from `+sheet`.
 function handleSheetData(msg) {
   if (!msg || !msg.payload) return;
+  // Living sheet (Drop 8): snapshot the previous view and compute the
+  // changed-set BEFORE replacing sheetPanelData. First open (no prev) → empty
+  // set → nothing highlighted. Decoration only; never blocks the render below.
+  sheetPanelDataPrev = sheetPanelData;
   sheetPanelData = msg.payload;
+  sheetChanged = sheetDeltasEnabled()
+    ? sheetComputeChanges(sheetPanelDataPrev, sheetPanelData)
+    : null;
   // Honor the server-suggested view (full/skills/combat/brief).
   // 'brief' falls through to 'full' in the GUI — there's no value in
   // a separate cramped layout when the panel already scales down.
@@ -12026,12 +12144,30 @@ function renderSheetPanel() {
   $('sheet-fp').textContent  = pts.fp  || 0;
   $('sheet-cp').textContent  = pts.cp  || 0;
   $('sheet-dsp').textContent = pts.dsp || 0;
+  // Delta highlight on the header point chips (changed since last view).
+  sheetMarkChanged($('sheet-fp'),  sheetChanged && sheetChanged.points && sheetChanged.points.fp);
+  sheetMarkChanged($('sheet-cp'),  sheetChanged && sheetChanged.points && sheetChanged.points.cp);
+  sheetMarkChanged($('sheet-dsp'), sheetChanged && sheetChanged.points && sheetChanged.points.dsp);
+
+  // Force / dark-side visual identity (Drop 8) — gated on DERIVED
+  // force-sensitivity (payload.force, never recomputed) + the force-theme
+  // toggle. The DSP pip deepens toward red as the dark side pulls (data-dsp).
+  var sheetPanelEl = $('sheet-panel');
+  if (sheetPanelEl) {
+    var themeOn = !!p.force && sheetForceThemeEnabled();
+    sheetPanelEl.classList.toggle('sheet-force-theme', themeOn);
+    var dspN = (pts.dsp || 0);
+    var dspTier = dspN >= 5 ? 'crit' : (dspN >= 1 ? 'warn' : '');
+    if (themeOn && dspTier) sheetPanelEl.setAttribute('data-dsp', dspTier);
+    else sheetPanelEl.removeAttribute('data-dsp');
+  }
 
   // Wound chip
   var w = p.wound || {};
   var rung = SHEET_WOUND_RUNGS[w.level || 0] || SHEET_WOUND_RUNGS[0];
   var chip = $('sheet-wound-chip');
-  chip.className = 'sh-chip ' + (rung.sev === 'ok' ? '' : rung.sev);
+  chip.className = 'sh-chip' + (rung.sev === 'ok' ? '' : ' ' + rung.sev) +
+                  (sheetChanged && sheetChanged.wound ? ' sheet-val-changed' : '');
   chip.textContent = rung.label + (w.penalty ? ' · ' + w.penalty : '');
 
   // Update tab strip active state to match sheetActiveTab
@@ -12060,12 +12196,13 @@ function renderSheetAttrs(p) {
     var pct = Math.min(100, ((pool.d * 3 + pool.p) / 18) * 100);
     var desc = (skillDescriptions.attributes && skillDescriptions.attributes[a]) || null;
     var tipText = desc ? (desc.gameplay_note || desc.short || desc.description || '') : '';
+    var aChg = (sheetChanged && sheetChanged.attrs && sheetChanged.attrs[a]) ? ' sheet-val-changed' : '';
     var div = document.createElement('div');
     div.className = 'sheet-attr';
     div.innerHTML =
       '<div class="sheet-attr-row"' + (tipText ? ' title="' + escapeHtml(tipText) + '"' : '') + '>' +
         '<span class="sheet-attr-name">' + a.slice(0, 3).toUpperCase() + '</span>' +
-        '<span class="sheet-attr-value">' + escapeHtml(sheetPoolToStr(pool)) + '</span>' +
+        '<span class="sheet-attr-value' + aChg + '">' + escapeHtml(sheetPoolToStr(pool)) + '</span>' +
       '</div>' +
       '<div class="sheet-attr-bar"><div class="sheet-attr-bar-fill" style="width:' + pct + '%"></div></div>';
     host.appendChild(div);
@@ -12081,8 +12218,10 @@ function renderSheetWoundLadder(p) {
   for (var i = 0; i < 6; i++) {
     var r = SHEET_WOUND_RUNGS[i];
     var cls = 'sheet-wound-rung';
-    if (i === cur) cls += ' current';
-    else if (i < cur) cls += ' past';
+    if (i === cur) {
+      cls += ' current';
+      if (sheetChanged && sheetChanged.wound) cls += ' sheet-val-changed';
+    } else if (i < cur) cls += ' past';
     var div = document.createElement('div');
     div.className = cls;
     div.innerHTML =
@@ -12142,13 +12281,16 @@ function renderSheetPoints(p) {
   var fsCls = pts.force_sensitive ? 'fs' : 'fs dim';
   var fsText = pts.force_sensitive ? 'YES' : '—';
   var creditsText = (pts.credits || 0).toLocaleString();
+  // Delta highlight (changed since last view) on credits + Force-sensitive.
+  var credChg = (sheetChanged && sheetChanged.points && sheetChanged.points.credits) ? ' sheet-val-changed' : '';
+  var fsChg   = (sheetChanged && sheetChanged.points && sheetChanged.points.force_sensitive) ? ' sheet-val-changed' : '';
   // PvP badge — only when the character has opted in (pvp_flagged truthy).
   var pvpBadge = pts.pvp_flagged ?
     '<span class="sp-label">PvP</span><span class="sp-value sp-pvp-badge">PvP</span>' : '';
   host.innerHTML =
-    '<span class="sp-label">Credits</span>'        + '<span class="sp-value credits">' + escapeHtml(creditsText) + '</span>' +
+    '<span class="sp-label">Credits</span>'        + '<span class="sp-value credits' + credChg + '">' + escapeHtml(creditsText) + '</span>' +
     '<span class="sp-label">Move</span>'           + '<span class="sp-value">' + escapeHtml(String(id.move || 10)) + '</span>' +
-    '<span class="sp-label">Force Sensitive</span>'+ '<span class="sp-value ' + fsCls + '">' + fsText + '</span>' +
+    '<span class="sp-label">Force Sensitive</span>'+ '<span class="sp-value ' + fsCls + fsChg + '">' + fsText + '</span>' +
     pvpBadge;
 }
 
@@ -12177,11 +12319,12 @@ function renderSheetCenter() {
     ];
     for (var i = 0; i < fa.length; i++) {
       var pool = f[fa[i].key] || { d: 0, p: 0 };
+      var fChg = (sheetChanged && sheetChanged.force && sheetChanged.force[fa[i].key]) ? ' sheet-val-changed' : '';
       var tile = document.createElement('div');
       tile.className = 'sheet-force-attr';
       tile.innerHTML =
         '<div class="sfa-label">' + fa[i].label + '</div>' +
-        '<div class="sfa-value">' + escapeHtml(sheetPoolToStr(pool)) + '</div>';
+        '<div class="sfa-value' + fChg + '">' + escapeHtml(sheetPoolToStr(pool)) + '</div>';
       tiles.appendChild(tile);
     }
     host.appendChild(tiles);
@@ -12279,6 +12422,9 @@ function makeSheetSkillRow(skillKey, skillData) {
   var row = document.createElement('div');
   row.className = 'sheet-skill-row';
   if (skillKey === sheetSelectedSkill) row.classList.add('selected');
+  if (sheetChanged && sheetChanged.skills && sheetChanged.skills[skillKey]) {
+    row.classList.add('sheet-val-changed');
+  }
   var desc = (skillDescriptions.skills && skillDescriptions.skills[skillKey]) || null;
   var prio = desc && desc.priority === 'high' ? '<span class="ssr-priority">★</span>' : '';
   row.innerHTML =
@@ -12304,6 +12450,10 @@ function makeSheetSkillRow(skillKey, skillData) {
 function makeSheetSpecRow(spec) {
   var row = document.createElement('div');
   row.className = 'sheet-skill-row sheet-spec-row';
+  var _sKey = (spec.skill || '') + '::' + (spec.name || '');
+  if (sheetChanged && sheetChanged.specs && sheetChanged.specs[_sKey]) {
+    row.classList.add('sheet-val-changed');
+  }
   var bonus = spec.bonus || { d: 0, p: 0 };
   var total = spec.total || { d: 0, p: 0 };
   row.innerHTML =
@@ -14745,6 +14895,9 @@ window.setCommsFilter           = setCommsFilter;
 window.toggleCommsPane          = toggleCommsPane;
 /* Already exported above; re-asserted here as a single source of truth. */
 window.toggleSidePanel          = toggleSidePanel;
+/* Drop 5 presence panel: the header onclick was never exported → clicking it
+   was a silent ReferenceError (dead button). Export it (pre-existing fix). */
+window.togglePresencePanel      = togglePresencePanel;
 window.scrollPoseLogToBottom    = scrollPoseLogToBottom;
 window.reconnectClick           = reconnectClick;
 /* Guide browser — inline onclick handlers on the overlay and qa-btn. */

@@ -122,6 +122,9 @@ EXPECTED_SPA_LOAD_ORDER = [
     "m3_cockpit.js",
     "m3_holonet.js",
     "m3_skill_check.js",
+    # UX Drop 3: animated D6 roll on dramatic moments (consumes the skill-check
+    # 'drama' field). Loaded after the skill-check module it accompanies.
+    "m3_dice_roll.js",
     "m3_assembled_client.js",
     "m3_tier_galaxy_body.js",
     "m3_tier_system_body.js",
@@ -138,6 +141,13 @@ EXPECTED_SPA_LOAD_ORDER = [
     # Webify Drop UI-2: region-control side panel (renders the region_state
     # push). Independent module; loaded after the tier stack.
     "m3_region.js",
+    # UX Drop 4: living-world situation board (renders the situation_state push).
+    "m3_situation_board.js",
+    # UX Drop 5: presence + scene/social UI (scene card + who's-online roster).
+    "m3_scene_panel.js",
+    # UX Drop 6: consolidated GOALS / objectives tracker (questline+mission+bounty).
+    "m3_goals.js",
+    "m3_presence_panel.js",
     # Webify Drop UI-4a: inventory modal (renders the inventory_state push).
     "m3_inventory.js",
     # Webify Drop UI-4b: shop card (renders the shop_state browse/dashboard push).
@@ -151,6 +161,9 @@ EXPECTED_SPA_LOAD_ORDER = [
     # UX Drop 1: context-aware clickable affordances (CLAIM/SELL/FLEE +
     # clickable entity names). Independent module; loaded after the craft tag.
     "m3_affordances.js",
+    # UX Drop 7: Ctrl/Cmd+K command palette (fuzzy verb autocomplete over the
+    # access-gated reference index). Loaded last.
+    "m3_command_palette.js",
 ]
 
 
