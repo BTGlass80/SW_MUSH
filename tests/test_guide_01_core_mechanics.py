@@ -21,6 +21,16 @@ them and fixed four real drifts:
 Every other §3–§11 claim verified clean and is pinned below so a future engine
 retune that desyncs the guide fails loudly here instead of silently misleading
 new players.
+
+**Re-verify pass 2026-06-25** (after the `check-funnel-compliance` drop moved
+`+check` off the inline `dice.difficulty_check` path onto the `perform_skill_check`
+funnel): §11's "Complete Non-Combat Check" data flow still walked the old
+difficulty_check path — contradicting its own neighboring perform_skill_check
+diagram — and the §2 example rendered the retired bracketed per-die output. Both
+were corrected to the live unified funnel flow (with its buff/tool/environment
+modifier stack + `skill_check` telemetry emit) and the real `pool_str = total`
+render. ``TestCheckFunnelDataFlow`` guards the new claims and keeps the phantom
+difficulty_check flow from returning.
 """
 import os
 import re
@@ -300,6 +310,59 @@ class TestDataFlowSymbols:
                     "roll_wild_die", "perform_skill_check", "_get_skill_pool",
                     "SkillDef"):
             assert sym in guide
+
+
+# ── §2/§11: +check routes through the perform_skill_check funnel ─────────────
+# The 2026-06-25 `check-funnel-compliance` drop rewired CheckCommand off the
+# inline `dice.difficulty_check` path onto `perform_skill_check` (the hard
+# invariant: all out-of-combat dice go through the one funnel). This guide
+# re-verify pass fixed the resulting §2 + §11 drift: §11 still walked the old
+# difficulty_check flow (contradicting its own perform_skill_check diagram),
+# and the §2 example showed the retired bracketed per-die output instead of the
+# funnel's `pool_str = total` render with its critical!/[tool] tags.
+
+class TestCheckFunnelDataFlow:
+    def test_command_calls_the_funnel_not_difficulty_check(self):
+        # The live command imports + uses perform_skill_check and no longer
+        # imports the inline difficulty_check resolver.
+        src = _read(os.path.join(PROJECT_ROOT, "parser", "d6_commands.py"))
+        assert "from engine.skill_checks import perform_skill_check" in src
+        assert "perform_skill_check(" in src
+        assert "difficulty_check" not in src  # inline path dropped by the drop
+
+    def test_guide_flow_routes_check_through_funnel(self, guide):
+        # §11's end-to-end flow must show +check calling perform_skill_check and
+        # must NOT resurrect the old "CheckCommand calls dice.difficulty_check".
+        assert "Calls perform_skill_check(char" in guide
+        assert "Calls dice.difficulty_check" not in guide
+        # difficulty_check is still named truthfully as the combat/Force resolver
+        assert "engine/dice.py::difficulty_check" in guide
+
+    def test_guide_documents_the_modifier_stack(self, guide):
+        # §2 + §11 teach the funnel modifiers a manual +check now honors, and
+        # name the T3.19 telemetry event the funnel emits.
+        low = guide.lower()
+        for token in ("buffs", "tool", "environment"):
+            assert token in low, f"guide dropped +check funnel modifier: {token}"
+        assert "skill_check" in guide
+
+    def test_guide_check_output_matches_render_format(self, guide):
+        # The funnel renders `pool_str = total` (e.g. "3D+2 = 13"), not the old
+        # bracketed per-die breakdown; the §2 example must show the real form
+        # plus the critical!/[tool] tags, and drop the retired one.
+        assert "[3D+2] 4, 2, W:5" not in guide
+        assert "3D+2 = 13" in guide
+        assert "(critical!)" in guide and "[Code Slicer]" in guide
+
+    def test_code_slicer_tool_bonus_is_real(self):
+        # The §2 example credits a real tool (no phantom item): Code Slicer
+        # carries a security skill_bonus in the live schematics registry.
+        data = yaml.safe_load(_read(os.path.join(PROJECT_ROOT, "data",
+                                                  "schematics.yaml")))
+        rows = data["schematics"] if isinstance(data, dict) and "schematics" in data else data
+        slicer = next((r for r in rows if r.get("name") == "Code Slicer"), None)
+        assert slicer is not None, "Code Slicer schematic missing"
+        assert slicer["skill_bonus"]["skill"] == "security"
 
 
 # ── §1: chargen attribute rules == data/species ──────────────────────────────

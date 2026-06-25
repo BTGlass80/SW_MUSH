@@ -70,10 +70,13 @@ Three commands let you roll dice directly:
   Blaster (DEX): [4D+1] 5, 3, 1, W:6->3 (+1) = 19
 ```
 
-**`+check <skill> <difficulty>`** — Roll your skill against a target number.
+**`+check <skill> <difficulty>`** — Roll your skill against a target number. Unlike a raw `+roll`, this resolves a **full skill check** through the same engine funnel every system-driven roll uses, so it honors your active buffs and debuffs, a carried tool's bonus, and any environmental penalty (such as the perception penalty during a sandstorm). The pool it prints is the *effective* pool after those modifiers; it flags a *critical!* (the Wild Die exploded on a success) or a *complication!* (a Wild Die came up 1), and credits a tool that helped.
 ```
 > +check persuasion moderate
-  Persuasion vs Moderate (15): [3D+2] 4, 2, W:5 (+2) = 13 -> FAILURE by 2
+  Persuasion vs Moderate (15): 3D+2 = 13 -> FAILURE by 2
+
+> +check security 15
+  Security vs Moderate (15): 4D = 17 (critical!) [Code Slicer] -> SUCCESS by 2
 ```
 
 **`+roll <skill> <modifier>`** — Roll with a situational modifier.
@@ -245,44 +248,43 @@ Weapons have a **damage code** — another dice pool. When you hit a target, you
 
 ### How a Complete Non-Combat Check Works (End to End)
 
+A player's `+check` and an engine-driven check travel the **same path**: every out-of-combat skill roll resolves through the single `perform_skill_check` funnel. That is what lets a manual `+check` honor your buffs, tools, and the environment exactly the way a mission, harvest, or slicing check does — and what feeds the success-rate telemetry the game uses to keep difficulty numbers calibrated.
+
 ```
 Player types: +check search 15
 
 1. parser/d6_commands.py::CheckCommand.execute()
    ├── Parses "search" and "15" from args
    ├── Looks up "search" in SkillRegistry → SkillDef(name="Search", attribute="perception")
-   ├── Builds Character from DB dict
-   └── Calls dice.difficulty_check(pool, 15)
+   └── Calls perform_skill_check(char, "Search", 15, skill_reg)   ← the one funnel
 
-2. engine/dice.py::difficulty_check()
-   ├── Calls roll_d6_pool(pool)
-   │   ├── Rolls (pool.dice - 1) normal d6s
-   │   ├── Rolls Wild Die (roll_wild_die())
-   │   ├── On complication: removes highest normal die
+2. engine/skill_checks.py::perform_skill_check()
+   ├── _get_skill_pool(char, "Search", registry)
+   │   ├── Looks up parent attribute → "perception"
+   │   ├── Parses char["attributes"] JSON → Perception pool
+   │   ├── Parses char["skills"] JSON → Search bonus (if any)
+   │   └── Returns (dice, pips)
+   ├── Applies the modifier stack (all in pips, floored at 1D):
+   │   ├── environment — sandstorm perception penalty (observation skills only)
+   │   ├── carried tool — best single tool bonus (no stacking)
+   │   ├── buffs / debuffs — active effects on the parent attribute
+   │   └── combined-action lead — staged support bonus
+   ├── Builds the effective DicePool, calls roll_d6_pool()
+   │   ├── Rolls (pool.dice - 1) normal d6s + the Wild Die (roll_wild_die())
+   │   ├── On a Wild Die 1: removes the highest normal die (complication)
    │   └── Returns RollResult
-   └── Returns CheckResult(success, margin)
+   ├── Emits the `skill_check` telemetry event (T3.19, fail-open + sampled)
+   └── Returns SkillCheckResult(success, margin, critical_success,
+                                fumble, pool_str, tool_name, …)
 
 3. Back in CheckCommand:
-   ├── Formats result with ANSI colors (green=success, red=fail)
-   ├── Sends detailed breakdown to the player
-   └── Broadcasts abbreviated result to room
+   ├── Formats with ANSI colors (green=success, red=fail), tagging a
+   │   critical!/complication! and a [tool] credit when one contributed
+   ├── Sends the detailed breakdown to the player
+   └── Broadcasts the abbreviated result to the room
 ```
 
-### How a Skill Check Through perform_skill_check Works
-
-```
-Engine code calls: perform_skill_check(char_dict, "bargain", 15)
-
-1. engine/skill_checks.py::perform_skill_check()
-   ├── Gets SkillRegistry (module-level singleton, lazy-loaded)
-   ├── _get_skill_pool(char, "bargain", registry)
-   │   ├── Looks up parent attribute → "perception"
-   │   ├── Parses char["attributes"] JSON → gets Perception pool
-   │   ├── Parses char["skills"] JSON → gets Bargain bonus (if any)
-   │   └── Returns (total_dice, total_pips)
-   ├── Builds DicePool, calls roll_d6_pool()
-   └── Returns SkillCheckResult with all metadata
-```
+Combat, communal-objective, and Force-power rolls take a parallel resolver, `engine/dice.py::difficulty_check` — a raw pool-vs-target roll *without* the out-of-combat funnel's buff/tool/environment stack. (`+roll` and `+opposed` are not difficulty checks, so neither passes through `perform_skill_check`.)
 
 ---
 
