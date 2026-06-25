@@ -1021,12 +1021,12 @@ broadcast false signatures to confuse scanners.""",
         title="Mos Eisley",
         category="World",
         aliases=["mos eisley", "spaceport", "city"],
-        see_also=["cantina", "tatooine", "empire"],
+        see_also=["cantina", "tatooine", "smuggling"],
         body="""\
 "You will never find a more wretched hive of scum and villainy."
 
 Mos Eisley is Tatooine's largest spaceport — a dusty, dangerous city
-of smugglers, bounty hunters, moisture farmers, and Imperial patrols.
+of smugglers, bounty hunters, moisture farmers, and Republic security patrols.
 It sprawls across the desert floor, its domed buildings and landing
 bays baking under the twin suns.
 
@@ -1037,7 +1037,7 @@ commerce. The Docking Bays ring the city's edge. The Outskirts fade
 into open desert where Tusken Raiders roam.
 
 LIFE IN MOS EISLEY
-Credits talk. The Empire maintains a garrison but can't control
+Credits talk. The Republic maintains a small security post but can't control
 everything — the underworld thrives in the shadows. Deals are struck
 in cantina booths, cargo changes hands in darkened bays, and those
 who ask too many questions tend to disappear.""",
@@ -1071,7 +1071,7 @@ not careful.""",
         title="Tatooine",
         category="World",
         aliases=["planet"],
-        see_also=["moseisley", "empire"],
+        see_also=["moseisley", "trading"],
         body="""\
 Tatooine is a harsh desert world orbiting twin suns in the Outer Rim.
 Far from the galactic core, it's a backwater planet known for moisture
@@ -1089,9 +1089,9 @@ INHABITANTS
     outsiders. They roam the Jundland Wastes and beyond.
   Hutts control much of the planet's underworld from their palaces.
 
-IMPERIAL PRESENCE
-The Empire maintains a garrison in Mos Eisley, but Tatooine is far
-from a priority. Stormtrooper patrols are routine but not thorough.
+REPUBLIC PRESENCE
+The Republic maintains a small garrison in Mos Eisley, but Tatooine is far
+from a priority. Clone trooper patrols are routine but not thorough.
 The real power lies with the Hutts and the criminal syndicates.""",
     ),
 
@@ -1132,7 +1132,7 @@ CREDITS
         see_also=["trading", "+smugjobs"],
         body="""\
 Smuggling is high-risk, high-reward work. You transport illegal or
-restricted cargo between locations while avoiding Imperial patrols.
+restricted cargo between locations while avoiding Republic or Hutt patrols.
 
 HOW IT WORKS
   '+smugjobs' shows available smuggling contracts.
@@ -1140,7 +1140,7 @@ HOW IT WORKS
   Fly to the destination and 'smugdeliver' to collect payment.
 
 RISKS
-  Imperial patrols may intercept you on launch. A Perception check
+  Patrol ships may intercept you on launch. A Perception check
   determines if they scan your ship. If caught with contraband:
   fines, confiscation, or combat.
 
@@ -1515,7 +1515,7 @@ ANOMALY TYPES (7 total)
   Hidden Cache (15%)      Credits, rare resources, schematics
   Pirate Nest (15%)       2-3 hostile pirates, good salvage
   Mineral Vein (10%)      High-quality crafting resources
-  Imperial Dead Drop (5%) Big credits, but Imperial patrol risk
+  Separatist Cache (5%)   Big credits, but patrol interdiction risk
   Mynock Colony (5%)      Hull parasites — nuisance only
 
 INVESTIGATING
@@ -1690,7 +1690,7 @@ When another ship scans you, their Sensors roll contests your Con roll.
 If they win, the forgery is detected. Critical scan success reveals your
 real identity.
 
-IMPERIAL CUSTOMS INFRACTIONS
+CUSTOMS INFRACTIONS
   Class 5:  Safety violations, expired permits (100-500cr fine)
   Class 4:  Minor contraband (1,000-5,000cr fine)
   Class 3:  Weapons trafficking (up to 5,000cr + impound risk)

@@ -18,7 +18,7 @@ dexterity:
 
 knowledge:
   - { name: Alien Species, specializations: ["Wookiees", "Hutts", "Mon Calamari"] }
-  - { name: Bureaucracy, specializations: ["Imperial", "Rebel Alliance"] }
+  - { name: Bureaucracy, specializations: ["Senate", "Confederacy"] }
   - { name: Business, specializations: [] }
   - { name: Cultures, specializations: [] }
   - { name: Intimidation, specializations: [] }
@@ -36,10 +36,10 @@ mechanical:
   - { name: Astrogation, specializations: [] }
   - { name: Beast Riding, specializations: ["Bantha", "Tauntaun"] }
   - { name: Capital Ship Gunnery, specializations: ["Turbolaser", "Ion Cannon"] }
-  - { name: Capital Ship Piloting, specializations: ["Star Destroyer", "Corvette"] }
+  - { name: Capital Ship Piloting, specializations: ["Venator", "Acclamator", "Munificent"] }
   - { name: Capital Ship Shields, specializations: [] }
   - { name: Communications, specializations: [] }
-  - { name: Ground Vehicle Operation, specializations: ["Landspeeder", "AT-ST"] }
+  - { name: Ground Vehicle Operation, specializations: ["Landspeeder", "HAVw A6 Juggernaut"] }
   - { name: Hover Vehicle Operation, specializations: [] }
   # CRAFT.powered_suit_design (2026-06-13): WEG Mechanical skill (WEG40120 —
   # "Powersuit operation", a reaction-capable operation skill, sibling of the
@@ -50,11 +50,11 @@ mechanical:
   - { name: Repulsorlift Operation, specializations: [] }
   - { name: Sensors, specializations: [] }
   - { name: Space Transports, specializations: ["YT-1300", "Lambda Shuttle"] }
-  - { name: Starfighter Piloting, specializations: ["X-Wing", "TIE Fighter", "A-Wing"] }
+  - { name: Starfighter Piloting, specializations: ["ARC-170", "V-19 Torrent", "Vulture Droid"] }
   - { name: Starship Gunnery, specializations: ["Laser Cannon", "Proton Torpedo"] }
   - { name: Starship Shields, specializations: [] }
   - { name: Swoop Operation, specializations: [] }
-  - { name: Walker Operation, specializations: ["AT-AT", "AT-ST"] }
+  - { name: Walker Operation, specializations: ["AT-TE", "AT-RT"] }
 
 perception:
   - { name: Bargain, specializations: [] }
@@ -90,5 +90,5 @@ technical:
   - { name: Repulsorlift Repair, specializations: [] }
   - { name: Security, specializations: [] }
   - { name: Space Transport Repair, specializations: ["YT-1300"] }
-  - { name: Starfighter Repair, specializations: ["X-Wing"] }
+  - { name: Starfighter Repair, specializations: ["ARC-170", "V-19 Torrent"] }
   - { name: Starship Weapon Repair, specializations: [] }

@@ -4,7 +4,7 @@ title: Mos Eisley
 category: World
 summary: "\"You will never find a more wretched hive of scum and villainy.\""
 aliases: [mos eisley, spaceport, city]
-see_also: [cantina, tatooine, empire]
+see_also: [cantina, tatooine, smuggling]
 ---
 "You will never find a more wretched hive of scum and villainy."
 

@@ -262,7 +262,7 @@ skills:
         and their procedures. It can be used to determine what forms and
         identification are needed, who to talk to, and what shortcuts
         might exist to expedite the process.
-      game_use: "Navigating Imperial bureaucracy. Finding the right official to bribe."
+      game_use: "Navigating Republic or Hutt bureaucracy. Finding the right official to bribe."
       tags: [social]
       priority: low
       tip: "Situational. Useful for certain mission types."
@@ -316,7 +316,7 @@ skills:
         Law enforcement reflects a character's familiarity with law
         enforcement techniques, procedures and methods. It can be used to
         anticipate what law enforcement will do in a given situation.
-      game_use: "Predicting Imperial patrol behavior. Understanding legal procedures."
+      game_use: "Predicting Republic or Hutt patrol behavior. Understanding legal procedures."
       tags: [exploration]
       priority: low
       tip: "Niche. Streetwise is usually more useful for the same situations."
@@ -545,7 +545,7 @@ skills:
     starfighter_piloting:
       description: >
         Starfighter piloting is used for all combat starfighters,
-        including X-wings, Y-wings, A-wings, and TIE fighters.
+        including ARC-170s, V-19 Torrents, Delta-7 interceptors, and Separatist Vulture droids.
         Can be used for starship dodge to avoid enemy fire.
       game_use: "Piloting combat starfighters. Starship dodge in fighter-scale combat."
       tags: [piloting, combat]
@@ -587,11 +587,11 @@ skills:
     walker_operation:
       description: >
         Walker operation covers the piloting of all types of walkers,
-        including AT-ATs, AT-STs, and other Imperial walking vehicles.
+        including AT-TEs, AT-RTs, and other military walkers.
       game_use: "Piloting walkers."
       tags: [piloting]
       priority: low
-      tip: "Extremely specialized. Imperial military characters only."
+      tip: "Extremely specialized. Primarily taken by clone trooper and Republic officer characters."
 
   perception:
     bargain:
@@ -798,7 +798,7 @@ skills:
     armor_repair:
       description: >
         Armor repair reflects a character's ability to fix and maintain
-        personal body armor, including stormtrooper armor, bounty
+        personal body armor, including clone trooper armor, bounty
         hunter armor, and personal energy shields.
       game_use: "Repairing personal armor."
       tags: [crafting]
@@ -963,8 +963,8 @@ skills:
     starfighter_repair:
       description: >
         Starfighter repair covers the maintenance and repair of
-        starfighter-class vessels — X-wings, TIE fighters, and
-        similar combat craft.
+        starfighter-class vessels — ARC-170s, V-19 Torrents, Vulture droids,
+        and similar combat craft.
       game_use: "Repairing starfighter systems."
       tags: [crafting, piloting]
       priority: low
@@ -995,17 +995,18 @@ templates:
       little here and a little there, looking for a sharp deal...
       new worlds to see, always a new planet at the end of the journey.
 
-      But the Empire is more and more restrictive by the day. Goods
-      that used to be legal are now contraband. To keep operating,
-      you had to borrow money from a crime boss. You're pretty deep
-      in debt now. Your ship is home, transportation and freedom, all
+      But Republic customs and Separatist blockades are choking the
+      spacelanes. Goods that used to move freely are now contraband
+      on one side of the war or the other. To keep operating, you had
+      to borrow money from a Hutt crime boss. You're pretty deep in
+      debt now. Your ship is home, transportation and freedom, all
       in one package. The idea of losing it kills you.
     gameplay: >
       High Mechanical for piloting, solid Dexterity for firefights,
       enough Perception to talk your way past customs. You'll make
-      money running smuggling jobs, trading cargo, and dodging Imperial
-      patrols. Your ship is your lifeline — Space Transports, Astrogation
-      and Starship Gunnery are your bread and butter.
+      money running smuggling jobs, trading cargo, and dodging Republic
+      and Hutt patrols. Your ship is your lifeline — Space Transports,
+      Astrogation and Starship Gunnery are your bread and butter.
     key_skills: ["space transports", "astrogation", "starship gunnery", "bargain", "con", "blaster"]
 
   bounty_hunter:
@@ -1018,8 +1019,8 @@ templates:
       contract is a contract. You do your job. When someone hires you,
       you keep up your side of the bargain — no matter what it takes.
 
-      The Empire hired you once. You did the job. A good man died. You
-      fulfilled your side of the deal. The Empire didn't. They laughed
+      A Hutt syndicate hired you once. You did the job. A good man died.
+      You fulfilled your side of the deal. They didn't. They laughed
       at you. But not for long.
     gameplay: >
       Combat-focused with strong Dexterity and Strength. You'll hunt
@@ -1098,8 +1099,8 @@ templates:
       You feel it — a presence, a connection to all living things. The
       Force flows through you, granting glimpses of things beyond
       normal perception. Perhaps a mentor found you and began your
-      training before the Empire's purges scattered the remaining Jedi
-      into hiding. Perhaps you discovered your gift on your own.
+      training before the war scattered both Masters and Padawans across
+      the galaxy. Perhaps you discovered your gift on your own.
 
       The dark side tempts every Force user. You must be careful — be
       moral, honest and honorable, or risk being forever corrupted.
@@ -1119,7 +1120,7 @@ templates:
     description: >
       War is your trade. You've been trained to fight, to survive,
       and to follow orders — or give them. Whether you served the
-      Empire, the Rebellion, or some local militia, you know how to
+      Republic, the Confederacy, or some local militia, you know how to
       handle a weapon, move under fire, and stay alive when blaster
       bolts start flying.
 

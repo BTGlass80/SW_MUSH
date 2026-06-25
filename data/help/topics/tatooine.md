@@ -4,7 +4,7 @@ title: Tatooine
 category: World
 summary: Tatooine is a harsh desert world orbiting twin suns in the Outer Rim.
 aliases: [planet]
-see_also: [moseisley, empire]
+see_also: [moseisley, trading]
 ---
 Tatooine is a harsh desert world orbiting twin suns in the Outer Rim.
 Far from the galactic core, it's a backwater planet known for moisture
