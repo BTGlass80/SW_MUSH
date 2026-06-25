@@ -2804,6 +2804,82 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ════════════════════════════════════════════════════════════════════
+   COMMAND PALETTE overlay (UX Drop 7 — Ctrl/Cmd+K)
+   Access-filtered via /api/portal/reference. Stages verbs into the
+   active input; NEVER auto-sends. Disabled via localStorage sw_cmd_palette=0.
+   ════════════════════════════════════════════════════════════════════ */
+.cp-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(4,6,3,0.82);
+  display: none; align-items: flex-start; justify-content: center;
+  padding: 60px 20px 20px;
+  backdrop-filter: blur(3px);
+}
+.cp-modal {
+  background: linear-gradient(180deg, #0c1408 0%, #080e04 100%);
+  border: 1px solid var(--accent-dim);
+  box-shadow: 0 0 40px rgba(255,200,87,0.12);
+  width: 100%; max-width: 640px;
+  display: flex; flex-direction: column;
+  font-family: inherit; color: var(--text);
+  border-radius: 2px;
+}
+.cp-search-wrap {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--accent-dim);
+  background: rgba(255,200,87,0.04);
+}
+.cp-input {
+  width: 100%; box-sizing: border-box;
+  background: transparent; border: none; outline: none;
+  color: var(--text); font-family: inherit; font-size: 14px;
+  caret-color: var(--accent);
+}
+.cp-list {
+  list-style: none; margin: 0; padding: 4px 0;
+  max-height: 320px; overflow-y: auto;
+}
+.cp-row {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 7px 14px; cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: none;
+}
+.cp-row-active, .cp-row:hover {
+  background: rgba(255,200,87,0.08);
+  border-left-color: var(--accent);
+}
+.cp-key {
+  font-family: var(--font-mono, monospace); font-size: 13px;
+  color: var(--accent-bright); flex-shrink: 0;
+}
+.cp-cat {
+  font-size: 10px; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 1px;
+  flex-shrink: 0;
+}
+.cp-summary {
+  font-size: 12px; color: var(--text-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 1;
+}
+.cp-empty {
+  padding: 12px 14px; color: var(--text-dim); font-size: 13px;
+  cursor: default;
+}
+.cp-footer {
+  padding: 6px 14px;
+  border-top: 1px solid var(--accent-dim);
+  background: rgba(0,0,0,0.18);
+}
+.cp-hint {
+  font-size: 10px; color: var(--text-dim); letter-spacing: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cp-row { transition: none; }
+}
+
+/* ════════════════════════════════════════════════════════════════════
    IN-GAME GUIDE BROWSER overlay
    ════════════════════════════════════════════════════════════════════ */
 .guide-overlay {
@@ -5217,6 +5293,23 @@ a { color: inherit; text-decoration: none; }
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════
+     COMMAND PALETTE OVERLAY — Ctrl/Cmd+K verb search (UX Drop 7)
+     Access-gated by /api/portal/reference; STAGES verbs, never sends.
+     ══════════════════════════════════════════════════════════════════ -->
+<div class="cp-overlay" id="command-palette">
+  <div class="cp-modal" role="dialog" aria-label="Command palette" onclick="event.stopPropagation()">
+    <div class="cp-search-wrap">
+      <input class="cp-input" type="text" placeholder="Search commands…"
+             autocomplete="off" spellcheck="false" aria-label="Command search" />
+    </div>
+    <ul class="cp-list" role="listbox" aria-label="Command results"></ul>
+    <div class="cp-footer">
+      <span class="cp-hint">&#8593;&#8595; navigate &nbsp;&#x23CE; stage &nbsp;Esc close</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
      BOARDING ALERT OVERLAY — full-screen flash when boarders arrive
      ══════════════════════════════════════════════════════════════════ -->
 <div class="boarding-overlay" id="boarding-overlay">
@@ -5567,6 +5660,7 @@ a { color: inherit; text-decoration: none; }
 <script src="/static/spa/m3_onboard.js"></script>
 <script src="/static/spa/m3_craft.js"></script>
 <script src="/static/spa/m3_affordances.js"></script>
+<script src="/static/spa/m3_command_palette.js"></script>
 
 <script>
 /* ════════════════════════════════════════════════════════════════════
@@ -14400,6 +14494,25 @@ function init() {
   setupInput('cmd-input-space',  'send-btn-space');
   wireQuickActions();
   wireFireAndSwitches();
+
+  // ── Command palette (UX Drop 7) — Ctrl/Cmd+K ───────────────────────
+  // M3CommandPalette attaches its own document-level keydown for Ctrl/Cmd+K
+  // in a SEPARATE listener that never touches setupInput's keydown handler.
+  // stage() sets the active input value and refocuses — same path as
+  // wireQuickActions's 'stage' action.
+  if (window.M3CommandPalette) {
+    window.M3CommandPalette.init({
+      escapeHtml: escapeHtml,
+      stage: function (cmd) {
+        var inp = activeInputEl();
+        if (!inp) return;
+        inp.value = cmd;
+        inp.focus();
+        var len = inp.value.length;
+        setTimeout(function () { inp.setSelectionRange(len, len); }, 0);
+      }
+    });
+  }
   wirePoseLogScroll($('pose-log'),       $('new-pill'));
   wirePoseLogScroll($('pose-log-space'), $('new-pill-space'));
   wireLoginUI();
