@@ -399,6 +399,91 @@ encounters:
         count: [2, 4]
         tier: tier1
 
+    # ── GRIND BREADTH additions (2026-06-25): Underworld fauna + Uscru Fringe ──
+    # Five entries across two proposals (coruscant_underworld + uscru_fringe_brokers
+    # — the uscru file is a broker roster; its encounter entries correctly land here).
+    # Creatures: svaper (COTG §2.2, fighting-pit escapee), preying_makthier (COTG
+    # §2.3, structural-void flyer, shared with ey_akh), syndicate_enforcer (D6
+    # scratch, kajidic retainer), drain_lurker (D6 scratch, drainage-sump predator).
+    # scavenged_job_cache anomaly OMITTED: no real salvage_table consumer exists
+    # for the locked kajidic case reward (no phantom producer shipped).
+    # payload.npc_template values: svaper (new), preying_makthier (new, shared),
+    # voroos (existing L497), underworld_thug (existing L993), syndicate_enforcer
+    # (new), drain_lurker (new). All confirmed via npcs_creatures.yaml ids.
+
+    # ── Svaper — fighting-pit escapee (COTG §2.2) ─────────────────────────────
+    - id: svaper_escape
+      type: hostile
+      weight: 1
+      terrains: [industrial_ruin, abandoned_plaza]
+      min_band: 2            # STR+3D bite + spine-lodge; above raen_sovra 5D+2 tier
+      narrative: "A shape skids out of a rusted industrial bay at speed — low, fast, spine-ridged, and radiating the specific quality of something that has been in a cage and is done being in a cage. A svaper, or what is left of one after however long it survived in here. It has already decided you are worth the sprint."
+      payload:
+        npc_template: svaper
+        count: [1, 2]
+        tier: tier1
+
+    # ── Preying Makthier — structural void dive (COTG §2.3) ──────────────────
+    - id: makthier_dive
+      type: hostile
+      weight: 1
+      terrains: [bottom_dark, service_tunnel, industrial_ruin]
+      min_band: 2            # pack paralytic stinger is Settled-tier threat
+      narrative: "Something is navigating the dark above you by sound, and it has been tracking your footfalls for longer than you knew. The first one hits you from above — a wingspan of hard muscle and a coiling grip — and the rest of the pack is already folding their wings to follow. Preying makthiers, this far down, hunting by the echo of a heartbeat."
+      payload:
+        npc_template: preying_makthier
+        count: [4, 8]
+        tier: tier2
+
+    # ── Voroos — rubble terrain-mimic (COTG §3) ───────────────────────────────
+    - id: rubble_voroos
+      type: hostile
+      weight: 1
+      terrains: [industrial_ruin, ferrocrete_corridor]
+      min_band: 2            # STR 6D tongue-grasp; matches existing parity floor
+      narrative: "The mound of compacted debris ahead — ferrocrete chunks, bent conduit, pressed refuse — is the wrong shape in the wrong place, and it has been there too long for a random collapse. Something shifts in it as you approach. The voroos is patient. It has been patient for a very long time in the dark down here, and it has learned to look like whatever the underworld discards."
+      payload:
+        npc_template: voroos
+        count: [1, 1]
+        tier: tier1
+
+    # ── Syndicate Enforcer — Uscru fringe organized crime ────────────────────
+    - id: uscru_syndicate_muscle
+      type: hostile
+      weight: 2
+      terrains: [abandoned_plaza, ferrocrete_corridor]
+      min_band: 1
+      faction_gate: underworld_gang_pressure_default
+      narrative: "Two figures in dark civilian coats materialize from a doorway alcove as you cross the plaza — not street gang, something more deliberate. One keeps a hand near a sidearm at the hip. The other has not moved, which is somehow worse. 'Wrong corridor,' the nearer one says. It is not a suggestion."
+      payload:
+        npc_template: syndicate_enforcer
+        count: [1, 2]
+        tier: tier1
+
+    # ── Drain Lurker — Uscru drainage-sump ambush ─────────────────────────────
+    - id: drain_lurker_ambush
+      type: hostile
+      weight: 2
+      terrains: [ferrocrete_corridor, service_tunnel]
+      min_band: 1
+      narrative: "The grate underfoot is warm — wrong temperature for a dormant drain — and the hinge seam is corroded from the inside. You have about half a step to process that before the grate blows open and a pale, flat shape erupts from below, jaws already locking. The smell hits you a moment later: deep sump, chemical runoff, wet biological dark. The lurker does not vocalize. It simply bites and holds."
+      payload:
+        npc_template: drain_lurker
+        count: [1, 2]
+        tier: tier1
+
+    # ── Underworld mugging — Uscru opportunists (existing id) ────────────────
+    - id: uscru_back_alley_mugging
+      type: hostile
+      weight: 2
+      terrains: [ferrocrete_corridor, abandoned_plaza]
+      min_band: 1
+      narrative: "The side passage is narrower than you realized, and the three figures who step into it from recessed doorways on either side have timed their approach well. Not syndicate muscle — opportunists, the kind that work the overflow crowd from the entertainment levels above. One has a vibroblade already drawn. Another is holding a stolen blaster that is probably charged. The third is just large. 'Wallet. Gear. Walk away.' They have done this before."
+      payload:
+        npc_template: underworld_thug
+        count: [2, 3]
+        tier: tier1
+
 # ─── Sign-off ───────────────────────────────────────────────────────
 # Drop T2.3 (May 24 2026). Single-level Coruscant Underworld
 # wilderness region, parity with Dune Sea's minimal substrate.

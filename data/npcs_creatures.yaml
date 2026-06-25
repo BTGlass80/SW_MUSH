@@ -1492,3 +1492,276 @@ npcs:
       resource: "organic"    # small lizard → crafting organic stock / survival food
       note: "Jawa subsistence food; field-dressed on kill."
     source: "D6 re-stat from scratch per secrets_of_tatooine_extraction_v1.md §10 (SoT WTC11839 is WotC d20; d20 block discarded per WEG-only invariant). Calibrated to R&E small-creature conventions in WEG40120: gornt DEX 1D+2, PER 1D, STR 1D (0.5m prey animal). Scurrier is faster and sharper-eyed (colony-alarm animal, 10-25cm) at DEX 4D+1, PER 3D, STR 1D. Lore anchor: SoT §10 'scurrier (urban vermin)' — placed in the fringe scrub, not a city interior, as the Jundland is its natural habitat edge."
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # WILDERNESS GRIND BREADTH additions (2026-06-25) — 5-region breadth drop.
+  #
+  # Creatures added: bantha (Dune Sea), preying_makthier (Geonosis/Underworld
+  # shared), svaper (Coruscant Underworld), syndicate_enforcer (Uscru Fringe),
+  # drain_lurker (Uscru Fringe).
+  #
+  # All WEG R&E D6 only. COTG §2.2/§2.3 sourced; humanoid NPCs anchored to
+  # WEG40120 p.199 NPC-template conventions. Non-intelligent creatures carry
+  # KNO/MEC/TEC = 0D (R&E creature convention). Era-clean: no Imperial/Empire/
+  # Rebel/TIE in any production string.
+  # ════════════════════════════════════════════════════════════════════════════
+
+  # ── Bantha ────────────────────────────────────────────────────────────────
+  # Consumer: dune_sea.yaml `tusken_bantha_herd` (non_hostile, terrains
+  # [dune, rocky_outcrop], count [4,8]).
+  # Source: WEG40120 p.215 (confirmed via sidecar WEG40120.txt lines
+  # 20353-20381): DEX 2D, PER 2D, STR 8D, horns STR+1D, trample STR,
+  # Move 5, Size 2-3m, Orneriness 2D.
+  - id: bantha
+    name: Bantha
+    species: Bantha
+    scale: creature
+    size: "2-3m at the shoulder"
+    hostile: false          # ambient fauna; non-hostile herd encounter
+    pack_count: [4, 8]
+    description: >-
+      A massive shaggy quadruped with huge spiral horns and small, bright eyes
+      that betray surprising curiosity for a creature that weighs as much as a
+      landspeeder. Wild banthas move in herds across the Dune Sea, following
+      ancient migration paths that predate any settlement on Tatooine. A herd
+      of them means Tusken bands are not far — the Sand People depend on the
+      bantha for everything: food, hide, transport, and ceremony. The ground
+      shakes as they pass. Standing between a bantha and where it intends to
+      go is not recommended.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        perception: 2D
+        strength: 8D
+        knowledge: 0D
+        mechanical: 0D
+        technical: 0D
+      skills: {}
+      move: 5
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    natural_attack:
+      name: horns and trample
+      to_hit_skill: brawling
+      damage: "STR+1D"       # horns STR+1D; trample is STR (area-effect charge)
+    special:
+      - "Trample: STR damage (no to-hit modifier; area-effect charge against anything directly in the path)."
+      - "Orneriness 2D — rideable by the Tusken Raiders; the spawn path uses this template as ambient fauna only."
+      - "Wild bantha herds are guarded at distance by Tusken outriders; an encounter with a herd is a warning of Tusken proximity."
+    source: "WEG40120 p.215 (Bantha stat block, confirmed via sidecar WEG40120.txt lines 20353-20381): DEX 2D, PER 2D, STR 8D, horns STR+1D, trample STR, Move 5, Size 2-3m, Orneriness 2D. Non-intelligent: KNO/MEC/TEC = 0D per WEG40120 p.214 creature convention. Verify against PDF page on dev box before merge (sourcebook is local-only)."
+
+  # ── Preying Makthier ──────────────────────────────────────────────────────
+  # Consumers: ey_akh.yaml `preying_makthier_crater` (hostile, crater,
+  # count [5,10]); coruscant_underworld.yaml `makthier_dive` (hostile,
+  # bottom_dark/service_tunnel/industrial_ruin, count [4,8]).
+  # Source: COTG §2.3 (WEG40080), creatures_of_the_galaxy_extraction_v1.md
+  # §2.3. Verified stat block: DEX 3D+1, PER 2D+1, STR 3D+1, search 4D,
+  # sneak 4D+2, lifting 5D+1, sonic +1D+2 search, constriction 1D/round
+  # -2D DEX, paralytic stinger 2D + 4D stun x5 rounds, Move 10 fly.
+  - id: preying_makthier
+    name: Preying Makthier
+    species: Preying Makthier
+    scale: creature
+    size: "1.2-2.7m long, 2m wingspan"
+    hostile: true           # pack aerial hunter; sonic motion detection
+    pack_count: [5, 10]
+    description: >-
+      What sounds like wind through a crevice is not wind — it is the sonar
+      clicks of something navigating in the dark below the rim. The preying
+      makthier roosts in glassed crevices and structural voids, a cave flyer
+      that hunts by ultrasonic echo in total darkness and has no use for the
+      distinction between a ravine and a feeding run. It masses in dozens when
+      the heat drives its prey to the surface, and the tail it drags behind it
+      — barbed, sucking, jointed — is both a strangling weapon and a venom
+      delivery system. The first one that hits you will not be the last one.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        perception: 2D+1
+        strength: 3D+1
+        knowledge: 0D
+        mechanical: 0D
+        technical: 0D
+      skills:
+        search: 4D
+        sneak: 4D+2
+        lifting: 5D+1
+        brawling: 4D+1       # constriction and sting to-hit
+      move: 10               # fly
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    natural_attack:
+      name: tail stinger
+      to_hit_skill: brawling
+      damage: "2D"           # physical component; stun rider via special_attack
+    special:
+      - "Sonic motion detection: +1D+2 to search rolls; hunts unimpaired in total darkness."
+      - "Constriction: 1D/round while holding; target loses 2D DEX while constricted (Moderate brawling or STR to break free)."
+      - "Paralytic stinger: 2D physical + 4D stun; stun repeats every round for 5 rounds (Moderate stamina to resist each)."
+      - "Masses 5-10+ for coordinated attacks; isolating targets is their primary tactic."
+    special_attack:
+      restraint:
+        kind: grapple
+        hold_damage: "1D"    # constriction 1D/round (COTG §2.3 exact value)
+        dex_penalty: "2D"    # target loses 2D DEX while held (COTG §2.3)
+        note: "Constricting tail; Moderate brawling or STR roll to break free."
+      poison:
+        damage: "4D"         # stun component of paralyzing stinger
+        rounds: 5
+        onset: 0
+        note: "Paralytic stinger: 2D physical (natural_attack) + 4D stun per round for 5 rounds; Moderate stamina to resist each tick."
+    source: "COTG §2.3 (WEG40080), creatures_of_the_galaxy_extraction_v1.md §2.3. Verified stat block: DEX 3D+1, PER 2D+1, STR 3D+1, search 4D, sneak 4D+2, lifting 5D+1, sonic motion detection +1D+2 search, constriction 1D/round -2D DEX, paralyzing stinger 2D + 4D stun x5 rounds, Move 10 fly, 1.2-2.7m long 2m wingspan. Era-clean: Geonosis-origin recast as 'structural voids and glassed crevices' for both Geonosis and Coruscant Underworld framing — no off-era operator reference."
+
+  # ── Svaper ────────────────────────────────────────────────────────────────
+  # Consumer: coruscant_underworld.yaml `svaper_escape` (hostile, terrains
+  # [industrial_ruin, abandoned_plaza], min_band 2, count [1,2]).
+  # Source: COTG §2.2 (WEG40080), creatures_of_the_galaxy_extraction_v1.md
+  # §2.2. Verified stat block: DEX 4D, PER 2D, STR 2D, Bite STR+3D,
+  # Spines STR+3D+2 (lodge), Tough skin +2D (not gills), Move 20 swim
+  # (land Move calibrated to 13 — out-of-water, non-aquatic context).
+  - id: svaper
+    name: Svaper
+    species: Svaper
+    scale: creature
+    size: "2-3m"
+    hostile: true           # fighting-pit escapee; immediately aggressive
+    pack_count: [1, 2]
+    description: >-
+      A compact, low-slung predator built like compressed aggression —
+      smooth-scaled, fast, and permanently hungry. In the underworld it is
+      most often found as an escapee from a fighting pit or a crimelord's
+      disposal tank: something that made it out of the cage and into the
+      maintenance tunnels and has not yet been retrieved. It wraps fast and
+      bites deep, and the spines that ridge its back snap off into whatever
+      grabs it. The fighting-pit strains are meaner than the wild ones.
+    char_sheet:
+      attributes:
+        dexterity: 4D
+        perception: 2D
+        strength: 2D
+        knowledge: 0D
+        mechanical: 0D
+        technical: 0D
+      skills:
+        brawling: 4D+2
+        sneak: 3D+1
+      move: 13               # land-calibrated (book Move 20 is aquatic swim speed)
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    natural_attack:
+      name: bite
+      to_hit_skill: brawling
+      damage: "STR+3D"       # STR 2D -> 5D total bite
+    special:
+      - "Spines: STR+3D+2 damage; lodge in the skin of anything that grabs the svaper — Moderate STR roll to remove each spine without further damage."
+      - "Tough skin: +2D vs physical and energy (not the gill area)."
+      - "Fighting-pit strain: escaping svapers in the underworld are combat-conditioned — more aggressive than wild specimens."
+    special_attack:
+      restraint:
+        kind: grapple
+        hold_damage: "STR+3D+2"  # lodging spines on grapple (COTG §2.2)
+        note: "Spine-lodge: anything grappling the svaper takes STR+3D+2 from lodging spines; Moderate STR to remove each."
+    source: "COTG §2.2 (WEG40080), creatures_of_the_galaxy_extraction_v1.md §2.2. Verified stat block: DEX 4D, PER 2D, STR 2D, Bite STR+3D, Spines STR+3D+2 (lodge in skin), Tough skin +2D (not gills), Move 20 swim (land Move calibrated to 13 for non-aquatic underworld encounter). Era strip applied: fighting-pit/crimelord framing replaces any off-era operator reference."
+
+  # ── Syndicate Enforcer ────────────────────────────────────────────────────
+  # Consumer: coruscant_underworld.yaml `uscru_syndicate_muscle` (hostile,
+  # terrains [abandoned_plaza, ferrocrete_corridor], min_band 1, count [1,2]).
+  # D6 stats from scratch — anchored to WEG40120 p.199 Extras NPC conventions
+  # (Guards: DEX 3D, blaster 3D+1, STR 3D+1 floor; pirate sentry DEX 4D,
+  # blaster 5D+2 ceiling). Enforcer sits between: DEX 3D+1, blaster 4D.
+  # Verify WEG40120 p.199 anchors against PDF on dev box before merge.
+  - id: syndicate_enforcer
+    name: Syndicate Enforcer
+    species: Human
+    scale: character
+    intelligent: true        # sentient; exempt from non-intelligent 0D-KMT contract
+    hostile: true
+    pack_count: [1, 2]
+    description: >-
+      One or two figures in well-cut civilian coats stand in the shadows near
+      the plaza's edge — not the tattooed gang muscle from the lower corridors,
+      but something a step up. Polished boots, a visible sidearm worn with
+      practice, and the stillness of someone paid to stand in a particular spot
+      and discourage particular behaviors. Syndicate enforcers work Uscru's
+      fringe corridors on retainer for kajidic and organized-crime interests
+      that are too respectable to use street gangs. They don't negotiate, and
+      they don't miss.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        perception: 3D
+        strength: 3D
+        knowledge: 2D
+        mechanical: 2D
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+2
+        brawling: 3D+2
+        intimidation: 4D
+        streetwise: 3D+1
+      move: 10
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    natural_attack:
+      name: blaster pistol
+      to_hit_skill: blaster
+      damage: "4D"           # standard WEG blaster pistol; absolute (independent of STR)
+    special:
+      - "Armed: blaster pistol (4D); vibroblade backup (STR+1D) at close range."
+      - "Works in pairs when available; does not break and run — fights until the contract says otherwise."
+      - "Kajidic or organized-crime retainer — better trained and more professional than street gang muscle."
+    source: "D6 stats from scratch — anchored to WEG40120 p.199 Extras NPC conventions (Guards: DEX 3D, blaster 3D+1, STR 3D+1 as floor; pirate sentry DEX 4D, blaster 5D+2 as ceiling). Enforcer sits between at DEX 3D+1, blaster 4D. Era-clean: no Imperial/Rebel affiliation; kajidic/organized-crime framing. Verify WEG40120 p.199 anchors against PDF on dev box before merge."
+
+  # ── Drain Lurker ──────────────────────────────────────────────────────────
+  # Consumer: coruscant_underworld.yaml `drain_lurker_ambush` (hostile,
+  # terrains [ferrocrete_corridor, service_tunnel], min_band 1, count [1,2]).
+  # Original creature (D6-statted from scratch). Bespoke Coruscant mid-level
+  # predator filling the drainage-sump niche. Calibrated between the tymp
+  # (STR 1D+1) and the maze_predator (STR 4D, min_band 3).
+  - id: drain_lurker
+    name: Drain Lurker
+    species: Drain Lurker
+    scale: creature
+    size: "1.2-1.8m"
+    hostile: true           # ambush from below; erupts from drainage grates
+    pack_count: [1, 2]
+    description: >-
+      The drainage sumps beneath Coruscant's entertainment districts are warm,
+      wet, and full of biological runoff from a thousand species. The drain
+      lurker evolved in that niche: a pale, fast ambush predator built low and
+      flat, able to squeeze through conduit gaps and explode upward from
+      storm-grate openings with a bite that locks. It hunts thermal signatures
+      in total dark, is blind in bright light, and smells strongly of the sumps
+      it came from. Mid-level residents know the rule: if a grate is warm and
+      the hinge is corroded from the inside, do not walk over it.
+    char_sheet:
+      attributes:
+        dexterity: 3D+2
+        perception: 3D
+        strength: 2D+2
+        knowledge: 0D
+        mechanical: 0D
+        technical: 0D
+      skills:
+        brawling: 4D
+        sneak: 4D+1
+        search: 4D
+      move: 11
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    natural_attack:
+      name: bite
+      to_hit_skill: brawling
+      damage: "STR+1D+1"     # STR 2D+2 -> effective 3D+3
+    special:
+      - "Heat sense: hunts by thermal signature; darkness does not impair it."
+      - "Blind in bright light: strong illumination reduces effective PER to 1D while exposed."
+      - "Ambushes from below: erupts from grates and drainage openings; first attack has +1D from surprise if not detected beforehand."
+      - "Noxious odor: Moderate stamina roll for anyone within 2m of a freshly-killed lurker."
+    source: "Original (D6-statted from scratch). Bespoke Coruscant mid-level predator filling the drainage-sump niche that the COTG set does not cover. Calibrated between the tymp (STR 1D+1, brawling flavor) and the maze_predator (STR 4D, min_band 3). STR 2D+2 + brawling 4D produces a credible Frontier-tier threat for a starting character."

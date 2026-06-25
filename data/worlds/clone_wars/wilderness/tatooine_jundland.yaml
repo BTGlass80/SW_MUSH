@@ -301,6 +301,57 @@ encounters:
         duration_minutes: 10
         hazard_severity_bonus: 2
 
+    # ── GRIND BREADTH additions (2026-06-25): scrubland prey + solo hostiles ──
+    # Three entries targeting three real gaps in the existing pool:
+    # (1) gornt_jundland_herd — scrubland/rocky prey animal; no prey-animal
+    #     non_hostile existed for these terrains other than dewbacks. Weight 2.
+    # (2) stalker_lizard_jundland — solo Frontier-eligible ambusher distinct
+    #     from pack threats (womp rats, Tusken patrol). min_band 1 (engine
+    #     floor; 0 clamps to 1). min_distance_from_edge 2 for parity with the
+    #     dune_sea stalker_lizard_hunt (constriction STR+2D+2).
+    # (3) arqet_canyon_ambush — min_band 2 step filling the gap between
+    #     band-1 womp rats and the min_band-3 wall (wrix/war party).
+    # All payload.npc_template values resolve to confirmed existing ids in
+    # data/npcs_creatures.yaml (gornt L1211, stalker_lizard L232, arqet L1051).
+
+    # ── Gornt herd — scrubland prey animals (COTG §4) ────────────────────────
+    - id: gornt_jundland_herd
+      type: non_hostile
+      weight: 2
+      terrains: [scrubland, rocky_outcrop]
+      narrative: "A small cluster of gornts picks its way between the boulders ahead — the round-bodied little herbivores moving with the unhurried confidence of prey animals that have not yet spotted you. They stop, ears up, then scatter into the scrub at a pace that outstrips what their legs suggest. Wherever gornts water, the water is clean. Whatever feeds on them is somewhere close."
+      payload:
+        npc_template: gornt
+        count: [3, 6]
+        tier: tier1
+
+    # ── Stalker lizard — Jundland scrubland ambush (COTG §2.1) ───────────────
+    - id: stalker_lizard_jundland
+      type: hostile
+      weight: 2
+      terrains: [rocky_outcrop, scrubland]
+      min_band: 1
+      min_distance_from_edge: 2   # parity with dune_sea stalker_lizard_hunt (constriction STR+2D+2)
+      faction_gate: jundland_fauna_default
+      narrative: "You notice it a half-second before it notices you — a long, low shape the dusty purple of Jundland sandstone, pressed flat between two boulders with that absolute stillness that is not rest but patience. Then it is moving: a burst of speed across the flat, too fast, covering the distance between you and it before the math resolves. A stalker lizard, and you are what it chose."
+      payload:
+        npc_template: stalker_lizard
+        count: [1, 1]
+        tier: tier1
+
+    # ── Arqet — canyon ambush (COTG §2.3) ────────────────────────────────────
+    - id: arqet_canyon_ambush
+      type: hostile
+      weight: 2
+      terrains: [canyon, rocky_outcrop]
+      min_band: 2            # step between band-1 womp rats and the min_band-3 wall
+      faction_gate: jundland_fauna_default
+      narrative: "The boulder on the canyon floor has too many edges for a rock. You register the thought a beat too late — the arqet uncoils from its stone-still crouch, colour shifting from tan sandstone to the mottled amber of movement, and the horns are already leading. Its carapace plates the colour of the canyon wall explain why no one found it until now."
+      payload:
+        npc_template: arqet
+        count: [1, 2]
+        tier: tier2
+
 # ─── Landmarks ───────────────────────────────────────────────────────────────
 # Named POI anchors inside the Jundland grid. Adjacency minimal —
 # the Jundland is a traverse region, not a hub.
