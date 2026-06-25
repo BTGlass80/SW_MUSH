@@ -124,6 +124,12 @@ content_refs:
     # landmarks + an on-foot edge from the surface (ey_akh_desert_edge).
     # The annual-flood mechanic and Marmio Mio's freighter are follow-ups.
     - wilderness/ey_akh.yaml
+    # GRIND-REDIRECT round 2 (2026-06-24): Tatooine Jundland Wastes.
+    # Fourth wilderness region — rocky canyon terrain distinct from the
+    # open-sand Dune Sea. Full encounter pool (3 new D6 re-stat creatures:
+    # canyon_womp_rat, rock_wart, scurrier; plus 5 existing templates),
+    # 3 landmarks, 2 edges (jundland_canyon_mouth, jundland_beggars_canyon).
+    - wilderness/tatooine_jundland.yaml
 
   # ── Wilderness-anchored NPCs (Drop F.6, May 3 2026) ─────────────────────
   # NPCs whose home rooms are wilderness landmarks (i.e. rooms with

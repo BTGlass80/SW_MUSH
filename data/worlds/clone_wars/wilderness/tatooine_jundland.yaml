@@ -1,0 +1,405 @@
+# data/worlds/clone_wars/wilderness/tatooine_jundland.yaml
+# Clone Wars Era — Tatooine Jundland Wastes Wilderness Region
+# Schema version 1
+#
+# GRIND-REDIRECT round 2 (2026-06-24).
+# The Jundland Wastes: rocky canyon badlands between the Western and Northern
+# Dune Seas, home to Tusken Raiders, womp-rat packs, and canyon fauna.
+# Setting reference: secrets_of_tatooine_extraction_v1.md §2 (lore-only;
+# d20 stats discarded). All creature stats D6 from scratch per WEG40120.
+#
+# ── DESIGN ──────────────────────────────────────────────────────────────────
+# Distinct from the Dune Sea (which is open rolling sand). The Jundland is
+# rocky, broken country — canyons, scrub, hidden caves. Its encounter flavor
+# is melee-rich (womp rats, rock warts, wrix) vs. the Dune Sea's open-desert
+# (stalker lizard, glim worm). A grind-redirect venue that rewards players
+# willing to push past the Mos Eisley / Dune Sea fringe.
+#
+# Terrain coverage plan:
+#   canyon       — womp rats, wrix, scurriers, Tusken patrols
+#   rocky_outcrop — rock warts, shredder bats, scurriers, anomalies
+#   scrubland     — scurrier colonies, dewback herds, trade caravans
+#   cave          — rock warts, keejin (cross-biome from Geonosis/generic),
+#                   shredder bats; a high-threat min_band-gated interior
+#
+# Edge rooms (existing hand-built rooms in tatooine.yaml / zones.yaml):
+#   jundland_canyon_mouth    → the western entry from Tatooine's settled zone
+#   jundland_beggars_canyon  → secondary entry deeper into the canyon country
+#   (jundland_dune_sea_edge is the Dune Sea region boundary; not reduplicated)
+#
+# ── ENCOUNTER CREATURE TEMPLATES ────────────────────────────────────────────
+# All payload.npc_template values resolve to ids in data/npcs_creatures.yaml:
+#   canyon_womp_rat   — new (round 2), D6 from scratch; SoT §10 stat gap
+#   rock_wart         — new (round 2), D6 from scratch; SoT §10 stat gap
+#   scurrier          — new (round 2), D6 from scratch; SoT §10 stat gap
+#   tusken_warrior    — existing (dune_sea phantom-closure)
+#   dewback           — existing (dune_sea phantom-closure)
+#   wrix              — existing (COTG §3 cross-biome)
+#   shredder_bat      — existing (COTG §3 cross-biome)
+#   keejin            — existing (COTG §2.3 Geonosis; also a generic cave
+#                       crawler that ranges across rocky terrain systemwide)
+# Validated by tests/test_grind_redirect_round2_jundland.py.
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+schema_version: 1
+
+region:
+  slug: tatooine_jundland
+  name: "The Jundland Wastes"
+  planet: tatooine
+  zone: tatooine_jundland              # existing zone from zones.yaml
+  default_security: lawless            # per security_model_design_v1.md §4
+  narrative_tone_key: tatooine_wastes  # reuse the Dune Sea tone key
+
+grid:
+  width: 20                            # x-coords 0..19 — smaller than Dune Sea;
+                                       # the Jundland is a tighter, more vertical
+                                       # terrain (canyon walls, not open sand)
+  height: 20                           # y-coords 0..19
+  tile_scale_km: 1                     # 1km per tile = 20×20 km region
+  default_terrain: rocky_outcrop
+
+terrains:
+  canyon:
+    # Deep canyon cuts through the Jundland sandstone — the home of
+    # womp rats, Tusken ambush points, and the "womp run" skyhopper
+    # race course. Move cost high (debris, boulders).
+    move_cost: 3
+    sight_radius: 1
+    ambient_hazard: extreme_heat
+    hazard_severity: 1
+    variants:
+      - "Sheer sandstone walls rise on either side, casting deep shadow even under the twin suns. Bantha tracks press the canyon floor. The silence here is the heavy kind."
+      - "The canyon bends sharply. Beyond the turn there is no way to see what is waiting. Something skitters in the rocks overhead."
+      - "A winding cut barely wide enough for two beings abreast. Old scorch marks on the walls — a skyhopper misjudged the turn here, years ago."
+    time_overlays:
+      night: "The canyon is black. The twin moons give no light between these walls. Sound carries for kilometers."
+
+  rocky_outcrop:
+    # Open broken rock — the default Jundland terrain. Moderate movement,
+    # good for spotting threats (sight radius 2) but sparse cover.
+    move_cost: 2
+    sight_radius: 2
+    ambient_hazard: extreme_heat
+    hazard_severity: 2
+    variants:
+      - "Weathered sandstone ridges jut from the pale soil. Lizard tracks cross the flat between them. Something watched you from the top of the largest ridge."
+      - "Loose rock underfoot, prone to sudden slides. The boulders are good concealment — for you, and for anything already in them."
+      - "A flat shelf of wind-polished stone with a clear view of the approaches. There is nowhere to hide up here, in either direction."
+    time_overlays:
+      night: "The rocks give up the day's heat quickly. Under the stars the Jundland looks almost peaceful. It is not."
+
+  scrubland:
+    # The thin fringe of desert scrub at the edge of the wastes —
+    # where the rock gives way to sandy soil and sparse hardy growth.
+    # A transition zone; lower threat, closer to the settlement fringe.
+    move_cost: 1
+    sight_radius: 2
+    ambient_hazard: extreme_heat
+    hazard_severity: 1
+    variants:
+      - "Tough gnarled brush clings to cracked soil between outcroppings. A scurrier colony scatters as you approach, leaving the undergrowth shaking."
+      - "The scrub thins here to dusty soil and isolated bushes. The canyon walls are still visible but receding. The way back to the settlements feels closer."
+
+  cave:
+    # Canyon caves — hollows in the sandstone, some deep enough to
+    # swallow light entirely. Denning grounds for the most dangerous
+    # Jundland fauna and the occasional Tusken cache site.
+    move_cost: 2
+    sight_radius: 1
+    ambient_hazard: none              # sheltered from the heat
+    hazard_severity: 0
+    variants:
+      - "The cave mouth opens in the canyon face, barely a body-width wide at the entrance and expanding inside to a chamber that smells of old dust and something else. Something alive."
+      - "A deep hollow worn smooth by ancient water, now dry and dark. The floor holds tracks — several kinds, some overlapping. This place is used."
+    time_overlays:
+      night: "In the cave at night, darkness is absolute. The sounds outside are louder than they were."
+
+# ─── Encounters ──────────────────────────────────────────────────────────────
+# Per wilderness_system_design_v1.md §5. Each in-tile move rolls against
+# base_chance_per_move; on a hit the pool filters by terrain, distance, and
+# band; weighted-random picks.
+#
+# Threat balance:
+#   band 1 (Frontier)  — scurriers, dewbacks, shimmer-bat stragglers
+#   band 2 (Settled)   — womp rat packs, rock warts, Tusken scouts
+#   band 3 (Contested) — wrix packs, Tusken war party, shredder bat swarm
+#   band 4 (Deep)      — cave ambush (keejin large variant), min_band 3 entries
+#
+# High-damage creatures gated by min_band per STEP 2 constraint:
+#   tusken_war_party (wrix-equivalent threat): min_band 3
+#   wrix_pack (STR 3D brawling 5D, pack of 3-5): min_band 3
+#   cave_shredder_roost (12 bats, all diving): min_band 3
+
+encounters:
+  base_chance_per_move: 0.05        # slightly higher than Dune Sea — canyons
+                                    # are denser and more eventful than open sand
+
+  pool:
+
+    # ── Canyon Womp Rat — the iconic Jundland pack hunter ─────────────────────
+    - id: womp_rat_pack
+      type: hostile
+      weight: 4
+      terrains: [canyon, rocky_outcrop]
+      min_distance_from_edge: 2
+      faction_gate: jundland_fauna_default
+      narrative: "A low, chittering sound from the boulders above — then shapes drop off the rim, long-bodied, moving fast in a relay spread. Canyon womp rats, five or six of them, already fanning out around you. They are practiced at this."
+      payload:
+        npc_template: canyon_womp_rat
+        count: [3, 6]
+        tier: tier1
+
+    # ── Rock Wart — venomous crevice ambush ───────────────────────────────────
+    - id: rock_wart_ambush
+      type: hostile
+      weight: 2
+      terrains: [rocky_outcrop, cave]
+      min_distance_from_edge: 1
+      faction_gate: jundland_fauna_default
+      min_band: 2             # DIFF gate: paralytic venom + egg-incubation risk is
+                              # a disproportionate threat to a fresh Frontier character;
+                              # gate it to Settled band where players have more HP margin
+      narrative: "Your hand finds a crack in the rock face that felt safe to steady yourself against — and the flat, sand-coloured shape inside it moves. A rock wart, barely visible even now it is moving, raises its stinging tail. The sting is the beginning. The eggs are worse."
+      payload:
+        npc_template: rock_wart
+        count: [1, 3]
+        tier: tier1
+
+    # ── Scurrier colony — harmless wildlife scatter ────────────────────────────
+    - id: scurrier_colony
+      type: non_hostile
+      weight: 3
+      terrains: [rocky_outcrop, scrubland]
+      narrative: "A colony of scurriers erupts out of the brush at your approach — twenty or more of them, plated backs flashing in the sunlight, scattering in every direction at once. They are gone before you can blink. Whatever they were hiding from, it does not appear to be you. But the scatter was fast. Too fast."
+      payload:
+        npc_template: scurrier
+        count: [4, 8]
+
+    # ── Tusken scout party — the Jundland's territorial warriors ──────────────
+    - id: tusken_jundland_patrol
+      type: hostile
+      weight: 3
+      terrains: [canyon, rocky_outcrop]
+      min_distance_from_edge: 2
+      faction_gate: tusken_pressure_default
+      narrative: "Movement on the high rock above you — a silhouette crests the ridge with a gaffi stick already in hand, then two more. Tusken scouts, watching your line of travel. They have you triangulated before you know they are there."
+      payload:
+        npc_template: tusken_warrior
+        count: [2, 3]
+        tier: tier1
+
+    # ── Tusken war party — deep Jundland incursion ────────────────────────────
+    - id: tusken_jundland_war_party
+      type: hostile
+      weight: 1
+      terrains: [canyon]
+      min_distance_from_edge: 5
+      faction_gate: tusken_pressure_high
+      min_band: 3             # DIFF gate: Contested-Marches+ threat; the deep
+                              # canyon interior is Tusken territory and a war
+                              # party is a lethal encounter for underprepared players
+      narrative: "The canyon walls carry sound oddly — the drumming you hear is not an echo. It is six Tusken Raiders in war-paint, advancing in the canyon pass, gaffi sticks swinging in time. You are between them and wherever they are going."
+      payload:
+        npc_template: tusken_warrior
+        count: [4, 6]
+        tier: tier2
+
+    # ── Dewback herd — stray riding beasts ────────────────────────────────────
+    - id: jundland_dewback_herd
+      type: non_hostile
+      weight: 2
+      terrains: [scrubland, rocky_outcrop]
+      narrative: "A small group of dewbacks crosses the flat ahead, moving between outcrops at their characteristic slow blink and amble. No riders — strays, or perhaps wild stock from a ruined moisture farm. They regard you with heavy-lidded reptilian disinterest and go on."
+      payload:
+        npc_template: dewback
+        count: [2, 4]
+
+    # ── Wrix pack — mountain pack carnivore ───────────────────────────────────
+    - id: wrix_jundland_pack
+      type: hostile
+      weight: 1
+      terrains: [canyon, rocky_outcrop]
+      min_distance_from_edge: 4
+      faction_gate: jundland_fauna_default
+      min_band: 3             # DIFF gate: wrix pack (brawling 5D, STR 3D, count
+                              # 3-5) is a Contested-Marches threat; the howl freeze
+                              # compounds the danger for lower-band players
+      narrative: "The howl rolls down the canyon and everything in you stops for half a second — which is what it was designed to do. By the time the echo fades, the wrix are already on the high ground above you, three of them spread wide, between you and the way out. They have done this before."
+      payload:
+        npc_template: wrix
+        count: [3, 5]
+        tier: tier2
+
+    # ── Shredder bat cave roost — cave mouth ambush ────────────────────────────
+    - id: jundland_cave_bats
+      type: hostile
+      weight: 2
+      terrains: [cave, canyon]
+      min_distance_from_edge: 3
+      min_band: 3             # DIFF gate: 6-12 diving shredder bats (STR+2D+2
+                              # dive-strike) is a severe threat even for equipped
+                              # players; gate to Contested Marches+
+      narrative: "The cave mouth was quiet until it wasn't. A dry, ratcheting pulse of wings — barely a heartbeat of warning — and then the shredder bats come out of the dark in a torrent, eyeless, homing on the sound of you, diving for the arteries with the calm of something that has never once missed."
+      payload:
+        npc_template: shredder_bat
+        count: [6, 12]
+        tier: tier2
+
+    # ── Keejin cave crawler — cave walls ambush ───────────────────────────────
+    # The keejin's vacuum subspecies ranges widely; the standard rock-crevice
+    # variant is equally at home in Jundland canyon caves as Geonosis ravines.
+    - id: jundland_keejin_drop
+      type: non_hostile
+      weight: 2
+      terrains: [cave]
+      narrative: "Something moves on the cave ceiling — then holds still. Then moves again, closer. It freezes the instant your light hits it, but now you can see the shape of it: a keejin, pressed flat against the rock, near-invisible, its clinging feet making no sound. The large variant does not flush. It positions."
+      payload:
+        npc_template: keejin
+        count: [1, 3]
+
+    # ── Jawa salvage wagon — scrubland trader encounter ───────────────────────
+    - id: jawa_salvage_wagon
+      type: trader_caravan
+      weight: 1
+      terrains: [scrubland, rocky_outcrop]
+      min_distance_from_edge: 1
+      narrative: "A rattling, overloaded wagon rounds the boulder field — Jawas, four of them, wedged between salvaged parts on a repulsorcraft that is held together mostly by ambition. They spot you. Every head turns. Bargaining is apparently happening whether you want it to or not."
+      payload:
+        vendor_template: jawa_caravan_inventory
+        duration_minutes: 5
+
+    # ── Krayt dragon bones — anomaly/lore landmark ───────────────────────────
+    - id: krayt_skeleton_site
+      type: anomaly
+      weight: 1
+      terrains: [canyon, rocky_outcrop]
+      min_distance_from_edge: 3
+      narrative: "The bones are enormous — a ribcage like a downed starship hull, bleached and half-buried in the canyon floor. A krayt dragon, old enough that the sand has drifted waist-deep inside the skull. Jawas have been here; the pearl chambers have been picked clean. What remains is still worth looking at."
+      payload:
+        salvage_table: krayt_bones_table
+
+    # ── Moisture farm ruins — anomaly/salvage ─────────────────────────────────
+    - id: ruined_moisture_farm
+      type: anomaly
+      weight: 1
+      terrains: [scrubland, rocky_outcrop]
+      min_distance_from_edge: 1
+      narrative: "A collapsed moisture farm: the vaporators are still standing but the collection system is stripped and the moisture farmer's quarters are open to the sky. The Tusken pressure here must have been too much. There may still be something useful in the wreckage."
+      payload:
+        salvage_table: vaporator_table
+
+    # ── Canyon thermal — weather event ────────────────────────────────────────
+    - id: canyon_thermal_surge
+      type: weather
+      weight: 1
+      terrains: []    # any terrain — thermal surges are region-wide
+      narrative: "The air in the canyon shudders. A thermal surge — superheated air from the deep rock channeled by the canyon walls — sweeps through. For a minute the canyon is an oven. The rock radiates it back."
+      payload:
+        effect: extreme_heat_surge
+        duration_minutes: 10
+        hazard_severity_bonus: 2
+
+# ─── Landmarks ───────────────────────────────────────────────────────────────
+# Named POI anchors inside the Jundland grid. Adjacency minimal —
+# the Jundland is a traverse region, not a hub.
+
+landmarks:
+
+  # ── Beggar's Canyon narrows — the womp-run choke point ───────────────────
+  - id: jundland_beggars_narrows
+    name: "Beggar's Canyon Narrows"
+    coordinates: [10, 8]
+    terrain: canyon
+    short_desc: "The tightest section of the canyon — Stone Needle visible from here."
+    description: |
+      The canyon compresses here to barely three metres across. The walls are
+      polished smooth by generations of speeders threading the racing line;
+      the scrapes at shoulder height tell you how many misjudged. Ahead, a
+      tall column of sandstone catches the light — the Stone Needle, the
+      navigation marker every skyhopper pilot knows. Threading it is the
+      fastest way through. It is also a bottleneck, and the womp rats know
+      every choke point in these walls by name.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+    adjacency:
+      - jundland_krayt_hollow
+
+  # ── Krayt Dragon Hollow — old kill site ──────────────────────────────────
+  - id: jundland_krayt_hollow
+    name: "Krayt Dragon Hollow"
+    coordinates: [14, 12]
+    terrain: rocky_outcrop
+    short_desc: "A canyon bowl floor littered with enormous bleached bones."
+    description: |
+      The canyon opens into a wide bowl, and the floor of it is the skeleton
+      of something enormous. A canyon krayt dragon, dead a generation ago by
+      the look of the bone-weathering. The ribcage alone is large enough for
+      a small speeder to shelter inside. The pearl chambers have been picked
+      clean — Jawas got here first, and years ago — but the bones themselves
+      are intact and the scale of them is arresting.
+
+      Whatever killed it did not leave a sign. That is, perhaps, the detail
+      worth sitting with.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+    adjacency:
+      - jundland_beggars_narrows
+      - jundland_tusken_watch_cliff
+
+  # ── Tusken watch cliff — contested high ground ────────────────────────────
+  - id: jundland_tusken_watch_cliff
+    name: "Tusken Watch Cliff"
+    coordinates: [16, 6]
+    terrain: rocky_outcrop
+    short_desc: "A high promontory with painted hand-marks and a clear line of sight across three canyon approaches."
+    description: |
+      The cliff face is covered in Tusken hand-marks, painted in red ochre
+      that has not faded — this is a site maintained, not abandoned. From
+      the top you can see three canyon approaches converge below. The Tusken
+      Raiders have watched from here for generations; the hand-marks record
+      something, though what the scale and pattern means is not immediately
+      clear.
+
+      Being caught up here by a Tusken war party would be, to put it plainly,
+      a very bad position.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+    adjacency:
+      - jundland_krayt_hollow
+
+# ─── Edges ───────────────────────────────────────────────────────────────────
+# Edge rooms are existing hand-built rooms in tatooine.yaml.
+# jundland_canyon_mouth is the primary western entry to the wastes.
+# jundland_beggars_canyon is a secondary deeper entry.
+
+edges:
+  - room_slug: jundland_canyon_mouth
+    coords: [0, 10]
+    direction_from_room: east
+    direction_back_to_room: west
+    enter_message: |
+      You step between the canyon walls and the rock closes around you.
+      The sound of the settlement falls away behind the first bend.
+      The Jundland opens ahead, all broken stone and shadow.
+    exit_message: |
+      You walk back out between the canyon walls and into the open.
+      The settlement sounds return. The heat feels different — less closed.
+
+  - room_slug: jundland_beggars_canyon
+    coords: [5, 5]
+    direction_from_room: deeper
+    direction_back_to_room: back
+    enter_message: |
+      You push deeper into the canyon system. Beggar's Canyon proper — the
+      racer's corridor — is narrower here. The walls bear old skyhopper
+      scrapes. The Stone Needle is visible far ahead.
+    exit_message: |
+      You pull back out of the canyon depths. The walls widen and the light
+      returns. The racing line markers thin and then disappear.
+
+unwalkable_tiles: []
