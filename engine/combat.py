@@ -586,7 +586,8 @@ class CombatInstance:
                  theatre: str = "ground",
                  wilderness_region_slug: Optional[str] = None,
                  wilderness_x: Optional[int] = None,
-                 wilderness_y: Optional[int] = None):
+                 wilderness_y: Optional[int] = None,
+                 is_simulation: bool = False):
         # Drop D server-side prereq (Field Kit v2 §6): theatre tags this
         # combat instance as 'ground' or 'space' so the client can pick
         # the correct HUD overlay (amber datapad vs cyan cockpit). Today
@@ -647,6 +648,12 @@ class CombatInstance:
         # demonstrates hostile intent and triggers city-guard
         # engagement. Dies with the CombatInstance.
         self.attacks_made: set = set()
+
+        # fun3-sim-safety (2026-06-25): when True this combat occurs inside a
+        # sanctioned simulator room (is_simulation room property). Player
+        # defenders are capped to STUNNED/KO — no Wounded/Incapacitated/Killed.
+        # NPCs take normal damage so the player can win. Fail-safe default False.
+        self.is_simulation: bool = is_simulation
 
     def broadcast_source(self) -> dict:
         """Return a synthetic char-shaped dict for Path B broadcast filtering.
@@ -1820,6 +1827,35 @@ class CombatInstance:
             # wound_clear_at and the rest of the codebase convention.
             target.unconscious_until = time.time() + (stun_duration_minutes * 60.0)
             wound_text = f"Stunned — Unconscious! ({stun_duration_minutes} min)"
+        elif damage_margin > 0 and self.is_simulation and not target_c.is_npc:
+            # fun3-sim-safety (2026-06-25): simulation room — player defender
+            # cannot take a real wound (Wounded / Incapacitated / Killed).
+            # Any hit that would wound is capped to STUNNED/KO so the drill
+            # is recoverable. NPCs (target_c.is_npc) are NOT capped — the
+            # player must be able to defeat them to complete the drill.
+            if damage_margin > 3:
+                # Large hit: KO (mirrors stun_mode KO branch, R&E p83 convention).
+                stun_knocked_out = True
+                target.apply_wound(1)  # STUNNED only
+                duration_roll = roll_d6_pool(DicePool(2, 0))
+                stun_duration_minutes = max(1, duration_roll.total)
+                stun_duration_dice = "2D"
+                stun_duration_unit = "minutes"
+                target.unconscious_until = time.time() + (stun_duration_minutes * 60.0)
+                wound_text = f"[SIM] Stunned — Knocked Out! ({stun_duration_minutes} min)"
+            else:
+                # Small hit: STUNNED (margin 1-3).
+                target.apply_wound(1)  # margin 1 = STUNNED
+                wound_text = "[SIM] Stunned"
+            # code-review BLOCKER fix: apply_wound(STUNNED) ITSELF escalates
+            # wound_level to INCAPACITATED once stun_timers >= STR dice (R&E
+            # p83 stun-KO), which would re-break the sim guarantee after a few
+            # hits. Clamp the PC back to STUNNED — the auto-clearing
+            # unconscious_until timer above is the only "down" in a sim, never
+            # a persisted wound. (stun_timers still accrue for the awake -1D
+            # penalty; they just can't push wound_level past STUNNED here.)
+            if target.wound_level > WoundLevel.STUNNED:
+                target.wound_level = WoundLevel.STUNNED
         elif damage_margin > 0:
             wound = target.apply_wound(damage_margin)
             wound_text = wound.display_name

@@ -92,6 +92,11 @@ rooms:
     properties:
       tutorial_zone: true
       cover_max: 3
+      # drop fun3-sim-safety (2026-06-25): mark this room as a simulation
+      # arena. CombatInstance reads is_simulation and caps player-defender
+      # wound outcomes to STUNNED/KO — the drill is unloseable. NPCs take
+      # normal damage so the player can win. No permanent scars in sim rooms.
+      is_simulation: true
       # drop 25 (2026-06-12): the combat-sim deck is a sanctioned drill
       # arena — the republic_soldier chain's step-2 `combat_won` against
       # the B1 sim droids happens here. The Kamino zone is SECURED (a

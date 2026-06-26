@@ -133,14 +133,25 @@ def _wilderness_anchor_for(char) -> tuple:
     return (None, None, None)
 
 
-def _get_or_create_combat(char, cover_max: int = 0) -> CombatInstance:
+def _get_or_create_combat(char, cover_max: int = 0,
+                          is_simulation: bool = False) -> CombatInstance:
     """W.2.4: get-or-create the combat instance for this character.
+
+    fun3-sim-safety NOTE: a NEW CombatInstance in a room with
+    properties.is_simulation needs is_simulation=True here, or the PC-wound
+    safety cap won't engage. Today the only creation caller is _setup_combat
+    (which reads it from the room props); any FUTURE creation site for a
+    sim-capable room must thread the flag through here too.
 
     Pre-W.2.4 took ``room_id: int``. Now takes a char (dict or Character
     object) so the keying can include wilderness coords. The new
     CombatInstance is seeded with the char's wilderness anchor so
     ``combat.broadcast_source()`` can filter narration to the right
     tile.
+
+    fun3-sim-safety (2026-06-25): is_simulation is read from the room's
+    properties at _setup_combat time and forwarded here. Fail-safe: any
+    lookup error leaves is_simulation=False so real combat applies.
     """
     key = _combat_key_for(char)
     if key not in _active_combats:
@@ -151,6 +162,7 @@ def _get_or_create_combat(char, cover_max: int = 0) -> CombatInstance:
             wilderness_region_slug=slug,
             wilderness_x=wx,
             wilderness_y=wy,
+            is_simulation=is_simulation,
         )
     return _active_combats[key]
 
@@ -1543,50 +1555,53 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
                     await log_action(ctx.db, c.id, NT.COMBAT_DEFEAT,
                                      f"Incapacitated in combat in room {combat.room_id}")
                     # ── Scar system: permanent wound record ──────────
-                    try:
-                        from engine.scars import add_scar
-                        from engine.weapons import get_weapon_registry
-                        _wr = get_weapon_registry()
-                        # Find the attacker who caused this wound
-                        _atk_name = "unknown"
-                        _wpn_name = "Unknown Weapon"
-                        _wpn_type = "blaster"
-                        _atk_skill = "blaster"
-                        for _oc in combat.combatants.values():
-                            if _oc.id == c.id:
-                                continue
-                            for _a in _oc.actions:
-                                if (_a.action_type == ActionType.ATTACK
-                                        and _a.target_id == c.id):
-                                    _atk_name = _oc.name
-                                    _atk_skill = _a.skill or "blaster"
-                                    if _a.weapon_key:
-                                        _w = _wr.get(_a.weapon_key)
-                                        if _w:
-                                            _wpn_name = _w.name
-                                            _wpn_type = _w.weapon_type
-                                    break
-                        _room = await ctx.db.get_room(combat.room_id)
-                        _loc_name = (_room or {}).get("name", "unknown")
-                        _wl_str = ("mortally_wounded"
-                                   if wl >= _WLN.MORTALLY_WOUNDED.value
-                                   else "incapacitated")
-                        _scar = add_scar(
-                            sess.character, _wl_str,
-                            _wpn_name, _wpn_type, _atk_skill,
-                            _atk_name, _loc_name,
-                        )
-                        await ctx.db.save_character(
-                            c.id, attributes=sess.character["attributes"]
-                        )
-                        await sess.send_line(
-                            f"  \033[1;33m[SCAR]\033[0m"
-                            f" {_scar['description']}."
-                            f" This wound will leave a mark."
-                        )
-                    except Exception as _se:
-                        log.warning("Scar hook error for char %s: %s",
-                                    c.id, _se)
+                    # fun3-sim-safety (2026-06-25): no permanent scars in
+                    # simulation rooms — the drill is non-lethal by design.
+                    if not getattr(combat, "is_simulation", False):
+                        try:
+                            from engine.scars import add_scar
+                            from engine.weapons import get_weapon_registry
+                            _wr = get_weapon_registry()
+                            # Find the attacker who caused this wound
+                            _atk_name = "unknown"
+                            _wpn_name = "Unknown Weapon"
+                            _wpn_type = "blaster"
+                            _atk_skill = "blaster"
+                            for _oc in combat.combatants.values():
+                                if _oc.id == c.id:
+                                    continue
+                                for _a in _oc.actions:
+                                    if (_a.action_type == ActionType.ATTACK
+                                            and _a.target_id == c.id):
+                                        _atk_name = _oc.name
+                                        _atk_skill = _a.skill or "blaster"
+                                        if _a.weapon_key:
+                                            _w = _wr.get(_a.weapon_key)
+                                            if _w:
+                                                _wpn_name = _w.name
+                                                _wpn_type = _w.weapon_type
+                                        break
+                            _room = await ctx.db.get_room(combat.room_id)
+                            _loc_name = (_room or {}).get("name", "unknown")
+                            _wl_str = ("mortally_wounded"
+                                       if wl >= _WLN.MORTALLY_WOUNDED.value
+                                       else "incapacitated")
+                            _scar = add_scar(
+                                sess.character, _wl_str,
+                                _wpn_name, _wpn_type, _atk_skill,
+                                _atk_name, _loc_name,
+                            )
+                            await ctx.db.save_character(
+                                c.id, attributes=sess.character["attributes"]
+                            )
+                            await sess.send_line(
+                                f"  \033[1;33m[SCAR]\033[0m"
+                                f" {_scar['description']}."
+                                f" This wound will leave a mark."
+                            )
+                        except Exception as _se:
+                            log.warning("Scar hook error for char %s: %s",
+                                        c.id, _se)
                 elif wl == 0:
                     # Check if any opponent was beaten
                     beaten = [
@@ -2260,12 +2275,22 @@ class AttackCommand(BaseCommand):
         """Get/create combat for room, add both combatants.
         Returns (combat, new_combat_flag) or (None, False) on failure."""
         cover_max = 0
+        is_simulation = False
         # W.2.4: combat is keyed by (room_id, wx, wy); the cover_max
         # lookup is per-room (cover is a room property), but the
         # combat-existence check uses the tile-aware key.
         if _combat_key_for(char) not in _active_combats:
             cover_max = await ctx.db.get_room_property(room_id, "cover_max", 0)
-        combat = _get_or_create_combat(char, cover_max=cover_max)
+            # fun3-sim-safety (2026-06-25): read is_simulation room flag.
+            # Fail-safe: any DB error leaves is_simulation=False (normal combat).
+            try:
+                is_simulation = bool(
+                    await ctx.db.get_room_property(room_id, "is_simulation", False)
+                )
+            except Exception:
+                is_simulation = False
+        combat = _get_or_create_combat(char, cover_max=cover_max,
+                                       is_simulation=is_simulation)
         new_combat = combat.round_num == 0
 
         # v22 S15: use cached Character object when available
