@@ -141,7 +141,26 @@ Above the standard event pool, the Director tracks the **galaxy-wide average** o
 | Underworld dominion | Hutt influence dominates (~80 avg) | Neither Republic nor Confederacy writ runs here |
 | Power vacuum | Republic influence collapses (~below 12 avg) | Republic authority withdraws; the streets answer to no banner |
 
-Milestones are rare — each fires once when the tide turns, and they're driven by accumulated player and NPC activity across the whole galaxy. The deepest dark-side and Sith beats don't surface as a tracked number; they come through the Director's narration when the moment is right ("the dark side stirs — and most who notice are wrong about what they noticed").
+Milestones are rare — each fires once when the tide turns, and they're driven by accumulated player and NPC activity across the whole galaxy. The deepest dark-side and Sith beats don't surface as a tracked number; they come through the Director's narration when the moment is right ("the dark side stirs — and most who notice are wrong about what they noticed"). But one dark-side beat *does* surface — with a meter and a fight attached. That's the **cult uprising**, below.
+
+### Dark-side cult uprisings — a beat you can fight
+
+Apart from the standard event pool, the Director occasionally posts a **cult uprising**: a named dark-side cult rising in a zone, with a visible **menace meter** that climbs on a clock. This is not a take-it-or-leave-it event — it has a win/lose state. The community has until a deadline to break the cult; if its menace reaches full strength first, the cult wins and the Director logs the loss to the war's record. Only one uprising runs at a time, with a breather between, so each stays an event.
+
+You see and join an uprising through one command:
+
+```
+rally            — the threat board: which cult, where, the menace meter, the
+                   win/lose state, and how to help
+rally strike     — make your move against it (alias: front)
+```
+
+A cult uprising takes one of two shapes, and `rally` tells you which:
+
+- **Staged operations.** The Cult of the Hollow Sun (Tatooine's deep desert), the Ember Court (the Geonosis wastes), and the Ashen Hand (the Coruscant underworld) run as real location scenarios. Here `rally` is your **locator** — it names the live **site** and the current stage. You travel to that site and `investigate` it to fight through the operation stage by stage: assault the cult's stronghold (waves of enemies), then work the objective (slice a terminal, turn an informant), then bring down the leader. `rally strike` from across the galaxy just points you to the site — the gameplay is *there*, hands-on, not a slogan you repeat from afar.
+- **Galaxy-wide menace cults.** The Drowned Choir (Nar Shaddaa) and the Iron Veil (Kuat) are fought as a coordinated push from wherever you are. `rally strike` records your contribution — the game rolls your **best pool across playstyles** (a soldier swings, a slicer disrupts their operations, a face rallies civilians against them, a Jedi pushes back the dark side), so every kind of character can help. Each character lands one counted strike per ~10 minutes, and the meter moves on the **community's** total effort — a win is a group achievement, never one person macroing a counter to zero.
+
+**The reward is reputation, not credits.** Break a cult and everyone who helped gains **Republic reputation** — more for a larger share of the effort (roughly 3 for a single strike, up to 15 for the largest contributor) — and the players who carried the most of the fight earn a commemorative status flag marking that they helped rout that cult. There are no credit rewards here; this is a reputation-and-roleplay beat, paid in the same Republic standing the Director watches (§4). A loss costs you nothing — an uprising is an opportunity, never a penalty.
 
 ---
 
@@ -290,6 +309,7 @@ The Director runs behind the scenes, but a few commands give you visibility into
 | `+bounties` (also `bboard`) | Show currently posted bounties (the Bounty Hunters' Guild board) |
 | `+reputation` (also `+rep`) | Show your standing with each faction — the score the Director targets content by |
 | `+weather` (also `+time`) | Show local conditions, including any active weather world event |
+| `rally` (also `+rally`, `front`) | Show the active dark-side cult uprising — the menace board, the site to hit, and how to strike back (§3) |
 | `look` | The room itself shows the zone's current security tier |
 
 There are no commands to influence the Director directly — no `+petition`, no `+request-event`, no `+ask-director`. The world responds to what you do, not what you ask. (Note: `+events` is the player **social calendar** for scheduled scenes and plots — it is *not* the world-event feed; Director world events announce themselves when they fire and surface on the web client and via `+weather`/`+news`.)
