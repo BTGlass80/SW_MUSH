@@ -525,3 +525,121 @@ class TestStep1SoftLockTeaching:
             "prereqs_met flag — Guide_16 §4 Step 1's 'the panel shows a "
             "checklist and locks the TYPE chip' teaching is unbacked"
         )
+
+
+# ── §15 Mid-Game Questlines — the `mastery` command ───────────────────────────
+# The `mastery` verb (parser/questline_commands.py) and the mid-game questline
+# system it drives — the T5 master-trainer trials AND the T3.24 generalized
+# freelance side-jobs — were LIVE but documented NOWHERE in the guide corpus: a
+# whole player command invisible to every guide, the exact test-invisible drift
+# this re-verify lane exists to catch.  §15 now teaches it.  These pin the
+# command surface, the questline DATA the prose cites, and the one-at-a-time
+# rule, so a data/engine change that desyncs the section fails loudly here.
+
+# chain_id -> (chain_name, step-1 NPC) for the five shipped freelance questlines.
+_FREELANCE_QUESTLINES = {
+    "nar_freight_ghost_shipment": ("The Ghost Shipment", "Yelza Korrin"),
+    "mos_eisley_crooked_wheel": ("The Crooked Wheel", "Dorae Vint"),
+    "coruscant_lower_lost_courier": ("The Lost Courier", "Sashi Renko"),
+    "kuat_ring_skimmed_line": ("The Skimmed Line", "Dav Nuro"),
+    "jundland_dust_sick": ("The Dust-Sick", "Soree Bann"),
+}
+
+
+class TestMasteryQuestlineTeaching:
+    def test_mastery_resolves_against_registry(self, reg):
+        assert reg.get("mastery") is not None, (
+            "Guide_16 §15 teaches `mastery`, but it no longer resolves against "
+            "the live registry"
+        )
+
+    def test_mastery_subcommands_exist(self):
+        """§15 documents start / status / abandon."""
+        from parser.questline_commands import _SUBCOMMANDS
+        assert {"start", "status", "abandon"} <= _SUBCOMMANDS, (
+            "parser/questline_commands._SUBCOMMANDS dropped a verb Guide_16 §15 "
+            "documents (start/status/abandon)"
+        )
+
+    def test_guide_documents_the_mastery_surface(self, guide_text):
+        for tok in ("`mastery`", "mastery start", "mastery status",
+                    "mastery abandon"):
+            assert tok in guide_text, (
+                f"Guide_16 §15 should document the `{tok}` surface"
+            )
+        # The skill-check step reuse is the load-bearing 'one command serves
+        # both' teaching.
+        assert "chain attempt" in guide_text
+
+    def test_guide_names_the_freelance_questlines(self, guide_text):
+        for cid, (name, npc) in _FREELANCE_QUESTLINES.items():
+            assert name in guide_text, (
+                f"Guide_16 §15 lists the freelance questlines but is missing "
+                f"{name!r}"
+            )
+            assert npc in guide_text, (
+                f"Guide_16 §15 names the start-NPC for each freelance questline "
+                f"but is missing {npc!r}"
+            )
+
+    def test_freelance_questlines_exist_with_documented_shape(self,
+                                                              chains_by_id):
+        """The §15 table is only true while the data matches: kind=questline,
+        chargen_complete-gated (open to anyone), 300-cr payout, the named
+        start-NPC."""
+        for cid, (name, npc) in _FREELANCE_QUESTLINES.items():
+            assert cid in chains_by_id, (
+                f"Guide_16 §15 documents questline {cid!r} but it vanished "
+                f"from chains.yaml"
+            )
+            c = chains_by_id[cid]
+            assert c.get("kind") == "questline", (
+                f"{cid} is no longer kind:questline — Guide_16 §15 is stale")
+            assert c["chain_name"] == name, (
+                f"{cid} chain_name drifted from {name!r}")
+            assert c["steps"][0]["npc"] == npc, (
+                f"{cid} step-1 NPC drifted from {npc!r} — Guide_16 §15's "
+                f"'talk to' column is stale")
+            assert "chargen_complete" in c["prerequisites"], (
+                f"{cid} gained a prerequisite beyond chargen_complete — "
+                f"Guide_16 §15 calls it 'open to anyone'")
+            assert c["graduation"]["credits"] == 300, (
+                f"{cid} graduation credits drifted from 300 — Guide_16 §15 "
+                f"cites ~300 cr for freelance jobs")
+
+    def test_master_trainer_trial_pays_more(self, chains_by_id):
+        """§15 contrasts the T5 master-trainer trials (~500 cr) with the
+        freelance side-jobs (~300 cr).  Pin a representative master questline."""
+        mh = chains_by_id["master_jedi_lightsaber"]
+        assert mh.get("kind") == "questline"
+        assert mh["graduation"]["credits"] == 500, (
+            "Guide_16 §15 cites ~500 cr for master-trainer trials")
+
+    def test_guide_cross_references_crafting_for_t5_gate(self, guide_text):
+        assert "Guide #7" in guide_text, (
+            "Guide_16 §15 should point crafters at Guide #7 for the full "
+            "tier-5 schematic gate (questline + reputation)")
+
+    def test_one_questline_at_a_time_is_enforced(self):
+        """§15's 'you run one at a time' claim is only true while
+        start_questline rejects a second active questline."""
+        import inspect
+        from engine.chain_events import start_questline
+        src = inspect.getsource(start_questline)
+        assert "already on a questline" in src, (
+            "engine/chain_events.start_questline no longer enforces one "
+            "questline at a time — Guide_16 §15's 'one at a time' claim is stale")
+
+    def test_in_game_help_no_longer_master_trainer_only(self):
+        """The same drift §15 fixes lived in the command's own help: it called
+        questlines 'end-game tasks given by master trainers in dangerous zones'
+        — now also wrong (the freelance side-jobs are open and run in cities).
+        Pin the corrected help so it can't regress to the trainer-only story."""
+        from parser.questline_commands import QuestCommand
+        help_text = QuestCommand().help_text
+        assert "end-game tasks given by master trainers" not in help_text, (
+            "parser/questline_commands help text still frames questlines as "
+            "trainer-only — it now also serves open freelance side-jobs")
+        assert "freelance" in help_text.lower(), (
+            "the `mastery` help text should mention the freelance side-jobs "
+            "now that the verb serves both flavors")

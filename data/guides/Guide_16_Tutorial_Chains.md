@@ -9,7 +9,7 @@ tags: ["tutorial", "onboarding", "new player", "chain", "first character"]
 
 **Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
-**Guide Version 1.3**
+**Guide Version 1.4**
 
 ---
 
@@ -217,6 +217,7 @@ From the drop room, you're in the real game. You can:
 
 - **Talk to NPCs** in your starting area. They have actual dialogue and missions, not chain content.
 - **Pull a mission** from your faction's mission board (`+missions republic`, `+missions cis`, `+missions independent`, etc.).
+- **Pick up a mid-game questline.** Some NPCs offer a longer, structured side-arc — a freelance side-job, or a master trainer's tier-5 crafting trial. They run on the same engine your chain did. Type `mastery` near a questline-giver to see what's on offer (see §15).
 - **Visit your faction's quarters** (if your rank grants quarters — see Guide #13 — Housing).
 - **Look at other players' characters** with `+who` and `+finger`.
 - **Begin RP scenes** with whoever's around.
@@ -334,13 +335,58 @@ By the end of that first hour, you've completed your chargen → chain → first
 
 ---
 
-## 15. Player Commands Quick Reference
+## 15. Beyond Onboarding — Mid-Game Questlines (`mastery`)
+
+Your tutorial chain is a one-time, chargen-assigned arc. Once you graduate, the same chain *engine* powers a second, opt-in layer of content: **mid-game questlines**, which you start deliberately rather than being handed at creation. You interact with them through the **`mastery`** command.
+
+A questline looks and feels like a chain — an opening NPC, four-to-six steps, objectives that complete as you talk, fight, travel, and roll skills, and a graduation payout at the end. Two things differ:
+
+1. **You choose to start it.** Nothing assigns you a questline. You find one by talking to the right NPC out in the world, then `mastery start <id>` to begin.
+2. **You run one at a time.** A questline rides alongside the rest of your play. Finish it or `mastery abandon` it before you can start another. (Your onboarding chain and your active questline live in separate slots, so taking a questline never touches your chain history.)
+
+### Two kinds of questline
+
+**Freelance side-jobs.** Open to anyone — no faction, no reputation, no prerequisite beyond having a finished character. They run in ordinary city rooms, pay a modest reward (around **300 credits** plus a little Independent standing and an achievement), and exist to give every character somewhere purposeful to go when the mission board feels stale. Five ship at launch:
+
+| Questline | Start here | Talk to | The job |
+|---|---|---|---|
+| **The Ghost Shipment** | Burning Deck Cantina, Nar Shaddaa | Yelza Korrin | Track a freight broker's vanishing cargo from the docks down into the Undercity. |
+| **The Crooked Wheel** | Gep's Grill, Mos Eisley | Dorae Vint | Break up a rigged operation skimming a market vendor. |
+| **The Lost Courier** | Crystal Jewel Cantina, Coruscant underworld | Sashi Renko | Find a courier who went dark carrying a package that matters. |
+| **The Skimmed Line** | Kuat Ring Cantina | Dav Nuro | Trace who's bleeding a shipping line on the Kuat ring. |
+| **The Dust-Sick** | Outskirts Scavenger Market, Tatooine | Soree Bann | Run down the source of a sickness spreading through a scavenger camp. |
+
+**Master-trainer trials.** The other flavor is the **tier-5 crafting unlock**. A master trainer hidden out in a dangerous zone offers a five-step trial; completing it is one of the two gates on that trainer's tier-5 schematics (the other is faction reputation — see Guide #7 §10 — Crafting). These pay more (around **500 credits** plus faction standing) and exist for crafters chasing the top of a category. You take one the same way: talk to the trainer, then `mastery start <id>`.
+
+### The `mastery` command
+
+```
+mastery              Show your active questline (step + objective) — or, if you
+                     have none, any questline offered by an NPC in this room.
+mastery start <id>   Begin an offered questline (validates its requirements).
+mastery status       Detailed status of your active questline.
+mastery abandon      Give up your active questline (you can re-start it later).
+```
+
+Bare `mastery` is the everyday view: it tells you where you are in your current questline, or — when you're standing next to someone with work — what's on offer and the exact `mastery start <id>` line to take it. There is no separate "advance" verb: questline steps complete through the **same actions a chain uses** — talk to the named NPC, win the fight, reach the room. A step that wants a die roll shows `Completes when: skill_check_passed`, and you roll it with **`chain attempt`** — the very command the tutorial taught you (it reads whichever arc owns the active skill-check step, so one command serves both).
+
+### How you find one
+
+You don't go to a quest board — there isn't one. **Talk to NPCs.** When you `talk` to the start-NPC of a questline you're eligible for and don't already have one running, the conversation surfaces the offer, and `mastery` in that room lists it with its id. Freelance brokers hang around cantinas and markets; master trainers are out in the wilderness and the lawless zones. If `mastery` says you have no active questline and nothing is offered here, it simply means there's no questline-giver in this room — keep exploring, and check `mastery` whenever an NPC's dialogue hints at a longer job.
+
+---
+
+## 16. Player Commands Quick Reference
 
 | Command | What it does |
 |---|---|
 | (chargen) pick a chain by number | Select your tutorial chain during character creation (alts may also skip) |
 | `chain` (or `chain status`) | Show current chain progress |
-| `chain attempt` | Trigger a skill-check step's roll |
+| `chain attempt` | Trigger a skill-check step's roll (works for chains *and* questlines) |
+| `mastery` | Show your active mid-game questline, or offers from an NPC here (§15) |
+| `mastery start <id>` | Begin an offered questline |
+| `mastery status` | Detailed status of your active questline |
+| `mastery abandon` | Abandon your active questline (re-startable later) |
 | `talk <NPC>` | Talk to an NPC (advances NPC-completion steps) |
 | `examine <object>` | Examine an in-room object (advances examine-completion steps) |
 | `look` | Re-read the current room — its description, **exits**, and who's here |
@@ -358,7 +404,7 @@ By the end of that first hour, you've completed your chargen → chain → first
 
 ---
 
-## 16. A Final Word
+## 17. A Final Word
 
 The chain system exists because the moment between "I confirmed a character" and "I'm in the live world" is where most MUSH onboardings break down. You're dropped into a cantina with no idea what to do; nobody talks to you because they don't know who you are; you log off after twenty minutes of wandering.
 

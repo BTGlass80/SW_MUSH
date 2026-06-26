@@ -60,11 +60,12 @@ class QuestCommand(BaseCommand):
         "  mastery abandon      Abandon your active questline (you can "
         "re-start it later).\n"
         "\n"
-        "Mastery questlines are end-game tasks given by master trainers "
-        "in dangerous\nzones; completing one unlocks that trainer's "
-        "tier-5 schematics. Talk to a\nmaster trainer to be offered one. "
-        "Steps advance as you act (talk, fight,\ntravel); skill-check "
-        "steps use `chain attempt`."
+        "Questlines are opt-in mid-game arcs you start deliberately. Two "
+        "kinds:\nfreelance side-jobs (open to anyone — talk to a broker in "
+        "a cantina or\nmarket) and master-trainer trials (talk to a trainer "
+        "in a dangerous zone;\ncompleting one helps unlock that trainer's "
+        "tier-5 schematics). Steps\nadvance as you act (talk, fight, travel); "
+        "skill-check steps use `chain\nattempt`."
     )
     usage = "mastery [start <id> | status | abandon]"
 
@@ -171,8 +172,9 @@ class QuestCommand(BaseCommand):
                     )
         else:
             await ctx.session.send_line(
-                "  \033[2mTalk to a master trainer in a dangerous "
-                "zone to be offered one.\033[0m"
+                "  \033[2mTalk to NPCs to find one — a cantina or market "
+                "broker for a freelance job, or a master trainer in a "
+                "dangerous zone for a tier-5 craft.\033[0m"
             )
 
     async def _offers_in_room(self, ctx, char, get_questline_offer) -> list:
