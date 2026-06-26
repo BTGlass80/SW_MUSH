@@ -429,3 +429,99 @@ class TestNLConfusionRedirectTeaching:
             "— Guide_16 §12's 'your current objective + the exact command to "
             "type next' promise is unbacked"
         )
+
+
+class TestStep1SoftLockTeaching:
+    """§4 Step 1 reconciled with the FUN2 soft-lock visibility (`5ef1d17`) and
+    the multi-word-talk fix (`cfc3477`).  Republic Soldier step 1 gates
+    `talk Major Tarrn` behind `requires_first: [look, +sheet]`.  That gate USED
+    to fail silently — a newcomer who typed the panel's spotlighted
+    `talk Major Tarrn` first got stranded with no feedback (a fun re-run
+    "kills-it").  The fix made the gate VISIBLE (onboarding-panel checklist +
+    locked TYPE chip + a spoken "isn't ready for you yet" hint), and made the
+    full multi-word name resolve.  These pin the guide to that live behavior so
+    re-arming the silent gate (or the guide drifting back to `talk Tarrn`-only)
+    fails loudly here."""
+
+    def test_guide_teaches_the_visible_prereq_gate(self, guide_text):
+        # The spoken hint is the player-facing recovery; quote it so a stuck
+        # newcomer recognizes it.
+        assert "isn't ready for you yet" in guide_text, (
+            "Guide_16 §4 Step 1 should quote Major Tarrn's spoken prereq hint "
+            "(\"isn't ready for you yet\") so a player who talks too early knows "
+            "the gate is feedback, not a dead end"
+        )
+        lowered = guide_text.lower()
+        assert "checklist" in lowered, (
+            "Guide_16 §4 Step 1 should teach the onboarding-panel prereq "
+            "checklist that ticks off look/+sheet — the visible half of the "
+            "soft-lock fix"
+        )
+
+    def test_guide_teaches_the_multiword_talk(self, guide_text):
+        # The literal panel command is the full name; the guide must teach it
+        # (not just `talk Tarrn`) now that the full arg resolves.
+        assert "talk Major Tarrn" in guide_text, (
+            "Guide_16 §4 Step 1 should teach the literal `talk Major Tarrn` "
+            "the onboarding panel spotlights (the multi-word name now resolves "
+            "to the NPC) — not only the abbreviated `talk Tarrn`"
+        )
+
+    def test_step1_has_the_gating_requires_first(self, chains_by_id):
+        """The teaching is only true while step 1 actually gates the talk on
+        look + +sheet."""
+        chain = chains_by_id["republic_soldier"]
+        step1 = chain["steps"][0]
+        rf = (step1.get("completion") or {}).get("requires_first")
+        assert isinstance(rf, list) and rf, (
+            "republic_soldier step 1 lost its requires_first gate — Guide_16 §4 "
+            "Step 1's 'the order is enforced' teaching is now stale"
+        )
+        cmds = {(p.get("command") or "").lower() for p in rf}
+        assert {"look", "+sheet"} <= cmds, (
+            "republic_soldier step 1's requires_first no longer gates on "
+            "look + +sheet — Guide_16 §4 Step 1 cites exactly those two"
+        )
+
+    def test_step1_command_to_type_is_the_full_name(self, chains_by_id):
+        chain = chains_by_id["republic_soldier"]
+        step1 = chain["steps"][0]
+        assert step1.get("command_to_type") == "talk Major Tarrn", (
+            "republic_soldier step 1's command_to_type drifted from "
+            "'talk Major Tarrn' — Guide_16 §4 Step 1 teaches that literal string"
+        )
+
+    def test_prereq_hint_emits_the_spoken_line(self):
+        """The guide quotes Major Tarrn's spoken hint verbatim; it only exists
+        while npe_prereq_hint emits the 'isn't ready for you yet' line."""
+        import inspect
+        from engine.chain_events import npe_prereq_hint
+        src = inspect.getsource(npe_prereq_hint)
+        assert "isn't ready for you yet" in src, (
+            "engine/chain_events.npe_prereq_hint dropped the 'isn't ready for "
+            "you yet' message — Guide_16 §4 Step 1 quotes it"
+        )
+
+    def test_talk_command_speaks_the_prereq_hint(self):
+        """The hint reaches the player only because TalkCommand sends it when a
+        talk to the active step's NPC doesn't advance the chain."""
+        import inspect
+        from parser import npc_commands
+        src = inspect.getsource(npc_commands)
+        assert "npe_prereq_hint" in src, (
+            "parser/npc_commands no longer speaks npe_prereq_hint on a "
+            "non-advancing tutorial talk — Guide_16 §4 Step 1's 'he names what "
+            "you still owe' teaching is unbacked"
+        )
+
+    def test_onboarding_panel_emits_the_checklist(self):
+        """The panel checklist + locked TYPE chip are the visible half; they
+        ride on build_onboarding_state's prereqs / prereqs_met keys."""
+        import inspect
+        from engine.chain_events import build_onboarding_state
+        src = inspect.getsource(build_onboarding_state)
+        assert '"prereqs"' in src and '"prereqs_met"' in src, (
+            "build_onboarding_state no longer emits the prereqs checklist / "
+            "prereqs_met flag — Guide_16 §4 Step 1's 'the panel shows a "
+            "checklist and locks the TYPE chip' teaching is unbacked"
+        )

@@ -9,7 +9,7 @@ tags: ["tutorial", "onboarding", "new player", "chain", "first character"]
 
 **Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
-**Guide Version 1.2**
+**Guide Version 1.3**
 
 ---
 
@@ -93,7 +93,7 @@ If you have a clearer character idea (you want to be a Clone Trooper / Republic 
 
 A concrete example. The Republic Soldier chain takes you from Tipoca City on Kamino to Coruscant Works, ready to take Republic missions. Here's the arc, step by step.
 
-**Step 1 — Reporting In (Tipoca Briefing Room).** A Republic officer named Major Tarrn meets you in a cold white briefing room. He tells you to look around, check your sheet with `+sheet`, then come back to him. *Commands taught: `look`, `+sheet`.* When you've done both and `talk Tarrn`, the major confirms your records and tells you the combat sim is next.
+**Step 1 — Reporting In (Tipoca Briefing Room).** A Republic officer named Major Tarrn meets you in a cold white briefing room. He tells you to look around and check your sheet with `+sheet` before reporting in. *Commands taught: `look`, `+sheet`.* That order is enforced — and the game makes the gate visible instead of leaving you to guess. The onboarding panel shows a short checklist that ticks off `look` and `+sheet` as you do them, and keeps the spotlighted **`talk Major Tarrn`** command locked until both are done. If you jump straight to talking — the most natural first instinct — Major Tarrn doesn't stonewall you in silence; he names exactly what you still owe: *"Major Tarrn isn't ready for you yet — do `look`, `+sheet` first, then talk again."* Once both are done, `talk Major Tarrn` reports you in (type the full name — you don't have to shorten it to `talk Tarrn`), the major confirms your records, and he tells you the combat sim is next.
 
 **Step 2 — Combat Sim Drill (Tipoca Combat Sim).** A Clone Trooper sim operator briefs you on the drill: two simulated B1 battle droids, weapons set to non-lethal for them, live-fire for you. *Commands taught: `attack`, `dodge`.* You fight the droids; the engine drives you through declaration → resolution → posing. When the droids are down, the operator clears you for the next stage. **The sim is a true safe sandbox** — a droid hit can stun or briefly knock you out, but the simulation caps it there: you can't be wounded, scarred, or killed in the drill. The droids still take real damage, so swing freely, learn the rhythm, and finish the fight.
 
