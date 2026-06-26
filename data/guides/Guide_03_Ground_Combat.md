@@ -87,6 +87,14 @@ When the declaration phase opens, the game waits for every combatant to declare 
 | `flee` | Attempt to escape | Opposed Running roll vs. fastest opponent |
 | `pass` | Do nothing | Generates a generic auto-pose |
 
+**Picking a target when names collide.** Type the target's name after `attack`. If your word matches only one thing in the room, that's who you hit. If it matches *more than one* — the combat sim seeds two identical practice droids, so `attack droid` matches **both** B1 Sim Droid Alpha and B1 Sim Droid Bravo — the game won't guess for you. It stops, asks which one, and tells you exactly what to type:
+
+```
+Which one? Be more specific — try: 'Alpha', 'Bravo'.
+```
+
+Each quoted word is the shortest unique token the parser will accept, so `attack alpha` locks onto the first droid and `attack bravo` the second. When two targets share *every* word in their names, the game falls back to listing the full names instead — type enough of one to make it unambiguous. You only ever see this prompt when the name is genuinely ambiguous; a unique target name resolves on the first try. This is the most common newcomer snag in the combat sim — the drill puts two identical droids in front of you on purpose — so remember: the prompt is not a dead end, it's handing you the word to type.
+
 **Multi-action declarations.** You can declare more than one action in a single round — attack and dodge in the same turn, for instance. Every extra action imposes **−1D on every roll you make that round**, including the first one. A character with 4D in Blaster declaring "attack + dodge" rolls both at 3D. Three actions is 2D for everything. The penalty doesn't favor the original action; it spreads evenly.
 
 This is the central tradeoff of every combat round. More actions means more things you can do but more chances to whiff. Skilled combat is largely about knowing when to commit to one action with full dice and when to spread thin. Against B1 Battle Droids (low individual stats but they come in numbers), single-attack rounds are usually correct — your full-dice attack one-shots them. Against a Republic Commando or a Trandoshan brute with 6D Brawling, the calculation changes — you may need to dodge AND attack to survive, even at the dice penalty.
