@@ -77,7 +77,7 @@ When the declaration phase opens, the game waits for every combatant to declare 
 
 | Command | Action | Notes |
 |---|---|---|
-| `attack <target>` | Attack a specific target | Optional: `attack droid with melee combat` |
+| `attack [target]` | Attack a target — bare `attack` auto-targets the nearest hostile | Optional: `attack droid with melee combat` |
 | `dodge` | Normal dodge | Counts as an action; multi-action penalty applies |
 | `fulldodge` | Full dodge | Entire round on defense; no other actions allowed |
 | `parry` | Normal melee parry | Counts as an action |
@@ -87,7 +87,9 @@ When the declaration phase opens, the game waits for every combatant to declare 
 | `flee` | Attempt to escape | Opposed Running roll vs. fastest opponent |
 | `pass` | Do nothing | Generates a generic auto-pose |
 
-**Picking a target when names collide.** Type the target's name after `attack`. If your word matches only one thing in the room, that's who you hit. If it matches *more than one* — the combat sim seeds two identical practice droids, so `attack droid` matches **both** B1 Sim Droid Alpha and B1 Sim Droid Bravo — the game won't guess for you. It stops, asks which one, and tells you exactly what to type:
+**You don't have to name a target.** Typing a bare `attack` — no target at all — picks the nearest hostile in the room for you. This is exactly the tutorial panel's literal hint: when it tells you to type `attack`, that single word is all you need. The game scans the room for anything flagged hostile (the combat-sim practice droids, an aggressive NPC, a creature that attacks on sight) and swings at the first one. If there's *nothing* hostile in the room, `attack` shows you the usage instead of guessing — you only ever auto-target a real threat, never a bystander, a friendly NPC, or another player. Name a target explicitly when you want to choose *which* enemy to hit (see below) or to attack something that isn't flagged hostile.
+
+**Picking a target when names collide.** When you do name a target, type its name after `attack`. If your word matches only one thing in the room, that's who you hit. If it matches *more than one* — the combat sim seeds two identical practice droids, so `attack droid` matches **both** B1 Sim Droid Alpha and B1 Sim Droid Bravo — the game won't guess for you. It stops, asks which one, and tells you exactly what to type:
 
 ```
 Which one? Be more specific — try: 'Alpha', 'Bravo'.
