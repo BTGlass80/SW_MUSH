@@ -553,7 +553,8 @@ class CommandParser:
                             if _st.get("command_to_type"):
                                 _lines.append("  Try:  " + _st["command_to_type"])
                     except Exception:
-                        pass
+                        log.debug("NL-redirect onboarding lookup failed",
+                                  exc_info=True)
                     _lines.append("  Type  help  for the field guides, or  look "
                                   "to get your bearings. (Ctrl/Cmd+K searches commands.)")
                     for _ln in _lines:
