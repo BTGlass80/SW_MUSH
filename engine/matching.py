@@ -71,9 +71,29 @@ class Match:
 
     def error_message(self, search_term: str) -> str:
         if self.result == MatchResult.AMBIGUOUS:
-            names = ", ".join(c.name for c in self.ambiguous_options[:5])
-            return f"Which one? (matches: {names})"
+            opts = self.ambiguous_options[:5]
+            # ACTIONABLE disambiguation (fun-pass tier-4 fix): instead of just
+            # listing display names ("B1 Sim Droid Alpha, Bravo"), show the
+            # distinguishing TOKEN the parser will accept ('alpha'/'bravo') so
+            # the player knows HOW to choose — the old message stranded
+            # newcomers who didn't realise they could type the unique word.
+            hints = [self._distinguishing_token(c, opts) for c in opts]
+            tokens = ", ".join(f"'{h}'" for h in hints)
+            return f"Which one? Be more specific — try: {tokens}."
         return f"You don't see '{search_term}' here."
+
+    @staticmethod
+    def _distinguishing_token(cand: "MatchCandidate",
+                              options: list) -> str:
+        """The shortest word in cand.name that no OTHER option's name contains
+        (case-insensitive) — the unique token the player can type to pick it.
+        Falls back to the full name when names fully overlap."""
+        others = [o for o in options if o is not cand]
+        for word in cand.name.split():
+            w = word.lower()
+            if w and all(w not in (o.name or "").lower() for o in others):
+                return word
+        return cand.name
 
 
 def match_one(search: str, candidates: list[MatchCandidate]) -> Match:
