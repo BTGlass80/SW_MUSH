@@ -499,3 +499,22 @@ achievements:
     icon: "🏺"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "coruscant_petrax_false_provenance"}
+
+  # T3.24 generalized-questline arc (2026-06-26): the SEVENTH accessible
+  # (non-t5, non-tutorial) questline, a RETURN to Nar Shaddaa on a different
+  # face of the moon (the upper docks + freight registry vs the Ghost
+  # Shipment's cantina + Undercity; reuses none of its rooms). Earned by
+  # breaking a port factor's forged-paperwork ship-seizure racket — proving a
+  # forged derelict-notice a fake, filing an emergency hold the factor can't
+  # quash, and turning back the seizure crew — on a seventh distinct skill
+  # spread (forgery + bureaucracy). Same lower-tier band as the Ghost Shipment /
+  # Crooked Wheel / Lost Courier / Skimmed Line / Dust-Sick / False Provenance
+  # (cp_reward 3 vs the t5 trainer chains' 5): open freelance side-content, not
+  # a rep-gated trial.
+  - key: forged_notice_cleared
+    name: "The Forged Notice"
+    description: "Read a forged derelict-notice off a freighter's hull for the fake it was, beat a crooked port factor at his own registry desk with the hold that saved her, and turned a seizure crew out of the alley before it reached the berth — pulling an honest captain's ship out of a theft dressed as procedure. A forged seal is only as good as the eye that never reads it."
+    category: profession
+    icon: "📜"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "nar_shaddaa_forged_notice"}

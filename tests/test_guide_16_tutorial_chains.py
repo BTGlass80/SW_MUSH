@@ -536,7 +536,7 @@ class TestStep1SoftLockTeaching:
 # command surface, the questline DATA the prose cites, and the one-at-a-time
 # rule, so a data/engine change that desyncs the section fails loudly here.
 
-# chain_id -> (chain_name, step-1 NPC) for the six shipped freelance questlines.
+# chain_id -> (chain_name, step-1 NPC) for the seven shipped freelance questlines.
 _FREELANCE_QUESTLINES = {
     "nar_freight_ghost_shipment": ("The Ghost Shipment", "Yelza Korrin"),
     "mos_eisley_crooked_wheel": ("The Crooked Wheel", "Dorae Vint"),
@@ -544,6 +544,7 @@ _FREELANCE_QUESTLINES = {
     "kuat_ring_skimmed_line": ("The Skimmed Line", "Dav Nuro"),
     "jundland_dust_sick": ("The Dust-Sick", "Soree Bann"),
     "coruscant_petrax_false_provenance": ("The False Provenance", "Hessa Veil"),
+    "nar_shaddaa_forged_notice": ("The Forged Notice", "Cassa Brel"),
 }
 
 

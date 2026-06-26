@@ -3309,6 +3309,232 @@ chains:
           name and her license. An honest dealer's word travels the upper-city's
           quiet money — a good eye that proved itself once gets sent for again.
 
+  # ─────────────────────────────────────────────────────────────────────
+  # GENERALIZED QUESTLINE (T3.24, seventh slice) — "The Forged Notice"
+  # The SEVENTH accessible kind:questline. Back on Nar Shaddaa (vs the Ghost
+  # Shipment's cantina/Undercity face of the same moon — reuses NONE of its
+  # rooms), a SEVENTH distinct skill spread (forgery + bureaucracy), and a new
+  # story shape: a forged-paperwork ship-seizure racket beaten on its own
+  # registry ground. NPCs in npcs_drop_generalized_questline_forged_notice.yaml;
+  # achievement forged_notice_cleared. No new engine code / slot / event type /
+  # schema / faucet, and no map-coordinate or exit-graph change.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: nar_shaddaa_forged_notice
+    chain_name: "The Forged Notice"
+    description: >
+      An honest Corellian freighter captain came back from a haul to find her
+      ship condemned as derelict on a notice she never triggered — the work of a
+      Nar Shaddaa port factor who forges abandonment paperwork, seizes the
+      berthed ships of owners who can't fight the registry, and sells the hulls
+      off-moon for a cut. The notice is a forgery with a good enough seal to take
+      a ship, and a seizure crew is mustering within the hour. Prove the notice
+      forged, file an emergency hold the factor can't quash, and stop his
+      enforcer before the crew reaches the berth. A freelance favor — open to
+      anyone, no faction required.
+    archetype_label: "Freelance Counter-Forgery"
+    faction_alignment: independent
+    starting_zone: nar_shaddaa_promenade
+    starting_room: upper_dock_observation
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["forged_notice_cleared"]
+      drop_room: upper_dock_observation
+      follow_up_hint: >
+        The Cinder Run flies out clean and the factor's forged notice goes into
+        the Guild record as evidence against a racket that ran for years on
+        captains who couldn't fight the paper. A spacer whose ship you pulled out
+        of a crooked seizure remembers it — and word travels the docks that
+        there is someone who can read a forged seal and beat a bent clerk at his
+        own forms.
+
+    steps:
+      - step: 1
+        title: "The Condemned Ship"
+        location: upper_dock_observation
+        npc: "Cassa Brel"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Cassa Brel on the Upper Dock Observation Level."
+        npc_intro: >
+          "You look like you've read a few documents that didn't want to be
+          read. Good — that's the job. Cassa Brel; that's my ship two levels
+          down, the Cinder Run, and the port's just condemned her as derelict.
+          She isn't. I flew her in here myself. There's a notice mag-clamped to
+          her hull with a registry seal good enough to seize her and sell her
+          off-moon, and the factor who hung it owns the desk I'd appeal to. It's
+          a forgery — I'd stake the ship on it, which is exactly what I'm doing.
+          `talk` to me and I'll tell you where to start prying it apart."
+        completion:
+          type: talk_to_npc
+          npc: "Cassa Brel"
+        npc_complete: >
+          "Start with the notice itself. It's clamped to the Cinder Run's hull
+          down at Landing Platform Besh — go read it the way a forger doesn't
+          want it read. The seal, the issue-stamp, the authority codes: a fake
+          good enough to fool a hurried captain isn't good enough to fool someone
+          who knows what a real registry condemnation looks like. Prove that seal
+          was never issued and you've proved the seizure's a theft."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to Landing Platform Besh and use your `forgery` skill to examine the derelict-notice on the Cinder Run's hull and prove it a fake — `chain attempt`."
+
+      - step: 2
+        title: "The Forged Seal"
+        location: westport_arrivals
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["forgery"]
+        objective: "Examine the derelict-notice clamped to the Cinder Run at Landing Platform Besh and prove the seal forged with a forgery check."
+        npc_intro: >
+          [The notice hangs mag-clamped to the freighter's hull at the platform's
+          edge — a crisp condemnation slate, registry seal embossed, issue-codes
+          marching down the margin, official enough at a glance to have already
+          barred the captain from her own airlock.] But a real registry
+          condemnation is issued, logged, and counter-sealed in three places a
+          forger has to fake all at once — the embossed authority-seal, the
+          issue-stamp's timestamp chain, the desk-code that says which clerk
+          signed it. Read it the way the man who made it hoped no one would.
+          `forgery`, slow and exact — `chain attempt` when you work the seal.
+        completion:
+          type: skill_check_passed
+          skill: "forgery"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [It comes apart under a knowing eye: the authority-seal is embossed
+          from a lifted master a half-generation stale, the issue-stamp's
+          timestamp chain skips a registry handshake a genuine condemnation can't
+          skip, and the desk-code belongs to a clerk who was off-shift the day it
+          claims to be signed. A good forgery — good enough to seize a ship off a
+          captain who can't fight it, not good enough to survive being read. The
+          Cinder Run was never condemned by the registry. Which means the seizure
+          stands on nothing but a faked seal — and a faked seal proven false is a
+          hold the factor's own registry has to honor, if you file it before the
+          crew moves.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "The seal's a proven forgery, so the seizure is fraudulent — now beat the factor on paper. Get to the Smugglers' Guild Hall registry and `bureaucracy` an emergency title-hold filed before the crew can take the ship — `chain attempt`."
+
+      - step: 3
+        title: "The Hold on the Desk"
+        location: smugglers_guild_hall
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["bureaucracy"]
+        objective: "File an emergency title-hold at the Smugglers' Guild registry to freeze the seizure before the crew moves — a bureaucracy check."
+        npc_intro: >
+          [The Guild's freight registry runs on forms, precedent, and which clerk
+          owes which favor — and the factor has spent years making sure an appeal
+          dies quietly at the desk he controls.] But a proven-forged seal is a
+          different filing entirely: an emergency title-hold lodged on evidence of
+          fraud goes around the appeals desk, not through it, and once it's
+          stamped the seizure is frozen until a Guild arbiter rules — long after
+          the crew's window closes. You have to know the form, cite the right
+          condemnation statute, and get it stamped by a clerk who isn't the
+          factor's before he hears it's coming. `bureaucracy`, sharp and certain
+          — `chain attempt` when you file it.
+        completion:
+          type: skill_check_passed
+          skill: "bureaucracy"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [It stamps. The right form, the fraud-evidence rider, the statute cited
+          chapter and line, dropped on a clerk three desks clear of the factor's
+          reach before word of it crosses the floor — and an emergency title-hold
+          on the Cinder Run is suddenly Guild record, frozen pending an arbiter
+          the factor can't appoint. On paper, the ship is safe. The trouble is
+          the factor's crew doesn't read paper fast: his enforcer is already
+          mustering a seizure detail to march on the berth and take the hull
+          before the hold can mean anything, and a clamped ship hauled off-moon
+          is hard to give back, arbiter or no. The hold only holds if the crew
+          never reaches the Cinder Run.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "The hold is filed but the factor's crew is mustering to take the ship before it matters — his enforcer is forming them up in Enforcer Alley. Stop him before they reach the berth; `attack`, `dodge`."
+
+      - step: 4
+        title: "The Alley Mouth"
+        location: enforcer_alley
+        npc: "Varn Tesk"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Stop Varn Tesk in Enforcer Alley before the seizure crew reaches the Cinder Run — `attack`, `dodge`."
+        npc_intro: >
+          [Enforcer Alley runs from the Corellian Sector to the upper docks, and
+          a broad, leather-skinned Weequay is mustering a half-dozen hired hands
+          in its mouth — Varn Tesk, the factor's enforcer, a rolled seizure writ
+          in one fist and the Cinder Run named on it, the crew that turns a forged
+          notice into a stolen ship. When you plant yourself in the lane between
+          him and the berth, the bored efficiency goes flat and his free hand
+          settles on the blaster.] "Writ's good, the berth's condemned, and
+          you're standing in a working alley. Whatever the captain promised you,
+          it doesn't cover a seizure crew. Clear the lane — last time I say it."
+        completion:
+          type: combat_won
+          enemy_template: "nar_forged_notice_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Varn Tesk goes down in the alley mouth and the half-mustered crew, paid
+          by the cleared berth and not by the fight, melts back into the
+          Promenade rather than serve a writ a Guild hold has already frozen. The
+          rolled seizure writ comes loose from his fist — the same forged seal you
+          read on the hull, the same racket, named now in his hand. Nothing
+          between here and the Cinder Run's berth but the walk back up to the
+          captain whose ship the hold and the alley just bought back.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The enforcer's down and the crew's scattered — the hold holds. Bring the cleared title back to Cassa Brel on the Upper Dock Observation Level."
+
+      - step: 5
+        title: "Title Cleared"
+        location: upper_dock_observation
+        npc: "Cassa Brel"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Cassa Brel with the seizure stopped to clear the Cinder Run's title."
+        npc_intro: >
+          "She's still on the clamps, but the clamps come off now." [Cassa Brel
+          turns from the observation rail, the set finally going out of her jaw as
+          she reads the stamped hold and the forged writ you carry.] "Forged seal
+          proven, hold filed, crew turned back — that's the whole trap sprung, in
+          order. The arbiter'll rule the notice a fraud, the factor's name goes on
+          the Guild record beside it, and a racket that ran for years on captains
+          who couldn't fight the paper just met one who could. `talk` to me and
+          let me sign you what I owe you."
+        completion:
+          type: talk_to_npc
+          npc: "Cassa Brel"
+        npc_complete: >
+          "Square — more than square. The Cinder Run flies out clean, the forged
+          notice is evidence instead of a death warrant, and Factor Hask is going
+          to spend a long time explaining a desk full of seals that were never
+          issued. Here's the run's fee, honestly paid. And you've a captain's word
+          on the Nar Shaddaa docks now — out here, a name that reads a forgery and
+          beats a bent registry is worth more than the fee and travels faster.
+          Fair skies."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The Cinder Run's title clears and Cassa Brel keeps the ship she earned.
+          A captain's word travels the docks — a sharp eye for a forged seal and a
+          steady hand at a crooked desk get sent for again.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════
