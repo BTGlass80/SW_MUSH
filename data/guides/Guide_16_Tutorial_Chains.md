@@ -346,7 +346,7 @@ A questline looks and feels like a chain — an opening NPC, four-to-six steps, 
 
 ### Two kinds of questline
 
-**Freelance side-jobs.** Open to anyone — no faction, no reputation, no prerequisite beyond having a finished character. They run in ordinary city rooms, pay a modest reward (around **300 credits** plus a little Independent standing and an achievement), and exist to give every character somewhere purposeful to go when the mission board feels stale. Five ship at launch:
+**Freelance side-jobs.** Open to anyone — no faction, no reputation, no prerequisite beyond having a finished character. They run in ordinary city rooms, pay a modest reward (around **300 credits** plus a little Independent standing and an achievement), and exist to give every character somewhere purposeful to go when the mission board feels stale. Six ship at launch, each leading with a different skill so they reward different builds:
 
 | Questline | Start here | Talk to | The job |
 |---|---|---|---|
@@ -355,6 +355,7 @@ A questline looks and feels like a chain — an opening NPC, four-to-six steps, 
 | **The Lost Courier** | Crystal Jewel Cantina, Coruscant underworld | Sashi Renko | Find a courier who went dark carrying a package that matters. |
 | **The Skimmed Line** | Kuat Ring Cantina | Dav Nuro | Trace who's bleeding a shipping line on the Kuat ring. |
 | **The Dust-Sick** | Outskirts Scavenger Market, Tatooine | Soree Bann | Run down the source of a sickness spreading through a scavenger camp. |
+| **The False Provenance** | Petrax Historic Quarter, Coruscant | Hessa Veil | Clear a framed antiquities dealer — appraise a forgery, draw out a fence, and catch a swapped relic before it ships off-world. |
 
 **Master-trainer trials.** The other flavor is the **tier-5 crafting unlock**. A master trainer hidden out in a dangerous zone offers a five-step trial; completing it is one of the two gates on that trainer's tier-5 schematics (the other is faction reputation — see Guide #7 §10 — Crafting). These pay more (around **500 credits** plus faction standing) and exist for crafters chasing the top of a category. You take one the same way: talk to the trainer, then `mastery start <id>`.
 

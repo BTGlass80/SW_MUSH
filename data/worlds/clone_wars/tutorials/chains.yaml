@@ -3086,6 +3086,229 @@ chains:
           word travels the outskirts and the caravan trails — honest work in the
           Wastes finds those who finish it.
 
+  # ─────────────────────────────────────────────────────────────────────
+  # The SIXTH accessible (non-t5, non-tutorial) kind: questline chain, after
+  # The Ghost Shipment (Nar Shaddaa), The Crooked Wheel (Tatooine/Mos Eisley),
+  # The Lost Courier (Coruscant LOWER city), The Skimmed Line (Kuat ring), and
+  # The Dust-Sick (Tatooine wilderness). FIRST questline set in Coruscant's
+  # CULTURAL / MID-UPPER district (the Petrax Historic Quarter, the Galactic
+  # Museum, Calocour Heights, Westport Spaceport — a different face of the
+  # planet than the Lost Courier's lower city), and exercises a SIXTH distinct
+  # skill spread — VALUE + CON — as an art-fraud caper: clear a defamed dealer
+  # and recover a swapped artifact. Reuses the live questline engine with NO new
+  # engine code/slot/event type, and touches NO map coordinate or exit graph
+  # (the Coruscant rooms already exist + are loaded). NPCs back it in
+  # data/worlds/clone_wars/npcs_drop_generalized_questline_false_provenance.yaml.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: coruscant_petrax_false_provenance
+    chain_name: "The False Provenance"
+    description: >
+      A respected Petrax Quarter antiquities dealer is being ruined: she sourced
+      a genuine pre-Republic votive for a wealthy collector in good faith, the
+      collector received a flawless forgery, and now her name is being branded
+      forger before the Guild of Antiquaries while her license hangs on it. The
+      truth is a fence who swapped the real piece on the consignment leg and is
+      hours from shipping it off-world. Authenticate the fake to prove the swap,
+      pose your way into the broker's quiet money to learn where the genuine
+      votive is moving, and run down his courier before Westport clears the
+      berth. A freelance favor — open to anyone, no faction required.
+    archetype_label: "Freelance Authentication"
+    faction_alignment: independent
+    starting_zone: monumental_district
+    starting_room: petrax_quarter
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["false_provenance_cleared"]
+      drop_room: petrax_quarter
+      follow_up_hint: >
+        Hessa Veil's name holds and the genuine votive goes back on the Guild
+        register where it belongs. A dealer whose word survived a paid-for
+        scandal remembers who proved it — and a good eye that can be trusted in
+        the upper-city's quiet money is rarer, and worth more, than the fee.
+
+    steps:
+      - step: 1
+        title: "The Defamed Dealer"
+        location: petrax_quarter
+        npc: "Hessa Veil"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Hessa Veil at her gallery in the Petrax Historic Quarter."
+        npc_intro: >
+          "You have the look of someone who can tell a true thing from a
+          well-made lie. Good — that is precisely my problem. Hessa Veil; I deal
+          antiquities on this row, honestly, for thirty years. I sourced a
+          genuine pre-Republic Koru votive for a collector named Edran Sool —
+          authenticated it myself — and the piece in his vault is a forgery. Now
+          he is spending real money to call me a forger, and the Guild will pull
+          my license over it. The swap happened on the consignment leg, through
+          a fence I cannot prove exists. `talk` to me and I will tell you where
+          to start pulling the truth loose."
+        completion:
+          type: talk_to_npc
+          npc: "Hessa Veil"
+        npc_complete: >
+          "Start with the fake itself. Sool's forgery is on inquiry display at
+          the Galactic Museum — the Guild lodged it as evidence. Get a proper
+          look at it and `value` it the way I would: the glaze-firing, the
+          mourning-glass inclusions, the weight of the clay. A forgery this good
+          fools a buyer, not an appraiser who knows what to weigh. Prove it false
+          and you have proved a swap happened — that is the first thread."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to the Galactic Museum and use your `value` skill to appraise the disputed votive and prove it a forgery — `chain attempt`."
+
+      - step: 2
+        title: "The Appraiser's Eye"
+        location: galactic_museum
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["value"]
+        objective: "Appraise the disputed Koru votive at the Galactic Museum and prove it a forgery with a value check."
+        npc_intro: >
+          [The forgery sits under glass in the museum's inquiry alcove, lodged
+          as Guild evidence — a small dark mourning-votive, convincing at a
+          glance, the kind of piece that fools the man who pays for it.] But the
+          true Koru votives are kiln-fired to a glaze a forger cannot quite
+          match and seeded with mourning-glass that settles a certain way under
+          its own weight. Weigh it the way Hessa would — the firing, the
+          inclusions, the heft of the clay — and read what it really is.
+          `value`, careful and exact. `chain attempt` when you appraise it.
+        completion:
+          type: skill_check_passed
+          skill: "value"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [It resolves under a careful eye: the glaze runs a half-shade too even,
+          the mourning-glass sits high where age would have let it settle, the
+          clay weighs light for its size. A good forgery — good enough to clear a
+          collector's vault, not good enough to clear yours. The piece Sool
+          received was never the one Hessa authenticated. Which means the genuine
+          votive went somewhere, through someone, on its way through her hands —
+          and the only quiet money on Coruscant that moves real relics like that
+          works out of Calocour Heights.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "The fake is proven, so a swap happened — the genuine votive moved through a fence working the quiet money in Calocour Heights. Get there and `con` your way in as a rival buyer to draw the broker out — `chain attempt`."
+
+      - step: 3
+        title: "The Quiet Money"
+        location: calocour_heights
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["con"]
+        objective: "Pose as a rival collector in Calocour Heights to draw the fence out and learn where the genuine votive is moving — a con check."
+        npc_intro: >
+          [Calocour Heights runs on discreet money and discreeter taste — the
+          broker who deals genuine relics off-world will not see a Guild
+          investigator, but he will always make time for a richer buyer than the
+          one he has.] Wear the part: an off-world collector with deep credits, a
+          taste for pre-Republic Core pieces, and no patience for provenance
+          questions. Let him think you are competition for the votive he is
+          already moving, and he will tell you more reaching for your money than
+          he ever would under oath. `con`, smooth and unhurried — `chain attempt`
+          when you work him.
+        completion:
+          type: skill_check_passed
+          skill: "con"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [The broker bites on the richer buyer the way Hessa said he would —
+          warm, eager, careless. The genuine Koru votive, he lets slip pricing it
+          against your invented bid, is already sold and already moving: a sealed
+          shockcase, a hired courier, an off-world berth at Westport that boards
+          within the hour. He even names the runner — a Zabrak, Brask Yade — to
+          prove the piece is real and the deal is closing. He has just sold the
+          one thing that clears Hessa to a buyer who is not you, and told you
+          exactly where to catch it.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "The genuine votive is in a courier's chained case heading off-world — the Zabrak Brask Yade, boarding at Westport within the hour. Get there and take it back; `attack`, `dodge`."
+
+      - step: 4
+        title: "The Gate Lane"
+        location: coruscant_westport_landing
+        npc: "Brask Yade"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Stop Brask Yade at Westport Spaceport before the votive ships off-world — `attack`, `dodge`."
+        npc_intro: >
+          [Westport's gate lanes run thick with travelers, and a hard-faced
+          Iridonian Zabrak moves through them toward a private berth with a
+          sealed shockcase chained to one wrist — Brask Yade, the courier the
+          broker named, the genuine votive an hour from leaving Coruscant for
+          good. When you step into the lane between him and the berth, the bored
+          professionalism goes cold and his free hand drops to the blaster.]
+          "Case stays on the wrist, the wrist makes the berth, stranger.
+          Whatever the old Bith paid you, it doesn't cover this. Walk — last
+          time I say it."
+        completion:
+          type: combat_won
+          enemy_template: "petrax_relic_courier"
+          enemy_count: 1
+        npc_complete: >
+          [Brask Yade goes down in the gate lane and the berth boards without
+          him. The chain comes off the wrist; the shockcase cracks open on a
+          small dark mourning-votive that weighs right for its size, the
+          mourning-glass settled deep and even where the forgery's sat high — the
+          genuine Koru piece, caught a single hour before it would have been gone
+          for good. Nothing between here and the Petrax row now but the walk back
+          to the woman whose name it clears.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The courier's down and the genuine votive is in your hands. Bring it back to Hessa Veil at her Petrax Quarter gallery."
+
+      - step: 5
+        title: "Provenance Restored"
+        location: petrax_quarter
+        npc: "Hessa Veil"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Hessa Veil with the genuine votive to clear her name."
+        npc_intro: >
+          "You caught it." [Hessa Veil takes the votive in both hands, turns it
+          once under the appraiser's loupe, and the careful composure she has
+          held against a paid-for scandal finally eases.] "Genuine. The firing,
+          the inclusions, the weight — this is the piece I authenticated, and
+          the one in Sool's vault is the lie I'll prove with it. You appraised the
+          fake, drew the broker into the open, and ran the real thing down before
+          Westport cleared it. `talk` to me and let me put this back on the
+          register where it belongs."
+        completion:
+          type: talk_to_npc
+          npc: "Hessa Veil"
+        npc_complete: >
+          "Square — more than square. The Guild has the genuine votive, the
+          courier's case, and a broker named in his own greed; the forgery charge
+          collapses and Sool's money buys him nothing. You proved a true thing
+          against a well-funded lie, which in my trade is the only thing that
+          matters. Here is the gallery's commission, honestly paid. And you have
+          a Bith appraiser's word on the Petrax row now — out here, that opens
+          quiet doors money cannot. Walk well."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The votive goes back on the Guild register and Hessa Veil keeps her
+          name and her license. An honest dealer's word travels the upper-city's
+          quiet money — a good eye that proved itself once gets sent for again.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════

@@ -481,3 +481,21 @@ achievements:
     icon: "🩹"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "jundland_dust_sick"}
+
+  # T3.24 generalized-questline arc (2026-06-26): the SIXTH accessible
+  # (non-t5, non-tutorial) questline, the FIRST set in Coruscant's cultural /
+  # mid-upper district (Petrax Quarter / Galactic Museum / Calocour Heights /
+  # Westport; vs the Lost Courier's lower city). Earned by clearing a defamed
+  # Bith antiquities dealer — appraising a forgery to prove a swap, conning a
+  # fence into the open, and running down the genuine pre-Republic votive before
+  # it shipped off-world — on a sixth distinct skill spread (value + con). Same
+  # lower-tier band as the Ghost Shipment / Crooked Wheel / Lost Courier /
+  # Skimmed Line / Dust-Sick (cp_reward 3 vs the t5 trainer chains' 5): open
+  # freelance side-content, not a rep-gated trial.
+  - key: false_provenance_cleared
+    name: "The False Provenance"
+    description: "Proved a flawless forgery for what it was, drew a Calocour fence into the open, and ran down a genuine pre-Republic votive an hour before it shipped off-world — clearing an honest Coruscant dealer's name against paid-for ruin. A reputation is only worth what it can survive."
+    category: profession
+    icon: "🏺"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "coruscant_petrax_false_provenance"}

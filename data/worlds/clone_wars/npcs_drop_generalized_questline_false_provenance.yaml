@@ -1,0 +1,224 @@
+# Generalized Questline Drop — "The False Provenance" (T3.24 sixth slice, 2026-06-26)
+#
+# The SIXTH accessible (non-t5, non-tutorial) `kind: questline` chain, after
+# "The Ghost Shipment" (nar_freight_ghost_shipment, Nar Shaddaa), "The Crooked
+# Wheel" (mos_eisley_crooked_wheel, Tatooine/Mos Eisley), "The Lost Courier"
+# (coruscant_lower_lost_courier, Coruscant LOWER city), "The Skimmed Line"
+# (kuat_ring_skimmed_line, Kuat ring), and "The Dust-Sick" (jundland_dust_sick,
+# Tatooine wilderness). It reuses the SAME live questline engine
+# (engine/tutorial_chains.py + chain_events.py: the `kind: questline` type +
+# `active_questline` slot, the existing event types, the four reward funnels)
+# with NO new engine code, no new slot, no new event type, no schema migration,
+# no new reward faucet, and NO map-coordinate or exit-graph change — the
+# sanctioned right-of-launch widening per quest_expansion_postlaunch_path_v1.md
+# (T3.24): author MORE questlines on the proven pattern.
+#
+# Two firsts for the accessible-questline arc:
+#   1. The FIRST questline set in Coruscant's CULTURAL / MID-UPPER district — the
+#      Petrax Historic Quarter, the Galactic Museum, Calocour Heights, and
+#      Westport Spaceport. "The Lost Courier" ran in Coruscant's LOWER city (the
+#      Southern Underground / Crystal Jewel Cantina); this one opens the
+#      monument/museum/market tier of the same planet — a different face of
+#      Coruscant entirely. It touches NO map coordinate or world exit graph —
+#      the rooms already exist and are loaded (planets/coruscant.yaml); only
+#      NPCs + a chains.yaml entry + an achievement are added.
+#   2. A SIXTH distinct skill spread — VALUE + CON (vs search+streetwise on the
+#      Ghost Shipment, investigation+gambling on the Crooked Wheel,
+#      persuasion+sneak on the Lost Courier, security+bargain on the Skimmed
+#      Line, first_aid+survival on the Dust-Sick). The six accessible questlines
+#      now each teach distinct play, and this is the first to lead with the
+#      appraisal/deception skills — the connoisseur's eye and the confidence
+#      game — that the combat, social, technical, and wilderness arcs never
+#      exercise.
+#
+# It is also a new STORY SHAPE: an art-fraud caper — clear a defamed dealer and
+# recover a swapped artifact — not a racket-bust, a smuggling-trace, a
+# kidnap-rescue, an industrial-theft clear-the-innocent, or a frontier rescue.
+# A reputable antiquities dealer in the Petrax Quarter is being ruined: she
+# bought and sold a pre-Republic votive in good faith, and now a wealthy
+# collector is publicly branding her a forger. The truth is uglier — a fence
+# swapped the genuine piece for a flawless forgery on its way through her hands,
+# and the real votive is hours from shipping off-world to a private buyer. You
+# appraise the disputed piece to prove it a forgery (value), pose as a rival
+# collector to draw the fence into the open and learn where the genuine votive
+# is moving (con), run down the fence's courier at the spaceport before it
+# leaves Coruscant (attack/dodge), and carry the real piece back to clear the
+# dealer's name.
+#
+# Premise: Hessa Veil, a Bith antiquities dealer of long-standing reputation,
+# sourced a Koru mourning-votive — a small, genuine pre-Republic Core relic —
+# for a collector named Edran Sool. The piece Sool received is a forgery; Sool
+# is suing Veil's good name into the dust and the Guild of Antiquaries will pull
+# her license if it stands. Veil knows the swap happened on the consignment leg
+# through a fence she now can't prove existed: a broker working out of Calocour
+# Heights who deals genuine relics quietly to off-world buyers and seeds the
+# market with forgeries to cover the trail. Authenticate the fake, smoke out the
+# broker, and catch the genuine votive before it ships.
+#
+# These NPCs back the `coruscant_petrax_false_provenance` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Hessa Veil   — the antiquities dealer who offers + closes the quest
+#                    (step-1 npc = the questline's start-NPC, per
+#                    get_questline_offer). She keeps her gallery in the Petrax
+#                    Historic Quarter. Step-1 + step-5 NPC.
+#   * Brask Yade   — the combat-step courier (ai_config.chain_enemy_template
+#                    petrax_relic_courier; the step-4 combat_won foil), the
+#                    fence's hired runner caught moving the genuine votive
+#                    through Westport Spaceport.
+# The fence/broker (narrated as "the Calocour broker") is NARRATED ONLY — a
+# step-3/step-4 story beat drawn out by the con, NOT a spawned NPC entity (the
+# off-screen swindler needs no producer; he is carried in the prose the way the
+# prior questlines' off-screen principals are). The collector Edran Sool and the
+# Koru votive itself are likewise narrated props.
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures.
+# Provenance: Bith (cultured Core-world artisans/intellectuals, renowned senses
+# — a natural appraiser) and Zabrak/Iridonian (a long-settled, faction-neutral
+# species present well before the Clone Wars, common as hired muscle) are both
+# era-clean and not war-faction coded. Stats matched to the shipped
+# accessible-questline bands — the giver to the non-combat fixer band (Yelza
+# Korrin / Dorae Vint / Sashi Renko / Dav Nuro / Soree Bann), the courier to the
+# small-time-criminal antagonist band (Brakkis Vone / Gorvahn Brusk / Skarn Vex /
+# Suro Vant / Vohrek Sarn): a real fight, beatable by a fresh post-chargen
+# character. WEG40120 PDF is local-only (gitignored) and absent in this tree;
+# the bands are cited against the in-repo reference NPCs, not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The antiquities dealer — Hessa Veil (questline GIVER + closer)
+  # Questline: coruscant_petrax_false_provenance ("The False Provenance")
+  # Placement: Coruscant - Petrax Historic Quarter
+  #            (petrax_quarter, zone monumental_district).
+  #            Step-1 + step-5 NPC.
+  # NOTE: a licensed, long-respected dealer whose name a forgery scandal is
+  # about to ruin — NOT one of the quarter's ambient browsers or stall
+  # vendors. Distinct presence, same room.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Hessa Veil
+    room: "Coruscant - Petrax Historic Quarter"
+    species: Bith
+    description: >-
+      A composed Bith dealer in the muted, well-kept robes of the Guild of
+      Antiquaries, her great dark eyes and the fine cilia at her cheeks lending
+      her the still attentiveness of someone who reads an object the way others
+      read a face. Three decades of honest sourcing built her a gallery on the
+      Petrax row and a name worth more than her stock — and a wealthy collector
+      is spending freely to burn that name to the ground, calling her a forger
+      over a pre-Republic votive she bought and sold in good faith. She knows
+      the piece she handled was genuine. She knows it was swapped somewhere on
+      the consignment leg. What she cannot do, alone and under a Guild inquiry,
+      is prove a fence exists who deals the real relics off-world and salts the
+      market with fakes to cover the trail. She is looking for someone with a
+      good eye and a steady nerve who can.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 3D+2
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D
+        technical: 2D+2
+      skills:
+        value: 4D+1
+        scholar: 3D+2
+        bargain: 3D+2
+        persuasion: 3D
+        cultures: 3D
+        con: 2D+2
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A connoisseur and an honest broker, precise in speech and slow to
+        accuse without proof, who treats provenance as a kind of truth-telling
+        and is genuinely wounded to be called a liar in her own trade. She
+        reads objects better than anyone on the row but cannot run down a fence
+        through the upper-city's quiet money alone, and the Guild clock is
+        against her. Measured, exact, and quietly desperate under the
+        composure; she pays a fair commission out of the gallery's reserve
+        because clearing her name is worth more to her than the credits.
+      knowledge:
+        - "She is a licensed Bith antiquities dealer of the Guild of Antiquaries; she sourced a genuine pre-Republic Koru mourning-votive for a collector named Edran Sool, and the piece Sool received was a flawless forgery — now Sool is suing her name as a forger."
+        - "The swap happened on the consignment leg the relic traveled through her hands; she is certain the votive she authenticated was genuine, and equally certain she cannot prove the fence who switched it without an outside hand."
+        - "A broker works the quiet money out of Calocour Heights, dealing genuine relics to off-world private buyers and seeding the market with forgeries to bury the trail; he is careful, well-insulated, and has never been made to show himself."
+        - "If the genuine votive ships off-world before it is recovered it is gone for good and the forgery charge stands; the real piece can still be caught while it is moving — appraise the fake to prove the swap, draw the broker out, and run down the courier before Westport clears it."
+      faction: independent
+      dialogue_style: >-
+        Cultured, exact Core diction, spare with claims and generous with the
+        precise word. Talks objects, provenance, and proof — not gossip. Says
+        only what she can stand behind.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'I sold Edran Sool a genuine Koru votive. The piece in his vault is a forgery. I cannot prove the swap alone — and the Guild will pull my license if I do not.'"
+        - "*Hessa Veil turns a worn appraiser's loupe over in her fingers, her dark eyes steady on the middle distance, weighing a thing only she can see.*"
+        - "'Appraise the fake, draw the broker into the open, and catch the real votive before it leaves Coruscant. Clear my name and the gallery's reserve is yours — a fair commission, honestly paid.'"
+
+  # ── Questline antagonist: Brask Yade (combat step 4) ────────────────
+  # Single hostile instance at the spaceport. Matches the
+  # coruscant_petrax_false_provenance step-4 combat_won enemy_template.
+
+  - name: Brask Yade
+    room: "Coruscant - Westport Spaceport"
+    species: Zabrak
+    description: >-
+      A hard-faced Iridonian Zabrak in a courier's plain travel-coat, the
+      vestigial horns ringing his scalp and the faded facial tattoos marking
+      him out among the Westport crowd, a sealed shockcase chained to one wrist.
+      He runs quiet errands for upper-city money that does not want its face
+      seen — the kind of careful, well-paid runner who moves a thing from a
+      private vault to a private hold and asks nothing about what it is. The
+      case on his wrist holds a genuine pre-Republic votive bound for an
+      off-world buyer, and his berth boards within the hour. When a stranger
+      steps into the gate lane between him and that berth, the courier's bored
+      professionalism goes cold and certain: the case does not get questioned,
+      it does not get opened, and it absolutely does not get taken.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D+2
+        perception: 2D+1
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+2
+        brawling: 4D
+        melee_combat: 3D+2
+        intimidation: 3D+2
+        streetwise: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: petrax_relic_courier
+      personality: >-
+        A professional courier for quiet upper-city money, unbothered and
+        incurious until his cargo is threatened, then immediately and
+        coldly violent. He would far rather make his berth without a scene
+        than fight, but the case is chained to his wrist and his pay depends
+        on the hold closing on it — he will draw on anyone who reaches for it.
+        Combat foil for the questline's confrontation beat.
+      knowledge:
+        - "He is a hired courier moving a sealed shockcase for an upper-city broker who deals relics off-world; he does not know or care that the votive inside is stolen — only that it ships and he gets paid."
+        - "His berth boards within the hour; the case is chained to his wrist and his contract closes when the hold does, so anyone reaching for it is reaching for his pay — and he will gun them down in the gate lane to keep it."
+      faction: criminal
+      dialogue_style: >-
+        Flat, clipped, professional. Names the terms once — walk away — and
+        after that lets the blaster do the talking.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'Case stays on the wrist, the wrist makes the berth. Whatever the old Bith paid you, it doesn't cover this. Walk.'"
+        - "*Brask Yade shifts the chained shockcase behind his hip and squares into the gate lane, one hand settling on the blaster grip.*"
+        - "'I don't ask what's in the case and you don't take it. That's the whole arrangement. Last time — walk.'"
