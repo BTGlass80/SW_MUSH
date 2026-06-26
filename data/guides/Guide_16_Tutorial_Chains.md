@@ -9,7 +9,7 @@ tags: ["tutorial", "onboarding", "new player", "chain", "first character"]
 
 **Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
-**Guide Version 1.0**
+**Guide Version 1.1**
 
 ---
 
@@ -95,7 +95,7 @@ A concrete example. The Republic Soldier chain takes you from Tipoca City on Kam
 
 **Step 1 — Reporting In (Tipoca Briefing Room).** A Republic officer named Major Tarrn meets you in a cold white briefing room. He tells you to look around, check your sheet with `+sheet`, then come back to him. *Commands taught: `look`, `+sheet`.* When you've done both and `talk Tarrn`, the major confirms your records and tells you the combat sim is next.
 
-**Step 2 — Combat Sim Drill (Tipoca Combat Sim).** A Clone Trooper sim operator briefs you on the drill: two simulated B1 battle droids, weapons set to non-lethal for them, live-fire for you. *Commands taught: `attack`, `dodge`.* You fight the droids; the engine drives you through declaration → resolution → posing. When the droids are down, the operator clears you for the next stage.
+**Step 2 — Combat Sim Drill (Tipoca Combat Sim).** A Clone Trooper sim operator briefs you on the drill: two simulated B1 battle droids, weapons set to non-lethal for them, live-fire for you. *Commands taught: `attack`, `dodge`.* You fight the droids; the engine drives you through declaration → resolution → posing. When the droids are down, the operator clears you for the next stage. **The sim is a true safe sandbox** — a droid hit can stun or briefly knock you out, but the simulation caps it there: you can't be wounded, scarred, or killed in the drill. The droids still take real damage, so swing freely, learn the rhythm, and finish the fight.
 
 **Step 3 — Briefing on the Mission (Tipoca Briefing Room).** Back to Major Tarrn. He explains the mission cycle — you're being deployed to Coruscant Works to assist with a Republic supply convoy. *Commands taught: `+missions`, `accept`.* You browse the mission board, accept a Republic mission, and Tarrn nods approval.
 
@@ -172,7 +172,7 @@ chain
 
 **Skill checks during chains are sized to early-game characters.** A chain step that asks you to roll Stealth doesn't expect you to have +5D Stealth — it expects raw Dexterity-tier pools. The difficulties are calibrated so even unskilled characters can succeed on average. You're not supposed to fail your chain because your dice were unlucky.
 
-**Failures are forgiving.** If you somehow fail a chain step (lose the combat sim, fail the skill check, take a wrong action), the chain almost always lets you retry — the NPC says "try again," not "you're done." Critical failures (like dying in the combat sim) respawn you within the tutorial, no debuff. Chain content is in a protective bubble; the engine doesn't want to brick a new character in their first 30 minutes.
+**Failures are forgiving.** If you fail a chain step (fail a skill check, take a wrong action), the chain almost always lets you retry — the NPC says "try again," not "you're done." The combat sim goes further: it's a **non-lethal simulation**, so you can't lose it the hard way. A droid hit can stun or knock you out for a moment, but the sim caps damage there — you're never wounded, scarred, or killed in the drill, and the droids still take real damage so you can always finish it. Chain content is in a protective bubble; the engine doesn't want to brick a new character in their first 30 minutes.
 
 **The Director AI is dialed down during chains.** Random events, ambient dialogue surges, and unscripted NPC actions are reduced. You're not going to have a random patrol ambush you in the Tipoca Briefing Room. The chain wants your full attention on the structured experience.
 

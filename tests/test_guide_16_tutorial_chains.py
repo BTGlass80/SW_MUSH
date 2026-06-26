@@ -45,6 +45,8 @@ CHAINS_PATH = os.path.join(PROJECT_ROOT, "data", "worlds", "clone_wars",
                            "tutorials", "chains.yaml")
 SKIP_KIT_PATH = os.path.join(PROJECT_ROOT, "data", "worlds", "clone_wars",
                              "skip_starter_kit.yaml")
+TUTORIAL_ROOMS_PATH = os.path.join(PROJECT_ROOT, "data", "worlds", "clone_wars",
+                                   "tutorials", "rooms.yaml")
 
 
 def _read(path):
@@ -297,3 +299,69 @@ class TestForceSignThreshold:
             "Force-resonant landmark visits — keep it in sync with the engine"
         )
         assert "five" in guide_text.lower()
+
+
+# ── §4 Step 2 + §8 "Failures are forgiving": the combat sim is a SAFE SANDBOX ──
+# drop fun3-sim-safety (`5cda2ca`) made tipoca_combat_sim non-lethal for the
+# player (CombatInstance.is_simulation caps a PC defender to STUNNED/KO, no
+# scars; NPCs still take real damage so the drill stays winnable).  Guide_16
+# used to say a player could *die in the combat sim* and respawn — now stale.
+# These pin the corrected prose to the live data + engine plumbing so a future
+# change that re-arms lethality (or drops the room flag) fails loudly here.
+class TestCombatSimSafeSandbox:
+    def test_no_stale_die_in_sim_respawn_claim(self, guide_text):
+        """The old, now-false claim must stay dead."""
+        lowered = guide_text.lower()
+        assert "dying in the combat sim" not in lowered, (
+            "Guide_16 must not claim a player can die in the combat sim — drop "
+            "fun3-sim-safety caps a PC defender to STUNNED/KO (unloseable drill)"
+        )
+
+    def test_guide_states_sim_is_non_lethal(self, guide_text):
+        lowered = guide_text.lower()
+        assert "non-lethal" in lowered or "safe sandbox" in lowered, (
+            "Guide_16 §4/§8 should reassure new players the combat sim is a "
+            "non-lethal safe sandbox"
+        )
+        # The claim's exact shape: never wounded/scarred/killed in the drill.
+        assert "scarred" in lowered and "killed in the" in lowered, (
+            "Guide_16 should spell out that you are never wounded, scarred, or "
+            "killed in the sim (only briefly stunned)"
+        )
+
+    def test_sim_room_carries_the_is_simulation_flag(self):
+        """The load-bearing data fact: tipoca_combat_sim is flagged
+        is_simulation, which is what makes the guide's safety claim TRUE."""
+        data = yaml.safe_load(_read(TUTORIAL_ROOMS_PATH))
+        rooms = data["rooms"]
+        entries = rooms.values() if isinstance(rooms, dict) else rooms
+        sim = next((r for r in entries
+                    if r.get("slug") == "tipoca_combat_sim"), None)
+        assert sim is not None, "tipoca_combat_sim room vanished from rooms.yaml"
+        assert sim.get("properties", {}).get("is_simulation") is True, (
+            "tipoca_combat_sim lost properties.is_simulation:true — Guide_16's "
+            "'safe sandbox' claim would no longer hold"
+        )
+
+    def test_combat_instance_threads_is_simulation(self):
+        """CombatInstance must still accept is_simulation, or the room flag
+        never reaches the damage cap."""
+        import inspect
+        from engine.combat import CombatInstance
+        params = inspect.signature(CombatInstance.__init__).parameters
+        assert "is_simulation" in params, (
+            "CombatInstance no longer accepts is_simulation — the sim safety "
+            "guarantee Guide_16 promises is unplumbed"
+        )
+
+    def test_damage_cap_protects_pc_defender_only(self):
+        """The cap must apply to a PC defender but NOT to NPCs (so the drill
+        stays winnable) — pin the guard so a refactor can't silently drop it."""
+        import inspect
+        from engine.combat import CombatInstance
+        src = inspect.getsource(CombatInstance._apply_damage)
+        assert "self.is_simulation" in src and "is_npc" in src, (
+            "engine/combat.py._apply_damage no longer caps a PC defender in a "
+            "simulation while leaving NPCs damageable — Guide_16's dual claim "
+            "(you can't be hurt / the droids still take real damage) is stale"
+        )
