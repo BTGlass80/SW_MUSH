@@ -9,7 +9,7 @@ tags: ["tutorial", "onboarding", "new player", "chain", "first character"]
 
 **Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
-**Guide Version 1.1**
+**Guide Version 1.2**
 
 ---
 
@@ -274,7 +274,11 @@ The Training Grounds are a separate space from the live world — a tutorial zon
 
 ## 12. What If You Get Stuck
 
-Chains are forgiving but not bulletproof. If you get stuck:
+Chains are forgiving but not bulletproof — and the game tries to catch you before you even notice you're stuck.
+
+**You don't have to know the exact command.** If you type a plain-English question at the prompt — `what do i do`, `how do i fight?`, or anything with a question mark, a leading question word, or three-plus words — the parser recognizes a person asking for help rather than a fat-fingered command. Instead of a blunt `Huh? Unknown command`, it answers *"I didn't catch that,"* then surfaces your current objective, the exact command to type next (whenever you're in a chain), and a pointer to `help`, `look`, and the Ctrl/Cmd+K command search. (A single mistyped command word still gets the crisp `Huh?` — the redirect is reserved for input that genuinely reads like a question.)
+
+If that nudge isn't enough, here are the deliberate recovery paths:
 
 **1. Check the chain status.** `chain` shows you the current step, objective, and completion type. The objective sentence tells you what to do.
 

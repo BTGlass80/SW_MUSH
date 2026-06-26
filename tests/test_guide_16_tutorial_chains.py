@@ -365,3 +365,67 @@ class TestCombatSimSafeSandbox:
             "simulation while leaving NPCs damageable — Guide_16's dual claim "
             "(you can't be hurt / the droids still take real damage) is stale"
         )
+
+
+# ── §12 "What If You Get Stuck": the natural-language confusion redirect ───────
+# drop NL-confusion-redirect (`19c5765`) made a confused newcomer's most natural
+# instinct WORK: typing a plain-English question ("what do i do") at the prompt
+# now returns "I didn't catch that" + the active objective + command-to-type +
+# a help/look/Ctrl+K pointer, instead of a bare "Huh? Unknown command".  Guide_16
+# §12 now teaches this safety net.  These pin the prose to the live dispatcher
+# behavior + the onboarding-state ABI both the redirect and the guide rely on,
+# so removing the redirect (or its objective/command_to_type fields) fails here.
+class TestNLConfusionRedirectTeaching:
+    def test_guide_teaches_plain_english_redirect(self, guide_text):
+        assert "I didn't catch that" in guide_text, (
+            "Guide_16 §12 should quote the natural-language redirect's reply "
+            "(\"I didn't catch that\") so a stuck newcomer knows what it means"
+        )
+        lowered = guide_text.lower()
+        assert "plain-english question" in lowered or "plain english question" \
+            in lowered, (
+            "Guide_16 §12 should tell players they can type a plain-English "
+            "question when stuck — the redirect-supported recovery path"
+        )
+
+    def test_guide_keeps_the_single_word_huh_distinction(self, guide_text):
+        # The redirect is reserved for question-shaped input; a single mistyped
+        # command word still gets the crisp error.  The guide must not over-
+        # promise that *any* unknown input gets the soft redirect.
+        assert "Huh?" in guide_text, (
+            "Guide_16 §12 should note that a single mistyped command word still "
+            "gets the crisp `Huh?` — the redirect is for question-shaped input"
+        )
+
+    def test_dispatcher_still_emits_the_redirect(self):
+        """The guide's claim is only true while parse_and_dispatch still does the
+        natural-language redirect (the 'I didn't catch that.' branch)."""
+        import inspect
+        from parser.commands import CommandParser
+        src = inspect.getsource(CommandParser.parse_and_dispatch)
+        assert "I didn't catch that." in src, (
+            "parser/commands.py no longer emits the natural-language confusion "
+            "redirect — Guide_16 §12's 'type a plain-English question' teaching "
+            "has gone stale"
+        )
+        assert "build_onboarding_state" in src, (
+            "the redirect no longer pulls the active objective via "
+            "build_onboarding_state — Guide_16 §12 over-promises the objective hint"
+        )
+        # The crisp single-word error must survive alongside the redirect.
+        assert "Huh? Unknown command" in src, (
+            "parser/commands.py dropped the crisp single-word error — Guide_16 "
+            "§12's 'a single mistyped word still gets Huh?' distinction is stale"
+        )
+
+    def test_onboarding_state_surfaces_objective_and_command(self):
+        """The redirect (and the guide) promise the active objective + the exact
+        command to type.  Both come from build_onboarding_state's pinned ABI."""
+        import inspect
+        from engine.chain_events import build_onboarding_state
+        src = inspect.getsource(build_onboarding_state)
+        assert '"objective"' in src and '"command_to_type"' in src, (
+            "build_onboarding_state no longer surfaces objective/command_to_type "
+            "— Guide_16 §12's 'your current objective + the exact command to "
+            "type next' promise is unbacked"
+        )
