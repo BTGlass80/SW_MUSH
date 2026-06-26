@@ -9,7 +9,7 @@ tags: ["chargen", "species", "template", "build", "starting", "skills", "attribu
 
 **Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — April 2026**
-**Guide Version 1.1**
+**Guide Version 1.2**
 
 ---
 
@@ -184,7 +184,7 @@ When you create a character, the wizard walks you through these steps:
 3. **Attributes** (scratch path only) — Distribute 18D across six attributes with real-time remaining count
 4. **Skills** — Distribute 7D across skills with descriptions from the WEG rulebook
 5. **Background** — Write free-text character background/backstory
-6. **Tutorial Chain** — Select your starting storyline. This step appears for every character, but it's **mandatory for your first character** (skip is refused — pick a chain by number to advance); alts (your 2nd+ characters) may type `next` to skip and take the fixed skip starter kit instead
+6. **Tutorial Chain** — Select your starting storyline. If you applied a template, the storyline that best fits it is marked **★ recommended** here. This step appears for every character, but it's **mandatory for your first character** (skip is refused — pick a chain by number to advance); alts (your 2nd+ characters) may type `next` to skip and take the fixed skip starter kit instead
 7. **Review & Confirm** — See the complete character sheet and finalize with `done`
 
 At any step, you can:
@@ -194,6 +194,21 @@ At any step, you can:
 - Type `free` to drop into free-form editing mode (all commands available simultaneously)
 - Type `guided` to return to the step-by-step wizard from free-form mode
 - Type `help` for available commands at any step
+
+### Template ↔ storyline pairing
+
+If you built from a template, the wizard knows which starting storyline best matches it and marks that chain **★ recommended** at the Tutorial Chain step:
+
+| Template | Recommended storyline |
+|----------|-----------------------|
+| Clone Trooper · Republic Officer · Republic Pilot | Republic Soldier |
+| Separatist Pilot | Separatist Commando |
+| CIS Field Agent | Separatist Agent |
+| Bounty Hunter | Bounty Hunter |
+| Smuggler · Scoundrel | Smuggler |
+| Technician | Shipwright / Trader |
+
+You are never forced onto the recommended chain — it's a hint, not a rail. But if you pick a storyline that **enrolls you in a war faction (the Republic or the CIS) that contradicts your template**, the wizard shows a **faction-clash warning** and asks you to confirm before committing. For example, a **Smuggler** who picks the **Republic Soldier** storyline would be folded into the Grand Army and reissued as a clone trooper — overriding the smuggler background entirely — so the wizard flags it and waits for `yes` / `no`. This is a **warning, not a block:** independent archetypes (Smuggler, Bounty Hunter, Scoundrel, Technician) are free to enlist on either side if that's the character you want. A matching pair (a Republic template taking a Republic storyline) and the independent/guild storylines never warn.
 
 ---
 

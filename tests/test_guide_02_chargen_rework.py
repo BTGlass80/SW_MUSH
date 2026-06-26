@@ -425,3 +425,126 @@ def test_extreme_species_ranges_match_yaml():
     assert b["max"] == "4D+2"
     both_row = next(l for l in text.splitlines() if l.startswith("| **Bothan**"))
     assert "4D+2" in both_row, f"Bothan PER 4D+2 missing: {both_row!r}"
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  Re-verify pass (2026-06-25) — template→chain affinity + faction-clash gate.
+#
+#  The fun2 chargen-couple change (engine/creation_wizard.py, commit 84ed9ee)
+#  added a template→default-chain affinity recommendation (a "★ recommended"
+#  marker at the Tutorial Chain step) and a faction-clash warning + yes/no
+#  confirm gate before committing a clashing chain. §8 of the guide now
+#  documents both; these guards pin the documented pairings + the clash rule to
+#  the live engine maps so a future affinity/clash change that drifts away from
+#  Guide_02 fails loudly here instead of silently misinforming new players.
+# ════════════════════════════════════════════════════════════════════════════
+
+CHAINS_YAML = pathlib.Path("data/worlds/clone_wars/tutorials/chains.yaml")
+
+
+def _load_chains():
+    """Return {chain_id: {'name': str, 'faction': str}} from chains.yaml."""
+    import yaml
+    data = yaml.safe_load(CHAINS_YAML.read_text(encoding="utf-8"))
+    out = {}
+    for entry in data.get("chains", []):
+        cid = entry.get("chain_id")
+        if cid:
+            out[cid] = {
+                "name": entry.get("chain_name", ""),
+                "faction": entry.get("faction_alignment", "independent"),
+            }
+    return out
+
+
+def test_guide_documents_recommended_marker():
+    text = read_guide()
+    assert "★ recommended" in text, (
+        "§8 must document the '★ recommended' chain marker the wizard shows for "
+        "the template's affinity chain (fun2 chargen-couple change)"
+    )
+
+
+def test_guide_documents_faction_clash_warning():
+    text = read_guide()
+    low = text.lower()
+    assert "faction-clash warning" in low or "faction clash warning" in low, (
+        "§8 must document the faction-clash warning the wizard raises when a "
+        "chain enrolls you in a war faction that contradicts your template"
+    )
+    # The canonical example Brian flagged: Smuggler + Republic Soldier.
+    assert "Smuggler" in text and "Republic Soldier" in text, (
+        "§8 must use the canonical Smuggler + Republic Soldier clash example"
+    )
+    # It is a warning, not a hard block.
+    assert "warning, not a block" in low or "not a block" in low, (
+        "§8 must clarify the clash is a warning (confirm gate), not a hard block"
+    )
+
+
+def test_recommended_pairings_table_matches_engine_affinity():
+    """Every TEMPLATE_CHAIN_AFFINITY pair must appear in the §8 pairing table,
+    keyed by the live chain display name — so the guide can't drift from the
+    engine's recommendation map."""
+    from engine.creation_wizard import TEMPLATE_CHAIN_AFFINITY
+    from engine.creation_wizard import TEMPLATES
+    chains = _load_chains()
+    text = read_guide()
+    # Isolate the pairing subsection so we don't accept an incidental name match
+    # elsewhere in the guide.
+    import re
+    sec = re.search(r"### Template . storyline pairing.*?(?=\n## |\Z)", text, re.DOTALL)
+    assert sec is not None, "§8 'Template ↔ storyline pairing' subsection not found"
+    section = sec.group(0)
+    checked = 0
+    for tmpl_key, chain_id in TEMPLATE_CHAIN_AFFINITY.items():
+        assert chain_id in chains, (
+            f"affinity chain '{chain_id}' for template '{tmpl_key}' is not a real "
+            f"chain in chains.yaml (phantom recommendation)"
+        )
+        chain_name = chains[chain_id]["name"]
+        assert chain_name and chain_name in section, (
+            f"recommended chain '{chain_name}' (for template '{tmpl_key}') missing "
+            f"from the §8 pairing table"
+        )
+        # The template's own display label must appear in the section too.
+        label = TEMPLATES.get(tmpl_key, {}).get("label", tmpl_key)
+        assert label in section, (
+            f"template '{label}' missing from the §8 pairing table"
+        )
+        checked += 1
+    assert checked == len(TEMPLATE_CHAIN_AFFINITY) == 9, (
+        f"expected 9 affinity pairs cross-checked, got {checked}"
+    )
+
+
+def test_clash_rule_matches_engine_for_canonical_example():
+    """The guide's clash claim (Smuggler + Republic Soldier clashes; a matching
+    Republic pair does not) must match the engine's clash predicate:
+    clash iff the chain's faction is a war faction AND differs from the
+    template's faction."""
+    from engine.creation_wizard import TEMPLATE_FACTION, _WAR_FACTIONS
+    chains = _load_chains()
+
+    def _clashes(tmpl_key: str, chain_id: str) -> bool:
+        tmpl_faction = TEMPLATE_FACTION.get(tmpl_key, "independent")
+        chain_faction = chains[chain_id]["faction"]
+        return chain_faction in _WAR_FACTIONS and tmpl_faction != chain_faction
+
+    # Canonical clash the guide documents.
+    assert _clashes("smuggler", "republic_soldier"), (
+        "engine clash predicate must flag Smuggler + Republic Soldier "
+        "(the documented example)"
+    )
+    # A matching Republic pair must NOT clash (guide says matching pairs never warn).
+    assert not _clashes("clone_trooper", "republic_soldier"), (
+        "a Republic template + Republic Soldier must not clash"
+    )
+    # An independent/guild storyline must NOT clash with an independent template.
+    assert not _clashes("smuggler", "smuggler"), (
+        "Smuggler template + Smuggler storyline (independent) must not clash"
+    )
+    # Crossing the war line the other way also clashes.
+    assert _clashes("clone_trooper", "separatist_commando"), (
+        "Republic template + CIS storyline must clash"
+    )
