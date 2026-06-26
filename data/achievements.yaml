@@ -449,3 +449,18 @@ achievements:
     icon: "🛰️"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "coruscant_lower_lost_courier"}
+
+  # T3.24 generalized-questline arc (2026-06-26): the FOURTH accessible
+  # (non-t5, non-tutorial) questline. Earned by clearing an honest Kuat Drive
+  # Yards floor crew of a theft they didn't commit — slicing the scrubbed
+  # shift log, buying the buyer's name, and recovering a skimmed navigation
+  # core from the fixer Suro Vant. Same lower-tier band as the Ghost Shipment /
+  # Crooked Wheel / Lost Courier (cp_reward 3 vs the t5 trainer chains' 5):
+  # open freelance side-content, not a rep-gated trial.
+  - key: skimmed_line_cleared
+    name: "The Skimmed Line"
+    description: "Pulled the truth out of the Kuat yards' systems and kept twelve honest fitters on the ring — sliced a scrubbed shift log, bought a fence's silence, and took back a skimmed core before it shipped off-ring. The cheapest answer is rarely the true one."
+    category: profession
+    icon: "⚙️"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "kuat_ring_skimmed_line"}

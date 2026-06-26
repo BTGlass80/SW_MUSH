@@ -2686,6 +2686,201 @@ chains:
           The Lost Courier is home. Sashi's good word travels the Southern
           Underground — freelance work finds those who finish it.
 
+  # ─────────────────────────────────────────────────────────────────────
+  # GENERALIZED QUESTLINE — "The Skimmed Line" (T3.24 fourth slice, Jun 26 2026)
+  # The FOURTH accessible (non-t5, non-tutorial) kind: questline chain, after
+  # The Ghost Shipment (Nar Shaddaa), The Crooked Wheel (Tatooine/Mos Eisley),
+  # and The Lost Courier (Coruscant lower city). Set on KUAT (the Kuat Drive
+  # Yards orbital ring) so the four accessible questlines span four planets, and
+  # exercises a FOURTH distinct skill spread — SECURITY + BARGAIN — as a
+  # clear-the-innocent industrial theft. Reuses the live questline engine with
+  # NO new engine code/slot/event type. NPCs back it in
+  # data/worlds/clone_wars/npcs_drop_generalized_questline_skimmed_line.yaml.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: kuat_ring_skimmed_line
+    chain_name: "The Skimmed Line"
+    description: >
+      A restricted navigation-core blank was skimmed off a feeder line on the
+      Kuat Drive Yards ring, and Kuat Security Force is about to write it up
+      against the honest floor crew that fitted it — cheaper than a real probe,
+      and it costs the whole crew their berths. The foreman knows his people are
+      clean: the shift badge log was scrubbed, but a maintenance subsystem keeps
+      a shadow copy, and an off-ring fixer has been buying skimmed KDY parts to
+      order. Slice the shadow log, buy the buyer's name off a warehouse fence,
+      and take the core back before it ships out. A freelance favor — open to
+      anyone, no faction required.
+    archetype_label: "Freelance Recovery"
+    faction_alignment: independent
+    starting_zone: kdy_orbital_ring
+    starting_room: kuat_ring_cantina
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["skimmed_line_cleared"]
+      drop_room: kuat_ring_cantina
+      follow_up_hint: >
+        Dav Nuro pays his berth-bonus and means the thanks. A foreman who keeps
+        his crew on the ring remembers who kept them there — honest work on the
+        yards finds those who finish it.
+
+    steps:
+      - step: 1
+        title: "The Foreman's Booth"
+        location: kuat_ring_cantina
+        npc: "Dav Nuro"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Dav Nuro in the back booth of the Pressure Drop Cantina."
+        npc_intro: >
+          "You look like you can read a system and keep your mouth shut. Good —
+          that's the job. Dav Nuro, line-foreman, twenty years fitting cores on
+          this ring. Two days ago a restricted core blank walked off my feeder
+          line and the shift badge log came up scrubbed. Now KSF wants to write
+          the theft against my crew, because that's cheaper than finding who
+          really took it. My people are clean. I can't prove it and I can't fight
+          the company — but the truth's still in the yard's systems if somebody
+          who knows how can `talk` to me about where to dig."
+        completion:
+          type: talk_to_npc
+          npc: "Dav Nuro"
+        npc_complete: >
+          "The official log's gone, but the machine shops run a maintenance
+          subsystem that keeps its own shadow copy of who badged the floor — KSF
+          never bothers with it. Get into that subsystem and pull the dead-shift
+          badges; you'll have to `slice` it, the access is locked. Prove an
+          outsider was on my floor and the write-up's got nothing to stand on."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to the Machine Shops and use your `security` skill to slice the maintenance subsystem's shadow log — `chain attempt`."
+
+      - step: 2
+        title: "The Scrubbed Shift"
+        location: kuat_ring_machine_shops
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["security"]
+        objective: "Slice the machine-shop maintenance subsystem to recover the scrubbed shift log."
+        npc_intro: >
+          [The Machine Shops never fully stop; a maintenance subsystem hums in a
+          locked alcove off the floor, logging every badge that ever crossed it.]
+          The official shift log was wiped, but this subsystem kept its own copy —
+          and it's locked. Work the `security` panel, get past the access lock,
+          and pull the dead-shift badges. `chain attempt` when you make your run
+          at it.
+        completion:
+          type: skill_check_passed
+          skill: "security"
+          difficulty: 10
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [The lock gives, and the shadow log scrolls up clean: every one of Dav's
+          crew badged out before the core went missing — and one badge that
+          isn't on any crew roster crossed the floor during the dead shift, a
+          contractor credential that pings back to an off-ring "acquisitions"
+          handle. Somebody bought their way onto the floor. The crew is clean.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "An off-ring fixer bought their way onto the floor. A parts-fence in the Warehouse District knows who buys skimmed KDY parts — `bargain` it out of them, `chain attempt`."
+
+      - step: 3
+        title: "The Fence's Price"
+        location: kuat_ring_warehouses
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["bargain"]
+        objective: "Bargain a parts-fence in the Warehouse District into naming the buyer and the handoff."
+        npc_intro: >
+          [The Warehouse District has a gray-market corner where ring parts that
+          fell off a manifest change hands quietly. The fence here knows who's
+          buying skimmed Kuat cores — and won't give it up for nothing.] Don't
+          threaten them; the floor would close around you. Read the trade, make
+          the `bargain`, and buy the buyer's name and where the handoff's going
+          down. `chain attempt` when you put your price on the table.
+        completion:
+          type: skill_check_passed
+          skill: "bargain"
+          difficulty: 12
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [The fence weighs your offer, decides the credits beat the risk, and
+          gives it up low and fast: the buyer is a fixer named Suro Vant, the
+          core blank's already crated, and the handoff to an off-ring freighter
+          runs through the ring Factories at the next shift change. "He'll have
+          it on him," the fence murmurs. "And he doesn't like being found."]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "Suro Vant is moving the core through the Factories at shift change. Get there and take it back before it ships off-ring."
+
+      - step: 4
+        title: "The Handoff"
+        location: kuat_ring_factories
+        npc: "Suro Vant"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Confront Suro Vant in the Factories and recover the skimmed core — `attack`, `dodge`."
+        npc_intro: >
+          [The ring Factories run loud enough to bury a handoff, which is exactly
+          why it ends here. The crated core blank sits at Suro Vant's boot; he
+          pushes off a cold press-line, reads the whole trail on your face — the
+          shadow log, the fence, all of it — and the bored patience finally goes
+          out of his tusked face.] "You traced a core blank all the way to my
+          floor, fitter? That's a careless thing to be good at."
+        completion:
+          type: combat_won
+          enemy_template: "kuat_skimmed_line_collector"
+          enemy_count: 1
+        npc_complete: >
+          [Suro Vant goes down against the press-line, and the case pops open on
+          the restricted core blank, KDY seals intact. The off-ring freighter is
+          going to dock to an empty handoff and a dead fixer — and no merchandise.
+          The contractor credential on Vant's pad is the last thing the write-up
+          needed to fall apart. Take it all back to Dav.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "Core recovered, fixer down, outsider's credential in hand. Walk it back to Dav at the Pressure Drop."
+
+      - step: 5
+        title: "Clearing the Crew"
+        location: kuat_ring_cantina
+        npc: "Dav Nuro"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Dav Nuro to close the job and clear his crew."
+        npc_intro: >
+          "You walked the core right back onto the ring." [Dav turns the
+          data-pad face-up for the first time in two days, the dead-shift log and
+          the outsider's credential laid out where KSF can't pretend not to see
+          them, and some of the weight goes off his shoulders.] "Shadow log,
+          recovered core, an outsider's badge on my floor. That's a write-up that
+          doesn't land. Here's your cut out of my berth-bonus, and then some."
+        completion:
+          type: talk_to_npc
+          npc: "Dav Nuro"
+        npc_complete: >
+          "Square. You pulled the truth out of the systems and you kept twelve
+          honest people on the ring — that buys you my word on this yard, which up
+          here is worth more than the credits. Anyone questions your work on the
+          Kuat lines, you tell them Dav Nuro vouches. Fly safe."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The crew keeps their berths and the yard keeps turning. Dav Nuro's
+          good word travels the Kuat ring — honest work finds those who finish it.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════

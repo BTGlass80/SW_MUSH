@@ -1,0 +1,196 @@
+# Generalized Questline Drop — "The Skimmed Line" (T3.24 fourth slice, 2026-06-26)
+#
+# The FOURTH accessible (non-t5, non-tutorial) `kind: questline` chain, after
+# "The Ghost Shipment" (nar_freight_ghost_shipment, Nar Shaddaa), "The Crooked
+# Wheel" (mos_eisley_crooked_wheel, Tatooine/Mos Eisley), and "The Lost Courier"
+# (coruscant_lower_lost_courier, Coruscant lower city). It reuses the SAME live
+# questline engine (engine/tutorial_chains.py + chain_events.py: the
+# `kind: questline` type + `active_questline` slot) with NO new engine code, no
+# new slot, and no new event type — the sanctioned right-of-launch widening per
+# quest_expansion_postlaunch_path_v1.md (T3.24): author MORE questlines on the
+# proven pattern.
+#
+# Deliberately set on KUAT — the Kuat Drive Yards orbital ring (zone
+# kdy_orbital_ring) — so the four accessible questlines now span FOUR planets
+# (Nar Shaddaa / Tatooine / Coruscant / Kuat) rather than clustering in the
+# underworld hubs, and the player sees the galaxy's great industrial shipyard as
+# a place ordinary working people live and get squeezed. Like the first three it
+# is ACCESSIBLE: any post-chargen character can take it (prerequisites:
+# chargen_complete; no faction rep gate), it runs in normal, un-secured ring
+# worker rooms (the Pressure Drop cantina, the machine shops, the warehouse
+# district, the factories), faction-neutral (independent), and pays a modest
+# credit/rep reward + a lower-tier achievement (cp_reward 3, matching the Ghost
+# Shipment / Crooked Wheel / Lost Courier band, vs the t5 trainer chains' 5).
+#
+# It exercises a FOURTH distinct skill spread — SECURITY + BARGAIN (vs
+# search+streetwise on the Ghost Shipment, investigation+gambling on the Crooked
+# Wheel, persuasion+sneak on the Lost Courier) — so the four accessible
+# questlines each teach distinct play. It is also a different STORY SHAPE: a
+# clear-the-innocent industrial theft, not a racket-bust or a rescue. An honest
+# fitting crew is about to be written up for a theft they didn't commit; you
+# slice the dead-shift access log to prove an outsider was on the floor, buy the
+# buyer's name off a warehouse parts-fence, and recover the skimmed component
+# from the collector before it ships off-ring.
+#
+# Premise: a restricted navigation-core blank was skimmed off a feeder line on
+# the Kuat Drive Yards ring. Kuat Security Force is about to pin it on the floor
+# crew that fitted it — cheaper than a real probe — which costs the whole crew
+# their berths and their families' ring housing. The foreman, Dav Nuro, knows
+# his people are clean: the official badge log for that shift was scrubbed, but a
+# maintenance subsystem keeps a shadow copy, and an off-ring "acquisitions"
+# fixer named Suro Vant has been buying skimmed KDY parts to order. Slice the
+# shadow log, bargain the fence, and take the core back from Vant at the
+# factory handoff.
+#
+# These NPCs back the `kuat_ring_skimmed_line` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Dav Nuro   — the line-foreman who offers + closes the quest (step-1 npc =
+#                  the questline's start-NPC, per get_questline_offer). A regular
+#                  in the Pressure Drop, distinct from the cantina's ambient
+#                  patrons (Veela Torsk / Jarec Mave).
+#   * Suro Vant  — the combat-step collector (ai_config.chain_enemy_template
+#                  kuat_skimmed_line_collector; the step-4 combat_won foil).
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures.
+# Provenance: stats matched to the shipped accessible-questline bands — the
+# giver to the non-combat fixer band (Sashi Renko / Dorae Vint / Yelza Korrin),
+# the collector to the small-time-criminal antagonist band (Skarn Vex / Gorvahn
+# Brusk / Brakkis Vone): a real fight, beatable by a fresh post-chargen
+# character. WEG40120 PDF is local-only (gitignored) and absent in this tree;
+# the bands are cited against the in-repo reference NPCs, not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The foreman — Dav Nuro (questline GIVER + closer)
+  # Questline: kuat_ring_skimmed_line ("The Skimmed Line")
+  # Placement: Kuat Drive Yards - The Pressure Drop Cantina
+  #            (kuat_ring_cantina, zone kdy_orbital_ring). Step-1 + step-5 NPC.
+  # NOTE: a line-foreman regular who works the back booth between shifts — NOT
+  # one of the cantina's ambient patrons. Distinct presence, same room.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Dav Nuro
+    room: "Kuat Drive Yards - The Pressure Drop Cantina"
+    species: Sullustan
+    description: >-
+      A stocky Sullustan with the broad dewflaps and dark, wide-set eyes of his
+      people and grease worked permanently into the creases of his hands. He is a
+      line-foreman on the orbital ring — twenty years fitting navigation cores
+      into hulls bound out of the Kuat yards — and he runs a tight, honest crew
+      who clock in, do the work, and clock out clean. He holds the back booth of
+      the Pressure Drop between shifts, nursing a caf and a data-pad, and right
+      now there is a sick, careful tension in the way he sits: two days ago a
+      restricted core blank went missing off his feeder line, the badge log for
+      that shift came up scrubbed, and Kuat Security Force has all but decided
+      the cheapest answer is that his people took it. He cannot fight the
+      company. He needs someone who can pull the truth out of the systems before
+      the write-up lands and his crew loses their berths.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 2D+2
+        mechanical: 3D
+        perception: 3D+1
+        strength: 2D
+        technical: 3D+1
+      skills:
+        command: 4D
+        persuasion: 3D+2
+        bargain: 3D+2
+        streetwise: 3D+1
+        security: 3D+2
+        capital_ship_repair: 4D
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A working foreman, plain-spoken and bone-tired, who takes the threat to
+        his crew personally — they are his responsibility and they are clean. Not
+        a fighter and not a slicer; he knows the yard's systems well enough to
+        know where the truth is hidden, but pulling it out is beyond a man with a
+        write-up hanging over him. Honest to a fault, slow to ask for help and
+        steady once he has. He pays what he promises out of his own berth-bonus
+        because the company won't.
+      knowledge:
+        - "He is a line-foreman on the Kuat Drive Yards orbital ring, fitting navigation cores into hulls; he runs an honest floor crew who are now being blamed for a theft they did not commit."
+        - "Two days ago a restricted navigation-core blank was skimmed off his feeder line; the official shift badge log was scrubbed, but a maintenance subsystem in the machine shops keeps an unscrubbed shadow copy of who badged the floor."
+        - "Kuat Security Force would rather write it up against his crew than run a real probe — it is cheaper — and the write-up costs the whole crew their berths and their families' ring housing."
+        - "He has heard the yards have a quiet skim problem: an off-ring 'acquisitions' fixer buys restricted KDY parts to order, and a parts-fence in the warehouse district knows who is buying."
+      faction: independent
+      dialogue_style: >-
+        Plain, tired, working-class. Talks shifts, cores, and his crew, not
+        politics. Says less than he means and means all of it.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'My crew clocked in, did the work, clocked out clean. Somebody put that theft on their badges, and it wasn't them.'"
+        - "*Dav Nuro turns the data-pad face-down and rubs the grease deeper into his knuckles.*"
+        - "'Pull the truth out of the yard's systems before that write-up lands, and there's a berth-bonus in it — and a foreman who won't forget it.'"
+
+  # ── Questline antagonist: Suro Vant (combat step 4) ─────────────────
+  # Single hostile instance at the Factories handoff. Matches the
+  # kuat_ring_skimmed_line step-4 combat_won enemy_template.
+
+  - name: Suro Vant
+    room: "Kuat Drive Yards - Factories"
+    species: Aqualish
+    description: >-
+      A heavy-shouldered Aqualish in a dockworker's coat that does not quite hide
+      the reinforced vest under it, waiting among the cold press-lines of the
+      ring factories where the machines are loud enough to swallow a handoff. He
+      is an "acquisitions" fixer — he buys restricted Kuat Drive Yards components
+      skimmed off the lines by people he has quietly bought, moves them off-ring
+      to buyers who can't requisition them honestly, and leaves the floor crews
+      to take the write-up so the trail dies on an honest worker's badge. The
+      skimmed core blank is in the case at his feet, waiting on a freighter. When
+      he reads the whole trail on your face — the shadow log, the fence, all of
+      it leading straight to him — the bored patience drains out of his tusked
+      face, because a fitter's foreman doesn't send people who can trace a skim
+      this far unless they mean to take the merchandise back.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+1
+        strength: 3D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+2
+        brawling: 4D+2
+        intimidation: 4D
+        streetwise: 3D+2
+        bargain: 3D+1
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: kuat_skimmed_line_collector
+      personality: >-
+        A freelance parts-fixer who runs skims for hire, all bored patience until
+        the merchandise is threatened. He would rather buy off or warn away a
+        snoop than fight, but he will absolutely shoot someone who has traced a
+        skimmed core to the handoff. Combat foil for the questline's confrontation
+        beat.
+      knowledge:
+        - "He buys Kuat Drive Yards components skimmed off the lines by sources he has bought, and moves them off-ring to buyers who can't requisition them honestly."
+        - "He took the restricted navigation-core blank from Dav Nuro's feeder line and lets the honest floor crew take the write-up to bury the trail; he silences anyone who traces the skim to the handoff."
+      faction: criminal
+      dialogue_style: >-
+        Flat Aqualish growl, bored and transactional, until it isn't. Names a
+        price for everything right up until he names you a loose end.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'You traced a core blank all the way to my floor, fitter? That's a careless thing to be good at.'"
+        - "*Suro Vant nudges the case behind a press-line with his boot and lets his coat fall open over the vest.*"
+        - "'Everything's got a price. Walk now and yours is just your trouble. Stay, and it goes up.'"
