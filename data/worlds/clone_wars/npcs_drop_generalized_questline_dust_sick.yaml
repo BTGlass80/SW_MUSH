@@ -1,0 +1,208 @@
+# Generalized Questline Drop — "The Dust-Sick" (T3.24 fifth slice, 2026-06-26)
+#
+# The FIFTH accessible (non-t5, non-tutorial) `kind: questline` chain, after
+# "The Ghost Shipment" (nar_freight_ghost_shipment, Nar Shaddaa), "The Crooked
+# Wheel" (mos_eisley_crooked_wheel, Tatooine/Mos Eisley), "The Lost Courier"
+# (coruscant_lower_lost_courier, Coruscant lower city), and "The Skimmed Line"
+# (kuat_ring_skimmed_line, Kuat ring). It reuses the SAME live questline engine
+# (engine/tutorial_chains.py + chain_events.py: the `kind: questline` type +
+# `active_questline` slot) with NO new engine code, no new slot, and no new
+# event type — the sanctioned right-of-launch widening per
+# quest_expansion_postlaunch_path_v1.md (T3.24): author MORE questlines on the
+# proven pattern.
+#
+# Two firsts for the accessible-questline arc:
+#   1. The FIRST questline set in the WILDERNESS rather than an urban hub — the
+#      Tatooine deep desert (the City Outskirts scavenger market and the
+#      Jundland Wastes), not a cantina district. The four prior questlines all
+#      run in city interiors; this one opens the open desert as a questline
+#      stage. It does NOT touch any map coordinate or world exit graph — the
+#      rooms already exist and are loaded (planets/tatooine.yaml); only NPCs +
+#      a chains.yaml entry + an achievement are added.
+#   2. A FIFTH distinct skill spread — FIRST_AID + SURVIVAL (vs search+streetwise
+#      on the Ghost Shipment, investigation+gambling on the Crooked Wheel,
+#      persuasion+sneak on the Lost Courier, security+bargain on the Skimmed
+#      Line). The five accessible questlines now each teach distinct play, and
+#      this is the first to lead with the medical/wilderness skills the combat
+#      and social arcs never exercise.
+#
+# It is also a new STORY SHAPE: a save-the-stricken frontier rescue, not a
+# racket-bust, a smuggling-trace, a kidnap-rescue, or an industrial-theft
+# clear-the-innocent. A homesteader's grown son went into the Wastes after a
+# salvage lead and came back word he is down — fevered, "dust-sick," holed up in
+# a cave too weak to walk out — while desert scavengers close on the stranded
+# party to strip their dead speeder. You reach the boy and stabilize him
+# (first_aid), read the rising sand to chart a way back across the dunes
+# (survival), drive off the scavenger band that ambushes the slow walk home
+# (attack/dodge), and bring him back to his mother.
+#
+# Premise: Soree Bann, a Gran homesteader off a far moisture claim, came in to
+# the outskirts scavenger market because no one would go out for her. Her son
+# Eddin chased a wreck-salvage lead into the Jundland, took a bad turn — heat,
+# bad water, a fever the locals call dust-sickness — and sent word by a passing
+# Jawa caravan that he is alive but cannot move, sheltering in a hidden cave.
+# A red-Nikto scavenger boss, Vohrek Sarn, works that stretch of waste and is
+# already circling the boy's downed speeder. Stabilize Eddin, find the line
+# home, and get past Sarn's crew before the desert — or the scavengers — keep
+# him.
+#
+# These NPCs back the `jundland_dust_sick` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Soree Bann — the homesteader who offers + closes the quest (step-1 npc =
+#                  the questline's start-NPC, per get_questline_offer). She waits
+#                  at the City Outskirts scavenger market; distinct from the
+#                  market's ambient traders. Step-1 + step-5 NPC.
+#   * Vohrek Sarn — the combat-step scavenger boss (ai_config.chain_enemy_template
+#                  jundland_dust_scavenger_boss; the step-4 combat_won foil).
+# Eddin Bann (the stricken son) is NARRATED ONLY — a step-2/step-3/step-5 story
+# beat, NOT a spawned NPC entity (the rescue target needs no producer; he is
+# carried in the prose the way the prior questlines' rescued/cleared parties are).
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures.
+# Provenance: Gran and (red/Kajain'sa'Nikto) are long-settled Tatooine-region
+# species present well before the Clone Wars — era-clean, faction-neutral desert
+# folk, not war-faction coded. Stats matched to the shipped accessible-questline
+# bands — the giver to the non-combat fixer band (Yelza Korrin / Dorae Vint /
+# Sashi Renko / Dav Nuro), the scavenger boss to the small-time-criminal
+# antagonist band (Brakkis Vone / Gorvahn Brusk / Skarn Vex / Suro Vant): a real
+# fight, beatable by a fresh post-chargen character. WEG40120 PDF is local-only
+# (gitignored) and absent in this tree; the bands are cited against the in-repo
+# reference NPCs, not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The homesteader — Soree Bann (questline GIVER + closer)
+  # Questline: jundland_dust_sick ("The Dust-Sick")
+  # Placement: City Outskirts - Scavenger Market
+  #            (outskirts_scavenger_market, zone tatooine_outskirts).
+  #            Step-1 + step-5 NPC.
+  # NOTE: a far-claim moisture homesteader who came in to the edge-of-town
+  # market to hire someone for the Wastes — NOT one of the market's ambient
+  # scavengers or Jawa traders. Distinct presence, same room.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Soree Bann
+    room: "City Outskirts - Scavenger Market"
+    species: Gran
+    description: >-
+      A weathered Gran woman in a sun-bleached homesteader's wrap, her three
+      dark eyes set in a face creased by thirty seasons of double-sun glare off
+      vaporator fields. She and her son work a far moisture claim out past the
+      last marked trail, and she has the still, economical bearing of someone who
+      has buried more than one neighbor the desert took quietly. Right now that
+      stillness is a held breath: her boy Eddin chased a wreck-salvage lead into
+      the Jundland four days ago and a passing Jawa caravan brought word back that
+      he is alive but down — fevered, out of good water, holed up in a cave too
+      weak to walk out — and the scavengers who work that stretch are already
+      circling his dead speeder. She came in to the market because she cannot
+      carry him alone and no one here will go out for a homesteader's credits.
+      She is looking for someone who will.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 3D
+        mechanical: 2D+2
+        perception: 3D+1
+        strength: 2D+1
+        technical: 2D+2
+      skills:
+        survival: 4D
+        first_aid: 3D+2
+        beast_riding: 3D+1
+        persuasion: 3D
+        bargain: 3D+1
+        streetwise: 3D
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A frontier homesteader, spare with words and steady under fear, who has
+        learned not to waste breath the desert will take anyway. She knows the
+        Wastes — water, weather, the field-medicine that keeps a fevered body
+        alive a day longer — better than anyone in this market, but a mother
+        cannot carry a grown son out of the Jundland alone and the scavengers
+        would take them both. Honest, undramatic, and slow to trust; she pays
+        what she promises out of the season's water-sale because no one is
+        coming to help for free.
+      knowledge:
+        - "She is a Gran moisture-farmer off a far claim past the last marked trail; her grown son Eddin went into the Jundland Wastes after a wreck-salvage lead and is now down with dust-sickness, holed up in a hidden cave too weak to walk out."
+        - "A passing Jawa caravan carried word back that Eddin is alive but fevered and out of good water; reaching him in time means stabilizing him on the spot, not just finding him."
+        - "Desert scavengers work that stretch of the Wastes and are circling Eddin's dead speeder; a red-Nikto boss runs the band and won't leave a stranded salvage — or its finder — alone."
+        - "The straight line back from the cave crosses open dune that a rising sand can erase; getting a fevered man home alive is a question of reading the desert, not just walking it."
+      faction: independent
+      dialogue_style: >-
+        Plain, spare, frontier-quiet. Talks water, weather, and her boy, not
+        politics. Says little and means every word of it.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'My boy's down in the Wastes with a fever and no good water. I can't carry him out alone, and the scavengers won't wait.'"
+        - "*Soree Bann's three eyes track the heat-shimmer past the gate, toward the open desert, and away again.*"
+        - "'Bring Eddin home alive and there's a season's water-credits in it — and a homesteader who pays what she says.'"
+
+  # ── Questline antagonist: Vohrek Sarn (combat step 4) ───────────────
+  # Single hostile instance in the Wastes ambush. Matches the
+  # jundland_dust_sick step-4 combat_won enemy_template.
+
+  - name: Vohrek Sarn
+    room: "Jundland Wastes - Beggar's Canyon"
+    species: Nikto
+    description: >-
+      A heavy red-skinned Nikto in a patched desert duster strung with the
+      scavenged trophies of dead speeders, blocking the narrows of Beggar's
+      Canyon where the only walkable line home funnels through. He runs a
+      scavenger band that works this stretch of the Jundland — they let the
+      desert do the killing, then strip what it leaves, and a stranded salvage
+      with a dying man beside it is exactly the kind of easy take they wait on.
+      He has been circling the boy's dead speeder for two days, content to let
+      the fever finish the work. When a stranger walks the canyon carrying that
+      same fevered man out of his desert, the lazy patience goes flat out of his
+      ridged face, because a rescue means the take is walking away on its own
+      legs — and Vohrek Sarn does not let a take walk.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D+1
+        perception: 2D+2
+        strength: 3D+1
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        brawling: 4D+1
+        intimidation: 4D
+        survival: 4D
+        streetwise: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: jundland_dust_scavenger_boss
+      personality: >-
+        A desert scavenger-boss who lets the Wastes do his killing and strips
+        what they leave, all lazy patience until a take starts walking away. He
+        would rather wave a rescuer off and keep the speeder than fight for it,
+        but he will absolutely gun down someone carrying a stranded salvage out
+        of his canyon. Combat foil for the questline's confrontation beat.
+      knowledge:
+        - "He runs a scavenger band working the Jundland Wastes; they let the desert kill stranded travelers, then strip the wrecks, and he has been circling a downed speeder waiting for its fevered owner to die."
+        - "He does not let a take walk out of his canyon on its own legs; anyone carrying that stranded salvage — or the man beside it — home alive is taking it out of his hands."
+      faction: criminal
+      dialogue_style: >-
+        Flat Nikto rasp, bored and unhurried, until the take moves. Names what a
+        thing is worth to him right up until he names you the thing in the way.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'That speeder's mine by waiting, stranger. The fever does the work and I do the stripping. Put the man down and walk.'"
+        - "*Vohrek Sarn shifts to fill the narrows, the dead-speeder trophies on his duster clicking, and lets a hand drop to the blaster.*"
+        - "'Nobody walks a take out of my canyon on its own legs. You want him alive that bad, you buy him — in trouble.'"

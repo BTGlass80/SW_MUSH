@@ -2881,6 +2881,211 @@ chains:
           The crew keeps their berths and the yard keeps turning. Dav Nuro's
           good word travels the Kuat ring — honest work finds those who finish it.
 
+  # ─────────────────────────────────────────────────────────────────────
+  # GENERALIZED QUESTLINE — "The Dust-Sick" (T3.24 fifth slice, Jun 26 2026)
+  # The FIFTH accessible (non-t5, non-tutorial) kind: questline chain, after
+  # The Ghost Shipment (Nar Shaddaa), The Crooked Wheel (Tatooine/Mos Eisley),
+  # The Lost Courier (Coruscant lower city), and The Skimmed Line (Kuat ring).
+  # FIRST questline set in the WILDERNESS (the Tatooine deep desert — the City
+  # Outskirts scavenger market and the Jundland Wastes — not a city interior),
+  # and exercises a FIFTH distinct skill spread — FIRST_AID + SURVIVAL — as a
+  # save-the-stricken frontier rescue. Reuses the live questline engine with NO
+  # new engine code/slot/event type, and touches NO map coordinate or exit graph
+  # (the desert rooms already exist + are loaded). NPCs back it in
+  # data/worlds/clone_wars/npcs_drop_generalized_questline_dust_sick.yaml.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: jundland_dust_sick
+    chain_name: "The Dust-Sick"
+    description: >
+      A homesteader's grown son chased a salvage lead into the Jundland Wastes
+      and came back word that he is down — fevered, out of good water, "dust-sick"
+      and too weak to walk out of the cave he sheltered in — while desert
+      scavengers circle his dead speeder waiting for the desert to finish him.
+      His mother can't carry him out alone and no one in the market will go for a
+      homesteader's credits. Reach the boy and stabilize him, read the rising sand
+      to chart a way home across the dunes, and get past the scavenger band before
+      the Wastes keep him. A frontier favor — open to anyone, no faction required.
+    archetype_label: "Frontier Rescue"
+    faction_alignment: independent
+    starting_zone: tatooine_outskirts
+    starting_room: outskirts_scavenger_market
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["dust_sick_recovered"]
+      drop_room: outskirts_scavenger_market
+      follow_up_hint: >
+        Soree Bann pays her water-credits and means the thanks. A homesteader
+        whose son walked home out of the Wastes remembers who carried him — the
+        far claims and the caravan trails carry a good word a long way out here.
+
+    steps:
+      - step: 1
+        title: "The Far Claim's Mother"
+        location: outskirts_scavenger_market
+        npc: "Soree Bann"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Soree Bann at the City Outskirts scavenger market."
+        npc_intro: >
+          "You've got the look of someone the desert hasn't beaten yet. Good —
+          I need that. Soree Bann; my claim's out past the last marked trail. My
+          boy Eddin went into the Jundland after a wreck-salvage lead four days
+          back, and a Jawa caravan brought word he's down — fevered, out of good
+          water, holed up in a cave too weak to walk. The scavengers that work
+          that waste are already circling his speeder. I can't carry him out
+          alone and nobody here will go for a homesteader's pay. `talk` to me and
+          I'll tell you where he's lying and what'll keep him breathing."
+        completion:
+          type: talk_to_npc
+          npc: "Soree Bann"
+        npc_complete: >
+          "He's in a hidden cave off the canyon mouth — the caravan marked it.
+          Fever and bad water; he'll be slipping in and out. Don't try to move
+          him first. Get him stable — water, shade, a steady hand; you'll have to
+          `first aid` him on the spot before he can travel at all. Keep him
+          breathing and we've got a chance to walk him home."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to the Jundland Wastes hidden cave and use your `first_aid` skill to stabilize the fevered boy — `chain attempt`."
+
+      - step: 2
+        title: "Dust-Sick in the Cave"
+        location: jundland_hidden_cave
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["first_aid"]
+        objective: "Stabilize the fevered Eddin Bann in the hidden cave with a first-aid check."
+        npc_intro: >
+          [The hidden cave holds a sliver of shade and a young man laid out in it,
+          flushed and shaking, lips cracked, a salvage bar still clutched in one
+          hand — Eddin Bann, dust-sick and slipping under.] He's alive, but the
+          fever's climbing and bad water's wrung him dry; move him like this and
+          the walk will kill him. Cool him, get clean water into him, steady the
+          fever — `first aid`, careful and right. `chain attempt` when you work
+          on him.
+        completion:
+          type: skill_check_passed
+          skill: "first_aid"
+          difficulty: 10
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [The fever breaks enough. Eddin's eyes find focus, the shaking eases,
+          and the cracked lips manage a dry whisper of thanks. He can't run, but
+          with an arm under him he can walk — and walking out is the only way he
+          leaves this cave alive. He grips the salvage bar like it's worth the
+          trip. Now you only have to get him across open desert.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Eddin can walk now, but the straight line home crosses open dune. Get to the Dune Sea Edge and use your `survival` skill to read the rising sand and chart a way back — `chain attempt`."
+
+      - step: 3
+        title: "Reading the Sand"
+        location: jundland_dune_sea_edge
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["survival"]
+        objective: "Read the rising desert at the Dune Sea Edge to chart a safe line home for a man who can't run."
+        npc_intro: >
+          [Past the canyon the Wastes open into raw dune, and the wind has the
+          gritty edge that comes before a sand rises — the straight line home is
+          the one a storm erases first, and a fevered man on your shoulder can't
+          outpace it.] Read the desert the way Soree would: the firm sand, the
+          windbreaks, the slow safe line that keeps shade and water within reach.
+          Pick the route a sick man can survive, not the short one. `survival`,
+          and `chain attempt` when you commit to a line.
+        completion:
+          type: skill_check_passed
+          skill: "survival"
+          difficulty: 12
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [The desert resolves into a route: firmer footing along the windward
+          dunes, two shaded hollows to rest him in, a line that bends wide of the
+          open pan where the sand will run. It's longer, and it's the only one
+          Eddin walks out of. You get him moving along it — and that line bends
+          straight into the narrows of Beggar's Canyon, where someone is already
+          waiting on the take.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "The safe line home funnels through Beggar's Canyon — and the scavenger boss Vohrek Sarn is waiting on the speeder. Get the boy through; `attack`, `dodge`."
+
+      - step: 4
+        title: "The Narrows"
+        location: jundland_beggars_canyon
+        npc: "Vohrek Sarn"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Get Eddin past Vohrek Sarn's scavengers in Beggar's Canyon — `attack`, `dodge`."
+        npc_intro: >
+          [The safe line funnels into the narrows of Beggar's Canyon, and a heavy
+          red-Nikto in a trophy-strung duster steps out to fill it — Vohrek Sarn,
+          who has been circling Eddin's dead speeder for two days, content to let
+          the fever do his work. The take he was waiting on is walking out on a
+          stranger's shoulder, and the lazy patience goes flat out of his ridged
+          face.] "That speeder's mine by waiting, stranger. Put the man down and
+          walk — or don't, and the desert keeps you both."
+        completion:
+          type: combat_won
+          enemy_template: "jundland_dust_scavenger_boss"
+          enemy_count: 1
+        npc_complete: >
+          [Vohrek Sarn goes down in the narrows and his band scatters back into
+          the Wastes the way scavengers do when the easy take turns and bites.
+          The canyon's clear, the line home is open, and Eddin is still on his
+          feet with the salvage bar in his fist. Nothing between here and the
+          market now but desert you've already learned to read. Walk him home to
+          his mother.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "Scavengers scattered, the line home open, the boy still walking. Bring Eddin back to Soree at the scavenger market."
+
+      - step: 5
+        title: "Walked Home"
+        location: outskirts_scavenger_market
+        npc: "Soree Bann"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Soree Bann to close the job and bring her son home."
+        npc_intro: >
+          "You walked him out." [Soree Bann's three eyes go to the young man on
+          your shoulder — fever-thinned and unsteady but upright, salvage bar
+          still in his fist — and for a moment the held-breath stillness she came
+          in with finally lets go.] "Stabilized, walked across open dune, and past
+          whatever was waiting in the canyon. Here's your water-credits out of the
+          season's sale, and then some. `talk` to me and let me get my boy sat
+          down."
+        completion:
+          type: talk_to_npc
+          npc: "Soree Bann"
+        npc_complete: >
+          "Square. You kept a fevered man breathing, read a desert that'd have
+          buried him, and brought him home through people who'd have stripped him
+          where he lay. That buys you my word on the far claims — out here that's
+          shade and water when you need it, which is worth more than the credits.
+          Anyone questions you on the Outer trails, you tell them Soree Bann
+          vouches. Walk safe."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          Eddin sits in the shade and the far claim keeps its son. Soree Bann's
+          word travels the outskirts and the caravan trails — honest work in the
+          Wastes finds those who finish it.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════

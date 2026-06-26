@@ -464,3 +464,20 @@ achievements:
     icon: "⚙️"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "kuat_ring_skimmed_line"}
+
+  # T3.24 generalized-questline arc (2026-06-26): the FIFTH accessible
+  # (non-t5, non-tutorial) questline, and the FIRST set in the wilderness
+  # (Tatooine deep desert). Earned by reaching a homesteader's dust-sick
+  # son in the Jundland Wastes, stabilizing him, charting a survivable
+  # line home, and getting him past a scavenger band — a save-the-stricken
+  # frontier rescue on a fifth distinct skill spread (first_aid + survival).
+  # Same lower-tier band as the Ghost Shipment / Crooked Wheel / Lost
+  # Courier / Skimmed Line (cp_reward 3 vs the t5 trainer chains' 5): open
+  # freelance side-content, not a rep-gated trial.
+  - key: dust_sick_recovered
+    name: "The Dust-Sick"
+    description: "Carried a homesteader's fevered son out of the Jundland Wastes alive — stabilized him where he lay, read a rising desert for the one line home a sick man could walk, and ran a scavenger band off the take. Out here, the desert keeps what you leave to it."
+    category: profession
+    icon: "🩹"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "jundland_dust_sick"}
