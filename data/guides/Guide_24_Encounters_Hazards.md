@@ -9,7 +9,7 @@ tags: ["encounters", "hazards", "wilderness", "random", "dangerous"]
 
 **Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
-**Guide Version 1.0**
+**Guide Version 1.1**
 
 ---
 
@@ -19,9 +19,9 @@ This guide covers the **emergent danger layer** of the game — the things that 
 
 Both systems are **emergent rather than planned**. You don't go looking for them; they find you. Knowing how they work means knowing how to read the warning signs, decide quickly, and recover from the outcomes.
 
-If you only have ten minutes, read **§1 What Encounters Are** and **§5 Environmental Hazards**. The rest covers depth: the specific encounter types, the recovery patterns, the long-game of being a character who routinely operates in dangerous terrain.
+If you only have ten minutes, read **§1 What Encounters Are** and **§6 Environmental Hazards**. The rest covers depth: the specific encounter types, the ground-side wilderness-anomaly events (§5), the recovery patterns, the long-game of being a character who routinely operates in dangerous terrain.
 
-This is a new guide. There was no earlier version.
+Version 1.1 adds **§5 Wilderness Anomalies** — the ground-side `anomalies` / `investigate <id>` event loop (including the skill-gated party challenges), the system Guides #22 and #26 already point here for. Earlier sections are unchanged except for renumbering.
 
 ---
 
@@ -173,9 +173,9 @@ A Sensors crew member can `stationact scan` to gather more intel before respondi
 
 ---
 
-## 4. Anomalies
+## 4. Space Anomalies
 
-Distinct from encounters, **anomalies** are persistent space-zone features you discover by scanning rather than ones that ambush you on a deadline. Where encounters are *forced* events, anomalies are *opt-in* — you find them, size them up, and decide whether they're worth your time. A zone holds at most a couple at once.
+Distinct from encounters, **space anomalies** are persistent space-zone features you discover by scanning rather than ones that ambush you on a deadline. Where encounters are *forced* events, anomalies are *opt-in* — you find them, size them up, and decide whether they're worth your time. A zone holds at most a couple at once. (The ground has its own opt-in event layer — see **§5 Wilderness Anomalies** — which works differently: you hear about those over the news and travel to them on foot.)
 
 ### What a scan can turn up
 
@@ -219,7 +219,46 @@ Anomalies are **risk-and-reward**, and resolving one costs real-time minutes of 
 
 ---
 
-## 5. Environmental Hazards
+## 5. Wilderness Anomalies
+
+Encounters fire in space and **space anomalies** (§4) are read from your ship — but the ground has its own opt-in event layer: **wilderness anomalies**. These are temporary sites that spawn out in the open country — the deep desert, the wastes, the badlands beyond the city walls. A stranded patrol pinned down by raiders, a salvage cache half-buried in a dune, a crashed reconnaissance droid still broadcasting, a war-party massing at a watering hole. Each is resolvable for credits, crafting materials, and a swing of faction influence. This is the system Guides #22 and #26 point back here for — the bare verb `investigate` belongs to it.
+
+### Finding one
+
+There are two surfaces:
+
+- **A galaxy news broadcast** fires when an anomaly spawns. This is the primary way you hear about them — watch the news.
+- **`anomalies`** (alias **`anom`**) lists what's active in your *current* region: each line shows an `#id`, a name, a one-line description, and the minutes left before it fades. You only see anything if you're standing in a wilderness region — city interiors and space don't have them.
+
+They're **time-limited**. A common (Tier 1) anomaly lasts about **30 minutes** after it appears. The rarer headline events run far longer — roughly **2 hours** for the mid tier and **8 hours** for a world-event-scale one — precisely so a group has time to gather and travel.
+
+### Resolving one
+
+Travel to the anomaly's **anchor location** — you have to be standing *at the site itself*. From a neighbouring room you'll be told you can see it but need to be there to act. Then:
+
+```
+investigate <id>
+```
+
+What happens next depends on the anomaly's shape:
+
+**Skill anomalies — one shot.** The engine rolls whichever of the site's two governing skills you're better at, against a Moderate–Difficult target (**DC 13**). A clean success pays the full reward; a near miss still pays a smaller partial one. Either way it's *resolved on that single attempt* — you don't get to grind the same Tier-1 skill anomaly twice. The reward is credits, a stack or two of crafting resources, and a small influence bump for your faction (**+5** at Tier 1) if you're aligned.
+
+**Combat anomalies — fight it out.** Here `investigate` *engages* the site instead of rolling: hostiles appear, the set-piece prints, and you go to work with `attack <target>`. There's no separate claim step — **the reward pays out when the last hostile drops**. The bigger events are **multi-phase**: clearing the final enemy of one wave spawns the next, and only the last kill of the last phase fires the payout (and the larger **+20 / +50** influence swing).
+
+**Skill-gated party challenges — the specialist's moment.** A multi-phase event can lace its combat waves with **skill-gate phases** — a slice-the-terminal, stabilize-the-wounded, read-the-storm-for-a-way-out beat that the team's *specialist* steps up for. On a skill-gate phase, `investigate <id>` rolls the gated skill: the engine takes the best of that phase's named skill **or its accepted alternates** that you're actually trained in, so more than one role can cover the same gate. Clear it and the phase advances (or, on the last phase, pays out). Three things make this team content rather than a wall:
+
+- **A miss is never a dead end.** You can try again — throttled only by a short (~12-second) cooldown so the party can't machine-gun the gate.
+- **Soloing is allowed but harder.** With no teammate at the site the gate carries a **solo penalty** — a stiffer target. It's a nudge to bring a crew, not a hard party-size lock.
+- **Everyone who helped gets paid.** The reward is split across *both* the players who landed kills and the players who cleared skill gates — so the slicer, the medic, and the talker share the participation-scaled haul next to the blasters. Bring more than guns and the system rewards it.
+
+> **Three things share the word "investigate."** The wilderness verb is `investigate <id>` (this section). The space-encounter *choice* is `respond investigate` (§3). And combing a room is `search` (Guide #22) — *not* `investigate`. Reach for the right one.
+
+The staged dark-side cult operations in Guide #26 are built on exactly this substrate: `rally` names the live site, and you travel there and `investigate` it stage by stage — combat waves, then an objective, then the leader.
+
+---
+
+## 6. Environmental Hazards
 
 On the ground, certain rooms carry **environmental hazards** that periodically tick against characters present. Unlike combat encounters, hazards are **environmental conditions** — they affect everyone in the room, including NPCs, simply by being there.
 
@@ -291,7 +330,7 @@ A spacer or wilderness traveler typically carries a water canteen and a breath m
 
 ---
 
-## 6. Long-Game Survival
+## 7. Long-Game Survival
 
 For characters who routinely operate in dangerous zones, the hazards and encounters layer become **background management**:
 
@@ -315,9 +354,9 @@ This rhythm is the spacer's and wilderness-fighter's daily ritual. After a few w
 
 ---
 
-## 7. The Five Worked Scenarios
+## 8. The Worked Scenarios
 
-Five concrete pictures.
+Six concrete pictures.
 
 **Scenario 1 — Patrol in deep space.** You're transiting Tatooine Deep Space carrying legitimate cargo. A Republic patrol decloaks. You see the encounter: "Republic Patrol Inspection — choose: comply, bluff, run, hide." You `respond comply`. The scan finds nothing. You're cleared. The encounter ends. Total time: 60 seconds. No cost.
 
@@ -329,9 +368,11 @@ Five concrete pictures.
 
 **Scenario 5 — Hunter encounter.** A PC bounty was posted on your character (you're worth 25,000 cr to the right hunter). You're transiting Kessel Approach. The encounter fires: "Bounty Hunter — Boba Vinn intercepts your ship." You see the choices. You `respond fight`. The hunter is a Veteran-tier — better-equipped than a pirate. You take significant damage but survive; the hunter's ship is destroyed. The bounty doesn't pay (you didn't kill the hunter cleanly), but you're alive. Lesson: PC bounty Hunter encounters carry real stakes. Travel armed.
 
+**Scenario 6 — A wilderness anomaly, run as a team.** A news flash: *"A downed recon walker in the Jundland Wastes — raiders are stripping it."* You and two others type `anomalies` to grab the `#id`, then ride out to the anchor room and `investigate 4`. Phase one is a fight — the raider pickets, cleared with `attack`. Phase two is a **skill-gate**: the walker's data core is still locked, and your slicer steps up — `investigate 4` rolls *their* Security against the gate and cracks it (the two fighters couldn't have, but the gate accepts the slicer's roll). Phase three is the chief and his bodyguard, dropped in another firefight. The payout splits three ways across the union of who fought and who sliced — the slicer earns a full share for the core they cracked, not a tip. Lesson: wilderness anomalies reward a *party*, not just a gun.
+
 ---
 
-## 8. Common Pitfalls
+## 9. Common Pitfalls
 
 **1. Slow to respond.** A 60-second deadline feels generous until you're parsing a four-option encounter description. If you delay, the default outcome triggers — usually combat. Have a fast read.
 
@@ -345,7 +386,7 @@ Five concrete pictures.
 
 ---
 
-## 9. Player Commands Quick Reference
+## 10. Player Commands Quick Reference
 
 | Command | What it does |
 |---|---|
@@ -356,10 +397,12 @@ Five concrete pictures.
 | `deepscan` | Sensor sweep that detects a hidden anomaly |
 | `deepscan <id>` | Focus-scan one anomaly to resolve its details |
 | `salvage` | Strip a fully-resolved derelict or wreck for resources |
+| `anomalies` | List active **wilderness** anomalies in your current region (alias `anom`) |
+| `investigate <id>` | Act on a wilderness anomaly at its anchor site — skill check, combat engage, or skill-gate phase |
 
 ---
 
-## 10. Numbers At A Glance
+## 11. Numbers At A Glance
 
 | Quantity | Value |
 |---|---|
@@ -385,10 +428,14 @@ Five concrete pictures.
 | Republic Dead Drop decode | Slicing vs. Difficult (20); failure → Republic patrol |
 | Dehydration | −1 pip STR + −1 pip DEX per stack, max 3 (→ −1D / −1D) |
 | Toxic exposure / radiation debuff | −1D STR, single stack |
+| Wilderness anomaly lifetime — Tier 1 / 2 / 3 | ~30 min / ~2 hr / ~8 hr |
+| Wilderness skill-anomaly check | Better of two skills vs. Moderate–Difficult (13) |
+| Wilderness skill-gate retry cooldown | ~12 seconds between attempts |
+| Wilderness anomaly influence — Tier 1 / 2 / 3 | +5 / +20 / +50 to your faction |
 
 ---
 
-## 11. A Final Word
+## 12. A Final Word
 
 The Encounters and Hazards systems exist to make the world feel **dynamic and contingent**. Without them, traveling between locations would be a transit-time wait. With them, the world is sometimes friendly, sometimes hostile, sometimes opportunity-rich, and you have to be alert.
 
