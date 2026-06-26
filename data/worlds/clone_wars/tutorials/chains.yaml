@@ -3761,6 +3761,264 @@ chains:
           keeper's word travels the Warrens — when a block needs someone who will
           come down where the law won't, they send for the name that already did.
 
+  # ─────────────────────────────────────────────────────────────────────
+  # The NINTH accessible kind:questline. Coruscant MID-CITY — the commercial
+  # district and the Coruscant Works sublevels — a FRESH district reusing
+  # NONE of the two prior Coruscant arcs' rooms (the Lost Courier ran the
+  # lower-city crystal_jewel_cantina / lower_refugee_warren / petrax_sublevels
+  # / factory_district; the False Provenance ran the monumental petrax_quarter
+  # / galactic_museum / calocour_heights / coruscant_westport_landing). It
+  # exercises a NINTH distinct skill spread — PICK POCKET + HIDE + COMPUTER
+  # PROGRAMMING (slicing) — none of which any prior accessible questline uses,
+  # and it is a NEW STRUCTURE: the FIRST accessible questline that resolves on
+  # FINESSE, not force. Three skill-check steps and NO combat step, climaxing
+  # on the master slice rather than a blaster fight — the first side-arc a
+  # pure slicer / scoundrel / face build can finish on its own terms (every
+  # other accessible questline forces a combat climax). A heist-for-justice:
+  # pull the proof of a predatory info-broker's forged debt-liens out of the
+  # private data-vault he hid in a dead corner of the Works, before his
+  # scheduled purge re-forges it — clearing dozens of families at once. NPCs
+  # in npcs_drop_generalized_questline_sealed_ledger.yaml; achievement
+  # sealed_ledger_recovered. ONE placed NPC (the giver/closer); the broker
+  # "the Ledger", his collector, his watchers, and the seized families are
+  # narrated-only (no spawned entity, and no combat step needs a foil). No new
+  # engine code / slot / event type / schema / faucet, and no map-coordinate
+  # or exit-graph change.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: coruscant_works_sealed_ledger
+    chain_name: "The Sealed Ledger"
+    description: >
+      An info-broker the Coruscant mid-city knows only as the Ledger runs a
+      "debt-clearing service" that is really a forgery mill: he fabricates
+      lien-records against working families — debts they never owed — and when
+      they can't pay his "service fees" he seizes their accounts through a
+      registry desk he controls. The proof the liens are fakes lives in a
+      private data-vault he tucked into a decommissioned corner of the
+      Coruscant Works, behind automation so old the maintenance crews never
+      look at it, and on a schedule he runs a purge that wipes and re-forges
+      the records to stay ahead of any audit. One advocate — Terva Dohl, who
+      helps mid-city families fix registry errors honestly — can't beat him on
+      paper: he owns the desk and forges faster than she can appeal. So she
+      needs the original ledger pulled out of his vault before the next purge,
+      the one record that collapses every forged lien at once. A sealed
+      sublevel full of his watchers is no place for a firefight; this is a job
+      for a light touch — lift the way in, slip past unseen, and crack the
+      lock. A freelance favor, open to anyone, no faction required.
+    archetype_label: "Freelance Heist"
+    faction_alignment: independent
+    starting_zone: commercial_district
+    starting_room: dexters_diner
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["sealed_ledger_recovered"]
+      drop_room: dexters_diner
+      follow_up_hint: >
+        The original ledger reaches an honest desk before the Ledger's purge
+        can re-forge it, and the forged liens collapse all at once — dozens of
+        mid-city families clear of debts they never owed, the widow whose
+        savings he took first among them. The broker who never lost a record to
+        an audit just lost the whole vault to a pair of quiet hands, and word
+        moves through the mid-city the way it moves nowhere else: there is
+        someone who gets a thing back without ever raising a blaster.
+
+    steps:
+      - step: 1
+        title: "The Advocate's Problem"
+        location: dexters_diner
+        npc: "Terva Dohl"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Terva Dohl at Dexter's Diner in Coco Town."
+        npc_intro: >
+          [A sleek-furred Bothan woman has a back booth at Dexter's and a
+          datapad stacked with other people's ruin.] "You have the look of
+          someone who can get a thing out of a place it isn't supposed to come
+          out of. Good. Terva Dohl — I help mid-city families fix what the
+          registry got wrong, and lately I'm losing. There's a broker they call
+          the Ledger; he forges debt-liens against people who never borrowed a
+          credit, then seizes their accounts when they can't pay his fees. I
+          can't beat him appealing — he owns the desk and forges faster than I
+          can file. But he keeps the originals, the proof the liens are fake, in
+          a vault he thinks no one can reach. `talk` to me and I'll tell you
+          where he hid it."
+        completion:
+          type: talk_to_npc
+          npc: "Terva Dohl"
+        npc_complete: >
+          "He runs a purge on a schedule — wipes the originals and re-forges
+          them clean, so an audit never finds the same record twice. Pull the
+          ledger before the next purge and every forged lien collapses at once;
+          dozens of families clear, all of them. The vault's in a dead corner of
+          the Coruscant Works, and the only soft way in starts with his
+          collector — the man who works the mid-city accounts carries the vault
+          fob on him, and he rides the transit hub every shift in a crowd thick
+          enough to lose a hand in. Lift the fob. Don't let him feel it go."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to the Mid-City Transit Hub and lift the Ledger's collector's vault-fob out of the commuter crush with your `pick pocket` skill — `chain attempt`."
+
+      - step: 2
+        title: "The Fob in the Crowd"
+        location: mid_transit_hub
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["pick pocket"]
+        objective: "Lift the vault access-fob off the Ledger's collector in the Mid-City Transit Hub crowd with a pick pocket check."
+        npc_intro: >
+          [The transit hub moves tens of thousands an hour through tram queues
+          and turbolift crushes, and the Ledger's collector rides it every
+          shift — a careful man in a good coat, the vault fob clipped to an
+          inside pocket where a careless hand would never reach and a slow one
+          would get caught.] Pickpockets work this crowd for a living and the
+          scan-droids run random sweeps; the only way to take the fob is in the
+          press of a tram arrival, clean and unhurried, and to leave him certain
+          it's still in his pocket. `pick pocket`, light and patient — `chain
+          attempt` when the crowd surges.
+        completion:
+          type: skill_check_passed
+          skill: "pick pocket"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [The tram doors gasp open, the crowd lurches, and in the half-second
+          of contact the fob comes free of the inside pocket and into your sleeve
+          while your other hand is already somewhere harmless. The collector
+          rides on, hand brushing his coat out of habit, feeling the shape of
+          something that is no longer there. By the time he reaches the vault and
+          learns it's gone, you intend to be standing in it. The fob will open
+          the Ledger's reader — but the vault sits in a stretch of the Coruscant
+          Works he keeps watched, and a fob in the wrong place at the wrong
+          moment is worse than no fob at all.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "You have the fob — now reach the vault unseen. Get down to the Coruscant Works Industrial Sublevel and `hide` your way past the Ledger's posted watchers and the dead sublevel's sensor sweep — `chain attempt`."
+
+      - step: 3
+        title: "The Quiet Sublevel"
+        location: commercial_district_main
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["hide"]
+        objective: "Cross the Coruscant Works Industrial Sublevel to the dead plant unseen — past the Ledger's watchers and the motion-sweep — with a hide check."
+        npc_intro: >
+          [The Works sublevel is conduits and recyclers and the kind of quiet
+          that makes the few people down here nervous; the live grid stations
+          have their own crews busy elsewhere, but the dead stretch toward the
+          old atmospheric plant is the Ledger's, and he keeps two watchers on the
+          approach and a motion-sweep walking the gantries between them.] A
+          firefight in a sealed sublevel ends with you cornered; the way through
+          is the way no one notices — read the sweep's pattern, time the
+          watchers' arcs, and move only in the gaps, staying off the
+          motion-grid and out of every sightline. `hide`, slow and certain —
+          `chain attempt` when the sweep turns away.
+        completion:
+          type: skill_check_passed
+          skill: "hide"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [The sweep crawls down the far gantry, a watcher turns to light a
+          deathstick in cupped hands, and in the dark seam between them you cross
+          the dead stretch one held breath at a time — past the warning-lit
+          recyclers no one remembers the meaning of, into the oldest part of the
+          plant where the automation hasn't been updated since the late Old
+          Republic and no living soul comes on purpose. The vault is here, where
+          he was sure no one would ever stand: a slicer's-gauntlet lock on a
+          data-core tucked behind machinery older than the war. The fob wakes the
+          reader. The lock is another matter — and somewhere a purge-timer is
+          counting down toward the wipe that makes all of this for nothing.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "You're at the vault in the Atmospheric Processing Plant — now beat the lock before the purge. Slice the data-core's gauntlet with your `computer programming` skill and pull the original ledger — `chain attempt`."
+
+      - step: 4
+        title: "The Slicer's Gauntlet"
+        location: commercial_district_atmospheric
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["computer programming"]
+        objective: "Crack the data-vault's slicer-gauntlet lock and pull the original ledger before the scheduled purge wipes it — a computer programming check."
+        npc_intro: >
+          [The data-core sits behind the ancient automation like a held secret,
+          and the Ledger spent on it the one thing he trusts: a slicer's
+          gauntlet, layered counter-ice that wipes the originals the instant a
+          clumsy intrusion trips it — and a purge-timer underneath, counting
+          down to do the same on schedule whether you're here or not.] This is
+          the whole job in one roll: get through the gauntlet faster than it can
+          wipe, and faster than the timer, and pull the original ledger clean —
+          the forged liens collapse the moment it reaches an honest desk, but
+          only if it survives the next sixty seconds. `computer programming`,
+          steady and exact — `chain attempt`, and beat the clock.
+        completion:
+          type: skill_check_passed
+          skill: "computer programming"
+          difficulty: 14
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [The gauntlet peels back layer by layer under a knowing hand — a feint
+          to draw the counter-ice, a held line while it resets, and then the core
+          is open with the purge-timer still ticking and the wipe still leashed.
+          The original ledger copies out whole: every forged lien, every seized
+          account, every family name the Ledger manufactured a debt against, in
+          the broker's own untouched records. You pull it clean and let the
+          gauntlet close on an empty core a breath before the purge fires on
+          nothing. He'll re-forge what's left and find it proves only that he
+          forges — because the real ledger is in your hand, and it only has to
+          reach Terva Dohl before he learns it's gone.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "You have the original ledger — now get it to an honest desk before the Ledger can react. Bring it back to Terva Dohl at Dexter's Diner."
+
+      - step: 5
+        title: "An Honest Desk"
+        location: dexters_diner
+        npc: "Terva Dohl"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Terva Dohl with the original ledger to collapse the forged liens."
+        npc_intro: >
+          [Terva Dohl reads the copied ledger in the back booth, fur prickling,
+          scrolling faster the further she gets.] "You actually pulled it. The
+          whole vault, the originals, every lien he forged in his own hand — this
+          isn't an appeal, this is the case that ends him. Fob lifted, sweep
+          beaten, gauntlet cracked, and not a shot fired — that's the cleanest
+          piece of work I've seen in the mid-city in years. `talk` to me and let
+          me pay you what this is worth before I go file it where he can't reach."
+        completion:
+          type: talk_to_npc
+          npc: "Terva Dohl"
+        npc_complete: >
+          "It's filed — on a desk the Ledger doesn't own, with the originals
+          attached, before his purge could re-forge a single line. Every lien he
+          hung collapses at once: the widow gets her savings back, and dozens of
+          families clear of debts they never owed. Here's your fee, honestly
+          paid, and there's more than the fee in it for you — the mid-city has a
+          name now for someone who gets a thing back without raising a blaster,
+          and that name travels. Quiet hands are rarer than gun hands down here,
+          and worth more. Come find me when you want the next one."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The forged liens collapse and the mid-city families come out clear,
+          the widow first among them. A name moves through the commercial
+          district — someone who can get a thing back on finesse alone — and
+          quiet work has a way of finding the quiet hands that can do it.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════

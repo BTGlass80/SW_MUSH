@@ -538,3 +538,11 @@ achievements:
     icon: "⚙️"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "nar_shaddaa_warrens_toll"}
+
+  - key: sealed_ledger_recovered
+    name: "The Sealed Ledger"
+    description: "Beat a Coruscant mid-city forgery-broker on his own ground without raising a blaster — lifted the vault fob from his collector in the transit crush, slipped past his watchers and the dead sublevel's sensor sweep, and cracked the slicer-gauntlet to pull the original ledger before his purge could re-forge it. Dozens of families cleared of debts they never owed, on finesse alone. Quiet hands are rarer than gun hands, and worth more."
+    category: profession
+    icon: "🗝️"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "coruscant_works_sealed_ledger"}
