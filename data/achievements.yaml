@@ -518,3 +518,23 @@ achievements:
     icon: "📜"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "nar_shaddaa_forged_notice"}
+
+  # T3.24 generalized-questline arc (2026-06-26): the EIGHTH accessible
+  # (non-t5, non-tutorial) questline, set in the deepest face of Nar Shaddaa —
+  # the Warrens, the Smuggler's Moon's lowest inhabitable levels (vs the Ghost
+  # Shipment's promenade/Undercity and the Forged Notice's upper docks; reuses
+  # none of their rooms). Earned by breaking a Hutt-space "reactor-safety toll"
+  # racket before its planted charge breaches the Warrens reactor — rallying a
+  # frightened level to act together, defusing the charge on the cooling fins,
+  # and stopping the enforcer who comes to set another by hand — on an eighth
+  # distinct skill spread (command + demolitions). Same lower-tier band as the
+  # Ghost Shipment / Crooked Wheel / Lost Courier / Skimmed Line / Dust-Sick /
+  # False Provenance / Forged Notice (cp_reward 3 vs the t5 trainer chains' 5):
+  # open freelance side-content, not a rep-gated trial.
+  - key: warrens_toll_broken
+    name: "The Warrens Toll"
+    description: "Came down to the lowest level of the Smuggler's Moon where no law will, rallied a frightened block to move as one, lifted a live charge off a centuries-old reactor before it breached, and dropped the collector who came to set the next one by hand — breaking a safety racket on the people it leaned on hardest. Down here, a toll is only paid by those who can't make you stop."
+    category: profession
+    icon: "⚙️"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "nar_shaddaa_warrens_toll"}

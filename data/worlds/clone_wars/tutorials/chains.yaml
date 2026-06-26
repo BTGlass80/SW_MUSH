@@ -3535,6 +3535,232 @@ chains:
           A captain's word travels the docks — a sharp eye for a forged seal and a
           steady hand at a crooked desk get sent for again.
 
+  - chain_id: nar_shaddaa_warrens_toll
+    chain_name: "The Warrens Toll"
+    description: >
+      Down in the Warrens — the lowest inhabitable levels of the Smuggler's Moon
+      — a racketeer the locals know only as the Toll-Keeper has sold "reactor
+      safety" to the squat block for a year: pay the toll or the centuries-old
+      reactor that keeps the level lit and breathing has an "accident." This cycle
+      the block couldn't pay, and his enforcer wired a real demolitions charge
+      into the reactor's cooling fins — a breach that would collapse the lowest
+      levels and everyone on them. There is no law on Nar Shaddaa that comes down
+      this far. Get the frightened level to move together, take the charge off the
+      fins before it blows, and stop the enforcer who comes to set it by hand. A
+      freelance favor — open to anyone, no faction required.
+    archetype_label: "Freelance Community Defense"
+    faction_alignment: independent
+    starting_zone: nar_shaddaa_warrens
+    starting_room: warrens_squat_block
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["warrens_toll_broken"]
+      drop_room: warrens_squat_block
+      follow_up_hint: >
+        The charge comes off the fins, the enforcer goes down in the rubble, and
+        for the first cycle in a year the squat block sleeps without a toll over
+        its head — word travels the Warrens that the Toll-Keeper's safety racket
+        met a level that didn't pay and didn't burn. A keeper of a hundred
+        families remembers who spent themselves on the block instead of the boss,
+        and the lowest level of the Smuggler's Moon learns there is someone who
+        will come down here when no law will.
+
+    steps:
+      - step: 1
+        title: "The Toll Came Due"
+        location: warrens_squat_block
+        npc: "Vessa Tial"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Vessa Tial in the Warrens squat block."
+        npc_intro: >
+          "You came down to the Warrens on purpose — that already makes you rarer
+          than help usually is down here. Vessa Tial; I keep this block, such as
+          it keeps. There's a man we only ever call the Toll-Keeper who sells us
+          reactor-safety: pay the toll, or the reactor that keeps this level
+          breathing has an accident. We paid it like weather for a year. This
+          cycle we couldn't — and his enforcer wired a real charge into the
+          reactor's cooling fins. No law on this moon comes down this far. `talk`
+          to me and I'll tell you what I can't do alone."
+        completion:
+          type: talk_to_npc
+          npc: "Vessa Tial"
+        npc_complete: >
+          "Three things, and I can't do one of them. First — the level. People
+          are hiding in their dwellings waiting to die polite. The scavengers in
+          the den hold the only safe approach to the reactor and they won't open
+          it; they're as scared as everyone, and scared people down here close
+          the barricade. Get them — get the whole level — to move as one instead
+          of waiting. You'll have to make a frightened crowd believe acting beats
+          hiding. Start in the scavenger den; that's the door we need open."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to the Warrens Scavenger Den and use your `command` skill to rally the scavengers and the squat-block dwellers to act together and open the reactor approach — `chain attempt`."
+
+      - step: 2
+        title: "Move the Level"
+        location: warrens_scavenger_den
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["command"]
+        objective: "Rally the frightened scavengers and squat-block dwellers to act together and open the safe approach to the reactor — a command check."
+        npc_intro: >
+          [Behind the den's barricade of welded durasteel a knot of hard-bitten
+          scavengers and squat-block families have gone still and small, each
+          waiting for someone else to move first while a charge ticks on the only
+          reactor they have.] They are not cowards — they are people who have
+          learned that on the Smuggler's Moon the ones who stand up get noticed,
+          and being noticed kills you. Changing that in the next few minutes is not
+          a matter of a good speech; it is a matter of giving frightened people a
+          job, a direction, and the nerve to believe a level acting together can
+          do what a level hiding never could. Lead them — open the barricade, clear
+          the safe approach, put eyes on the toll-crew's lookouts. `command`,
+          steady and certain — `chain attempt` when you take charge.
+        completion:
+          type: skill_check_passed
+          skill: "command"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [It turns, the way a frightened crowd turns when one person finally tells
+          it where to stand: the barricade comes down, scavengers who would not
+          open the approach for fear are suddenly clearing it and posting watch on
+          the toll-crew's lookouts, and the squat block stops waiting to die polite
+          and starts moving its old and its young up off the lowest level. With the
+          approach open and the lookouts watched, the reactor core is reachable —
+          and somewhere on its cooling fins is the charge the level just found the
+          nerve to let you go and pull.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "The level's moving and the approach is open — now the charge. Get to the Warrens Reactor Core Access and use your `demolitions` skill to take the charge off the cooling fins before it breaches — `chain attempt`."
+
+      - step: 3
+        title: "The Charge on the Fins"
+        location: warrens_reactor_core
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["demolitions"]
+        objective: "Reach the demolitions charge wired into the reactor's cooling fins and defuse it before it breaches — a demolitions check."
+        npc_intro: >
+          [The reactor core access is a furnace of residual heat off a machine
+          that has run unmaintained for centuries, the catwalk humming with
+          suppressed power — and clamped low among the cooling fins where the
+          breach would do the most is the charge: a competent, ugly piece of
+          work, shaped to crack a fin-bank and let the core run away rather than
+          to simply explode.] A panicked yank sets it off; so does cutting the
+          wrong lead. Reading it is the whole job — the trigger logic, the
+          anti-tamper, the order the leads have to come in — and doing it with the
+          heat closing your throat and a level depending on your hands not
+          shaking. `demolitions`, slow and exact — `chain attempt` when you work
+          the charge.
+        completion:
+          type: skill_check_passed
+          skill: "demolitions"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [It comes apart the way ugly competent work does when someone better
+          reads it: the anti-tamper first, then the trigger logic, then the leads
+          in the only order that doesn't run the core — and the charge goes dead
+          and harmless in your hands, a breach that won't happen lifted clean off
+          the fins. The reactor settles back to its old centuries' hum, the level
+          above it keeps breathing, and the thing the Toll-Keeper sold safety
+          against is suddenly just scrap and evidence. The trouble is the deadline
+          has passed and the toll's gone unpaid — and a collector whose lesson
+          just failed doesn't write it off. His enforcer is already crossing the
+          collapsed plaza to set the next one by hand and make the block pay in
+          wreckage what it wouldn't pay in credits.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "The charge is dead but the enforcer's coming to set another by hand — he's crossing the Collapsed Plaza toward the reactor approach. Stop him before he reaches it; `attack`, `dodge`."
+
+      - step: 4
+        title: "The Gap in the Rubble"
+        location: warrens_collapsed_plaza
+        npc: "Tarko Venn"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Stop Tarko Venn in the Collapsed Plaza before he reaches the reactor approach to set another charge — `attack`, `dodge`."
+        npc_intro: >
+          [The collapsed plaza is a tangle of fallen building-layers, the ceiling
+          of the level a frozen avalanche overhead — and picking across it toward
+          the one gap in the rubble that opens onto the reactor approach is a
+          heavy, flat-faced Klatooinian, a remote detonator clipped at his belt
+          and a blaster on his hip. Tarko Venn, the Toll-Keeper's enforcer, the
+          hand that wired the dead charge and means to set the next one himself.
+          When you plant yourself in the gap between him and the approach, he
+          thumbs the detonator, finds the charge already gone, and lets his free
+          hand fall to the blaster instead.] "Block missed the toll. That makes
+          this a collection, and you're standing in it. Out of the rubble — last
+          time I say it."
+        completion:
+          type: combat_won
+          enemy_template: "warrens_toll_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Tarko Venn goes down in the gap in the rubble, the remote detonator
+          skittering away across fallen tile to a charge that isn't there anymore,
+          and the toll-crew's lookouts — paid by a collection, not by a fight on a
+          level that suddenly isn't scattered — fade back up the shafts rather than
+          come down into a Warrens that found its nerve. The detonator and the dead
+          charge are the whole racket in your hands now, the same shaped work on a
+          dozen blocks the Toll-Keeper bled before this one. Nothing between here
+          and the squat block but the climb back to the keeper who bet the toll-money
+          on a stranger.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The enforcer's down and the crew's scattered — the level holds. Bring word back to Vessa Tial in the squat block."
+
+      - step: 5
+        title: "The Toll Broken"
+        location: warrens_squat_block
+        npc: "Vessa Tial"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Vessa Tial with the charge dead and the enforcer down to break the toll."
+        npc_intro: >
+          "The reactor's humming and the lifts are full of people coming back
+          down." [Vessa Tial sets down the block's roster, the steadiness she
+          has been holding all cycle finally costing her a breath as she takes the
+          dead charge and the detonator from your hands.] "Level moved, charge
+          pulled, his man down in the plaza — that's the toll broken, in order.
+          The Toll-Keeper sold safety against the one thing that would've killed
+          us, and a block that couldn't pay him just made sure he can't sell it
+          here again. `talk` to me and let me give you what we owe you."
+        completion:
+          type: talk_to_npc
+          npc: "Vessa Tial"
+        npc_complete: >
+          "Square — and the block knows it. This is the toll-money — every credit
+          we scraped to stay alive this cycle. It was always going to be spent on
+          surviving; I'd a thousand times rather it bought the block than the boss.
+          You've a keeper's word in the Warrens now, and word travels down here
+          faster than it travels up — when no law will come to the lowest level,
+          there's a name that will. Mind the climb out, and the spores in the
+          fungal cavern. Go safe."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The squat block keeps its reactor and its hundred families, and the
+          Toll-Keeper's safety racket loses the level it leaned on hardest. A
+          keeper's word travels the Warrens — when a block needs someone who will
+          come down where the law won't, they send for the name that already did.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════
