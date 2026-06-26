@@ -1,25 +1,29 @@
 # -*- coding: utf-8 -*-
 """tests/test_t3_23_skill_gate_phase0.py — Party skill challenges, Phase 0
-(PRE-LAUNCH seam). T3.23, 2026-06-16.
+seam (T3.23, 2026-06-16) — RE-VERIFIED for Phase 1 (2026-06-26).
 
-This drop lands the ``skill_gate`` anomaly-phase field INERT — same pattern
-as T3.22 ambient-life Phase 0 (land the seam early so the post-launch build
-never needs a live-data migration).  No skill-check resolution is wired yet;
-existing combat-only anomalies are completely unaffected.
+This file originally landed the ``skill_gate`` anomaly-phase field INERT
+(same pattern as T3.22 ambient-life Phase 0 — land the seam early so the
+post-launch build never needs a live-data migration). T3.23 **Phase 1**
+has since wired the skill-check resolution; the accessor + the structural
+guards below still hold, and the advance-behavior tests now assert the
+ACTIVE behavior (advancing into a skill_gate phase moves the pointer and
+returns True). The full Phase-1 behavioral walk lives in
+``tests/test_t3_23_party_skill_gate_phase1.py``. Existing combat-only
+anomalies remain completely unaffected (no skill_gate key → old behavior).
 
 Per docs/design/party_skill_challenges_design_v1.md §6 (non-invasive scoping):
 
   - ``WildernessAnomaly.phase_skill_gate(idx)`` — reader accessor for the
-    T3.23 ``skill_gate`` dict in a phase; returns None if absent.  INERT.
-  - ``_advance_anomaly_phase`` logs a T3.23-tagged info line (not a warning)
-    when a skill_gate phase has no combat_npcs — result is still False
-    (inert: the phase is not advanced until Phase 1 ships).
+    T3.23 ``skill_gate`` dict in a phase; returns None if absent.
+  - ``_advance_to_next_phase`` logs a T3.23-tagged info line (not a warning)
+    when advancing into a skill_gate phase, moves the phase pointer, and
+    returns True (the phase then awaits an investigate attempt).
 
 Sections:
   1. TestPhaseSkillGateAccessor   — accessor returns correct dict / None
-  2. TestAdvanceInertBehavior     — skill_gate phase returns False, right log
+  2. TestAdvanceInertBehavior     — advancing into a skill_gate phase works
   3. TestCombatPhasesUnaffected   — phases with only combat_npcs still work
-  4. TestInertness                — no production code acts on skill_gate yet
 """
 from __future__ import annotations
 
@@ -156,8 +160,10 @@ class TestPhaseSkillGateAccessor(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestAdvanceInertBehavior(unittest.TestCase):
-    """_advance_anomaly_phase with a skill_gate-only phase returns False
-    (inert) and logs an info-level message, not a warning."""
+    """_advance_to_next_phase advancing into a skill_gate-only phase moves
+    the phase pointer, returns True, and logs an info-level message (not a
+    warning). A phase with neither combat_npcs nor skill_gate still warns
+    and returns False."""
 
     def setUp(self):
         self._keys = []
@@ -175,15 +181,20 @@ class TestAdvanceInertBehavior(unittest.TestCase):
         from engine.wilderness_anomalies import _advance_to_next_phase
         return _run(_advance_to_next_phase(None, anomaly, session_mgr))
 
-    def test_skill_gate_phase_returns_false(self):
+    def test_advance_into_skill_gate_phase_returns_true(self):
+        # T3.23 Phase 1: advancing INTO a skill_gate phase moves the phase
+        # pointer (no NPCs to spawn) and returns True — the phase then
+        # waits for an investigate attempt.
         sg = {"skill": "demolitions", "difficulty": 20}
         anomaly = self._make([
             {"name": "Phase 1", "combat_npcs": [{"archetype": "thug"}]},
             {"name": "Vault Door", "skill_gate": sg},
         ])
-        # current_phase=0, advance should try phase 1
+        # current_phase=0, advance should move to phase 1 (the skill gate)
         result = self._advance(anomaly)
-        self.assertFalse(result)
+        self.assertTrue(result)
+        self.assertEqual(anomaly.current_phase, 1)
+        self.assertEqual(anomaly.spawned_npc_ids, [])
 
     def test_skill_gate_phase_logs_info_not_warning(self):
         sg = {"skill": "persuasion", "difficulty": 18}
@@ -193,8 +204,9 @@ class TestAdvanceInertBehavior(unittest.TestCase):
         ])
         with self.assertLogs("engine.wilderness_anomalies", level="INFO") as cm:
             result = self._advance(anomaly)
-        self.assertFalse(result)
-        # Should log at INFO with T3.23 tag, NOT a WARNING
+        # Phase 1: the advance succeeds (pointer moved into the gate).
+        self.assertTrue(result)
+        # Should log at INFO mentioning the skill_gate phase, NOT a WARNING
         info_msgs = [m for m in cm.output if "skill_gate" in m.lower() or "T3.23" in m]
         self.assertTrue(len(info_msgs) >= 1, f"Expected skill_gate info log; got: {cm.output}")
         # Must NOT log a WARNING about "has no combat_npcs" for this case
@@ -273,47 +285,10 @@ class TestCombatPhasesUnaffected(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# 4. TestInertness
+# (Former section 4 — TestInertness — was retired when T3.23 Phase 1 wired
+# the skill_gate consumer. The active behavioral coverage now lives in
+# tests/test_t3_23_party_skill_gate_phase1.py.)
 # ---------------------------------------------------------------------------
-
-class TestInertness(unittest.TestCase):
-    """No production code acts on skill_gate yet (Phase 1 is post-launch)."""
-
-    def test_resolve_anomaly_does_not_import_skill_gate_consumer(self):
-        """The skill_gate field has no consumer in the production engine."""
-        from engine import wilderness_anomalies as wa
-        src = open(wa.__file__, encoding="utf-8").read()
-        # The only places skill_gate should appear are: phase_skill_gate (accessor)
-        # and _advance_anomaly_phase (the inert-seam log). It must NOT appear in
-        # any skill-check dispatch, perform_skill_check call, or award path.
-        import re
-        # Count occurrences of skill_gate in the source
-        occurrences = [m.start() for m in re.finditer(r"skill_gate", src)]
-        # We expect exactly 3 occurrences:
-        #   1. phase_skill_gate method body (.get("skill_gate"))
-        #   2. docstring mentioning skill_gate
-        #   3. _advance_anomaly_phase inert-seam branch (.get("skill_gate"))
-        # If there are more, someone may have wired an actual consumer — fail loudly.
-        self.assertGreaterEqual(len(occurrences), 3,
-                                "Expected >= 3 skill_gate occurrences (method + inert branch)")
-        self.assertLessEqual(len(occurrences), 8,
-                             f"Too many skill_gate occurrences ({len(occurrences)}) "
-                             f"— possible unintended consumer wired pre-Phase-1")
-
-    def test_no_perform_skill_check_call_for_skill_gate(self):
-        """No perform_skill_check call is guarded by skill_gate in this file."""
-        from engine import wilderness_anomalies as wa
-        src = open(wa.__file__, encoding="utf-8").read()
-        import re
-        # Look for skill_gate within 5 lines of perform_skill_check — that would
-        # mean the Phase 1 engine seam was accidentally wired.
-        lines = src.splitlines()
-        for i, line in enumerate(lines):
-            if "perform_skill_check" in line:
-                context = "\n".join(lines[max(0, i-5):i+6])
-                self.assertNotIn("skill_gate", context,
-                                 f"perform_skill_check near skill_gate at line {i+1} — "
-                                 f"Phase 1 consumer accidentally wired?\n{context}")
 
 
 if __name__ == "__main__":

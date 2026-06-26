@@ -163,6 +163,13 @@ TIER3_DURATION_SECS = 8 * 60 * 60              # 8 hours (mid of 6-12h)
 TIER3_INFLUENCE_DELTA = 50                     # design literal
 TIER3_T5_MAT_QUALITY = 80.0                    # T3 quality > T2 q70
 
+# T3.23 party skill-challenge tunables (Phase 1 — design v1 §4/§8).
+# A failed skill_gate attempt is ALWAYS retry-allowed; this is the
+# small "time cost" frustration-control between retries (design v1 §8.2),
+# not a hard abort. Module-level so a future telemetry-grounded tuning
+# pass / test can override it.
+SKILL_GATE_RETRY_COOLDOWN_SECS = 12
+
 
 # ── Tier 1 template catalogue ────────────────────────────────────────────────
 #
@@ -2509,6 +2516,19 @@ class WildernessAnomaly:
     # rank them for the scaled T5 mat distribution (top floor(N/4)
     # by kill count).
     kill_counts: dict = field(default_factory=dict)
+    # T3.23 Phase 1: party skill-challenge participation + retry state.
+    # contribution_log maps char_id → number of skill_gate phases that
+    # char personally cleared during the encounter. It is the non-combat
+    # parallel to kill_counts: the payout enumerates participants as the
+    # UNION of kill_counts.keys() and contribution_log.keys(), so a
+    # character who only sliced / breached / healed / negotiated earns
+    # the same participation share as a fighter (design v1 §5).
+    contribution_log: dict = field(default_factory=dict)
+    # T3.23 Phase 1: per-character earliest-next-retry timestamp for a
+    # failed skill_gate attempt (the design v1 §8.2 "small time cost" —
+    # retry is always allowed, just throttled by
+    # SKILL_GATE_RETRY_COOLDOWN_SECS).
+    skill_gate_retry_at: dict = field(default_factory=dict)
 
     @property
     def template(self) -> dict:
@@ -3190,15 +3210,23 @@ async def resolve_anomaly(
     *,
     rng: Optional[random.Random] = None,
     now: Optional[float] = None,
+    session_mgr=None,
 ) -> dict:
     """Player runs ``investigate <id>``.
 
     Dispatches to ``_resolve_anomaly_skill`` or ``_resolve_anomaly_combat``
     based on the template's ``resolution`` mode.
 
-    Returns the same result dict shape as before for both paths;
+    T3.23 Phase 1: if the anomaly is a multi-phase challenge whose CURRENT
+    phase gates on a skill (``skill_gate``), ``investigate`` attempts that
+    gate (``_resolve_skill_gate_phase``) rather than (re)engaging combat —
+    this is how a party challenge interleaves skill phases with combat
+    phases. Existing combat-only / single-skill anomalies are unaffected.
+
+    Returns the same result dict shape as before for both legacy paths;
     combat-mode results have ``mode="combat"`` and indicate that
-    NPCs were spawned (the reward fires later, on kill).
+    NPCs were spawned (the reward fires later, on kill). Skill-gate
+    attempts have ``mode="skill_gate"``.
     """
     if rng is None:
         rng = random.Random()
@@ -3211,6 +3239,17 @@ async def resolve_anomaly(
         return gate["fail_result"]
     anomaly = gate["anomaly"]
     region_slug = gate["region_slug"]
+
+    # T3.23 Phase 1: a multi-phase challenge whose active phase is a
+    # skill_gate routes to the skill-gate resolver (the team's specialist
+    # steps up). Combat phases of the same challenge fall through to the
+    # combat path below.
+    if anomaly.tier >= 2 and anomaly.phases:
+        if anomaly.phase_skill_gate(anomaly.current_phase) is not None:
+            return await _resolve_skill_gate_phase(
+                db, char, anomaly, region_slug,
+                rng=rng, now=now, session_mgr=session_mgr,
+            )
 
     # Dispatch on resolution mode
     if anomaly.resolution_mode == "combat":
@@ -3334,6 +3373,200 @@ async def _resolve_anomaly_skill(
         "margin": sc.margin,
         "success": sc.success,
     }
+
+
+async def _is_solo_engagement(
+    db, anomaly: "WildernessAnomaly", char_id: int,
+) -> bool:
+    """T3.23: True if ``char_id`` is the only player character at the
+    challenge site — no teammate present to cover the other roles.
+
+    Drives the skill_gate ``solo_penalty`` (design v1 §4: soloable but
+    punishing, no hard party-size lock). On any DB hiccup we fail toward
+    NOT penalizing — never punish a player for a lookup failure.
+    """
+    try:
+        room_chars = await db.get_characters_in_room(int(anomaly.anchor_room_id))
+    except Exception:
+        log.warning("[anomaly] solo-detect room scan failed", exc_info=True)
+        return False
+    distinct = {int(c.get("id", 0)) for c in (room_chars or [])
+                if int(c.get("id", 0))}
+    distinct.add(int(char_id))
+    return len(distinct) <= 1
+
+
+async def _resolve_skill_gate_phase(
+    db, char: dict, anomaly: "WildernessAnomaly",
+    region_slug: str,
+    *,
+    rng: random.Random,
+    now: float,
+    session_mgr=None,
+) -> dict:
+    """T3.23 Phase 1: a player attempts the CURRENT phase's ``skill_gate``
+    via ``investigate <id>``.
+
+    The team's specialist steps up: the character rolls whichever of the
+    gate's ``{skill}`` ∪ ``alt_skills`` they are best suited to, against
+    the gate ``difficulty`` (+ ``solo_penalty`` when no teammate is present).
+    On success the phase clears — the character is credited in
+    ``contribution_log`` and the encounter advances to the next phase or,
+    on the final phase, pays out (reusing the participation-scaled combat
+    payout so non-combat contributors share the reward). On failure the
+    attempt is retry-allowed after a short cooldown (a time cost, not a
+    hard abort — design v1 §8.2).
+    """
+    gate = anomaly.phase_skill_gate(anomaly.current_phase)
+    if not gate:
+        # Defensive: the dispatcher only routes skill_gate phases here.
+        return _fail_result("There is nothing here to attempt right now.",
+                            mode="skill_gate")
+
+    char_id = int(char.get("id", 0))
+    phase_name = anomaly.phases[anomaly.current_phase].get("name", "the obstacle")
+
+    # Retry cooldown (the time cost of a prior failed attempt).
+    retry_at = anomaly.skill_gate_retry_at.get(char_id)
+    if retry_at is not None and now < retry_at:
+        wait = int(retry_at - now) + 1
+        return _fail_result(
+            f"You need a moment to reset after that failed attempt at "
+            f"{phase_name} — try again in {wait}s.",
+            mode="skill_gate",
+        )
+
+    # First-contact attribution: a skill-first challenge may never have
+    # gone through the combat-engagement entry that normally sets these.
+    if anomaly.engaged_by is None:
+        anomaly.engaged_by = char_id
+        anomaly.engaged_faction = char.get("faction_id") or "independent"
+
+    # Pick the best skill this character has among {skill} ∪ alt_skills
+    # (role substitution — the rogue picks the lock the demolitions hand
+    # would breach).
+    candidate_skills = [gate.get("skill", "")] + list(gate.get("alt_skills") or [])
+    candidate_skills = [s for s in candidate_skills if s]
+    if not candidate_skills:
+        log.warning(
+            "[anomaly] skill_gate phase %d of '%s' has no skill defined",
+            anomaly.current_phase, anomaly.template_key,
+        )
+        return _fail_result(
+            f"The {anomaly.display_name} is not properly configured.",
+            mode="skill_gate",
+        )
+    chosen_skill = _pick_best_of_skills(char, candidate_skills)
+
+    # Solo penalty: a lone wolf faces every gate at a steeper difficulty
+    # (no teammate to cover the roles they are weak at).
+    base_difficulty = int(gate.get("difficulty", 15))
+    solo_penalty = int(gate.get("solo_penalty", 0) or 0)
+    is_solo = await _is_solo_engagement(db, anomaly, char_id)
+    difficulty = base_difficulty + (solo_penalty if is_solo else 0)
+
+    from engine.skill_checks import perform_skill_check
+    try:
+        sc = perform_skill_check(char, chosen_skill, difficulty)
+    except Exception:
+        log.warning("[anomaly] skill_gate check raised", exc_info=True)
+        return _fail_result("Something disrupts your effort. Try again.",
+                            mode="skill_gate")
+
+    if not sc.success:
+        anomaly.skill_gate_retry_at[char_id] = now + SKILL_GATE_RETRY_COOLDOWN_SECS
+        penalty_hint = (
+            " The lone-wolf penalty is steep here — a teammate's specialty "
+            "would carry this gate."
+            if (is_solo and solo_penalty > 0) else ""
+        )
+        log.info(
+            "[anomaly] skill_gate MISS on T%d #%d phase %d (%s) by char %s "
+            "(%s %d vs DC %d)",
+            anomaly.tier, anomaly.id, anomaly.current_phase + 1, phase_name,
+            char.get("name", "?"), chosen_skill, sc.roll, difficulty,
+        )
+        return {
+            "ok": True,
+            "mode": "skill_gate",
+            "msg": (f"Your {chosen_skill} attempt on {phase_name} falls short "
+                    f"(rolled {sc.roll} vs {difficulty}).{penalty_hint} "
+                    f"You can try again shortly."),
+            "credits": 0, "resources": [], "influence": 0,
+            "skill_used": chosen_skill, "skill_roll": sc.roll,
+            "difficulty": difficulty,
+            "margin": sc.margin, "success": False,
+            "phase": anomaly.current_phase + 1,
+            "total_phases": anomaly.total_phases,
+            "gate_cleared": False,
+        }
+
+    # ── Success: credit the contributor + clear their cooldown. ──
+    anomaly.contribution_log[char_id] = (
+        int(anomaly.contribution_log.get(char_id, 0)) + 1
+    )
+    anomaly.skill_gate_retry_at.pop(char_id, None)
+    cleared_phase = anomaly.current_phase
+    on_clear = gate.get("on_clear") or f"You clear {phase_name}."
+
+    await _broadcast_skill_gate_clear(anomaly, char, on_clear, session_mgr)
+
+    log.info(
+        "[anomaly] skill_gate CLEAR on T%d #%d phase %d/%d (%s) by char %s "
+        "(%s %d vs DC %d)",
+        anomaly.tier, anomaly.id, cleared_phase + 1, anomaly.total_phases,
+        phase_name, char.get("name", "?"), chosen_skill, sc.roll, difficulty,
+    )
+
+    # Advance to the next phase (combat or another skill gate), or pay
+    # out on the final phase.
+    if not anomaly.is_final_phase:
+        advanced = await _advance_to_next_phase(
+            db, anomaly, session_mgr=session_mgr,
+        )
+        if advanced:
+            return {
+                "ok": True, "mode": "skill_gate",
+                "msg": (f"{on_clear} ({chosen_skill} succeeded — phase "
+                        f"{cleared_phase + 1}/{anomaly.total_phases} cleared.)"),
+                "credits": 0, "resources": [], "influence": 0,
+                "skill_used": chosen_skill, "skill_roll": sc.roll,
+                "difficulty": difficulty,
+                "margin": sc.margin, "success": True,
+                "phase": cleared_phase + 1,
+                "total_phases": anomaly.total_phases,
+                "gate_cleared": True,
+            }
+        # Advance unexpectedly failed (e.g. a malformed next combat
+        # phase). Fall through to payout so the player is never stranded.
+        log.warning(
+            "[anomaly] skill_gate cleared phase %d of '%s' but advance "
+            "failed — paying out to avoid a stuck encounter",
+            cleared_phase, anomaly.template_key,
+        )
+
+    # Final phase cleared by skill → pay out. Reuses the combat payout so
+    # the participation-scaled reward model (credits split + per-participant
+    # trophy + scaled t5 mats) applies; participants now include skill-only
+    # contributors via contribution_log (see _payout_combat_anomaly).
+    payout = await _payout_combat_anomaly(
+        db, anomaly, char_id, rng, now, session_mgr=session_mgr,
+    )
+    result = {
+        "ok": True, "mode": "skill_gate",
+        "msg": f"{on_clear} You complete the {anomaly.display_name}!",
+        "credits": (payout or {}).get("credits", 0),
+        "resources": (payout or {}).get("resources", []) or [],
+        "influence": (payout or {}).get("influence", 0),
+        "skill_used": chosen_skill, "skill_roll": sc.roll,
+        "difficulty": difficulty,
+        "margin": sc.margin, "success": True,
+        "phase": cleared_phase + 1,
+        "total_phases": anomaly.total_phases,
+        "gate_cleared": True,
+        "payout": payout,
+    }
+    return result
 
 
 async def _resolve_anomaly_combat(
@@ -3565,18 +3798,25 @@ async def _advance_to_next_phase(
     npc_specs = next_phase.get("combat_npcs", []) or []
     if not npc_specs:
         if next_phase.get("skill_gate"):
-            # T3.23 pre-launch: skill_gate phases are INERT; the post-launch
-            # engine build (Phase 1) will wire skill-check resolution here.
+            # T3.23 Phase 1: a skill_gate phase begins by MOVING the phase
+            # pointer (there are no NPCs to spawn). The phase then waits
+            # for a player to attempt the gate via `investigate <id>`
+            # (resolve_anomaly → _resolve_skill_gate_phase). Existing
+            # combat-only anomalies never hit this branch (no skill_gate).
+            anomaly.current_phase = next_idx
+            anomaly.spawned_npc_ids = []
             log.info(
-                "[anomaly] phase %d of '%s' has skill_gate (T3.23 inert seam) "
-                "— no combat_npcs; skipping phase advance",
-                next_idx, anomaly.template_key,
+                "[anomaly] T%d #%d advanced to skill_gate phase %d/%d (%s) "
+                "— awaiting an investigate attempt",
+                anomaly.tier, anomaly.id, next_idx + 1,
+                anomaly.total_phases, next_phase.get("name", "?"),
             )
-        else:
-            log.warning(
-                "[anomaly] phase %d of '%s' has no combat_npcs",
-                next_idx, anomaly.template_key,
-            )
+            await _broadcast_phase_intro(anomaly, next_idx, session_mgr)
+            return True
+        log.warning(
+            "[anomaly] phase %d of '%s' has no combat_npcs",
+            next_idx, anomaly.template_key,
+        )
         return False
 
     spawned = await _spawn_combat_npcs(db, anomaly, npc_specs)
@@ -3598,24 +3838,52 @@ async def _advance_to_next_phase(
     )
 
     # Surface the phase intro to anyone in the anchor room.
-    if session_mgr is not None:
-        try:
-            intro = next_phase.get("intro", "")
-            if intro:
-                from engine.session_manager import (
-                    notify_room as _notify_room,
-                )
-            notify = getattr(session_mgr, "broadcast_to_room", None)
-            if notify and intro:
-                await notify(
-                    int(anomaly.anchor_room_id),
-                    f"\n  \033[1;33m[Phase {next_idx + 1}/{anomaly.total_phases}]\033[0m "
-                    f"{intro}",
-                )
-        except Exception:
-            log.warning("[anomaly] phase-intro broadcast failed",
-                        exc_info=True)
+    await _broadcast_phase_intro(anomaly, next_idx, session_mgr)
     return True
+
+
+async def _broadcast_phase_intro(
+    anomaly: "WildernessAnomaly", phase_idx: int, session_mgr,
+) -> None:
+    """Best-effort: surface a phase's ``intro`` line to everyone at the
+    anchor room when the anomaly advances into it. Shared by combat and
+    T3.23 skill_gate phase transitions. No-op without a session_mgr."""
+    if session_mgr is None:
+        return
+    try:
+        phases = anomaly.phases
+        if phase_idx < 0 or phase_idx >= len(phases):
+            return
+        intro = phases[phase_idx].get("intro", "")
+        notify = getattr(session_mgr, "broadcast_to_room", None)
+        if notify and intro:
+            await notify(
+                int(anomaly.anchor_room_id),
+                f"\n  \033[1;33m[Phase {phase_idx + 1}/{anomaly.total_phases}]\033[0m "
+                f"{intro}",
+            )
+    except Exception:
+        log.warning("[anomaly] phase-intro broadcast failed", exc_info=True)
+
+
+async def _broadcast_skill_gate_clear(
+    anomaly: "WildernessAnomaly", char: dict, on_clear: str, session_mgr,
+) -> None:
+    """Best-effort: announce a cleared skill_gate phase to the room so a
+    party sees their specialist step up. No-op without a session_mgr."""
+    if session_mgr is None or not on_clear:
+        return
+    try:
+        notify = getattr(session_mgr, "broadcast_to_room", None)
+        if notify:
+            who = char.get("name", "Someone")
+            await notify(
+                int(anomaly.anchor_room_id),
+                f"\n  \033[1;32m[{who}]\033[0m {on_clear}",
+            )
+    except Exception:
+        log.warning("[anomaly] skill_gate-clear broadcast failed",
+                    exc_info=True)
 
 
 async def _apply_reward_to_char(
@@ -3852,11 +4120,16 @@ async def _payout_combat_anomaly(
     # (anyone who killed an anomaly NPC). Tier 2 uses room occupants
     # at clear time (legacy behavior — kill_counts not consulted).
     if anomaly.tier == 3:
-        # Tier 3 participants: union of anyone who got a kill.
-        participant_ids = list(anomaly.kill_counts.keys())
-        # Defensive: the killer should always be in this set (they
-        # just landed the killing blow), but include them if somehow
-        # not.
+        # Tier 3 participants: anyone who landed a kill (kill_counts) OR
+        # cleared a skill_gate phase (contribution_log — T3.23 party
+        # challenges). Both earn the participation-scaled reward, so a
+        # slicer / medic / face is paid alongside the fighters.
+        participant_ids = list(
+            {int(k) for k in anomaly.kill_counts.keys()}
+            | {int(k) for k in anomaly.contribution_log.keys()}
+        )
+        # Defensive: the resolver (killing blow OR final-gate clear)
+        # should always be in this set, but include them if somehow not.
         if int(killer_char_id) not in participant_ids:
             participant_ids.append(int(killer_char_id))
         participants = []
@@ -3890,6 +4163,20 @@ async def _payout_combat_anomaly(
             participants.append(dict(c))
         if int(killer_char_id) not in seen:
             participants.append(dict(killer))
+            seen.add(int(killer_char_id))
+        # T3.23: also credit any skill_gate clearer (contribution_log) who
+        # is no longer standing in the room at clear time. No-op for
+        # existing combat-only T2 anomalies (empty contribution_log).
+        for cid in {int(k) for k in anomaly.contribution_log.keys()}:
+            if cid in seen:
+                continue
+            try:
+                c = await db.get_character(cid)
+            except Exception:
+                c = None
+            if c:
+                participants.append(dict(c))
+                seen.add(cid)
 
     # Sample one credits + resources reward to split across
     # participants (each participant gets their share).
@@ -4075,9 +4362,17 @@ async def _distribute_scaled_t5_mat(
     """SYN.8: Distribute the scaled T5 mat pieces.
 
     Per design: floor(N/4) pieces total, distributed to top
-    participants by kill count descending. Killer wins ties (always
-    gets a piece if any are dropped, even if their kill count is
-    not in the top floor(N/4)).
+    participants by contribution descending. Killer (or final-gate
+    clearer) wins ties (always gets a piece if any are dropped, even
+    if their contribution is not in the top floor(N/4)).
+
+    T3.23: "contribution" ranks by combat kills + skill-gate clears
+    (``kill_counts`` + ``contribution_log``) so a party challenge's
+    slicer / medic / face is eligible for the scaled mats alongside
+    the fighters — consistent with the participation union used for
+    credits / resources / trophy. For existing combat-only anomalies
+    ``contribution_log`` is empty, so this is identical to ranking by
+    kill count (the SYN.8 behavior).
 
     Returns a list of grant dicts: [{"char_id": int, "key": str,
     "quantity": int, "quality": float}, ...].
@@ -4085,20 +4380,25 @@ async def _distribute_scaled_t5_mat(
     pieces_per_4 = int(scaled_def.get("per_4_participants", 1))
     n_pieces = (n_participants // 4) * pieces_per_4
     # Floor of N/4 can be 0 (e.g. 3 participants). Design rule: in
-    # that case, the killer alone gets 1 piece as the consolation
-    # for the kill effort. Avoids the "all-this-effort, no T5 mat"
+    # that case, the resolver alone gets 1 piece as the consolation
+    # for the effort. Avoids the "all-this-effort, no T5 mat"
     # outcome for small teams.
     if n_pieces == 0:
         n_pieces = 1
 
-    # Rank participants by kill count (descending). Ties broken by
-    # killer-first, then arbitrary order.
+    # Combined contribution score per participant (kills + skill-gate
+    # clears). Ranked descending; ties broken by resolver-first.
+    contribution: dict = {}
+    for cid, n in anomaly.kill_counts.items():
+        contribution[int(cid)] = contribution.get(int(cid), 0) + int(n)
+    for cid, n in anomaly.contribution_log.items():
+        contribution[int(cid)] = contribution.get(int(cid), 0) + int(n)
     ranked = sorted(
-        anomaly.kill_counts.items(),
+        contribution.items(),
         key=lambda kv: (-kv[1], 0 if kv[0] == int(killer_char_id) else 1),
     )
-    # Defensive: ensure killer is in the list even if kill_counts
-    # somehow lost track of them.
+    # Defensive: ensure the resolver is in the list even if the
+    # contribution maps somehow lost track of them.
     if int(killer_char_id) not in {cid for cid, _ in ranked}:
         ranked.insert(0, (int(killer_char_id), 0))
 
@@ -4109,7 +4409,7 @@ async def _distribute_scaled_t5_mat(
 
     grants = []
     from engine.crafting import add_resource
-    for (cid, kill_count) in ranked[:n_pieces]:
+    for (cid, score) in ranked[:n_pieces]:
         try:
             recipient = await db.get_character(int(cid))
         except Exception:
@@ -4127,12 +4427,12 @@ async def _distribute_scaled_t5_mat(
                 "key": rkey,
                 "quantity": 1,
                 "quality": quality,
-                "kill_count": int(kill_count),
+                "kill_count": int(score),   # combined kills + skill-gate clears
             })
             log.info(
                 "[anomaly] T3 scaled T5 mat granted: 1x %s (q%.0f) "
-                "to char %s (kill_count=%d)",
-                rkey, quality, cid, kill_count,
+                "to char %s (contribution=%d)",
+                rkey, quality, cid, score,
             )
         except Exception:
             log.warning(
@@ -4221,11 +4521,11 @@ async def _grant_named_loot(
 
 # ── Result helpers ───────────────────────────────────────────────────────────
 
-def _fail_result(msg: str) -> dict:
+def _fail_result(msg: str, mode: str = "skill") -> dict:
     """Build a uniform failure-result dict for resolve_anomaly."""
     return {
         "ok": False,
-        "mode": "skill",   # fail-fast results before dispatch default skill
+        "mode": mode,   # fail-fast results before dispatch default skill
         "msg": msg,
         "credits": 0,
         "resources": [],
@@ -4237,27 +4537,49 @@ def _fail_result(msg: str) -> dict:
     }
 
 
+def _char_skills_dict(char: dict) -> dict:
+    """Return the character's skills as a dict, tolerating a JSON string,
+    a dict, or a malformed/absent blob (→ empty dict)."""
+    skills_raw = char.get("skills", "{}")
+    if isinstance(skills_raw, dict):
+        return skills_raw
+    if isinstance(skills_raw, str):
+        try:
+            parsed = json.loads(skills_raw)
+            return parsed if isinstance(parsed, dict) else {}
+        except (json.JSONDecodeError, TypeError):
+            return {}
+    return {}
+
+
 def _pick_better_skill(char: dict, primary: str,
                        secondary: Optional[str]) -> str:
     """Pick whichever of primary/secondary the character has trained;
     fall back to primary if neither is trained."""
     if not secondary:
         return primary
-    skills_raw = char.get("skills", "{}")
-    if isinstance(skills_raw, str):
-        try:
-            skills = json.loads(skills_raw)
-        except (json.JSONDecodeError, TypeError):
-            skills = {}
-    elif isinstance(skills_raw, dict):
-        skills = skills_raw
-    else:
-        skills = {}
+    skills = _char_skills_dict(char)
     if skills.get(primary):
         return primary
     if skills.get(secondary):
         return secondary
     return primary
+
+
+def _pick_best_of_skills(char: dict, candidates: list) -> str:
+    """T3.23: pick the first of ``candidates`` (a skill_gate's
+    ``{skill}`` ∪ ``alt_skills``) the character has trained; fall back to
+    the first candidate if none are trained. Generalizes
+    ``_pick_better_skill`` to a list — alt_skills is about ROLE
+    substitution (can this character cover the gate at all), not
+    dice min-maxing."""
+    if not candidates:
+        return ""
+    skills = _char_skills_dict(char)
+    for s in candidates:
+        if skills.get(s):
+            return s
+    return candidates[0]
 
 
 # ── SYN.10 news-broadcast helper ─────────────────────────────────────────────

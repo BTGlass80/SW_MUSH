@@ -157,7 +157,10 @@ class InvestigateCommand(BaseCommand):
 
         try:
             from engine.wilderness_anomalies import resolve_anomaly
-            result = await resolve_anomaly(ctx.db, char, anomaly_id)
+            result = await resolve_anomaly(
+                ctx.db, char, anomaly_id,
+                session_mgr=getattr(ctx, "session_mgr", None),
+            )
         except Exception:
             log.exception("[investigate] resolve_anomaly raised")
             await ctx.session.send_line(
@@ -189,6 +192,32 @@ class InvestigateCommand(BaseCommand):
                 "  \033[2mUse 'attack <target>' to engage. The reward "
                 "pays out when the last hostile is down.\033[0m"
             )
+            return
+
+        # T3.23: party-challenge skill_gate attempt. Surface the roll
+        # against the (possibly solo-penalized) gate difficulty, plus any
+        # final-clear reward.
+        if mode == "skill_gate" and result.get("ok"):
+            skill = result.get("skill_used", "?")
+            roll = result.get("skill_roll", 0)
+            dc = result.get("difficulty", 0)
+            margin = result.get("margin", 0)
+            verdict = "cleared" if result.get("gate_cleared") else "missed"
+            await ctx.session.send_line(
+                f"  \033[2m[{skill} roll: {roll} vs DC {dc}, "
+                f"margin {margin:+d} — gate {verdict}]\033[0m"
+            )
+            credits = result.get("credits", 0)
+            if credits:
+                await ctx.session.send_line(
+                    f"  \033[2mCredits: {credits:,}cr\033[0m")
+            resources = result.get("resources", [])
+            if resources:
+                stacks = ", ".join(
+                    f"{r['quantity']}x {r['type']} (q{r['quality']:.0f})"
+                    for r in resources
+                )
+                await ctx.session.send_line(f"  \033[2mResources: {stacks}\033[0m")
             return
 
         # Detailed roll surfaced only on call success for skill-mode.
