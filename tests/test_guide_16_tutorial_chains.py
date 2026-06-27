@@ -698,3 +698,103 @@ class TestMasteryQuestlineTeaching:
         assert "freelance" in help_text.lower(), (
             "the `mastery` help text should mention the freelance side-jobs "
             "now that the verb serves both flavors")
+
+
+# ── §6 Step 3: bare `accept` auto-takes the tutorial assignment (fun8) ─────────
+# The 6th fun re-run found the tutorial soft-locked at STEP 3/5: the panel said
+# type `accept`, but the board shows opaque hash ids (m-xxxx) and the chain
+# matches on the abstract chain_mission_id, so bare `accept` dead-ended on
+# "Usage: accept <mission-id>".  drop fun8-accept-softlock (3b47177) makes a bare
+# `accept` on a mission_accepted tutorial step resolve the chain's offered board
+# mission and auto-take it (mirrors bare-attack auto-target).  Guide_16 §6 Step 3
+# still narrated "you browse the mission board, accept a Republic mission",
+# implying you must hunt the hidden id — the exact dead-end the fix removed.
+class TestStep3AcceptAutoTake:
+    def test_mission_step_command_to_type_is_accept(self, chains_by_id):
+        """fun8: the mission_accepted tutorial step now stages bare `accept`
+        (was `+missions`) so the TRAINING-panel TYPE chip auto-takes the job."""
+        ch = chains_by_id["republic_soldier"]
+        msteps = [s for s in ch["steps"]
+                  if (s.get("completion") or {}).get("type") == "mission_accepted"]
+        assert msteps, "republic_soldier has no mission_accepted step to teach"
+        for s in msteps:
+            assert s.get("command_to_type") == "accept", (
+                "the assignment step's chip must stage bare `accept` so it "
+                "auto-takes the tutorial mission (fun8 soft-lock fix)")
+            assert "accept" in (s.get("teaches") or [])
+
+    def test_guide_teaches_bare_accept_autotake(self, guide_text):
+        """§6 Step 3 must teach that a bare `accept` (no id) auto-takes the
+        tutorial assignment — not that you must dig out a hidden mission id."""
+        assert "bare `accept`" in guide_text, (
+            "Guide_16 §6 Step 3 should teach the bare-`accept` auto-take "
+            "(the fun8 fix for the step-3 assignment soft-lock)")
+
+    def test_accept_command_has_the_autotake_producer(self):
+        """Pin the producer→consumer: bare `accept` routes through the tutorial
+        auto-take resolver, so the guide's claim isn't phantom."""
+        import inspect
+        from parser import mission_commands
+        assert hasattr(mission_commands, "_tutorial_auto_accept_id"), (
+            "the fun8 tutorial auto-accept resolver is gone — Guide_16's "
+            "bare-`accept` teaching would be phantom")
+        src = inspect.getsource(mission_commands.AcceptMissionCommand.execute)
+        assert "_tutorial_auto_accept_id" in src, (
+            "bare `accept` no longer routes through the tutorial auto-take "
+            "resolver — the step-3 soft-lock would be back")
+
+
+# ── §2/§6/§9/§14: graduate lands in a live commerce hub with a vendor (fun7) ───
+# An audit found ALL 8 CW profession-chain graduations dropped the graduate into
+# a vendorless, mostly-exitless tutorial pocket (a graduation-stranding
+# soft-lock).  drop fun7-reward-loop (14ac30a) retargets each chain's drop_room
+# to a live navigable commerce hub WITH a reachable vendor, so a graduate both
+# escapes into the world AND can spend the credits they just earned via
+# `buy <item>`.  Guide_16 §2 named "the smuggler's lounge" as a drop room and §9
+# never taught the buy-on-arrival loop.  (Reachability itself is guarded by
+# tests/test_fun7_graduate_economy_reachable.py — here we pin the GUIDE↔DATA
+# contract so a revert to the old pockets fails the guide loudly too.)
+class TestGraduateVendorHubTeaching:
+    LIVE_HUBS = {"coco_town", "mos_eisley_market_district",
+                 "nar_shaddaa_promenade_main", "kuat_ring_commercial"}
+    OLD_POCKETS = {
+        "commercial_district_landing_zone", "monumental_district_judicial_plaza",
+        "tatooine_outskirts_cis_safehouse", "southern_underground_freight_dock",
+        "nar_shaddaa_promenade_bhg_lounge", "nar_shaddaa_landing_dock_e",
+        "kuat_orbital_apprentice_lounge"}
+    PROFESSION_CHAINS = [
+        "republic_soldier", "republic_intelligence", "separatist_commando",
+        "separatist_agent", "bounty_hunter", "smuggler", "shipwright_trader"]
+
+    def test_profession_drop_rooms_are_live_hubs(self, chains_by_id):
+        for cid in self.PROFESSION_CHAINS:
+            room = chains_by_id[cid]["graduation"]["drop_room"]
+            assert room in self.LIVE_HUBS, (
+                f"{cid} drop_room {room!r} is not a live commerce hub — "
+                "Guide_16 §2/§9 promise a hub-with-vendor landing")
+            assert room not in self.OLD_POCKETS, (
+                f"{cid} drop_room reverted to the old stranding pocket {room!r}")
+
+    def test_republic_soldier_lands_in_coco_town(self, chains_by_id):
+        """Guide_16 §6 names Coco Town as the Republic Soldier's landing."""
+        assert chains_by_id["republic_soldier"]["graduation"]["drop_room"] == \
+            "coco_town", (
+                "Republic Soldier no longer graduates to Coco Town — Guide_16 "
+                "§6's named landing is stale")
+
+    def test_guide_drops_into_commerce_hub_not_stale_lounge(self, guide_text):
+        assert "smuggler's lounge" not in guide_text, (
+            "Guide_16 §2 still names 'the smuggler's lounge' as a drop room — "
+            "the smuggler now graduates to the Nar Shaddaa promenade hub")
+        assert "Coco Town" in guide_text, (
+            "Guide_16 should name Coco Town, the retargeted Republic-Soldier "
+            "commerce-hub landing")
+
+    def test_guide_teaches_buy_starter_gear_at_the_hub(self, guide_text):
+        low = guide_text.lower()
+        assert "`buy" in guide_text, (
+            "Guide_16 §9/§14 must teach the `buy` verb so a graduate can spend "
+            "their credits on starter gear at the hub vendor (the fun7 loop)")
+        assert "outfitter" in low or "vendor" in low, (
+            "Guide_16 should mention the hub outfitter/vendor the graduate buys "
+            "from")

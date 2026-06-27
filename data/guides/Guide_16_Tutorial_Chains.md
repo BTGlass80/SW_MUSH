@@ -40,7 +40,7 @@ Each chain has the same shape:
 - **A starting zone and room.** Republic Soldier starts at Kamino — Tipoca City. Smuggler starts at Mos Eisley. Bounty Hunter starts at Nar Shaddaa. The location matches the archetype.
 - **An opening NPC.** A Kaminoan officer, a tramp captain, a Guild adjudicator. They give you orders, evaluate you, set the tone.
 - **4–6 steps.** Each step has one or two commands it teaches you, a clear objective sentence, an NPC interaction, and a small reward.
-- **A graduation event.** When you finish the last step, the chain pays out: credits, faction reputation, starter gear, sometimes achievements. Then it teleports you to a "drop room" in the live world where active play happens — the Coruscant landing zone, the Nar Shaddaa promenade, the smuggler's lounge.
+- **A graduation event.** When you finish the last step, the chain pays out: credits, faction reputation, starter gear, sometimes achievements. Then it teleports you to a "drop room" in the live world where active play happens — a working commerce hub like Coco Town on Coruscant, the Nar Shaddaa promenade, or the Mos Eisley market. The drop room is deliberately a place with a live vendor, so the credits you just earned have somewhere to go the moment you arrive.
 - **A follow-up hint.** A one-line pointer at what to do next. Your mission board, your contact NPC, your next destination.
 
 A chain takes roughly **15–25 real-time minutes** to complete. Some players blow through them faster (especially on re-roll characters); some take longer to read everything carefully on a first character. Both are fine.
@@ -97,7 +97,7 @@ A concrete example. The Republic Soldier chain takes you from Tipoca City on Kam
 
 **Step 2 — Combat Sim Drill (Tipoca Combat Sim).** A Clone Trooper sim operator briefs you on the drill: two simulated B1 battle droids, weapons set to non-lethal for them, live-fire for you. *Commands taught: `attack`, `dodge`.* You fight the droids; the engine drives you through declaration → resolution → posing. When the droids are down, the operator clears you for the next stage. **The sim is a true safe sandbox** — a droid hit can briefly stun you (a mild, capped setback the simulation never lets pile up), but it caps the harm right there: you are never knocked out of the fight, wounded, scarred, or killed in the drill, so you can always keep acting until you win. The droids still take real damage, so swing freely, learn the rhythm, and finish the fight.
 
-**Step 3 — Briefing on the Mission (Tipoca Briefing Room).** Back to Major Tarrn. He explains the mission cycle — you're being deployed to Coruscant Works to assist with a Republic supply convoy. *Commands taught: `+missions`, `accept`.* You browse the mission board, accept a Republic mission, and Tarrn nods approval.
+**Step 3 — Briefing on the Mission (Tipoca Briefing Room).** Back to Major Tarrn. He explains the mission cycle — you're being deployed to Coruscant Works to assist with a Republic supply convoy. *Commands taught: `+missions`, `accept`.* You can browse the board with `+missions`, but you don't have to dig out the assignment's id: at this step a bare `accept` (no id) auto-takes the deployment Tarrn just handed you — type `accept` and the chain advances. (It's the same hand-up as bare `attack` in the sim: the tutorial stages the exact word to type.) Tarrn nods approval.
 
 **Step 4 — Transit to Coruscant (Tipoca Transport Pad).** Pilot CT-7567 waits at the transport pad. You're catching a transport to Coruscant. *Command taught: `talk`.* You `talk` to the pilot to ship out; the chain handles the takeoff and hyperspace jump for you and relocates you to Coruscant. (Tutorial rooms have no walkable exits — the chain moves you between step rooms, so you never `board`/`launch` here yourself.)
 
@@ -108,7 +108,7 @@ A concrete example. The Republic Soldier chain takes you from Tipoca City on Kam
 - **DC-15 blaster rifle, Republic light armor, basic comlink** to your inventory.
 - **A starting bump to your Republic reputation** — a handful of points (around ten) on the 0–100 faction-standing scale, enough to register you as a recognized face rather than a veteran. (Reputation is a ladder you climb through play; graduating puts your foot on the first rung.)
 - **Achievement: "Sworn to the Republic"** appears in your achievements list.
-- You're standing in Coruscant Works, the live world all around you.
+- You're dropped into **Coco Town**, a bustling Coruscant commerce district — the live world all around you, with an outfitter a few steps away (see §9) and the follow-up hint pointing you on to your duty station at Coruscant Works.
 
 The follow-up hint: "Report to the duty officer at Coruscant Works for your first mission. The Republic mission board (`+missions republic`) is where most of your work will come from."
 
@@ -217,6 +217,7 @@ From the drop room, you're in the real game. You can:
 
 - **Talk to NPCs** in your starting area. They have actual dialogue and missions, not chain content.
 - **Pull a mission** from your faction's mission board (`+missions republic`, `+missions cis`, `+missions independent`, etc.).
+- **Outfit at the local vendor.** Your drop room is a working commerce hub: an outfitter NPC sells open-market starter gear. Type `buy <item>` to spend the credits you just earned — a weapon, armor, a kit — before you head out. Earning credits and spending them on gear is the core loop, and graduation drops you exactly where you can start it.
 - **Pick up a mid-game questline.** Some NPCs offer a longer, structured side-arc — a freelance side-job, or a master trainer's tier-5 crafting trial. They run on the same engine your chain did. Type `mastery` near a questline-giver to see what's on offer (see §15).
 - **Visit your faction's quarters** (if your rank grants quarters — see Guide #13 — Housing).
 - **Look at other players' characters** with `+who` and `+finger`.
@@ -321,7 +322,7 @@ You've graduated. The chain hint pointed you at, say, the Republic mission board
 
 A reasonable rhythm:
 
-**Minute 0–5.** Read the room description carefully. The drop room is curated — it tells you what's around. Then *walk it*. The tutorial rooms had no walkable exits — the chain teleported you between steps — but the live world is yours to explore on foot. The room lists its exits; to walk one, type a compass direction (`north`, or `n` for short) **or the exit's name exactly as the room lists it** — if the room shows a `corridor` exit, just type `corridor` and you'll go there. On the web client, you don't even type: click the exit's chip and it walks you through. Look at the NPCs (`look <name>`). Type `+who` to see who's online; you might recognize someone from a previous session.
+**Minute 0–5.** Read the room description carefully. The drop room is curated — it tells you what's around. Then *walk it*. The tutorial rooms had no walkable exits — the chain teleported you between steps — but the live world is yours to explore on foot. The room lists its exits; to walk one, type a compass direction (`north`, or `n` for short) **or the exit's name exactly as the room lists it** — if the room shows a `corridor` exit, just type `corridor` and you'll go there. On the web client, you don't even type: click the exit's chip and it walks you through. Look at the NPCs (`look <name>`). Type `+who` to see who's online; you might recognize someone from a previous session. Your drop room is a commerce hub, so the local outfitter is right here — `buy <item>` to turn your graduation credits into starter gear before you move out.
 
 **Minute 5–15.** Visit your faction's main hub — the cantina, the mission board, the headquarters lobby. Talk to a couple of NPCs to get a feel for the local social texture. Check `+missions <your faction>` to browse what's available.
 
