@@ -46,7 +46,11 @@ class TestCommandToTypeCorpus(unittest.TestCase):
         self.assertIsNotNone(rs)
         self.assertEqual(rs.steps[0].command_to_type, "talk Major Tarrn")
         self.assertEqual(rs.steps[1].command_to_type, "attack")
-        self.assertEqual(rs.steps[2].command_to_type, "+missions")
+        # fun8: step 3 (Receiving the Assignment) chip now stages `accept` (auto-
+        # takes the tutorial mission) instead of `+missions` (which only opened
+        # the board and dead-ended the newcomer). `+missions` is still taught in
+        # the objective/NPC intro.
+        self.assertEqual(rs.steps[2].command_to_type, "accept")
 
     def test_skill_steps_have_no_spotlight(self):
         """skill_check_passed steps must leave command_to_type empty so
