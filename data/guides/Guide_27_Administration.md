@@ -72,7 +72,7 @@ The Director is the Claude-backed world-orchestration layer. Admin controls:
 | `@director influence` | inspect/adjust territory influence |
 | `@director log` / `reset` / `narrative` / `cult` | run log, state reset, narrative & cult subforms |
 | `@economy` | economy dashboard — shops/credits/zones/velocity/alerts/throttle |
-| `@balance` (`@bal`) | telemetry dashboard — the *behavioural* read-side of `@economy` (grind/cp/objectives/encounters/events/raw) |
+| `@balance` (`@bal`) | telemetry dashboard — the *behavioural* read-side of `@economy` (grind/cp/objectives/chains/encounters/events/raw) |
 | `@lore` | world-lore entries — list/search/add/disable/enable |
 | `@hazard` | set/clear/list environmental room hazards (heat, toxic atmosphere, …) |
 | `@roomstate` | apply/clear/list dynamic room-state overlays |
@@ -90,6 +90,7 @@ rolls it into the balance-tuning signals you cannot get from a snapshot:
 `@balance grind` (mob-grind kill volume / payout / soft- and over-cap pressure),
 `@balance cp` (CP-income source mix + weekly-cap pressure),
 `@balance objectives` (mission/bounty/smuggling start→complete→abandon funnel),
+`@balance chains` (tutorial-chain / questline completion funnel — graduations + reward-step credit flow, per chain),
 `@balance encounters` (wilderness roll→fire rate by threat band),
 `@balance events` (communal-objective menace climb + strike outcomes), and
 `@balance raw [N]` (the last N raw records). It is the in-game companion to reading the raw
