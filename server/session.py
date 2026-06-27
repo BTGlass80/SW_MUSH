@@ -2137,12 +2137,18 @@ class Session:
         mission = None
         try:
             from engine.missions import get_mission_board, MissionStatus
-            from engine.chain_missions import is_chain_mission_visible_to
             board = get_mission_board()
             for m in board._missions.values():
+                # fun11: an ACCEPTED mission is the player's active objective —
+                # surface it in GOALS regardless of chain-step visibility. The
+                # is_chain_mission_visible_to filter is for the BOARD (which
+                # chain missions to OFFER); applying it to an accepted mission
+                # wrongly hid the just-accepted tutorial "First Deployment" the
+                # instant the NPE chain completed, leaving a GUIDANCE VACUUM at
+                # graduation — the GOALS panel early-returned to empty exactly
+                # when "the galaxy is open" (8th fun re-run #1 kills-it).
                 if (m.accepted_by == char_id_str
-                        and m.status == MissionStatus.ACCEPTED
-                        and is_chain_mission_visible_to(m, attrs)):
+                        and m.status == MissionStatus.ACCEPTED):
                     mission = {
                         "id": m.id,
                         "title": m.title or "",
