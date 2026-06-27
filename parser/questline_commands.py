@@ -17,12 +17,20 @@ Surface:
 
   mastery              — Show your active mastery questline (step +
                          objective) and any offered by an NPC here.
+  mastery browse       — Galaxy-wide directory of every questline: what's
+                         available now, what's locked (and why), what's
+                         done, with the giver + `mastery start <id>` for
+                         each. (Aliases: all / directory / catalog.)
   mastery start <id>   — Begin an offered questline (validates the
                          rep/faction gate via is_chain_locked_for_character).
   mastery status       — Detailed status of your active questline.
   mastery abandon      — Abandon your active questline (re-startable later).
 
-Bare `mastery` is an alias for the list/status view.
+Bare `mastery` is an alias for the list/status view. `mastery browse` is
+the discoverability surface: the in-room offer only reveals a questline
+when you stand with its giver, so `browse` lists the whole catalog and
+where each one starts (it surfaces existence only — `start` still
+enforces every gate).
 
 Questline STEP progression (talk, combat, travel, skill checks) happens
 through the SAME hooks as onboarding chains — they're slot-aware as of
@@ -40,7 +48,10 @@ from parser.commands import BaseCommand, CommandContext
 
 log = logging.getLogger(__name__)
 
-_SUBCOMMANDS = {"start", "status", "abandon", "list"}
+_SUBCOMMANDS = {"start", "status", "abandon", "list", "browse"}
+
+# `mastery browse` aliases — the galaxy-wide questline directory.
+_BROWSE_ALIASES = {"browse", "all", "directory", "catalog"}
 
 
 class QuestCommand(BaseCommand):
@@ -54,6 +65,10 @@ class QuestCommand(BaseCommand):
         "  mastery              Show your active mastery questline and "
         "any offered by\n"
         "                       an NPC in this room.\n"
+        "  mastery browse       Galaxy-wide directory: every questline, "
+        "what's open\n"
+        "                       now / locked / done, with the giver and "
+        "start id.\n"
         "  mastery start <id>   Begin an offered questline.\n"
         "  mastery status       Detailed status of your active "
         "questline.\n"
@@ -65,9 +80,10 @@ class QuestCommand(BaseCommand):
         "a cantina or\nmarket) and master-trainer trials (talk to a trainer "
         "in a dangerous zone;\ncompleting one helps unlock that trainer's "
         "tier-5 schematics). Steps\nadvance as you act (talk, fight, travel); "
-        "skill-check steps use `chain\nattempt`."
+        "skill-check steps use `chain\nattempt`. Can't find a giver? "
+        "`mastery browse` lists them all."
     )
-    usage = "mastery [start <id> | status | abandon]"
+    usage = "mastery [browse | start <id> | status | abandon]"
 
     async def execute(self, ctx: CommandContext):
         if not ctx.session.is_in_game or not ctx.session.character:
@@ -81,6 +97,10 @@ class QuestCommand(BaseCommand):
         sub = parts[0].lower() if parts else "list"
         rest = parts[1].strip() if len(parts) > 1 else ""
 
+        # `mastery all`/`directory`/`catalog` are spellings of `browse`.
+        if sub in _BROWSE_ALIASES:
+            sub = "browse"
+
         if sub not in _SUBCOMMANDS:
             # A bare `mastery` (no args) defaults sub="list" above and
             # never reaches here. Only a real unknown subcommand token
@@ -93,6 +113,9 @@ class QuestCommand(BaseCommand):
 
         if sub in ("list", "status"):
             await self._handle_status(ctx, detailed=(sub == "status"))
+            return
+        if sub == "browse":
+            await self._handle_browse(ctx)
             return
         if sub == "start":
             await self._handle_start(ctx, rest)
@@ -172,9 +195,124 @@ class QuestCommand(BaseCommand):
                     )
         else:
             await ctx.session.send_line(
-                "  \033[2mTalk to NPCs to find one — a cantina or market "
-                "broker for a freelance job, or a master trainer in a "
-                "dangerous zone for a tier-5 craft.\033[0m"
+                "  \033[2mNothing offered in this room. Talk to a cantina or "
+                "market broker for a freelance job, or a master trainer in a "
+                "dangerous zone for a tier-5 craft — or type \033[0m"
+                "\033[1;33mmastery browse\033[0m\033[2m to see every "
+                "questline in the galaxy and where each one starts.\033[0m"
+            )
+
+    async def _handle_browse(self, ctx: CommandContext) -> None:
+        """`mastery browse` — the galaxy-wide questline directory.
+
+        Lists every questline the catalog holds, partitioned by the
+        character's standing (active / available now / locked / done),
+        with the giver, the starting zone, and the exact `mastery start
+        <id>` to begin it. `mastery start` already validates the gate and
+        teleports from anywhere, so this only surfaces existence — it
+        never reveals a shortcut past a lock."""
+        char = ctx.session.character
+        try:
+            from engine.chain_events import list_questline_directory
+        except ImportError:
+            await ctx.session.send_line(
+                "  Questline engine unavailable.")
+            return
+
+        directory = list_questline_directory(char)
+        if not directory:
+            await ctx.session.send_line(
+                "  No questlines are available right now.")
+            return
+
+        def _pretty_zone(slug: str) -> str:
+            return (slug or "").replace("_", " ").strip().title()
+
+        await ctx.session.send_line(
+            "  \033[1;36mGALAXY QUESTLINE DIRECTORY\033[0m"
+        )
+        await ctx.session.send_line(
+            "  \033[2mOpt-in arcs you start deliberately. "
+            "\033[0m\033[1;33mmastery start <id>\033[0m\033[2m begins one "
+            "and takes you to its giver — you hold one at a time.\033[0m"
+        )
+
+        # An active questline is reported first, with the one-at-a-time
+        # caveat, so the directory explains why `start` will refuse below.
+        active = [e for e in directory if e["status"] == "active"]
+        available = [e for e in directory if e["status"] == "available"]
+        locked = [e for e in directory if e["status"] == "locked"]
+        completed = [e for e in directory if e["status"] == "completed"]
+
+        if active:
+            e = active[0]
+            await ctx.session.send_line("")
+            await ctx.session.send_line(
+                "  \033[1;32mACTIVE\033[0m \033[2m(finish or "
+                "`mastery abandon` before starting another)\033[0m"
+            )
+            await ctx.session.send_line(
+                f"    \033[1m{e['chain_name']}\033[0m"
+                + (f"  \033[2m[{e['archetype_label']}]\033[0m"
+                   if e['archetype_label'] else "")
+            )
+
+        if available:
+            await ctx.session.send_line("")
+            await ctx.session.send_line(
+                "  \033[1;33mAVAILABLE NOW\033[0m"
+            )
+            for e in available:
+                await self._render_directory_entry(ctx, e, _pretty_zone,
+                                                    startable=not active)
+
+        if locked:
+            await ctx.session.send_line("")
+            await ctx.session.send_line(
+                "  \033[2mLOCKED — requirements not yet met\033[0m"
+            )
+            for e in locked:
+                zone = _pretty_zone(e["start_zone"])
+                where = f" \033[2m({zone})\033[0m" if zone else ""
+                await ctx.session.send_line(
+                    f"    \033[2m— {e['chain_name']}{where}: "
+                    f"{e['reason']}\033[0m"
+                )
+
+        if completed:
+            await ctx.session.send_line("")
+            names = ", ".join(e["chain_name"] for e in completed)
+            await ctx.session.send_line(
+                f"  \033[2mCOMPLETED ({len(completed)}): {names}\033[0m"
+            )
+
+    async def _render_directory_entry(self, ctx, e, pretty_zone,
+                                      *, startable: bool) -> None:
+        """Render one AVAILABLE-NOW questline line group."""
+        label = (f"  \033[2m[{e['archetype_label']}]\033[0m"
+                 if e['archetype_label'] else "")
+        await ctx.session.send_line(
+            f"    \033[1m{e['chain_name']}\033[0m{label}"
+        )
+        zone = pretty_zone(e["start_zone"])
+        giver = e["giver_npc"]
+        bits = []
+        if zone:
+            bits.append(zone)
+        if giver:
+            bits.append(giver)
+        if bits:
+            await ctx.session.send_line(
+                f"      \033[2m{' — '.join(bits)}\033[0m"
+            )
+        if startable:
+            await ctx.session.send_line(
+                f"      \033[2m→ \033[0m\033[1;33mmastery start "
+                f"{e['chain_id']}\033[0m"
+            )
+        else:
+            await ctx.session.send_line(
+                f"      \033[2m(finish your active questline first)\033[0m"
             )
 
     async def _offers_in_room(self, ctx, char, get_questline_offer) -> list:

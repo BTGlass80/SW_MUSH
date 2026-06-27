@@ -368,6 +368,10 @@ A questline looks and feels like a chain — an opening NPC, four-to-six steps, 
 ```
 mastery              Show your active questline (step + objective) — or, if you
                      have none, any questline offered by an NPC in this room.
+mastery browse       Galaxy-wide directory of EVERY questline: what's open to you
+                     now, what's locked (and why), what's done — each with its
+                     giver and the exact `mastery start <id>`. (Aliases: all /
+                     directory / catalog.)
 mastery start <id>   Begin an offered questline (validates its requirements).
 mastery status       Detailed status of your active questline.
 mastery abandon      Give up your active questline (you can re-start it later).
@@ -377,7 +381,11 @@ Bare `mastery` is the everyday view: it tells you where you are in your current 
 
 ### How you find one
 
-You don't go to a quest board — there isn't one. **Talk to NPCs.** When you `talk` to the start-NPC of a questline you're eligible for and don't already have one running, the conversation surfaces the offer, and `mastery` in that room lists it with its id. Freelance brokers hang around cantinas and markets; master trainers are out in the wilderness and the lawless zones. If `mastery` says you have no active questline and nothing is offered here, it simply means there's no questline-giver in this room — keep exploring, and check `mastery` whenever an NPC's dialogue hints at a longer job.
+Two ways, and you'll use both.
+
+**`mastery browse` — the directory.** Type `mastery browse` from anywhere to see the whole catalog at a glance: every questline open to you right now (with its giver and the exact `mastery start <id>`), everything still locked and why, and everything you've already finished. This is the fast answer to "what's out there and where do I start it?" — the questlines are scattered across the galaxy, so the directory saves you from stumbling onto each giver by luck. `mastery start <id>` validates the gate and takes you to the giver, so once you've spotted one in the directory you can begin it without first hunting down the room.
+
+**Talk to NPCs — in context.** Out in the world, when you `talk` to the start-NPC of a questline you're eligible for and don't already have one running, the conversation itself surfaces the offer, and bare `mastery` in that room lists it with its id. Freelance brokers hang around cantinas and markets; master trainers are out in the wilderness and the lawless zones. This is the immersive way in — you meet the person with the job. If bare `mastery` says you have no active questline and nothing is offered here, there's just no questline-giver in *this* room; type `mastery browse` to see where the work actually is.
 
 ---
 
@@ -389,6 +397,7 @@ You don't go to a quest board — there isn't one. **Talk to NPCs.** When you `t
 | `chain` (or `chain status`) | Show current chain progress |
 | `chain attempt` | Trigger a skill-check step's roll (works for chains *and* questlines) |
 | `mastery` | Show your active mid-game questline, or offers from an NPC here (§15) |
+| `mastery browse` | Galaxy-wide directory of every questline — open / locked / done (§15) |
 | `mastery start <id>` | Begin an offered questline |
 | `mastery status` | Detailed status of your active questline |
 | `mastery abandon` | Abandon your active questline (re-startable later) |

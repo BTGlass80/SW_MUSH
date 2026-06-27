@@ -1387,6 +1387,87 @@ def get_questline_offer(char: dict, npc_name: str,
     return locked_fallback
 
 
+def list_questline_directory(char: dict, era: Optional[str] = None) -> list:
+    """Galaxy-wide directory of every `kind: questline` arc, annotated
+    with THIS character's standing toward each.
+
+    Discoverability surface (the `mastery browse` consumer). The in-room
+    offer surface (`get_questline_offer`) only reveals a questline once a
+    player is physically standing with its giver NPC — with questlines
+    scattered across planets that makes most of them effectively
+    invisible. This returns the whole catalog so a player can see what
+    exists and where it starts. It surfaces NO capability `mastery start`
+    doesn't already grant: `start_questline` already validates the gate
+    and teleports from anywhere, so the only thing previously hidden was
+    the existence of the id, not access to it.
+
+    Returns a list of dicts, ordered ACTIVE → AVAILABLE → LOCKED →
+    COMPLETED (each group in corpus order). One dict per questline::
+
+        { chain_id, chain_name, archetype_label, faction_alignment,
+          giver_npc, start_zone, start_location, objective,
+          status: "active"|"available"|"locked"|"completed",
+          reason }            # reason populated only for "locked"
+
+    `status == "active"` marks the single questline the character is
+    currently on (a player holds at most one). While one is active every
+    other not-yet-completed questline is still listed with its own gate
+    status, but cannot be started until the active one is finished or
+    abandoned — the parser surfaces that caveat.
+
+    Pure read (no DB / I-O). Reuses the SAME list_questlines +
+    is_chain_locked_for_character + has_completed_chain gate the in-room
+    offer uses, so the directory and a per-NPC talk offer never disagree
+    about eligibility."""
+    from engine.tutorial_chains import (
+        is_chain_locked_for_character, has_completed_chain,
+        get_active_chain_id, _QUESTLINE_KEY,
+    )
+    attrs = _load_attrs(char)
+    active_id = get_active_chain_id(attrs, _QUESTLINE_KEY)
+    active_entry = None
+    available: list = []
+    locked_list: list = []
+    completed: list = []
+    for ql in list_questlines(era):
+        step0 = ql.steps[0] if ql.steps else None
+        entry = {
+            "chain_id": ql.chain_id,
+            "chain_name": ql.chain_name,
+            "archetype_label": getattr(ql, "archetype_label", "") or "",
+            "faction_alignment": getattr(ql, "faction_alignment", None),
+            "giver_npc": ((step0.npc if step0 else "") or "").strip(),
+            "start_zone": getattr(ql, "starting_zone", "") or "",
+            "start_location": (getattr(ql, "starting_room", "")
+                               or (step0.location if step0 else "") or ""),
+            "objective": ((step0.objective if step0 else "") or "").strip(),
+            "status": "available",
+            "reason": "",
+        }
+        if active_id is not None and ql.chain_id == active_id:
+            entry["status"] = "active"
+            active_entry = entry
+            continue
+        if has_completed_chain(attrs, ql.chain_id):
+            entry["status"] = "completed"
+            completed.append(entry)
+            continue
+        locked, reason = is_chain_locked_for_character(ql, attrs)
+        if locked:
+            entry["status"] = "locked"
+            entry["reason"] = reason or "Requirements not yet met."
+            locked_list.append(entry)
+        else:
+            available.append(entry)
+    ordered: list = []
+    if active_entry is not None:
+        ordered.append(active_entry)
+    ordered.extend(available)
+    ordered.extend(locked_list)
+    ordered.extend(completed)
+    return ordered
+
+
 async def start_questline(db, char: dict, chain_id: str,
                           era: Optional[str] = None) -> tuple:
     """Begin a questline for the character. Returns (ok: bool,
