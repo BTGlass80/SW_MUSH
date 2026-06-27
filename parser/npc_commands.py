@@ -23,6 +23,7 @@ Admin commands:
   @ai status                   - Show AI provider status
   @ai enable / @ai disable     - Toggle AI system
 """
+import asyncio
 import json
 import logging
 from parser.commands import BaseCommand, CommandContext, AccessLevel
@@ -37,6 +38,14 @@ from engine.character import Character
 from engine.dice import DicePool
 
 log = logging.getLogger(__name__)
+
+# FUN5 de-LLM the critical path: hard cap on a single NPC-dialogue LLM call.
+# Ollama can stall; without a bound the await sits until the 30s command
+# timeout cancels the whole command, which SKIPS the post-talk chain advance
+# (talk_to_npc completion + teleport) — the intermittent "talk did nothing"
+# tutorial stall. With a short bound the call falls back fast and the chain
+# still advances. The directed-say broadcast already gave the instant ack.
+NPC_DIALOGUE_TIMEOUT_S = 12.0
 
 
 def _safe_json_loads(value, default=None):
@@ -454,14 +463,25 @@ class TalkCommand(BaseCommand):
         room_desc = _room_desc_for_npc(room)
 
         try:
-            response = await brain.dialogue(
-                player_input=message,
-                player_name=char["name"],
-                player_char_id=char["id"],
-                room_desc=room_desc,
-                db=ctx.db,
-                persuasion_context=persuasion_context,
+            # Hard-bound the LLM call (FUN5): a hung Ollama would otherwise eat
+            # the whole command budget and cancel the post-talk chain advance.
+            response = await asyncio.wait_for(
+                brain.dialogue(
+                    player_input=message,
+                    player_name=char["name"],
+                    player_char_id=char["id"],
+                    room_desc=room_desc,
+                    db=ctx.db,
+                    persuasion_context=persuasion_context,
+                ),
+                timeout=NPC_DIALOGUE_TIMEOUT_S,
             )
+        except asyncio.TimeoutError:
+            log.warning(
+                "brain.dialogue timed out (%.0fs) for NPC '%s'; using fallback",
+                NPC_DIALOGUE_TIMEOUT_S, npc_data.name,
+            )
+            response = brain._get_fallback()
         except Exception:
             log.warning(
                 "brain.dialogue raised for NPC '%s'; using fallback",
