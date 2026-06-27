@@ -140,9 +140,10 @@ def test_typed_named_exit_routes_to_move():
     asyncio.run(_t())
 
 
-def test_typo_still_unknown_command():
-    """A non-exit word still falls through to 'Huh? Unknown command' and
-    does NOT move the player (routing is gated on a real exit match)."""
+def test_typo_does_not_move_and_gets_recovery():
+    """A non-exit word does NOT move the player (routing is gated on a real exit
+    match). fun12: in-game it now gets the helpful recovery instead of a bare
+    'Huh? Unknown command'."""
     async def _t():
         db = await _fresh_db()
         z = await _seed_zone(db)
@@ -155,8 +156,29 @@ def test_typo_still_unknown_command():
         await disp.parse_and_dispatch(sess, "zzqplmnope")
         still = await db.get_character(char["id"])
         assert int(still["room_id"]) == r1, "a typo should not move the player"
-        assert any("Unknown command" in s for s in sess.sent), (
-            f"a non-exit word should produce 'Unknown command'; sent={sess.sent!r}")
+        joined = " ".join(sess.sent).lower()
+        assert "didn't catch that" in joined, (
+            f"in-game unknown should get the helpful recovery; sent={sess.sent!r}")
+    asyncio.run(_t())
+
+
+def test_go_prefix_routes_to_named_exit():
+    """fun12: `go <exit>` walks the player through a named exit (the universal
+    text-game movement reflex; was a dead-end before)."""
+    async def _t():
+        db = await _fresh_db()
+        z = await _seed_zone(db)
+        r1 = await _seed_room(db, z, "Briefing Room")
+        r2 = await _seed_room(db, z, "Main Corridor")
+        await db.create_exit(r1, r2, "corridor")
+        char = await _seed_char(db, "GoMover", r1)
+        disp = await _build_dispatcher(db)
+        sess = _FakeSession(char)
+        await disp.parse_and_dispatch(sess, "go corridor")
+        moved = await db.get_character(char["id"])
+        assert int(moved["room_id"]) == r2, (
+            f"`go corridor` did not move the player "
+            f"(room_id={moved['room_id']}, expected {r2}); sent={sess.sent!r}")
     asyncio.run(_t())
 
 

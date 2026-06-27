@@ -101,7 +101,20 @@ def test_three_word_unknown_redirects():
     assert "didn't catch that" in out.lower()
 
 
-def test_single_word_typo_still_huh():
+def test_single_word_unknown_gets_recovery_in_game():
+    # fun12: in-game, EVERY unknown command now routes through the helpful
+    # recovery (was a bare "Huh? Unknown command" for single-word inputs). The
+    # reflexive words a newcomer types — inventory, situation, list — aren't
+    # typos; even a genuine typo now gets help + Ctrl/Cmd+K instead of a dead
+    # end. (Pre-login users still get the crisp unknown-command line.)
     out = _run("asdfgh")
-    assert "Unknown command" in out, f"single-word typo should keep the crisp error: {out!r}"
-    assert "didn't catch that" not in out.lower()
+    assert "Unknown command" not in out, f"in-game unknown should get recovery: {out!r}"
+    assert "didn't catch that" in out.lower()
+
+
+def test_reflexive_command_word_gets_recovery():
+    # The exact post-graduation dead-ends the 8th re-run hit.
+    for word in ("inventory", "situation", "list"):
+        out = _run(word)
+        assert "Unknown command" not in out, f"{word!r} dead-ended: {out!r}"
+        assert "didn't catch that" in out.lower()

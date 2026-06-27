@@ -524,43 +524,53 @@ class CommandParser:
                 if handled:
                     return
 
-            # FUN tier-3: natural-language confusion redirect. A non-MUSH
-            # newcomer types "what do i do" / "how do i fight?" and a bare
-            # "Huh? Unknown command" dead-ends them. When the unknown input
-            # LOOKS like an English question (a '?', a leading question word,
-            # or 3+ words) AND the player is in-game, point them at their
-            # current objective + next action + help instead of the raw error.
-            # Single-word typos still fall through to the crisp error below.
+            # fun12: `go <dir>` / `walk <dir>` / `head <dir>` — the near-universal
+            # text-game movement reflex. The dispatcher already routes a BARE
+            # direction or a typed exit-name to MoveCommand; also accept the
+            # go/walk/head prefix so `go north` doesn't dead-end. MoveCommand
+            # resolves compass + named exits and lists the room's exits on a
+            # miss, so this is forgiving. (Additive routing convenience — not a
+            # new command; canonical verb naming stays the command-syntax-rework's
+            # call.)
+            if (session.character and move_cmd is not None and _mv_char
+                    and not _mv_wild
+                    and cmd_name in ("go", "walk", "head")
+                    and ctx.args and ctx.args.strip()):
+                _dir = ctx.args.strip()
+                ctx.args = _dir
+                ctx.args_list = [_dir]
+                await self._execute(move_cmd, ctx)
+                return
+
+            # fun12: route EVERY in-game unknown command through the helpful
+            # recovery (was gated to question-like input only). The reflexive
+            # words a non-MUSH newcomer types — inventory, situation, list,
+            # +goals — aren't typos; a bare "Huh? Unknown command" dead-ends
+            # them right at the open-world handoff (8th fun re-run major). Point
+            # them at their current objective (if any) + help + Ctrl/Cmd+K
+            # instead. No aliases added — that stays the command-syntax-rework's
+            # call; this only upgrades the ERROR. (Pre-login users still get the
+            # crisp unknown-command line below.)
             if session.character:
-                _low = (raw_input or "").strip().lower()
-                _qwords = ("what", "how", "where", "why", "who", "help",
-                           "huh", "halp", "i ", "im ", "i'm ")
-                _looks_nl = bool(_low) and (
-                    "?" in _low
-                    or len(_low.split()) >= 3
-                    or any(_low == w.strip() or _low.startswith(w)
-                           for w in _qwords)
-                )
-                if _looks_nl:
-                    _emit_command_telemetry(ctx, cmd_name, matched=False)
-                    _lines = ["I didn't catch that."]
-                    try:
-                        from engine.chain_events import build_onboarding_state
-                        _st = build_onboarding_state(session.character)
-                        if _st and _st.get("active"):
-                            if _st.get("objective"):
-                                _lines.append("  Right now: " + _st["objective"])
-                            if _st.get("command_to_type"):
-                                _lines.append("  Try:  " + _st["command_to_type"])
-                    except Exception:
-                        log.debug("NL-redirect onboarding lookup failed",
-                                  exc_info=True)
-                    _lines.append("  Type  help  for the field guides, or  look "
-                                  "to get your bearings. (Ctrl/Cmd+K searches commands.)")
-                    for _ln in _lines:
-                        await session.send_line(_ln)
-                    await session.send_prompt()
-                    return
+                _emit_command_telemetry(ctx, cmd_name, matched=False)
+                _lines = ["I didn't catch that."]
+                try:
+                    from engine.chain_events import build_onboarding_state
+                    _st = build_onboarding_state(session.character)
+                    if _st and _st.get("active"):
+                        if _st.get("objective"):
+                            _lines.append("  Right now: " + _st["objective"])
+                        if _st.get("command_to_type"):
+                            _lines.append("  Try:  " + _st["command_to_type"])
+                except Exception:
+                    log.debug("unknown-cmd recovery onboarding lookup failed",
+                              exc_info=True)
+                _lines.append("  Type  help  for the field guides, or  look  to "
+                              "get your bearings. (Ctrl/Cmd+K searches commands.)")
+                for _ln in _lines:
+                    await session.send_line(_ln)
+                await session.send_prompt()
+                return
 
             _emit_command_telemetry(ctx, cmd_name, matched=False)
             await session.send_line(f"Huh? Unknown command: '{cmd_name}'")
