@@ -554,3 +554,11 @@ achievements:
     icon: "🏁"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "tatooine_speeder_sabotaged_run"}
+
+  - key: hollow_crew_freed
+    name: "The Hollow Crew"
+    description: "Broke a scrap-gang's droid-reflash recall racket in the Stalgasin offworld quarter on Geonosis — read the Geonosian drone-caste broker right in the caste's own terms to re-open a salvager's overrun channel, cracked a walked labor droid to pull the gang's buried recall-string and trace it home, and stood off the enforcer whose signature was on every core to give the offworld quarter back an honest bench. A scholar's read of an alien caste and a slicer's hands in a stolen core freed the walked crews and cleared a framed trader's name."
+    category: profession
+    icon: "🤖"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "geonosis_offworld_hollow_crew"}

@@ -4294,6 +4294,300 @@ chains:
           sent for — the speeder lanes carry a name now, the way the dust
           carries everything on Tatooine.
 
+  # ─────────────────────────────────────────────────────────────────────
+  # GENERALIZED QUESTLINE #11 (T3.24): "The Hollow Crew" — the ELEVENTH
+  # accessible (non-t5, non-tutorial) kind: questline chain, and the FIRST
+  # set on GEONOSIS. Eleventh distinct skill spread: ALIEN SPECIES +
+  # DROID PROGRAMMING (none of the prior ten uses either) — the first
+  # accessible arc to reward the xeno-knowledge / droid-tech build. The
+  # CIS droid foundry stays entirely OFF-STAGE: the trader buys
+  # decommissioned foundry-OVERRUN labor droids (surplus units sold off
+  # cheap), and the whole arc runs on the faction-neutral Stalgasin
+  # offworlder surface + the deep-hive market — the war kept offstage the
+  # way every prior accessible arc keeps the Republic/Clone-War offstage.
+  # NO new engine code, slot, event type, schema migration, reward faucet,
+  # or map-coordinate/exit-graph change — pure additive content per
+  # quest_expansion_postlaunch_path_v1.md.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: geonosis_offworld_hollow_crew
+    chain_name: "The Hollow Crew"
+    description: >
+      In the Stalgasin offworld quarter — the dusty walk-up sprawl where
+      the spacers, salvagers, and contract crews who get stuck on Geonosis
+      wait out their business — a Sullustan trader named Nuva Sehl makes an
+      honest living off the foundry's leavings: she buys decommissioned
+      labor droids out of the foundry overruns, rebuilds them on her bench,
+      and sells honest work-crews to the mining and moisture outfits that
+      pass through. Lately every crew she sells goes wrong the same way — a
+      tenday after the sale the droid walks off on its own in the night and
+      turns up back in the offworld quarter, stripped of whatever it was
+      carrying. A scrap-gang that calls itself the Reclaimers has been
+      burying a hidden recall-string in her rebuilt cores: sold honest, the
+      droid wakes on a timer and walks its new owner's cargo straight to the
+      gang. Her name on the quarter is mud, the buyers think she runs the
+      racket, and the Geonosian drone-caste broker who sells her the
+      overruns has stopped dealing with an offworlder whose droids "walk" —
+      cutting off every salvager in the quarter who lives on cheap labor.
+      Read the hive broker right and re-open the channel, crack a walked
+      droid to pull the gang's string and find them, stand off the enforcer
+      who comes when his crew goes quiet, and give the offworld quarter back
+      an honest bench. A freelance favor — open to anyone, no faction
+      required.
+    archetype_label: "Freelance Salvage Favor"
+    faction_alignment: independent
+    starting_zone: geonosis_surface
+    starting_room: stalgasin_offworld_quarter
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["hollow_crew_freed"]
+      drop_room: stalgasin_offworld_quarter
+      follow_up_hint: >
+        The recall-string comes out of every core the gang ever touched, and
+        the walked crews stop walking; the droids Nuva Sehl already sold
+        stay sold, working honest for the outfits that bought them. The hive
+        broker re-opens the overrun channel the day his drones stop tracking
+        her droids back to the Reclaimers, and the offworld quarter takes her
+        name out of the mud. Word runs the offworlder camps the way it runs
+        nowhere the war touches — there's a hand who can pull a buried string
+        out of a stolen droid and walk down the crew that planted it — and
+        the salvagers buy crews off her bench again without checking over
+        their shoulders.
+
+    steps:
+      - step: 1
+        title: "The Walking Crews"
+        location: stalgasin_offworld_quarter
+        npc: "Nuva Sehl"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Nuva Sehl in the Stalgasin Offworld Quarter on Geonosis."
+        npc_intro: >
+          [A small, jowled Sullustan woman looks up from a half-gutted labor
+          droid clamped to a workbench under a dust-tarp, a core-reader in one
+          hand and a row of pulled memory cores laid out beside it like
+          spent shells.] "Offworld and looking for a work-crew? You came to the
+          right bench and the wrong season. Nuva Sehl — I buy the foundry's
+          throwaway labor droids, rebuild them honest, and sell crews to the
+          outfits passing through. Or I did. Every crew I've sold these two
+          months walks off in the night a tenday after the sale, strolls back
+          to this quarter, and turns up stripped of whatever its new owner had
+          it hauling. The whole offworld camp thinks I'm running the theft. I'm
+          not — somebody's reflashing my cores. `talk` to me and I'll show you
+          what they put in them."
+        completion:
+          type: talk_to_npc
+          npc: "Nuva Sehl"
+        npc_complete: >
+          [She turns one of the pulled cores so its read-out faces you — a
+          clean rebuild, her own work, with a foreign block of command
+          buried under the labor routines.] "A recall-string. Sleeps through
+          the sale, wakes on a timer, and walks the droid — and the cargo —
+          straight back to a scrap-gang that calls itself the Reclaimers. I
+          can read that it's there. I can't crack it, I can't prove who wrote
+          it, and I can't find where the droids walk to. Two things stand in
+          my way. The Geonosian who sells me the overruns has stopped dealing
+          — his caste won't trade with an offworlder whose droids 'walk,' and
+          without his channel I'm finished and so's every salvager out here.
+          And the gang's crew is somewhere in this quarter I can't reach.
+          Start at the hive market — make the broker hear you out, and his
+          drones have been tracking my droids; they'll know where they go."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to the Hive Interior Market and use your `alien species` skill to read the Geonosian drone-caste broker right, re-open the overrun channel, and learn where the walked droids return — `chain attempt`."
+
+      - step: 2
+        title: "The Broker's Caste"
+        location: geonosis_hive_market
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["alien species"]
+        objective: "Read the Geonosian drone-caste scrap-broker correctly, re-open the overrun channel, and learn where the walked droids return — an alien species check."
+        npc_intro: >
+          [The hive interior market is a vaulted gallery of the worker and
+          drone caste — clicking, chittering Geonosians trading foundry scrap
+          and mineral by signs an offworlder reads at his peril.] The broker
+          who sold Nuva Sehl her overruns is here, and he has turned his back
+          on her: to the drone caste a being whose machines wander off is a
+          being who cannot keep his own hive in order, and they do not deal
+          with the disordered. Push him like a human and you lose the channel
+          for good. Read him like what he is — the wing-set that means shame
+          deflected, the antenna-cant that means a grievance he wants
+          answered, not soothed — answer the grievance in the caste's own
+          terms, and the disorder becomes the gang's, not hers. Do it right
+          and his foragers, who track every machine that crosses their market,
+          will tell you where the walked droids go. `alien species`, patient
+          and exact — `chain attempt` when you've read him true.
+        completion:
+          type: skill_check_passed
+          skill: "alien species"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You read the broker the way the caste reads itself — not pleading
+          an offworlder's case but naming the disorder where it belongs, with
+          the gang that steals foundry-bound droids off the market's own
+          ground, and the wing-set eases. The grievance was never with Nuva
+          Sehl; it was with machines walking through his market answering a
+          string no Geonosian wrote, an offense to a caste that orders its
+          whole world by who answers to whom. He re-opens the overrun channel
+          with a single folded gesture, and then his foragers, who miss
+          nothing that crosses their gallery, sign you the path the walked
+          droids take: down to the offworld quarter, to a back room the gang
+          rents off the Smuggler's Roost flophouse, where a fresh crew is
+          sitting right now waiting on its recall timer.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "The broker's foragers tracked the walked droids to a rented back room at the Smuggler's Roost Flophouse — get there and use your `droid programming` skill to crack a sitting droid, pull the gang's recall-string, and trace it to them — `chain attempt`."
+
+      - step: 3
+        title: "The Buried String"
+        location: smugglers_roost_flophouse
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["droid programming"]
+        objective: "Crack a walked droid in the gang's rented back room, pull the buried recall-string, and trace it to the gang's compound — a droid programming check."
+        npc_intro: >
+          [Vez Garra, who runs the Smuggler's Roost and learned long ago not
+          to comment on what her tenants store in the back rooms, rents the
+          gang a windowless cell off the flophouse — and there it is: a freshly
+          walked labor droid, powered down on its haunches in the dark,
+          waiting out its recall timer with a moisture-outfit's cargo still
+          slung on its frame.] This is the gang's whole racket in one machine.
+          Crack its core and the recall-string is right where Nuva Sehl said —
+          but the string is the door, not the prize: written into it is the
+          master-core address the droid walks home to, the gang's own node
+          out in the outsider compound, and the signature of the hand that
+          wrote it. Pull the string clean, copy the address, and reflash the
+          droid honest while you're in its head, and you walk out with the
+          proof, the location, and one crew member the gang will never get
+          back. `droid programming`, careful in a sleeping core — `chain
+          attempt` when you're into it.
+        completion:
+          type: skill_check_passed
+          skill: "droid programming"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [The core opens to you and the buried string lies there exactly as
+          she read it — and threaded through it, the master-core address it
+          walks home to: a gang node out in the Stalgasin outsider compound,
+          stamped with the write-signature of the hand that planted it. You
+          copy the address, lift the signature for proof, and strip the recall
+          out of the droid's head, reflashing it honest so it wakes to its
+          owner and not to the gang. The droid stirs, finds its own routines
+          where the string used to be, and stands down quiet. But pulling its
+          string drops it off the gang's own roster the instant they next
+          count — and the address in your hand points straight at the compound
+          where the man who keeps that roster is going to come looking for
+          whoever just made one of his crew stop answering.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "You've pulled the string and traced the gang to the Stalgasin Outsider Compound — get out there. Their enforcer Vossk Rhal will come when his crew goes quiet; stand him off — `attack`, `dodge`."
+
+      - step: 4
+        title: "The Outsider Compound"
+        location: stalgasin_outsider_compound
+        npc: "Vossk Rhal"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Stop Vossk Rhal at the gang's node in the Stalgasin Outsider Compound and break the recall racket — `attack`, `dodge`."
+        npc_intro: >
+          [The outsider compound is a walled scrap-yard of cannibalized droids
+          and stacked foundry reject — the Reclaimers' turf — and standing over
+          the gang's master-core node with one of the walked crew gone dark
+          beside him is a heavy-scaled, slit-eyed Trandoshan in a welder's
+          apron, a blaster on his hip and a cutting-spanner in one clawed
+          hand.] Vossk Rhal, the gang's enforcer — the hand whose write-
+          signature is on every buried string, the one who came to the node
+          the moment a crew member stopped answering his roster. He reads the
+          reflashed droid you walked in behind, and the easy contempt of a
+          being who steals with a buried command and never has to fight for it
+          goes flat. "You're the one pulling my strings out of my droids,
+          offworlder. That's gang property you reflashed — every core in this
+          quarter answers to me, and so will you, in pieces. Should've stayed
+          on your ship." [He thumbs the blaster up off his hip.]
+        completion:
+          type: combat_won
+          enemy_template: "hollow_crew_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Vossk Rhal goes down among the cannibalized droids he built his
+          racket on, the cutting-spanner ringing off the compound wall, and the
+          rest of the Reclaimers — a scrap-crew that steals precisely so it
+          never has to stand in a fair fight — scatter over the back wall
+          rather than answer for an enforcer who just lost in his own yard. The
+          gang's master-core node sits open beside him, the whole recall racket
+          spelled out in it: every buried string, every walked crew, every
+          address the droids were told to walk home to. Pull the node and the
+          strings die with it — the droids the gang already turned stay turned
+          back, and the crews still on Nuva Sehl's bench will sell honest. The
+          write-signature on the node matches the one you lifted off the
+          flophouse droid; that's the proof that clears her name in the
+          quarter. Nothing between here and her bench but the walk back, the
+          dead node under your arm and a reflashed droid trailing you home.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The enforcer's down, the node's pulled, and you've got the proof and a freed droid — carry it back to Nuva Sehl in the Stalgasin Offworld Quarter."
+
+      - step: 5
+        title: "An Honest Bench"
+        location: stalgasin_offworld_quarter
+        npc: "Nuva Sehl"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Nuva Sehl with the gang's master-core node and the freed droid."
+        npc_intro: >
+          [Nuva Sehl comes out from under the dust-tarp before you've crossed
+          the quarter, reading the dead master-core node under your arm and the
+          reflashed droid walking honest at your heel — and the broken
+          cutting-spanner you've brought back with them.] "You read the broker
+          true, cracked their string out of a sitting droid, and walked Vossk
+          Rhal down in his own yard — and you pulled their whole node and
+          brought one of my crew home awake." [She turns the node over, reads
+          the write-signature stamped across it, and sets it down beside her
+          row of spent cores.] "That signature clears my name in this quarter
+          and damns theirs. `talk` to me and let me settle up before the camp
+          hears their bench is honest again."
+        completion:
+          type: talk_to_npc
+          npc: "Nuva Sehl"
+        npc_complete: >
+          "Here's the fee — the credits I'd set by to buy my way off this rock
+          if the racket finished me, and worth a great deal more spent on the
+          Reclaimers finished instead. The strings die with their node, the
+          crews I already sold stay honest, and the broker's channel is open
+          the moment his foragers stop tracking my droids anywhere but to work.
+          The offworld quarter's a hard posting and a small one, and it
+          remembers a hand that pulled a buried string out of a stolen droid
+          and gave a salvager her bench back. When somebody out here finds
+          their machines answering a command they never wrote, there's a name
+          they'll send for now. Mind the dust on the walk to the pad."
+        # graduation closes the arc; no extra on-completion side effects.
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The recall racket dies with the gang's node and the offworld quarter
+          buys honest crews off Nuva Sehl's bench again, the hive broker's
+          overrun channel open and the walked droids working where they were
+          sold. A hand that pulls a buried string out of a stolen droid has a
+          way of being sent for — the offworlder camps carry a name now, in the
+          one corner of Geonosis the war hasn't reached.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════

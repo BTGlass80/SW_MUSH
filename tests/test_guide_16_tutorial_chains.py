@@ -536,7 +536,8 @@ class TestStep1SoftLockTeaching:
 # command surface, the questline DATA the prose cites, and the one-at-a-time
 # rule, so a data/engine change that desyncs the section fails loudly here.
 
-# chain_id -> (chain_name, step-1 NPC) for the nine shipped freelance questlines.
+# chain_id -> (chain_name, step-1 NPC) for the eleven shipped freelance
+# questlines.
 _FREELANCE_QUESTLINES = {
     "nar_freight_ghost_shipment": ("The Ghost Shipment", "Yelza Korrin"),
     "mos_eisley_crooked_wheel": ("The Crooked Wheel", "Dorae Vint"),
@@ -548,6 +549,7 @@ _FREELANCE_QUESTLINES = {
     "nar_shaddaa_warrens_toll": ("The Warrens Toll", "Vessa Tial"),
     "coruscant_works_sealed_ledger": ("The Sealed Ledger", "Terva Dohl"),
     "tatooine_speeder_sabotaged_run": ("The Sabotaged Run", "Ria Tann"),
+    "geonosis_offworld_hollow_crew": ("The Hollow Crew", "Nuva Sehl"),
 }
 
 
