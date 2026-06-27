@@ -204,6 +204,38 @@ class TestSimRoomPlayerDefender:
                 f"(stun_timers={len(defender.stun_timers)}) — clamp failed"
             )
 
+    def test_sim_pc_is_never_knocked_out(self):
+        """fun6: a sim hit must NEVER KO the player (no unconscious_until). A
+        2D-minute knockout took a solo learner out of the fight → tutorial
+        soft-lock. Even a huge hit only STUNS."""
+        from engine.combat import _SIM_STUN_CAP  # noqa: F401 (import-guard)
+        combat = _make_combat(is_simulation=True)
+        attacker = _make_char(name="B1Droid", char_id=10, strength="3D")
+        defender = _make_char(name="Recruit", char_id=1, strength="3D")
+        actor_c = _make_combatant(attacker, is_npc=True)
+        target_c = _make_combatant(defender, is_npc=False)
+        for _ in range(6):
+            _call_apply_damage(combat, actor_c, target_c, damage_margin_override=8)
+            assert not getattr(defender, "unconscious_until", None), (
+                "sim PC was KO'd (unconscious_until set) — must never happen")
+            assert defender.can_act_now(), "sim PC cannot act — soft-lock risk"
+
+    def test_sim_stun_accumulation_is_capped(self):
+        """fun6 (live-verified soft-lock): the -1D-per-stun penalty must not
+        compound without bound, or the learner can't land a hit and the drill
+        becomes unwinnable. Active sim-stuns are capped at _SIM_STUN_CAP."""
+        from engine.combat import _SIM_STUN_CAP
+        combat = _make_combat(is_simulation=True)
+        attacker = _make_char(name="B1Droid", char_id=10, strength="3D")
+        defender = _make_char(name="Recruit", char_id=1, strength="3D")
+        actor_c = _make_combatant(attacker, is_npc=True)
+        target_c = _make_combatant(defender, is_npc=False)
+        for _ in range(10):
+            _call_apply_damage(combat, actor_c, target_c, damage_margin_override=5)
+            assert len(defender.stun_timers) <= _SIM_STUN_CAP, (
+                f"sim stun accumulation uncapped: {len(defender.stun_timers)} "
+                f"> {_SIM_STUN_CAP} — would compound to un-winnable")
+
     def test_small_hit_capped_to_stun(self):
         """In a sim room, damage_margin 1-3 against a PC → STUNNED."""
         combat = _make_combat(is_simulation=True)

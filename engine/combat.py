@@ -141,6 +141,12 @@ COVER_HALF = 2       # +2D to difficulty
 COVER_THREE_QUARTER = 3  # +3D to difficulty
 COVER_FULL = 4       # Can't be hit directly; must destroy cover first
 
+# fun6: max active stuns a PLAYER can carry inside an is_simulation room. The
+# WEG stun penalty is -1D per active stun; in a tutorial drill where droids stun
+# every round this would compound to un-winnable. Capping it keeps the safe
+# sandbox WINNABLE ("at most stunned" as a mild, non-compounding stun).
+_SIM_STUN_CAP = 1
+
 COVER_DICE = {
     0: 0,   # no cover
     1: 1,   # +1D
@@ -1828,32 +1834,33 @@ class CombatInstance:
             target.unconscious_until = time.time() + (stun_duration_minutes * 60.0)
             wound_text = f"Stunned — Unconscious! ({stun_duration_minutes} min)"
         elif damage_margin > 0 and self.is_simulation and not target_c.is_npc:
-            # fun3-sim-safety (2026-06-25): simulation room — player defender
-            # cannot take a real wound (Wounded / Incapacitated / Killed).
-            # Any hit that would wound is capped to STUNNED/KO so the drill
-            # is recoverable. NPCs (target_c.is_npc) are NOT capped — the
-            # player must be able to defeat them to complete the drill.
-            if damage_margin > 3:
-                # Large hit: KO (mirrors stun_mode KO branch, R&E p83 convention).
-                stun_knocked_out = True
-                target.apply_wound(1)  # STUNNED only
-                duration_roll = roll_d6_pool(DicePool(2, 0))
-                stun_duration_minutes = max(1, duration_roll.total)
-                stun_duration_dice = "2D"
-                stun_duration_unit = "minutes"
-                target.unconscious_until = time.time() + (stun_duration_minutes * 60.0)
-                wound_text = f"[SIM] Stunned — Knocked Out! ({stun_duration_minutes} min)"
-            else:
-                # Small hit: STUNNED (margin 1-3).
-                target.apply_wound(1)  # margin 1 = STUNNED
-                wound_text = "[SIM] Stunned"
-            # code-review BLOCKER fix: apply_wound(STUNNED) ITSELF escalates
+            # fun3-sim-safety + fun6 (2026-06-27): simulation room — a PLAYER
+            # defender can AT MOST be STUNNED (never Wounded/Incapacitated/
+            # Killed, and never KO'd OUT of the fight). Brian's "safe sandbox":
+            # the learner can always keep acting until they win the drill.
+            # NPCs (target_c.is_npc) are NOT capped — the player must be able to
+            # defeat them to complete the drill.
+            target.apply_wound(1)  # STUNNED only — never a real wound
+            wound_text = "[SIM] Stunned"
+            # fun6: do NOT set unconscious_until here. The earlier KO sub-path
+            # (2D-minute knockout) took a solo learner OUT of the fight, so they
+            # could never finish the drill → hard tutorial soft-lock. A sim hit
+            # now only ever STUNS (a mild, capped -1D), never KOs.
+            #
+            # CAP sim stun accumulation (live-verified soft-lock): the drill
+            # droids stun the learner nearly every round, and the WEG stun
+            # penalty is -1D PER active stun (len(stun_timers)). Uncapped it
+            # compounds without bound — in a probe the player killed Alpha, then
+            # took 23 stuns and could NEVER land a hit on Bravo (~-23D), so the
+            # drill became unwinnable and STEP 2/5 never completed. A safe
+            # sandbox must stay WINNABLE, so keep at most _SIM_STUN_CAP active
+            # sim-stuns ("at most stunned" as a mild, non-compounding stun the
+            # learner can always fight through).
+            if len(target.stun_timers) > _SIM_STUN_CAP:
+                del target.stun_timers[_SIM_STUN_CAP:]
+            # (belt-and-suspenders) apply_wound(STUNNED) can still escalate
             # wound_level to INCAPACITATED once stun_timers >= STR dice (R&E
-            # p83 stun-KO), which would re-break the sim guarantee after a few
-            # hits. Clamp the PC back to STUNNED — the auto-clearing
-            # unconscious_until timer above is the only "down" in a sim, never
-            # a persisted wound. (stun_timers still accrue for the awake -1D
-            # penalty; they just can't push wound_level past STUNNED here.)
+            # p83) — clamp back to STUNNED so a multi-hit sim can't down the PC.
             if target.wound_level > WoundLevel.STUNNED:
                 target.wound_level = WoundLevel.STUNNED
         elif damage_margin > 0:
