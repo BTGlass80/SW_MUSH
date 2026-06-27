@@ -109,7 +109,7 @@ chains:
         republic: 3
       items: ["dc15_blaster_rifle", "republic_light_armor", "comlink_basic"]
       achievements: ["sworn_to_the_republic"]
-      drop_room: commercial_district_landing_zone
+      drop_room: coco_town  # fun7: live vendor-hub (was commercial_district_landing_zone, an exitless tutorial pocket — graduate stranded with no reachable shop)
       follow_up_hint: >
         Report to the duty officer at Coruscant Works for your first
         mission. The Republic mission board (`+missions republic`) is
@@ -268,7 +268,7 @@ chains:
         republic: 2
       items: ["concealed_blaster", "civilian_disguise_kit", "encrypted_comlink"]
       achievements: ["recruited_in_shadow"]
-      drop_room: monumental_district_judicial_plaza
+      drop_room: coco_town  # fun7: live vendor-hub (was monumental_district_judicial_plaza, an exitless tutorial pocket)
       follow_up_hint: >
         Your handler will contact you via comlink with field assignments.
         Republic Intelligence missions on `+missions republic` are
@@ -567,7 +567,7 @@ chains:
         cis: 3
       items: ["e5_blaster_rifle", "cis_field_armor", "comlink_basic"]
       achievements: ["raised_the_red_flag"]
-      drop_room: tatooine_outskirts_cis_safehouse
+      drop_room: mos_eisley_market_district  # fun7: live vendor-hub (was tatooine_outskirts_cis_safehouse, an exitless tutorial pocket); Mos Eisley vendors (Kayson/Lup/Jawa) 1 hop
       follow_up_hint: >
         Your unit operates from the Tatooine safehouse. CIS missions
         on `+missions cis` carry the work — most of it covert, since
@@ -717,7 +717,7 @@ chains:
         cis: 2
       items: ["concealed_blaster", "civilian_disguise_kit", "fake_republic_id"]
       achievements: ["sleeper_in_the_capital"]
-      drop_room: southern_underground_freight_dock
+      drop_room: coco_town  # fun7: live vendor-hub (was southern_underground_freight_dock, an exitless tutorial pocket)
       follow_up_hint: >
         Your handler will contact you via the fake comlink. CIS-aligned
         missions on `+missions cis` are flagged "deep cover." Avoid
@@ -886,7 +886,7 @@ chains:
         bounty_hunters_guild: 3
       items: ["bhg_license_card", "tracking_fob", "stun_baton"]
       achievements: ["first_contract"]
-      drop_room: nar_shaddaa_promenade_bhg_lounge
+      drop_room: nar_shaddaa_promenade_main  # fun7: live vendor-hub (was nar_shaddaa_promenade_bhg_lounge, an exitless tutorial pocket)
       follow_up_hint: >
         Pull contracts from the Guild board (`+bounties`). The chapter
         house lounge has standing-rate jobs and rumor-tier targets. Pay
@@ -1040,7 +1040,7 @@ chains:
         hutt_cartel: 3        # graduating with a Hutt favor on file
       items: ["spacer_ident", "comlink_basic", "smugglers_baffle_kit"]
       achievements: ["first_run"]
-      drop_room: nar_shaddaa_landing_dock_e
+      drop_room: nar_shaddaa_promenade_main  # fun7: live vendor-hub (was nar_shaddaa_landing_dock_e, an exitless tutorial pocket); smuggler has no faction commissary so a world vendor is mandatory
       follow_up_hint: >
         Hutt Cartel and independent missions on `+missions independent`.
         Smuggling cargo via the cargo system pays best on the
@@ -1216,7 +1216,7 @@ chains:
         - "diagnostic_scanner"
         - "kdy_apprentice_pass"
       achievements: ["first_repair"]
-      drop_room: kuat_orbital_apprentice_lounge
+      drop_room: kuat_ring_commercial  # fun7: live vendor-hub (was kuat_orbital_apprentice_lounge, an exitless tutorial pocket)
       follow_up_hint: >
         Shipwrights' Guild contracts post on `+missions shipwrights_guild`.
         The Kuat orbital array has standing repair jobs; harder ones come

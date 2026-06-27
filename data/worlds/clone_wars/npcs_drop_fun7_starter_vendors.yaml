@@ -1,0 +1,251 @@
+# data/worlds/clone_wars/npcs_drop_fun7_starter_vendors.yaml
+# Clone Wars Era — FUN7 reward-loop drop: starter-gear vendor NPCs.
+# Schema version 1 (mirrors npcs_drop_craft_c_armorer.yaml).
+#
+# ─── Why this file exists ─────────────────────────────────────────────
+#
+# Tutorial-chain graduates land with ~500-800 credits and no reachable
+# place to spend them on gear. This drop places one vendor:true NPC
+# in each of the three hubs graduates are retargeted to so that
+# `buy <item>` works the moment they arrive:
+#
+#   1. Coruscant - Coco Town            (coco_town slug, commercial_district)
+#   2. Nar Shaddaa - Corellian Sector Promenade (nar_shaddaa_promenade_main slug)
+#   3. Kuat Drive Yards - Commercial Zone (kuat_ring_commercial slug)
+#
+# Each NPC carries ai_config.vendor: true — the ONLY flag the buy
+# consumer (BuyCommand open-market path, parser/space_commands.py
+# ~line 4333-4343) needs to gate a purchase. The sellable stock is the
+# global vendor_stocked:true catalog in data/weapons.yaml (blaster_pistol,
+# hold_out_blaster, comlink, medpac, etc.); there is NO per-vendor
+# inventory to seed here. The haggle uses THE VENDOR'S bargain skill
+# (space_commands.py ~4352-4357); a real bargain entry prevents the
+# generic 3D fallback from engaging.
+#
+# Era notes: original characters (Q1 — no canon figures). Each NPC
+# is faction-neutral "surplus / general outfitter" so graduates of
+# any starting chain can patronize them without faction friction.
+# No Imperial/Empire/Rebel/TIE in any production string.
+#
+# Stat provenance: attributes anchored to the WEG40120 "Ordinary
+# Person" baseline (2D per attribute) with a modest civilian
+# redistribution matching the Lup / Sela Tarn vendor precedent
+# (both confirmed against WEG40120 R&E sibling entries). Bargain
+# 4D+1 to 4D+2 is within the merchant-tier band (Lup = 5D top
+# of band; Sela Tarn = 4D mid-band).
+# WEG40120 PDF not accessible in this worktree; stats grounded
+# in confirmed sibling entries (Lup, Sela Tarn, Vek Nurren) all
+# of which were verified against the PDF at authoring time.
+#
+# Consumer map (no phantom data):
+#   ai_config.vendor   → npc_loader.py ~358-359  (config["vendor"]=True)
+#   bargain skill      → space_commands.py ~4355-4357 (haggle pool)
+#   name/room/species  → npc_loader.py _convert_entry (placement)
+#   description        → npc_loader.py _convert_entry (display)
+#   char_sheet attrs   → npc_loader.py _build_char_sheet (stored JSON)
+#   ai_config.*        → npc_loader.py _build_ai_config (stored JSON)
+#   hostile/combat_behavior/fallback_lines → dialogue system
+
+schema_version: 1
+
+npcs:
+
+  # ─── Brekka Solwynn — Coco Town surplus outfitter ─────────────────────
+  #
+  # Placement: Coruscant - Coco Town (slug: coco_town). A working-class
+  # general outfitter and war-surplus quartermaster running a stall in the
+  # shadow of the Senate District. The zone already has two hostile mob
+  # NPCs from npcs_drop_mob_grind_final_coverage.yaml; Brekka is the
+  # zone's first vendor:true NPC and its only faction-neutral gear seller.
+  - name: Brekka Solwynn
+    room: Coruscant - Coco Town
+    species: Zabrak
+    description: >-
+      A stocky Zabrak woman behind a folding plasteel table stacked with
+      packaged gear — medpacs in labeled rows, comlinks clipped to a board,
+      surplus charge packs rubber-banded by type. Her horns are worn flat
+      at the tips the way they get after twenty years of hauling things
+      under overhead clearances. A hand-lettered sign reads BREKKA'S —
+      FIELD GEAR — NO CREDIT — which is a lie about the last part. She
+      sizes up every customer in about three seconds and picks a price
+      from experience.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 3D
+        mechanical: 2D
+        perception: 3D+2
+        strength: 2D+2
+        technical: 2D+1
+      skills:
+        bargain: "4D+2"
+        value: "4D+1"
+        streetwise: "3D+2"
+        brawling: "2D+2"
+      move: 10
+    ai_config:
+      vendor: true   # decision a + vendor flag (2026-06-12): sells open-market commons
+      personality: >-
+        Brekka Solwynn has been running a surplus-gear stall in Coco Town
+        for eleven years, selling to clone troopers on leave, freighter
+        crews between runs, and anyone else who needs a medpac or a comlink
+        without the full Republic supply-chain paperwork. She moved to
+        Coruscant from Iridonia before the war and has no intention of
+        going back; the capital suits her, even the parts that are
+        currently on fire about something. She is fair, fast, and allergic
+        to time-wasters. If you need it, she has it. If she does not have
+        it, she knows who does, and she will charge you a finder's fee.
+      knowledge:
+      - "Field gear — medpacs, comlinks, charge packs, rations"
+      - "Surplus clone-army equipment and what it actually costs on the secondary market"
+      - "Coco Town vendors and which ones cut their stock with off-brand components"
+      - "Republic supply chain and where to find it when the official source is out"
+      - "Basic blaster maintenance and which pistols jam in high-humidity"
+      faction: independent
+      dialogue_style: >-
+        Blunt and fast. Prices come out of her mouth before you finish
+        the sentence. Never wastes words. Warms slightly to customers
+        who know what they want.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+      - "Brekka taps the medpac board. 'Standard or field-grade? Field-grade's the same thing, different label, thirty credits cheaper. You want it or not?'"
+      - "'Comlink, charge pack, medpac — that's the kit. Everything else is opinion. What do you need?'"
+      - "'I've been here eleven years. Senate went into emergency session three times in that window. Business was fine each time.'"
+      - "'Surplus gear from the 212th. Still works. War moves fast; logistics moves slow. I'm the gap.'"
+
+  # ─── Muss Farren — Promenade Promenade outfitter / fixer ──────────────
+  #
+  # Placement: Nar Shaddaa - Corellian Sector Promenade (slug:
+  # nar_shaddaa_promenade_main). The Promenade holds Zekka Thansen (FDtS
+  # smuggler anchor, G1), a Promenade Territory Collector (hostile mob,
+  # promenade_core), and the Bounty Hunters' Guild chapter presence
+  # nearby. Muss is the first vendor:true NPC in this room — the gear
+  # fixer for travelers who arrive on Nar Shaddaa without a plan.
+  - name: Muss Farren
+    room: Nar Shaddaa - Corellian Sector Promenade
+    species: Devaronian
+    description: >-
+      A Devaronian with one broken horn, filed smooth and capped with a
+      scavenged comlink housing, selling out of a battered repulsorlift
+      cart parked at the Promenade's busiest foot-traffic pinch. The cart
+      has a folded-down side table, a tamper-seal reader, and a small
+      holographic price list cycling in three languages. He watches the
+      crowd with the practiced patience of someone who has been running
+      this spot long enough to have an understanding with the local
+      enforcement — meaning he pays them and they look somewhere else.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 3D
+        mechanical: 2D
+        perception: 3D+2
+        strength: 2D+1
+        technical: 2D+1
+      skills:
+        bargain: "4D+1"
+        value: "3D+2"
+        streetwise: "4D"
+        con: "3D+1"
+        brawling: "2D+2"
+      move: 10
+    ai_config:
+      vendor: true   # decision a + vendor flag (2026-06-12): sells open-market commons
+      personality: >-
+        Muss Farren is a Devaronian general outfitter who has worked the
+        Corellian Sector Promenade for seven years. He sells field gear —
+        medpacs, comlinks, charge packs — to travelers arriving on Nar
+        Shaddaa who discover that they left something important behind.
+        He is cheerful, slightly evasive about sourcing, and genuinely
+        good at his job. He does not ask what you need the gear for. He
+        has heard every answer already and most of them were lies. He
+        keeps his prices fair because repeat customers are the only
+        customers worth having on a moon where everyone is passing through.
+      knowledge:
+      - "Field gear and consumables — what travelers need in the first hour on Nar Shaddaa"
+      - "Corellian Sector Promenade — who runs what, who to avoid, which alleys go where"
+      - "Sourcing and reselling surplus gear from six different supply chains"
+      - "The Burning Deck cantina crowd and their shopping habits"
+      - "How to explain the price difference between the label and the actual cost"
+      faction: independent
+      dialogue_style: >-
+        Genial, fast-talking, slightly slippery. Always has an answer.
+        Prices sound reasonable until you realize you already said yes.
+        Honest about the gear quality; creative about everything else.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+      - "Muss spreads his hands over the cart. 'Medpac, comlink, charge packs. Everything a sensible person checks before they land here. You checked?' *He waits.*"
+      - "'Price is what it is. I have an arrangement with the local talent. Call it a supply-chain fee. The gear works — that's the part you're buying.'"
+      - "'Seven years on this corner. The moon changes management every few years; the corner stays mine. What do you need?'"
+      - "'I don't ask and you don't tell me. That's the Nar Shaddaa way. Standard field kit?'"
+
+  # ─── Orvak Tesh — Kuat ring dockside outfitter ────────────────────────
+  #
+  # Placement: Kuat Drive Yards - Commercial Zone (slug: kuat_ring_commercial).
+  # The zone already holds Lira Shan (FDtS ship broker, no vendor flag),
+  # KDY Ship Broker Vellan Nox (ship broker, no vendor flag), and civic
+  # ambient NPCs from npcs_drop_ambient_kuat_civic.yaml and
+  # npcs_drop_ambient_kuat_industrial_civic.yaml. None carry vendor:true.
+  # Orvak is the ring's first and only gear vendor — the dependable
+  # starter-gear seller distinct from the two ship brokers.
+  - name: Orvak Tesh
+    room: Kuat Drive Yards - Commercial Zone
+    species: Sullustan
+    description: >-
+      A Sullustan in a well-worn work jacket with too many pockets, running
+      a corner supply kiosk at the edge of the Commercial Zone's main
+      pedestrian artery. His stock is sensible and labeled: medpacs in
+      tamper-sealed sleeves, comlinks still in-packaging, charge packs
+      sorted by cell type in a tiered wire rack. He has a small laminated
+      sign that reads FIELD SUPPLIES — REASONABLE PRICES — NO QUESTIONS
+      and a second, smaller sign below it that reads ALSO: I HAVE QUESTIONS,
+      which he will explain if you ask. He has worked this kiosk for nine
+      years, outlasting three facility managers and one orbital maintenance
+      crisis.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 3D+1
+        mechanical: 2D
+        perception: 3D+2
+        strength: 2D+1
+        technical: 2D+2
+      skills:
+        bargain: "4D+2"
+        value: "4D"
+        business: "3D+2"
+        languages: "3D+1"
+      move: 10
+    ai_config:
+      vendor: true   # decision a + vendor flag (2026-06-12): sells open-market commons
+      personality: >-
+        Orvak Tesh is a Sullustan field-supply vendor who has operated a
+        corner kiosk in the KDY Commercial Zone for nine years. He sells
+        medpacs, comlinks, charge packs, and standard field consumables
+        to shipyard workers, dockside crews, and travelers passing through
+        the ring. He is methodical, well-organized, and slightly suspicious
+        of customers who are in too much of a hurry — because in his
+        experience those are the ones who argue about price after the
+        fact. He is not anti-war and not pro-war; he supplies people
+        who work near the war, which is its own category. He has outlasted
+        enough ring administrators to be genuinely confident in his kiosk's
+        permanence.
+      knowledge:
+      - "Field consumables — medpacs, comlinks, charge packs, ration bars"
+      - "KDY Commercial Zone — nine years of vendors, facilities, and management changes"
+      - "Shipyard worker supply needs versus docked-crew supply needs (very different)"
+      - "What orbital maintenance crises do to supply chains and how to survive them"
+      - "The two ship brokers (Lira Shan and Vellan Nox) — he knows them as neighbors, not customers"
+      faction: independent
+      dialogue_style: >-
+        Methodical, organized, quietly precise. Answers questions fully
+        before you finish asking them. Mildly suspicious of urgency.
+        Warms to anyone who reads the label before buying.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+      - "Orvak straightens the medpac stack. 'Standard field kit or just a resupply? I have both sorted separately.'"
+      - "'Nine years on this corner. I have seen every supply emergency this ring can produce. I am always stocked. That is the job.'"
+      - "*He taps the second sign.* 'The questions are: where are you going, what is the environment, and how long? The answers help me help you. Optional. But helpful.'"
+      - "'The ship brokers handle the vessels. I handle the people inside them. Different inventory.'"
