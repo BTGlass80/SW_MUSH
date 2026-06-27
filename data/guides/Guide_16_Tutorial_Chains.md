@@ -9,7 +9,7 @@ tags: ["tutorial", "onboarding", "new player", "chain", "first character"]
 
 **Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
-**Guide Version 1.6**
+**Guide Version 1.7**
 
 ---
 
@@ -278,7 +278,7 @@ The Training Grounds are a separate space from the live world — a tutorial zon
 
 Chains are forgiving but not bulletproof — and the game tries to catch you before you even notice you're stuck.
 
-**You don't have to know the exact command.** If you type a plain-English question at the prompt — `what do i do`, `how do i fight?`, or anything with a question mark, a leading question word, or three-plus words — the parser recognizes a person asking for help rather than a fat-fingered command. Instead of a blunt `Huh? Unknown command`, it answers *"I didn't catch that,"* then surfaces your current objective, the exact command to type next (whenever you're in a chain), and a pointer to `help`, `look`, and the Ctrl/Cmd+K command search. (A single mistyped command word still gets the crisp `Huh?` — the redirect is reserved for input that genuinely reads like a question.)
+**You don't have to know the exact command — and you can't dead-end on one.** Once you're in the world, *anything* the game doesn't recognize gets a hand instead of a brick wall. A fat-fingered command (`atatck`), a reflexive word a newcomer reaches for (`inventory`, `situation`, `list`), or a plain-English question (`what do i do`, `how do i fight?`) all get the same soft answer — *"I didn't catch that,"* followed by your current objective, the exact command to type next (whenever you're in a chain), and a pointer to `help`, `look`, and the Ctrl/Cmd+K command search. There's no curt `Huh? Unknown command` waiting to stonewall you in-game; that blunt line is reserved for the login screen, before your character exists.
 
 If that nudge isn't enough, here are the deliberate recovery paths:
 
@@ -322,7 +322,7 @@ You've graduated. The chain hint pointed you at, say, the Republic mission board
 
 A reasonable rhythm:
 
-**Minute 0–5.** Read the room description carefully. The drop room is curated — it tells you what's around. Then *walk it*. The tutorial rooms had no walkable exits — the chain teleported you between steps — but the live world is yours to explore on foot. The room lists its exits; to walk one, type a compass direction (`north`, or `n` for short) **or the exit's name exactly as the room lists it** — if the room shows a `corridor` exit, just type `corridor` and you'll go there. On the web client, you don't even type: click the exit's chip and it walks you through. Look at the NPCs (`look <name>`). Type `+who` to see who's online; you might recognize someone from a previous session. Your drop room is a commerce hub, so the local outfitter is right here — `buy <item>` to turn your graduation credits into starter gear before you move out.
+**Minute 0–5.** Read the room description carefully. The drop room is curated — it tells you what's around. Then *walk it*. The tutorial rooms had no walkable exits — the chain teleported you between steps — but the live world is yours to explore on foot. The room lists its exits; to walk one, type a compass direction (`north`, or `n` for short) **or the exit's name exactly as the room lists it** — if the room shows a `corridor` exit, just type `corridor` and you'll go there. If your reflex is to type `go north` or `walk corridor`, that works too — `go`/`walk`/`head <exit>` all route you the same way. On the web client, you don't even type: click the exit's chip and it walks you through. Look at the NPCs (`look <name>`). Type `+who` to see who's online; you might recognize someone from a previous session. Your drop room is a commerce hub, so the local outfitter is right here — `buy <item>` to turn your graduation credits into starter gear before you move out.
 
 **Minute 5–15.** Visit your faction's main hub — the cantina, the mission board, the headquarters lobby. Talk to a couple of NPCs to get a feel for the local social texture. Check `+missions <your faction>` to browse what's available.
 
@@ -407,7 +407,7 @@ Two ways, and you'll use both.
 | `talk <NPC>` | Talk to an NPC (advances NPC-completion steps) |
 | `examine <object>` | Examine an in-room object (advances examine-completion steps) |
 | `look` | Re-read the current room — its description, **exits**, and who's here |
-| `move <dir>` (or just type it) | Walk an exit: a compass direction (`n`/`s`/`e`/…) **or the exit's name** as the room lists it (e.g. `corridor`). Web client: click the exit chip |
+| `move <dir>` (or `go`/`walk`/`head <dir>`, or just type it) | Walk an exit: a compass direction (`n`/`s`/`e`/…) **or the exit's name** as the room lists it (e.g. `corridor`). Web client: click the exit chip |
 | `+missions <faction>` | Browse mission board (post-graduation) |
 | `+achievements` | Show your achievements (chain graduation creates one) |
 | `training` | Visit the Training Grounds hub |

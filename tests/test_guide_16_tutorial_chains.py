@@ -289,6 +289,26 @@ class TestLiveWorldMovementTeaching:
             "'click the exit chip' claim has gone stale"
         )
 
+    def test_guide_teaches_go_walk_head_prefix(self, guide_text):
+        # fun12 (`ddef084`) routes the near-universal `go`/`walk`/`head <dir>`
+        # movement reflex to MoveCommand; §14/§15 now teach it as accepted.
+        for verb in ("go", "walk", "head"):
+            assert f"`{verb}" in guide_text, (
+                f"Guide_16 §14/§15 should teach `{verb} <dir>` as a way to walk "
+                "an exit — fun12 routes go/walk/head to MoveCommand"
+            )
+
+    def test_dispatcher_routes_go_walk_head_to_move(self):
+        """The guide's `go`/`walk`/`head <dir>` teaching is only true while
+        parse_and_dispatch forwards those prefixes to MoveCommand (fun12)."""
+        import inspect
+        from parser.commands import CommandParser
+        src = inspect.getsource(CommandParser.parse_and_dispatch)
+        assert '("go", "walk", "head")' in src, (
+            "parser/commands.py no longer routes `go`/`walk`/`head <dir>` to "
+            "MoveCommand — Guide_16 §14/§15's go/walk/head teaching has gone stale"
+        )
+
 
 # ── §6 Jedi unlock: "five" Force-sign landmark visits must match the engine ───
 class TestForceSignThreshold:
@@ -467,55 +487,80 @@ class TestCombatSimSafeSandbox:
         )
 
 
-# ── §12 "What If You Get Stuck": the natural-language confusion redirect ───────
+# ── §12 "What If You Get Stuck": the no-dead-end unknown-command recovery ──────
 # drop NL-confusion-redirect (`19c5765`) made a confused newcomer's most natural
-# instinct WORK: typing a plain-English question ("what do i do") at the prompt
-# now returns "I didn't catch that" + the active objective + command-to-type +
-# a help/look/Ctrl+K pointer, instead of a bare "Huh? Unknown command".  Guide_16
-# §12 now teaches this safety net.  These pin the prose to the live dispatcher
-# behavior + the onboarding-state ABI both the redirect and the guide rely on,
-# so removing the redirect (or its objective/command_to_type fields) fails here.
+# instinct WORK: typing a plain-English question ("what do i do") got the soft
+# "I didn't catch that" recovery instead of a bare "Huh? Unknown command".  fun12
+# (`ddef084`) BROADENED that — EVERY in-game unknown command (a typo, a reflexive
+# word like inventory/situation/list, OR a question) now routes through the same
+# recovery; the curt "Huh? Unknown command" survives only PRE-LOGIN (before a
+# character exists).  Guide_16 §12 teaches this no-dead-end safety net.  These
+# pin the prose to the live dispatcher behavior + the onboarding-state ABI both
+# the recovery and the guide rely on, so a regression (re-gating the recovery to
+# question-shaped input, or dropping objective/command_to_type) fails here.
 class TestNLConfusionRedirectTeaching:
     def test_guide_teaches_plain_english_redirect(self, guide_text):
         assert "I didn't catch that" in guide_text, (
-            "Guide_16 §12 should quote the natural-language redirect's reply "
+            "Guide_16 §12 should quote the recovery's reply "
             "(\"I didn't catch that\") so a stuck newcomer knows what it means"
         )
         lowered = guide_text.lower()
         assert "plain-english question" in lowered or "plain english question" \
             in lowered, (
-            "Guide_16 §12 should tell players they can type a plain-English "
-            "question when stuck — the redirect-supported recovery path"
+            "Guide_16 §12 should tell players a plain-English question is one of "
+            "the inputs the recovery catches — the redirect-supported path"
         )
 
-    def test_guide_keeps_the_single_word_huh_distinction(self, guide_text):
-        # The redirect is reserved for question-shaped input; a single mistyped
-        # command word still gets the crisp error.  The guide must not over-
-        # promise that *any* unknown input gets the soft redirect.
-        assert "Huh?" in guide_text, (
-            "Guide_16 §12 should note that a single mistyped command word still "
-            "gets the crisp `Huh?` — the redirect is for question-shaped input"
+    def test_guide_no_longer_claims_single_word_huh_in_game(self, guide_text):
+        # fun12 removed the question-shape gate: in-game, EVERY unknown command
+        # gets the soft recovery, NOT a crisp `Huh?`.  The guide must not still
+        # claim "a single mistyped command word still gets the crisp `Huh?`".
+        assert "single mistyped command word" not in guide_text, (
+            "Guide_16 §12 still carries the pre-fun12 'a single mistyped command "
+            "word still gets the crisp Huh?' distinction — fun12 routes EVERY "
+            "in-game unknown through the soft recovery; the claim is stale"
         )
 
-    def test_dispatcher_still_emits_the_redirect(self):
-        """The guide's claim is only true while parse_and_dispatch still does the
-        natural-language redirect (the 'I didn't catch that.' branch)."""
+    def test_guide_teaches_every_in_game_unknown_gets_recovery(self, guide_text):
+        # The post-fun12 truth: any in-game unknown gets a hand, not a dead end;
+        # the curt Huh? line is reserved for the login screen.
+        lowered = guide_text.lower()
+        assert "reflexive word" in lowered or "inventory" in lowered, (
+            "Guide_16 §12 should name the reflexive words a newcomer types "
+            "(inventory/situation/list) as inputs the recovery now catches"
+        )
+        assert "login screen" in lowered, (
+            "Guide_16 §12 should note the curt `Huh? Unknown command` is now "
+            "reserved for the login screen (pre-character), not mid-game"
+        )
+
+    def test_dispatcher_routes_every_in_game_unknown_to_recovery(self):
+        """The guide's no-dead-end claim is only true while parse_and_dispatch
+        routes EVERY in-game unknown through the recovery (no question-shape
+        gate), and keeps `Huh? Unknown command` only as the pre-login fallback."""
         import inspect
         from parser.commands import CommandParser
         src = inspect.getsource(CommandParser.parse_and_dispatch)
         assert "I didn't catch that." in src, (
-            "parser/commands.py no longer emits the natural-language confusion "
-            "redirect — Guide_16 §12's 'type a plain-English question' teaching "
-            "has gone stale"
+            "parser/commands.py no longer emits the unknown-command recovery — "
+            "Guide_16 §12's 'I didn't catch that' teaching has gone stale"
         )
         assert "build_onboarding_state" in src, (
-            "the redirect no longer pulls the active objective via "
+            "the recovery no longer pulls the active objective via "
             "build_onboarding_state — Guide_16 §12 over-promises the objective hint"
         )
-        # The crisp single-word error must survive alongside the redirect.
+        # fun12 removed the question-shape gate — its tell-tale tokens must NOT
+        # come back, or the recovery would again skip plain typos / reflexive
+        # words and Guide_16 §12's 'any unknown gets a hand' claim goes stale.
+        assert "_looks_nl" not in src and "_qwords" not in src, (
+            "parser/commands.py re-gated the recovery to question-shaped input "
+            "(`_looks_nl`/`_qwords`) — Guide_16 §12's 'EVERY in-game unknown "
+            "gets the recovery' teaching has gone stale"
+        )
+        # `Huh? Unknown command` survives only as the pre-login fallback.
         assert "Huh? Unknown command" in src, (
-            "parser/commands.py dropped the crisp single-word error — Guide_16 "
-            "§12's 'a single mistyped word still gets Huh?' distinction is stale"
+            "parser/commands.py dropped the pre-login `Huh? Unknown command` "
+            "line — Guide_16 §12 says it's reserved for the login screen"
         )
 
     def test_onboarding_state_surfaces_objective_and_command(self):
