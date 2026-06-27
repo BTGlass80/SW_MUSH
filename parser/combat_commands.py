@@ -655,6 +655,26 @@ async def _auto_generate_npc_poses(combat):
         combat.set_pose_status(c.id, "passed", text=auto_pose)
 
 
+def _auto_pose_sim_players(combat):
+    """fun10: auto-pose any pending PLAYER combatants in a SIMULATION drill.
+
+    In a sim (tutorial Combat Simulator) the learner can't be expected to know
+    the declare-then-`pass` posing ritual. Without auto-posing them, typing
+    `attack` again (the natural instinct) declares ANOTHER action in the same
+    unresolved round, stacking the multi-action penalty (-1D each) until the
+    dice pool hits 0D and every swing auto-misses, frozen in ROUND 1 forever —
+    a hard tutorial soft-lock (7th fun re-run kills-it). Posing them like the
+    NPCs makes the round resolve immediately, so each `attack` is its own
+    resolved round and spamming `attack` WINS. NPCs are posed separately by
+    _auto_generate_npc_poses; this is scoped to is_simulation, so real combat's
+    declare/pose/multi-action flow is untouched.
+    """
+    for cid in list(combat.get_pending_poser_ids()):
+        c = combat.get_combatant(cid)
+        if c and not c.is_npc:
+            combat.set_pose_status(cid, "passed", text=combat.generate_auto_pose(cid))
+
+
 async def _start_posing_window(combat, ctx):
     """Open the posing window and start the grace timer.
 
@@ -668,6 +688,11 @@ async def _start_posing_window(combat, ctx):
     from datetime import datetime, timezone, timedelta
     deadline = datetime.now(timezone.utc) + timedelta(seconds=180)
     combat.pose_deadline = deadline.isoformat()
+
+    # fun10: a SIMULATION drill auto-poses pending PLAYERS (as it already does
+    # NPCs) so a declared attack RESOLVES immediately — see _auto_pose_sim_players.
+    if getattr(combat, "is_simulation", False):
+        _auto_pose_sim_players(combat)
 
     await _send_combat_state(combat, ctx.session_mgr)
 
