@@ -657,14 +657,14 @@ class TestEndToEndGraduation(unittest.TestCase):
         _reset_corpus_cache()
 
     def test_graduating_chain_fires_apply_graduation(self):
-        # Use republic_soldier — a chain whose graduation drop_room
-        # is `commercial_district_landing_zone`. We stage that room in
-        # the mock DB so the slug resolves.
+        # Use republic_soldier — a chain whose graduation drop_room is
+        # `coco_town` (fun7-reward-loop retargeted it from the old exitless
+        # commercial_district_landing_zone pocket to a live vendor-hub). We
+        # stage that room in the mock DB so the slug resolves.
         from engine.chain_events import on_command_executed
 
         db = _MockDB()
-        db.add_room(500, "The Works LZ",
-                    "commercial_district_landing_zone")
+        db.add_room(500, "Coco Town", "coco_town")
 
         # Build a republic_soldier char one step from graduation:
         # step 5 (final) — completes via `command_executed: +factions`.

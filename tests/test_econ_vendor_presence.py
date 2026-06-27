@@ -38,6 +38,10 @@ CURATED = {
         ["Weapons Cache Dealer Halen Korr",
          "Undercity Market Vendor Reska Tol"],
     "npcs_drop_def_civilians.yaml": ["Independent Trader Sela Dorne"],
+    # fun7-reward-loop: starter outfitters placed in the CW profession-chain
+    # graduate hubs so a graduate can reach a vendor (deliberate curation).
+    "npcs_drop_fun7_starter_vendors.yaml":
+        ["Brekka Solwynn", "Muss Farren", "Orvak Tesh"],
 }
 
 
