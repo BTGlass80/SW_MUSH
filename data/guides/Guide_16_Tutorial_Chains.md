@@ -212,6 +212,7 @@ When you finish your final chain step, the graduation event runs:
 4. **Achievement unlocks.** Visible in `+achievements`. These are persistent and show up forever.
 5. **You teleport to your drop room.** The chain's pre-set destination in the live world.
 6. **A follow-up hint prints.** A one-line pointer at what to do next.
+7. **Your GOALS panel populates (web client).** The mission you accepted in your final step — *First Deployment* — moves into the **GOALS** sidebar panel with its credit reward and a `+missions` chip you can click to open the board. So your next objective stays pinned on-screen the instant the galaxy opens, not just printed once and lost to the scroll. (Telnet players get the one-line text hint; the persistent panel is a web affordance.)
 
 From the drop room, you're in the real game. You can:
 
@@ -223,7 +224,7 @@ From the drop room, you're in the real game. You can:
 - **Look at other players' characters** with `+who` and `+finger`.
 - **Begin RP scenes** with whoever's around.
 
-The chain is done, but the follow-up hint is doing real work. If you're not sure what to do, *follow the hint*. It points at the most natural next action for your archetype: the duty officer for Republic Soldiers, the BHG board for Bounty Hunters, the Hutt cargo network for Smugglers. New players who follow the hint find themselves in their second meaningful situation within five minutes of graduating.
+The chain is done, but the follow-up hint is doing real work. If you're not sure what to do, *follow the hint*. It points at the most natural next action for your archetype: the duty officer for Republic Soldiers, the BHG board for Bounty Hunters, the Hutt cargo network for Smugglers. New players who follow the hint find themselves in their second meaningful situation within five minutes of graduating. On the web client you have a second, sturdier pointer: the **GOALS** panel holds your *First Deployment* mission and its `+missions` chip on-screen, so even if the hint scrolls off you always have a concrete next objective one click away.
 
 ---
 
@@ -322,7 +323,7 @@ You've graduated. The chain hint pointed you at, say, the Republic mission board
 
 A reasonable rhythm:
 
-**Minute 0–5.** Read the room description carefully. The drop room is curated — it tells you what's around. Then *walk it*. The tutorial rooms had no walkable exits — the chain teleported you between steps — but the live world is yours to explore on foot. The room lists its exits; to walk one, type a compass direction (`north`, or `n` for short) **or the exit's name exactly as the room lists it** — if the room shows a `corridor` exit, just type `corridor` and you'll go there. If your reflex is to type `go north` or `walk corridor`, that works too — `go`/`walk`/`head <exit>` all route you the same way. On the web client, you don't even type: click the exit's chip and it walks you through. Look at the NPCs (`look <name>`). Type `+who` to see who's online; you might recognize someone from a previous session. Your drop room is a commerce hub, so the local outfitter is right here — `buy <item>` to turn your graduation credits into starter gear before you move out.
+**Minute 0–5.** Read the room description carefully. The drop room is curated — it tells you what's around. Then *walk it*. The tutorial rooms had no walkable exits — the chain teleported you between steps — but the live world is yours to explore on foot. The room lists its exits; to walk one, type a compass direction (`north`, or `n` for short) **or the exit's name exactly as the room lists it** — if the room shows a `corridor` exit, just type `corridor` and you'll go there. If your reflex is to type `go north` or `walk corridor`, that works too — `go`/`walk`/`head <exit>` all route you the same way. On the web client, you don't even type: click the exit's chip and it walks you through. Look at the NPCs (`look <name>`). Type `+who` to see who's online; you might recognize someone from a previous session. Your drop room is a commerce hub, so the local outfitter is right here — `buy <item>` to turn your graduation credits into starter gear before you move out. If you're on the web client, glance at the **GOALS** panel in the sidebar: your accepted *First Deployment* mission is pinned there with a `+missions` chip — that's your concrete next objective if nothing else grabs you.
 
 **Minute 5–15.** Visit your faction's main hub — the cantina, the mission board, the headquarters lobby. Talk to a couple of NPCs to get a feel for the local social texture. Check `+missions <your faction>` to browse what's available.
 

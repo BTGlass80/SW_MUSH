@@ -896,3 +896,78 @@ class TestGraduateVendorHubTeaching:
         assert "outfitter" in low or "vendor" in low, (
             "Guide_16 should mention the hub outfitter/vendor the graduate buys "
             "from")
+
+
+# ── §9/§14: the web GOALS panel surfaces the accepted mission at graduation ────
+# fun11 (2e779f1) fixed a GUIDANCE VACUUM: at CHAIN COMPLETE the GOALS sidebar
+# early-returned to empty because the just-accepted "First Deployment" mission
+# was filtered out of the mission slot by is_chain_mission_visible_to (a BOARD
+# offering filter, wrongly applied to an already-accepted mission, which goes
+# false once the NPE chain ends).  The fix: an ACCEPTED mission always surfaces
+# in GOALS regardless of chain-step visibility, so the web graduate has a
+# concrete pinned next-objective the moment "the galaxy is open".  Guide_16's
+# graduation sections (§9 "After Graduation", §14 "First Hour") promised "a clear
+# pointer at what to do next" but described only the one-line TEXT hint — never
+# the persistent GOALS panel that, on the web-first client, is now that pointer.
+# Pins the guide prose AND the live producer→consumer so an engine revert OR a
+# guide drift both fail loudly here.
+class TestGoalsPanelGraduationHandoff:
+    def test_guide_teaches_the_goals_panel_handoff(self, guide_text):
+        assert "GOALS" in guide_text, (
+            "Guide_16 §9/§14 must name the web GOALS panel — fun11 made it "
+            "surface the accepted mission at graduation, and a web-first guide "
+            "that omits the graduate's actual on-screen 'what to do next' "
+            "pointer is drifting from HEAD")
+        assert "First Deployment" in guide_text, (
+            "Guide_16 should name the accepted *First Deployment* mission that "
+            "the GOALS panel pins for the new graduate")
+
+    def test_first_deployment_mission_title_is_real(self):
+        """The prose names *First Deployment* — pin it against the live data so
+        the teaching isn't phantom."""
+        path = os.path.join(PROJECT_ROOT, "data", "worlds", "clone_wars",
+                            "tutorials", "tutorial_missions.yaml")
+        text = _read(path)
+        assert "First Deployment" in text, (
+            "the tutorial 'First Deployment' mission Guide_16 §9/§14 names is "
+            "gone from tutorial_missions.yaml — the guide prose is now phantom")
+
+    def test_goals_panel_surfaces_accepted_mission_regardless_of_visibility(self):
+        """Pin the fun11 producer: _hud_sidebar_goals surfaces an ACCEPTED
+        mission in the goals_status mission slot WITHOUT the chain-step
+        visibility filter (whose re-introduction reopened the graduation
+        guidance vacuum)."""
+        import inspect
+        from server.session import Session
+        src = inspect.getsource(Session._hud_sidebar_goals)
+        # The mission slice keys on accepted_by + ACCEPTED status only.
+        assert "m.accepted_by == char_id_str" in src, (
+            "_hud_sidebar_goals no longer matches the accepted mission by "
+            "accepted_by — the GOALS handoff producer is gone")
+        assert "MissionStatus.ACCEPTED" in src
+        # The mission slot must NOT re-gate on is_chain_mission_visible_to —
+        # that filter hid the just-accepted tutorial mission at graduation.
+        # (Check the CALL form, not the bare word: the fun11 comment in this
+        # block legitimately *names* the filter while explaining its removal.)
+        mission_slice = src.split("Mission slice", 1)[-1].split(
+            "Bounty slice", 1)[0]
+        assert "is_chain_mission_visible_to(" not in mission_slice, (
+            "the chain-step visibility filter is being CALLED again on the "
+            "GOALS mission slot — fun11's graduation guidance-vacuum fix has "
+            "regressed")
+        # And it ships the +missions chip the guide says you can click.
+        assert '"+missions"' in mission_slice, (
+            "the GOALS mission slot no longer stages the +missions chip the "
+            "guide teaches the graduate to click")
+
+    def test_client_has_a_goals_panel(self):
+        """The consumer half: client.html renders a GOALS sidebar panel fed by
+        the goals_status push — so the guide's 'GOALS panel' isn't phantom UI."""
+        path = os.path.join(PROJECT_ROOT, "static", "client.html")
+        text = _read(path)
+        assert 'id="goals-panel"' in text, (
+            "the web GOALS sidebar panel is gone from client.html — Guide_16's "
+            "GOALS-panel teaching would be phantom")
+        assert "goals_status" in text, (
+            "client.html no longer consumes the goals_status push that drives "
+            "the GOALS panel")
