@@ -963,7 +963,7 @@ def format_board(missions: list[Mission]) -> list[str]:
     """
     lines: list[str] = []
     lines.append(f"{_BOLD}{'='*58}{_RESET}")
-    lines.append(f"{_BOLD}  MISSION BOARD  --  Mos Eisley{_RESET}")
+    lines.append(f"{_BOLD}  MISSION BOARD{_RESET}")
     lines.append(f"{_DIM}  {'ID':<10} {'Type':<14} {'Reward':>8}  Objective{_RESET}")
     lines.append(f"{_DIM}  {'-'*56}{_RESET}")
 

@@ -751,7 +751,7 @@ _TIER_COLORS = {
 def format_bounty_board(contracts: list[BountyContract]) -> list[str]:
     lines = [
         f"{_BOLD}{'='*58}{_RESET}",
-        f"{_BOLD}  BOUNTY BOARD  --  Mos Eisley{_RESET}",
+        f"{_BOLD}  BOUNTY BOARD{_RESET}",
         f"{_DIM}  {'ID':<10} {'Tier':<10} {'Target':<18} {'Reward':>8}{_RESET}",
         f"{_DIM}  {'-'*56}{_RESET}",
     ]

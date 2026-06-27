@@ -595,7 +595,7 @@ class WorldEventManager:
     async def _broadcast_activation(self, event: ActiveEvent, session_mgr):
         """Broadcast event activation announcement to all online players."""
         edef = event.event_def
-        zone_name = ", ".join(_zone_display(z) for z in event.zones_affected) if event.zones_affected else "Mos Eisley"
+        zone_name = ", ".join(_zone_display(z) for z in event.zones_affected) if event.zones_affected else "the galaxy"
         text = edef.announce_text.replace("{zone_name}", zone_name)
         await session_mgr.broadcast(f"\n  {text}")
         # Send structured world_event to web clients
@@ -617,7 +617,7 @@ class WorldEventManager:
     async def _broadcast_expiry(self, event: ActiveEvent, session_mgr):
         """Broadcast event expiry announcement."""
         edef = event.event_def
-        zone_name = ", ".join(_zone_display(z) for z in event.zones_affected) if event.zones_affected else "Mos Eisley"
+        zone_name = ", ".join(_zone_display(z) for z in event.zones_affected) if event.zones_affected else "the galaxy"
         text = edef.expire_text.replace("{zone_name}", zone_name)
         await session_mgr.broadcast(f"\n  {text}")
         # Send structured world_event end to web clients
