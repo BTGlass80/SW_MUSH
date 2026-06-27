@@ -224,7 +224,7 @@ class TestBalanceDashboard:
         assert "live db state" in lowered  # the @economy side of the contrast
 
     @pytest.mark.parametrize("sub", [
-        "grind", "cp", "objectives", "encounters", "events", "raw",
+        "grind", "cp", "objectives", "chains", "encounters", "events", "raw",
     ])
     def test_guide_documents_balance_subforms(self, guide_text, sub):
         assert f"@balance {sub}" in guide_text, (
@@ -232,7 +232,7 @@ class TestBalanceDashboard:
         )
 
     @pytest.mark.parametrize("sub", [
-        "grind", "cp", "objectives", "encounters", "events", "raw",
+        "grind", "cp", "objectives", "chains", "encounters", "events", "raw",
     ])
     def test_subform_is_really_dispatched(self, sub):
         # Each documented sub-board must actually be handled by execute().
@@ -245,6 +245,29 @@ class TestBalanceDashboard:
             f"@balance {sub!r} is documented but no longer handled in "
             f"BalanceCommand.execute()"
         )
+
+    def test_every_usage_subform_is_documented(self, reg, guide_text):
+        # Self-maintaining guard against the drift the `chains` board exposed:
+        # the hand-maintained list above had gone stale, so a sub-board shipped
+        # in the command without a matching §3 entry slipped through. Derive the
+        # canonical sub-board list from the LIVE command's own `usage` string so
+        # any FUTURE `@balance` sub-board MUST be documented in the guide.
+        cmd = reg.get("@balance")
+        assert cmd is not None
+        # usage = "@balance [grind|cp|objectives|chains|encounters|events|raw [N]]"
+        m = re.search(r"\[([a-z|]+)", cmd.usage)
+        assert m, f"could not parse @balance usage string: {cmd.usage!r}"
+        subs = m.group(1).split("|")
+        assert "chains" in subs, (
+            "the chains sub-board should be in the live usage string "
+            f"(got {subs!r})"
+        )
+        for sub in subs:
+            assert f"@balance {sub}" in guide_text, (
+                f"@balance usage advertises the {sub!r} sub-board but Guide_27 "
+                f"§3 never documents `@balance {sub}` — keep the guide in "
+                f"lockstep with the command's usage line."
+            )
 
 
 # ── The "does not exist" denials must stay true ───────────────────────────────
