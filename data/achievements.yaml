@@ -562,3 +562,11 @@ achievements:
     icon: "🤖"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "geonosis_offworld_hollow_crew"}
+
+  - key: driven_herd_freed
+    name: "The Driven Herd"
+    description: "Broke a wildlife-poaching racket on Kamino's ocean platforms — gentled a storm-driven aiwha foundering in the swell and rode it out to the poacher's sensor-shadowed dock (beast riding), dove the submerged net-pen and cut the netted aiwha free before they drowned (swimming), and stood off the poacher who sounded a stolen herd-call goad to scatter and net the keeper's string. A rider's hands on a panicked beast and a diver's nerve in a fouling net freed a drowning herd and gave the stranded ocean platforms their crossings back."
+    category: profession
+    icon: "🐋"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "kamino_driven_herd"}
