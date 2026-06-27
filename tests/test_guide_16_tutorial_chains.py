@@ -413,6 +413,59 @@ class TestCombatSimSafeSandbox:
             "step-2 soft-lock Guide_16 now promises is gone"
         )
 
+    # fun10-sim-autopose (56d63b0, 2026-06-27): the 7th-re-run #1 kills-it was a
+    # DIFFERENT soft-lock from the stun one — a sim round only resolves once every
+    # fighter poses, so a newcomer's instinct (type `attack` again) stacked the
+    # multi-action penalty (-1D each) in an unresolved ROUND 1 until the pool hit
+    # 0D and every swing auto-missed forever.  Fix: in an is_simulation room the
+    # posing window auto-poses pending PLAYERS, so each `attack` resolves on its
+    # own and spamming `attack` wins.  Guide_16 §4 Step 2 used to say "the engine
+    # drives you through declaration → resolution → posing" — which presents
+    # posing as something the learner goes through (the exact ritual they got
+    # stuck on).  These pin the corrected teaching to the live fun10 producer.
+    def test_no_stale_posing_loop_framing(self, guide_text):
+        """The old framing implied the sim makes you go through a posing step —
+        the very thing fun10 short-circuits.  It must stay dead."""
+        assert "declaration → resolution → posing" not in guide_text, (
+            "Guide_16 §4 Step 2 still frames the sim as a declaration → "
+            "resolution → posing loop — fun10-sim-autopose (56d63b0) auto-poses "
+            "the player in a sim so each `attack` resolves on its own; the stale "
+            "framing re-suggests the posing ritual that soft-locked step 2"
+        )
+
+    def test_guide_teaches_attack_auto_resolves_in_sim(self, guide_text):
+        """§4 Step 2 must teach that spamming `attack` wins the drill (you don't
+        have to learn posing yet) — the fun10 hand-up the nervous newcomer needs."""
+        lowered = guide_text.lower()
+        assert "keep typing `attack`" in lowered, (
+            "Guide_16 §4 Step 2 should tell the learner to just keep typing "
+            "`attack` to win the drill (the fun10 auto-resolve), so a newcomer "
+            "whose round doesn't visibly resolve isn't stranded"
+        )
+        assert "don't need to learn posing yet" in lowered, (
+            "Guide_16 §4 Step 2 should reassure the learner they don't need to "
+            "learn the posing ritual to finish the sim — fun10 resolves each "
+            "declared attack for them"
+        )
+
+    def test_sim_autopose_producer_is_live(self):
+        """Pin the fun10 producer: a SIMULATION posing window auto-poses pending
+        PLAYERS so each declared attack resolves immediately.  A regression that
+        drops this (re-arming the multi-action freeze) fails loudly against the
+        guide's 'just keep typing attack' promise."""
+        import inspect
+        from parser import combat_commands
+        assert hasattr(combat_commands, "_auto_pose_sim_players"), (
+            "parser/combat_commands.py lost _auto_pose_sim_players — the fun10 "
+            "sim auto-resolve Guide_16 §4 Step 2 now promises is unplumbed"
+        )
+        src = inspect.getsource(combat_commands._start_posing_window)
+        assert "_auto_pose_sim_players" in src and "is_simulation" in src, (
+            "_start_posing_window no longer auto-poses sim players "
+            "(is_simulation-gated) — spamming `attack` would stop winning the "
+            "drill and Guide_16's teaching would be stale"
+        )
+
 
 # ── §12 "What If You Get Stuck": the natural-language confusion redirect ───────
 # drop NL-confusion-redirect (`19c5765`) made a confused newcomer's most natural
