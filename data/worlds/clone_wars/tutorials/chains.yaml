@@ -175,7 +175,7 @@ chains:
         npc_role: instructor
         teaches: ["+missions", "accept"]
         objective: "Accept your first deployment from the mission board."
-        command_to_type: "+missions"
+        command_to_type: "accept"  # fun8: chip auto-takes the tutorial assignment (bare `accept` resolves the chain's mission); `+missions` still taught in the objective/intro
         npc_intro: >
           "Sims passed. Congratulations, you're now overqualified for
           everything you'll actually do. Your assignment's on the board
@@ -633,7 +633,7 @@ chains:
         npc_role: instructor
         teaches: ["+missions", "accept"]
         objective: "Accept your first CIS field deployment."
-        command_to_type: "+missions"
+        command_to_type: "accept"  # fun8: chip auto-takes the tutorial assignment (bare `accept` resolves the chain's mission); `+missions` still taught in the objective/intro
         npc_intro: >
           "[TQ-89]: Sentient unit cleared for field assignment. The
           mission file is loaded. Use `+missions` and accept assignment

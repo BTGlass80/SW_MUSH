@@ -91,6 +91,43 @@ class MissionsCommand(BaseCommand):
             await ctx.session.send_line(line)
 
 
+async def _tutorial_auto_accept_id(ctx, char):
+    """fun8: if the player's active tutorial chain step completes on accepting a
+    specific mission (`completion.type == mission_accepted`), return the board
+    id (m-xxxx) of the offered mission whose `chain_mission_id` matches — so a
+    bare `accept` (or the TRAINING panel's TYPE chip) takes the right job
+    instead of erroring on a hidden hash id. Returns None when not on such a
+    step or no matching mission is on the board. Fail-safe (any error → None →
+    the normal usage hint).
+    """
+    try:
+        from engine.chain_events import (
+            _get_corpus, _load_attrs, _get_active_step,
+        )
+        from engine.tutorial_chains import CHAIN_STATE_KEYS
+        corpus = _get_corpus()
+        if corpus is None:
+            return None
+        attrs = _load_attrs(char)
+        expected = None
+        for skey in CHAIN_STATE_KEYS:
+            _chain, step = _get_active_step(attrs, corpus, skey)
+            comp = (step.completion or {}) if step else {}
+            if comp.get("type") == "mission_accepted" and comp.get("mission_id"):
+                expected = (comp.get("mission_id") or "").strip()
+                break
+        if not expected:
+            return None
+        board, _rooms = await _get_board_and_rooms(ctx.db)
+        for m in board.available_missions():
+            mid = (getattr(m, "mission_data", None) or {}).get("chain_mission_id")
+            if mid and str(mid).strip() == expected:
+                return m.id
+    except Exception:
+        log.debug("tutorial auto-accept resolution failed", exc_info=True)
+    return None
+
+
 class AcceptMissionCommand(BaseCommand):
     key = "accept"
     aliases = ["takejob"]
@@ -98,12 +135,22 @@ class AcceptMissionCommand(BaseCommand):
     usage = "accept <mission-id>"
 
     async def execute(self, ctx: CommandContext):
-        if not ctx.args:
-            await ctx.session.send_line("  Usage: accept <mission-id>")
-            await ctx.session.send_line("  Type 'missions' to see available jobs.")
-            return
-
         char = ctx.session.character
+        if not ctx.args:
+            # fun8: bare `accept` during a tutorial step that completes on
+            # accepting a SPECIFIC mission auto-takes that mission. The board
+            # shows opaque hash ids (m-xxxx) and the chain matches on the
+            # abstract chain_mission_id, so a newcomer following the TRAINING
+            # panel literally ("type accept") used to dead-end on
+            # "Usage: accept <mission-id>" and soft-lock at the assignment step.
+            _auto_id = await _tutorial_auto_accept_id(ctx, char)
+            if _auto_id:
+                ctx.args = _auto_id
+                ctx.args_list = [_auto_id]
+            else:
+                await ctx.session.send_line("  Usage: accept <mission-id>")
+                await ctx.session.send_line("  Type 'missions' to see available jobs.")
+                return
 
         # DROP-5 ACCEPT-DISPATCH FIX (May 2026):
         # `accept` is registered by both combat (PvP challenge accept,
