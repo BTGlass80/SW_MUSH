@@ -540,9 +540,12 @@ class TestEndToEndGraduation(unittest.TestCase):
 
         db = _MockDB()
         # Add the room so the teleport resolves
-        db_rooms = {500: {"id": 500, "name": "Coruscant Works LZ",
+        db_rooms = {500: {"id": 500, "name": "Coco Town",
                           "properties": json.dumps({
-                              "slug": "commercial_district_landing_zone"
+                              # fun7-reward-loop: republic_soldier now graduates
+                              # to coco_town (live vendor-hub), not the old
+                              # exitless commercial_district_landing_zone pocket.
+                              "slug": "coco_town"
                           })}}
         db.rooms = db_rooms
 
