@@ -1,6 +1,6 @@
 ---
 category: foundations
-order: 1
+order: 3
 summary: "How D6 dice rolls, attributes, and skills work. The rules engine behind every action."
 tags: ["d6", "dice", "rolls", "attributes", "skills", "wild die", "rules"]
 ---

@@ -1,7 +1,7 @@
 ---
 category: foundations
-order: 3
-summary: "First-character tutorials anchored to NPCs and locations. The mandatory onboarding path for new players."
+order: 1
+summary: "First-character tutorials anchored to NPCs and locations. The mandatory onboarding path for new players. Start here."
 tags: ["tutorial", "onboarding", "new player", "chain", "first character"]
 ---
 
