@@ -303,19 +303,38 @@ class TestForceSignThreshold:
 
 # ── §4 Step 2 + §8 "Failures are forgiving": the combat sim is a SAFE SANDBOX ──
 # drop fun3-sim-safety (`5cda2ca`) made tipoca_combat_sim non-lethal for the
-# player (CombatInstance.is_simulation caps a PC defender to STUNNED/KO, no
-# scars; NPCs still take real damage so the drill stays winnable).  Guide_16
-# used to say a player could *die in the combat sim* and respawn — now stale.
+# player; drop fun6-sim-winnable (`576631d`, 2026-06-27) then made the drill
+# WINNABLE: a PC defender in an is_simulation room is now AT MOST STUNNED —
+# never KO'd OUT of the fight (no unconscious_until) and the sim stun is capped
+# at _SIM_STUN_CAP so it can't compound past a mild, fightable -1D.  (The old
+# 2D-minute KO + uncapped stun took a solo learner out of the fight → hard
+# step-2 soft-lock.)  Guide_16 used to claim a player could *die in the combat
+# sim* (fun3 made that stale), then that a hit could *knock you out* (fun6 made
+# THAT stale too — being knocked out is exactly the soft-lock that was removed).
 # These pin the corrected prose to the live data + engine plumbing so a future
-# change that re-arms lethality (or drops the room flag) fails loudly here.
+# change that re-arms lethality, the KO, or the uncapped stun fails loudly here.
 class TestCombatSimSafeSandbox:
     def test_no_stale_die_in_sim_respawn_claim(self, guide_text):
         """The old, now-false claim must stay dead."""
         lowered = guide_text.lower()
         assert "dying in the combat sim" not in lowered, (
             "Guide_16 must not claim a player can die in the combat sim — drop "
-            "fun3-sim-safety caps a PC defender to STUNNED/KO (unloseable drill)"
+            "fun3-sim-safety caps a PC defender to STUNNED (unloseable drill)"
         )
+
+    def test_no_stale_knockout_claim(self, guide_text):
+        """fun6-sim-winnable removed the sim KO — the guide must not promise a
+        droid hit can knock the learner out (the very thing that soft-locked
+        step 2).  Both old affirmative phrasings must stay dead."""
+        lowered = guide_text.lower()
+        for stale in ("briefly knock you out", "knock you out for a moment",
+                      "stun or knock you out", "stun or briefly knock you out"):
+            assert stale not in lowered, (
+                f"Guide_16 still claims the sim can {stale!r} — drop "
+                "fun6-sim-winnable (576631d) made a sim hit STUN-only (never a "
+                "KO out of the fight); the prose is stale and re-scares the "
+                "newcomer with the exact soft-lock that was fixed"
+            )
 
     def test_guide_states_sim_is_non_lethal(self, guide_text):
         lowered = guide_text.lower()
@@ -327,6 +346,13 @@ class TestCombatSimSafeSandbox:
         assert "scarred" in lowered and "killed in the" in lowered, (
             "Guide_16 should spell out that you are never wounded, scarred, or "
             "killed in the sim (only briefly stunned)"
+        )
+        # fun6: the sim hit is STUN-only and never KOs you out of the fight —
+        # the guide must give the new positive guarantee (winnable drill).
+        assert "out of the fight" in lowered, (
+            "Guide_16 §4/§8 should reassure the learner they are never knocked "
+            "out of the fight (the fun6 winnable-drill guarantee), so the "
+            "stun-cap fix is visible to the nervous newcomer it serves"
         )
 
     def test_sim_room_carries_the_is_simulation_flag(self):
@@ -364,6 +390,27 @@ class TestCombatSimSafeSandbox:
             "engine/combat.py._apply_damage no longer caps a PC defender in a "
             "simulation while leaving NPCs damageable — Guide_16's dual claim "
             "(you can't be hurt / the droids still take real damage) is stale"
+        )
+
+    def test_sim_stun_is_capped_and_never_kos(self):
+        """fun6-sim-winnable (576631d): the sim branch must keep the learner in
+        the fight — the stun is capped (_SIM_STUN_CAP) so it can't compound, and
+        the sim hit must NOT KO the player out of the fight.  Pin the cap + that
+        the cap is wired into _apply_damage so a regression re-arming the KO /
+        uncapped stun (the soft-lock) fails loudly, matching the guide prose."""
+        import inspect
+        from engine import combat as combat_mod
+        from engine.combat import CombatInstance
+        assert isinstance(combat_mod._SIM_STUN_CAP, int) and \
+            combat_mod._SIM_STUN_CAP >= 1, (
+            "_SIM_STUN_CAP must be a small positive int — it bounds how much "
+            "sim stun can pile up so the drill stays winnable"
+        )
+        src = inspect.getsource(CombatInstance._apply_damage)
+        assert "_SIM_STUN_CAP" in src, (
+            "engine/combat.py._apply_damage no longer caps sim-stun "
+            "accumulation via _SIM_STUN_CAP — uncapped stun re-introduces the "
+            "step-2 soft-lock Guide_16 now promises is gone"
         )
 
 

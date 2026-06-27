@@ -9,7 +9,7 @@ tags: ["tutorial", "onboarding", "new player", "chain", "first character"]
 
 **Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
-**Guide Version 1.4**
+**Guide Version 1.5**
 
 ---
 
@@ -95,7 +95,7 @@ A concrete example. The Republic Soldier chain takes you from Tipoca City on Kam
 
 **Step 1 — Reporting In (Tipoca Briefing Room).** A Republic officer named Major Tarrn meets you in a cold white briefing room. He tells you to look around and check your sheet with `+sheet` before reporting in. *Commands taught: `look`, `+sheet`.* That order is enforced — and the game makes the gate visible instead of leaving you to guess. The onboarding panel shows a short checklist that ticks off `look` and `+sheet` as you do them, and keeps the spotlighted **`talk Major Tarrn`** command locked until both are done. If you jump straight to talking — the most natural first instinct — Major Tarrn doesn't stonewall you in silence; he names exactly what you still owe: *"Major Tarrn isn't ready for you yet — do `look`, `+sheet` first, then talk again."* Once both are done, `talk Major Tarrn` reports you in (type the full name — you don't have to shorten it to `talk Tarrn`), the major confirms your records, and he tells you the combat sim is next.
 
-**Step 2 — Combat Sim Drill (Tipoca Combat Sim).** A Clone Trooper sim operator briefs you on the drill: two simulated B1 battle droids, weapons set to non-lethal for them, live-fire for you. *Commands taught: `attack`, `dodge`.* You fight the droids; the engine drives you through declaration → resolution → posing. When the droids are down, the operator clears you for the next stage. **The sim is a true safe sandbox** — a droid hit can stun or briefly knock you out, but the simulation caps it there: you can't be wounded, scarred, or killed in the drill. The droids still take real damage, so swing freely, learn the rhythm, and finish the fight.
+**Step 2 — Combat Sim Drill (Tipoca Combat Sim).** A Clone Trooper sim operator briefs you on the drill: two simulated B1 battle droids, weapons set to non-lethal for them, live-fire for you. *Commands taught: `attack`, `dodge`.* You fight the droids; the engine drives you through declaration → resolution → posing. When the droids are down, the operator clears you for the next stage. **The sim is a true safe sandbox** — a droid hit can briefly stun you (a mild, capped setback the simulation never lets pile up), but it caps the harm right there: you are never knocked out of the fight, wounded, scarred, or killed in the drill, so you can always keep acting until you win. The droids still take real damage, so swing freely, learn the rhythm, and finish the fight.
 
 **Step 3 — Briefing on the Mission (Tipoca Briefing Room).** Back to Major Tarrn. He explains the mission cycle — you're being deployed to Coruscant Works to assist with a Republic supply convoy. *Commands taught: `+missions`, `accept`.* You browse the mission board, accept a Republic mission, and Tarrn nods approval.
 
@@ -172,7 +172,7 @@ chain
 
 **Skill checks during chains are sized to early-game characters.** A chain step that asks you to roll Stealth doesn't expect you to have +5D Stealth — it expects raw Dexterity-tier pools. The difficulties are calibrated so even unskilled characters can succeed on average. You're not supposed to fail your chain because your dice were unlucky.
 
-**Failures are forgiving.** If you fail a chain step (fail a skill check, take a wrong action), the chain almost always lets you retry — the NPC says "try again," not "you're done." The combat sim goes further: it's a **non-lethal simulation**, so you can't lose it the hard way. A droid hit can stun or knock you out for a moment, but the sim caps damage there — you're never wounded, scarred, or killed in the drill, and the droids still take real damage so you can always finish it. Chain content is in a protective bubble; the engine doesn't want to brick a new character in their first 30 minutes.
+**Failures are forgiving.** If you fail a chain step (fail a skill check, take a wrong action), the chain almost always lets you retry — the NPC says "try again," not "you're done." The combat sim goes further: it's a **non-lethal simulation**, so you can't lose it the hard way. A droid hit can briefly stun you, but the sim caps the harm there — it never knocks you out of the fight and never lets the stun pile up, and you're never wounded, scarred, or killed in the drill. The droids still take real damage, so you can always finish it. Chain content is in a protective bubble; the engine doesn't want to brick a new character in their first 30 minutes.
 
 **The Director AI is dialed down during chains.** Random events, ambient dialogue surges, and unscripted NPC actions are reduced. You're not going to have a random patrol ambush you in the Tipoca Briefing Room. The chain wants your full attention on the structured experience.
 
