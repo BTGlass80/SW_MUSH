@@ -4019,6 +4019,281 @@ chains:
           district — someone who can get a thing back on finesse alone — and
           quiet work has a way of finding the quiet hands that can do it.
 
+  # ─────────────────────────────────────────────────────────────────────
+  # The TENTH accessible kind:questline. Tatooine SPEEDER CIRCUIT — the Mos
+  # Eisley spaceport speeder lot, the transport depot, the outskirts speeder
+  # track, and the gutted-sandcrawler chop-shop — a THIRD, vehicle-country
+  # face of Tatooine reusing NONE of the two prior Tatooine arcs' rooms (the
+  # Crooked Wheel ran market_place_geps_grill / chalmuans_cantina_main_bar /
+  # mos_eisley_market_district / outskirts_abandoned_farm; the Dust-Sick ran
+  # the Jundland outskirts_scavenger_market / jundland_hidden_cave /
+  # jundland_dune_sea_edge / jundland_beggars_canyon). It exercises a TENTH
+  # distinct skill spread — SENSORS + REPULSORLIFT OPERATION — and is the
+  # FIRST accessible questline to lead with a MECHANICAL build (every prior
+  # arc leads with Perception / Knowledge / Technical / combat skills),
+  # rewarding the pilot / driver / scanner character that the social,
+  # investigative, appraisal, technical-repair, leadership, and finesse arcs
+  # never do. A new STORY SHAPE: breaking a fixed racing circuit. A swoop
+  # gang the outskirts calls the Dust Wheelers spikes honest riders' coils at
+  # the start gates so their own rigs win the purses and the haul contracts;
+  # they spiked a young runner's speeder and stripped it at their chop-shop,
+  # a stranded medical-supply run still crated on it. Read the sabotage off
+  # the depot gate scanners and trace the gang's rig (sensors), run the
+  # circuit to draw their outrider off the chop-shop (repulsorlift
+  # operation), stand off the enforcer who guards it (combat), and bring the
+  # rig and the run back. NPCs in
+  # npcs_drop_generalized_questline_sabotaged_run.yaml; achievement
+  # sabotaged_run_won. TWO placed NPCs (the giver/closer + the combat foil);
+  # the gang's boss "the Pacer", the outrider, the gang crew, the young
+  # runner, and the stripped rigs are narrated-only (no spawned entity). No
+  # new engine code / slot / event type / schema / faucet, and no
+  # map-coordinate or exit-graph change.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: tatooine_speeder_sabotaged_run
+    chain_name: "The Sabotaged Run"
+    description: >
+      Out at the Mos Eisley outskirts speeder circuit — where independent
+      haulers prove their rigs and pick up the contract runs the big outfits
+      won't touch — a swoop gang the locals call the Dust Wheelers has the
+      whole track fixed. They scan honest riders' repulsors at the start
+      gates and quietly spike the coils of anyone who won't buy their "track
+      insurance," so the gang's own rigs take every purse and every haul
+      contract. This week they spiked a young runner's speeder mid-race; she
+      walked away, but her rig — and the medical-supply run riding on it — is
+      stripped down in the gang's chop-shop out at a gutted sandcrawler. Read
+      the sabotage off the depot gate scanners and trace the gang's rig, run
+      the circuit to pull their outrider off the chop-shop, stand off the
+      enforcer who guards it, and bring the rig and the run home. A freelance
+      favor — open to anyone, no faction required.
+    archetype_label: "Freelance Circuit Run"
+    faction_alignment: independent
+    starting_zone: tatooine_spaceport
+    starting_room: spaceport_speeders
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["sabotaged_run_won"]
+      drop_room: spaceport_speeders
+      follow_up_hint: >
+        The runner's rig comes back off the gang's racks and the stranded
+        medical-supply run reaches the moisture farms a week late but whole;
+        the Dust Wheelers' fix on the outskirts circuit cracks the day an
+        independent beat their outrider clean and walked their enforcer down
+        in his own chop-shop. Word runs the speeder lanes the way it runs
+        nowhere else on Tatooine — there's a hand who'll take the gang's
+        spike off an honest rig and give it back — and honest riders queue at
+        the start gates again.
+
+    steps:
+      - step: 1
+        title: "The Fixed Circuit"
+        location: spaceport_speeders
+        npc: "Ria Tann"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Ria Tann at Spaceport Speeders in Mos Eisley."
+        npc_intro: >
+          [A blue-skinned Duros woman looks up from a stripped repulsor
+          housing on the bench, grease to the elbow, a row of dead spike-coils
+          laid out beside it like evidence.] "You ride, or you haul? Either
+          way you came to the right bench and the wrong week. Ria Tann — I
+          keep the only honest speeder shop left on the outskirts circuit.
+          There's a swoop gang, the Dust Wheelers, that's got the whole track
+          fixed: scan your repulsor at the start gate, and if you won't buy
+          their 'track insurance' they spike your coil so it throws at speed.
+          Their rigs win every purse and every haul run, and the independents
+          are folding. They spiked a kid mid-race three days back. `talk` to
+          me and I'll tell you what they took."
+        completion:
+          type: talk_to_npc
+          npc: "Ria Tann"
+        npc_complete: >
+          "She walked away — barely. Her rig didn't: it's stripped down in
+          their chop-shop out at the old gutted sandcrawler past the track,
+          and there was a medical-supply run contracted on it — bacta and
+          fever-spike for the far moisture farms — stranded with it. I can't
+          out-muscle a gang, and there's no law in the outskirts that hasn't
+          already taken their cut. But the spike they use leaves a signature,
+          and every rig that runs the circuit gets logged at the depot gate
+          scanners. Start there — read what they did to her coil, and the same
+          scan'll show you where their rig went after."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to the Transport Depot and use your `sensors` skill to read the Dust Wheelers' spike off the gate-scanner logs and trace their rig out to the chop-shop — `chain attempt`."
+
+      - step: 2
+        title: "The Signature in the Logs"
+        location: transport_depot
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["sensors"]
+        objective: "Read the gang's sabotage off the depot gate-scanner logs and trace their rig to the chop-shop — a sensors check."
+        npc_intro: >
+          [The transport depot's gate scanners log every repulsor that runs
+          the outskirts circuit — a wall of signal traces, throttle ghosts,
+          and transponder pings going back weeks, most of it junk and all of
+          it the gang's cover.] The spiked coil left a signature in the
+          runner's last trace if you know the shape to look for: a foreign
+          scan-pulse riding the gang's own start-gate sweep, the half-second
+          they wrote the fault in. The rig that pulsed it spoofed its
+          transponder but not its throttle ghost — and that runs the same
+          drift on every Dust Wheeler chassis. Cut the gang's pulse out of the
+          noise, match the drift, and the trace runs straight to where their
+          rig parked. `sensors`, patient and exact — `chain attempt` when the
+          signal resolves.
+        completion:
+          type: skill_check_passed
+          skill: "sensors"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [The runner's last trace blooms on the scanner and there it is — a
+          foreign scan-pulse laid over her coil a half-second before the
+          fault, the gang writing the spike in at the gate exactly the way Ria
+          said. You pull the pulse, match its throttle-drift against the weeks
+          of logged traces, and the same drift surfaces over and over on a
+          transponder that keeps changing its name and never its chassis. The
+          last clean ping parks it out past the track, at the gutted
+          sandcrawler the outskirts crews stopped going near. The proof's in
+          hand and the chop-shop's on the map — but their rigs run a picket on
+          the circuit, and the only way out there fast enough to matter is to
+          run it yourself.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "You've traced the rig to the chop-shop and you know their spike — now get out there. Take a speeder onto the City Outskirts Speeder Track and out-run the Dust Wheelers' outrider with your `repulsorlift operation` skill — `chain attempt`."
+
+      - step: 3
+        title: "The Outrun"
+        location: outskirts_speeder_track
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["repulsorlift operation"]
+        objective: "Run the outskirts circuit and beat the Dust Wheelers' outrider to draw their picket off the chop-shop — a repulsorlift operation check."
+        npc_intro: >
+          [The outskirts speeder track is a flat-out run of gate-markers and
+          dust through the broken country past the spaceport, and the Dust
+          Wheelers keep an outrider on it to turn back anyone headed for the
+          chop-shop.] You can't sneak a speeder past a picket on open hardpan —
+          but you can beat it. Make a run their outrider has to chase: hold
+          the throttle past where a careful rig lifts, ride the gate-markers
+          close enough to strip paint, and draw him off the chop-shop road and
+          onto your tail, where he can't watch both. A gang that wins by
+          spiking honest coils rides slow on a clean rider who isn't scared of
+          the dust. `repulsorlift operation`, full out and steady — `chain
+          attempt` when you commit to the run.
+        completion:
+          type: skill_check_passed
+          skill: "repulsorlift operation"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You take the circuit the way the gang never expects an independent
+          to take it — wide open through the first gates, throttle past the
+          lift line, close enough to the markers that the outrider commits to a
+          chase he has to win and finds he can't. He burns his lead trying to
+          match a line he doesn't have the nerve for, drifts wide on the back
+          hardpan, and falls off your tail somewhere behind the dust with the
+          chop-shop road wide open ahead of you. The picket's pulled and the
+          gutted sandcrawler is in sight off the track — but the noise of your
+          run has told everyone in it that someone is coming, and the enforcer
+          who keeps the chop-shop will be standing in the door.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "You've pulled the picket and the chop-shop's ahead — but the noise brought their enforcer out. Get to the Wrecked Sandcrawler and stop Drevin Saar; `attack`, `dodge`."
+
+      - step: 4
+        title: "The Chop-Shop Door"
+        location: outskirts_wrecked_sandcrawler
+        npc: "Drevin Saar"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Stop Drevin Saar at the gang's chop-shop in the Wrecked Sandcrawler and recover the runner's rig — `attack`, `dodge`."
+        npc_intro: >
+          [The gutted sandcrawler is a cave of stripped speeders and
+          cannibalized repulsors — the Dust Wheelers' chop-shop — and standing
+          in the torn-open hull with the runner's half-stripped rig behind him
+          is a red-skinned, horned Devaronian in a racer's vest, a blaster
+          loose in one hand and a coil-spanner still in the other.] Drevin
+          Saar, the gang's enforcer — the man who works the spikes and keeps
+          the chop-shop, who heard a clean run pull his picket and came to the
+          door to see who was fool enough to make it. When he reads that you
+          mean to take the rig back, his easy contempt goes flat and certain.
+          "That coil's the gang's now, hauler — same as the run that was on it.
+          You rode all the way out here to lose a speeder and walk back, if you
+          walk. Turn around." [He thumbs the blaster up.]
+        completion:
+          type: combat_won
+          enemy_template: "sabotaged_run_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Drevin Saar goes down among the stripped rigs he cut apart, the
+          coil-spanner ringing off the sandcrawler's hull, and the chop-shop
+          crew — gang riders who run a fixed circuit precisely so they never
+          have to fight a fair one — melt out the far breaches rather than
+          stand for an enforcer who just lost in his own door. The runner's rig
+          is racked and half-stripped, but the drive and the coil are whole,
+          and the medical-supply run is still crated in the cargo well, bacta
+          and fever-spike untouched. Enough rig to limp back to Ria's bench,
+          enough run to still reach the farms. Nothing between here and the
+          spaceport but the drive back — and the gang's whole spike racket,
+          dead coils and all, riding in the seat beside you.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The enforcer's down, the crew's scattered, and you've got the rig and the medical run — drive it back to Ria Tann at Spaceport Speeders."
+
+      - step: 5
+        title: "Honest Riders Again"
+        location: spaceport_speeders
+        npc: "Ria Tann"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Ria Tann with the recovered rig and the stranded medical run."
+        npc_intro: >
+          [Ria Tann comes out from behind the bench before you've cut the
+          repulsor, already reading the rig on the trailer and the crates in
+          the well — and the dead spike-coils you've brought back with them.]
+          "You beat their outrider on open hardpan and walked Saar down in his
+          own chop-shop — and you brought the kid's rig and the farm run both."
+          [She picks up one of the gang's spent spike-coils, turns it over,
+          sets it down.] "That's the whole fix, in your hand. `talk` to me and
+          let me settle up before the lot fills with riders who heard."
+        completion:
+          type: talk_to_npc
+          npc: "Ria Tann"
+        npc_complete: >
+          "Here's the contract advance — the credits I'd set by to make that
+          farm run myself, and worth more spent on the gang losing than on me
+          driving. The kid'll have her rig back inside a week, the farms get
+          their bacta, and the Dust Wheelers spent their enforcer and their
+          outrider's nerve to lose the one race that paid. The circuit
+          remembers a hand like that. Independents are already back at the
+          start gates this morning — first clean board in a year. You've a
+          mechanic's word on the outskirts now, and out here that's worth more
+          than a fast rig: when a gang spikes an honest run, there's a name
+          they send for. Mind the road back into town."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The fix on the outskirts circuit breaks and the independents ride
+          clean again, the stranded farm run reaching the moisture farms whole.
+          A hand that takes a gang's spike off an honest rig has a way of being
+          sent for — the speeder lanes carry a name now, the way the dust
+          carries everything on Tatooine.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════

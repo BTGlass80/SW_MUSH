@@ -1,0 +1,249 @@
+# Generalized Questline Drop — "The Sabotaged Run" (T3.24 tenth slice, 2026-06-26)
+#
+# The TENTH accessible (non-t5, non-tutorial) `kind: questline` chain, after
+# "The Ghost Shipment" (nar_freight_ghost_shipment, Nar Shaddaa Promenade/
+# Undercity), "The Crooked Wheel" (mos_eisley_crooked_wheel, Tatooine/Mos
+# Eisley market), "The Lost Courier" (coruscant_lower_lost_courier, Coruscant
+# LOWER city), "The Skimmed Line" (kuat_ring_skimmed_line, Kuat orbital ring),
+# "The Dust-Sick" (jundland_dust_sick, Tatooine Jundland wilderness), "The
+# False Provenance" (coruscant_petrax_false_provenance, Coruscant cultural
+# district), "The Forged Notice" (nar_shaddaa_forged_notice, Nar Shaddaa upper
+# docks), "The Warrens Toll" (nar_shaddaa_warrens_toll, Nar Shaddaa Warrens),
+# and "The Sealed Ledger" (coruscant_works_sealed_ledger, Coruscant mid-city).
+# It reuses the SAME live questline engine (engine/tutorial_chains.py +
+# chain_events.py: the `kind: questline` type + `active_questline` slot, the
+# existing event types, the four reward funnels) with NO new engine code, no
+# new slot, no new event type, no schema migration, no new reward faucet, and
+# NO map-coordinate or exit-graph change — the sanctioned right-of-launch
+# widening per quest_expansion_postlaunch_path_v1.md (T3.24): author MORE
+# questlines on the proven pattern.
+#
+# Two firsts for the accessible-questline arc:
+#   1. A TENTH distinct skill spread — SENSORS + REPULSORLIFT OPERATION — and
+#      the FIRST accessible questline to lead with a MECHANICAL build. Every
+#      prior accessible arc leads with Perception (search/investigation/
+#      persuasion/bargain/value/con/forgery/pick-pocket/hide), Knowledge
+#      (streetwise/survival/command/bureaucracy), Technical (first-aid/
+#      demolitions/computer-programming), or combat skills — none touches the
+#      Mechanical attribute at all. The Sabotaged Run rewards the pilot /
+#      driver / scanner character with a side-arc built around reading a
+#      sensor trace (mechanical/sensors) and out-driving a picket on open
+#      hardpan (mechanical/repulsorlift operation) — the build the social,
+#      investigative, appraisal, technical-repair, leadership, and finesse
+#      arcs never serve.
+#   2. A THIRD, vehicle-country face of TATOOINE — the Mos Eisley outskirts
+#      speeder circuit: the spaceport speeder lot, the transport depot's gate
+#      scanners, the outskirts speeder track, and the gutted-sandcrawler
+#      chop-shop. It reuses NONE of the prior two Tatooine arcs' rooms (the
+#      Crooked Wheel ran market_place_geps_grill / chalmuans_cantina_main_bar
+#      / mos_eisley_market_district / outskirts_abandoned_farm; the Dust-Sick
+#      ran the Jundland outskirts_scavenger_market / jundland_hidden_cave /
+#      jundland_dune_sea_edge / jundland_beggars_canyon). It touches NO map
+#      coordinate or world exit graph — the rooms already exist and are loaded
+#      (planets/tatooine.yaml); only NPCs + a chains.yaml entry + an
+#      achievement are added.
+#
+# It is also a new STORY SHAPE: breaking a fixed racing circuit — not a
+# smuggling-trace, a racket-bust-by-investigation, a kidnap-rescue, an
+# industrial-skim, a frontier medical rescue, an art-fraud caper, a
+# counter-forgery, a community-defense, or a finesse heist. A swoop gang the
+# outskirts calls the Dust Wheelers has the speeder circuit fixed: they scan
+# honest riders' repulsors at the start gates and spike the coils of anyone
+# who won't buy "track insurance," so the gang's rigs win every purse and haul
+# contract and the independents fold. This week they spiked a young runner
+# mid-race and stripped her rig at their chop-shop — a contracted
+# medical-supply run for the far moisture farms stranded on it. Ria Tann, who
+# keeps the last honest speeder shop on the circuit, can't out-muscle a gang
+# and there's no law in the outskirts that hasn't taken the gang's cut. So she
+# offers the run's advance — the credits she'd set by to make the farm run
+# herself — to anyone who can read the spike off the depot gate scanners and
+# trace the gang's rig (sensors), run the circuit to pull their outrider off
+# the chop-shop (repulsorlift operation), stand off the enforcer who guards it
+# (attack/dodge), and bring the rig and the run home.
+#
+# These NPCs back the `tatooine_speeder_sabotaged_run` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Ria Tann     — the honest speeder-shop mechanic who offers + closes the
+#                    quest (step-1 npc = the questline's start-NPC, per
+#                    get_questline_offer). Step-1 + step-5 NPC.
+#   * Drevin Saar  — the combat-step enforcer (ai_config.chain_enemy_template
+#                    sabotaged_run_enforcer; the step-4 combat_won foil), the
+#                    Dust Wheelers' enforcer who works the spikes and keeps the
+#                    chop-shop in the gutted sandcrawler.
+# The gang's boss (narrated only as "the Pacer"), the outrider on the circuit,
+# the chop-shop crew, the young runner whose rig was taken, and the stripped
+# rigs are NARRATED ONLY — story beats carried in the prose, NOT spawned NPC
+# entities (the off-screen boss, the beaten outrider, and the runner need no
+# producer, the way the prior questlines' off-screen principals are carried).
+# Only the giver and the single combat foil are real placed NPCs.
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures.
+# Provenance: Duros (the galaxy's ubiquitous spacer/pilot/mechanic species,
+# wholly era-clean and faction-neutral — Duros crowd every spaceport and
+# speeder lot in the galaxy) and Devaronian (a long-spacefaring rogue/scoundrel
+# species, a faction-neutral fixture of Outer Rim cantinas and gangs for
+# millennia) are both era-clean and not war-faction coded. Stats matched to the
+# shipped accessible-questline bands — the giver to the non-combat fixer band
+# (Yelza Korrin / Dorae Vint / Sashi Renko / Dav Nuro / Soree Bann / Hessa Veil
+# / Cassa Brel / Vessa Tial / Terva Dohl), with the mechanic's spread skewed to
+# Mechanical/Technical to fit a speeder-shop owner; the enforcer to the
+# small-time-criminal antagonist band (Brakkis Vone / Gorvahn Brusk / Skarn Vex
+# / Suro Vant / Vohrek Sarn / Brask Yade / Varn Tesk / Tarko Venn): a real
+# fight, beatable by a fresh post-chargen character. WEG40120 PDF is local-only
+# (gitignored) and absent in this tree; the bands are cited against the in-repo
+# reference NPCs, not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The honest speeder mechanic — Ria Tann (questline GIVER + closer)
+  # Questline: tatooine_speeder_sabotaged_run ("The Sabotaged Run")
+  # Placement: Spaceport Speeders (spaceport_speeders, zone
+  #            tatooine_spaceport). Step-1 + step-5 NPC.
+  # NOTE: the owner-mechanic of the last independent speeder shop on the
+  # outskirts circuit — distinct presence in the speeder lot, not one of
+  # its anonymous renters.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Ria Tann
+    room: "Spaceport Speeders"
+    species: Duros
+    description: >-
+      A blue-skinned, red-eyed Duros woman in a grease-blacked mechanic's smock,
+      a coil-spanner through her belt and a row of dead spike-coils laid out on
+      the bench beside a stripped repulsor housing like evidence in a case no
+      court out here will hear. She has kept the last honest speeder shop on the
+      Mos Eisley outskirts circuit running for years — tuning independents'
+      rigs, reading their sensor traces, signing off the haul runs the big
+      outfits won't take — and she has watched a swoop gang called the Dust
+      Wheelers fix the whole track out from under them, spiking honest coils at
+      the start gates so their own rigs win every purse and every contract. She
+      is a Duros and a scanner and a wrench, not a fighter, and the gang has an
+      enforcer and a chop-shop and the only "law" in the outskirts already on
+      the payroll. This week they spiked a kid mid-race and stripped her rig
+      with a medical-supply run still crated on it, and Ria has run out of ways
+      to fix that on the bench. She is looking for someone who can do the three
+      things she cannot: trace the gang's rig off the scanner logs, out-drive
+      their picket on open hardpan, and stand in front of the man who keeps the
+      chop-shop.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D+2
+        mechanical: 3D+1
+        perception: 3D
+        strength: 2D
+        technical: 3D
+      skills:
+        sensors: 4D
+        repulsorlift operation: 4D+1
+        repulsorlift repair: 4D
+        ground vehicle operation: 3D+2
+        bargain: 3D
+        streetwise: 3D+1
+      weapon: blaster_pistol
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A dry, capable Duros mechanic worn down by watching a fixed circuit
+        choke out everyone she signs a haul run for — practical, exact, slow to
+        anger and slower to ask for help, because help in the Mos Eisley
+        outskirts usually arrives with a cut already taken. She knows every rig
+        on the circuit by its throttle ghost, every spike the Dust Wheelers
+        write into a coil, and every gate-scanner log that would prove it, but
+        she is no fighter and no racer-with-a-blaster, and a gang with an
+        enforcer is past anything she can read or tune her way out of. Tired,
+        clear-eyed, and quietly furious; she offers the contract advance as the
+        fee because the credits were always going to be spent making the run
+        herself, and a stranger willing to spend them on the gang losing
+        instead is the only kind of luck the honest end of the circuit gets.
+      knowledge:
+        - "She is Ria Tann, owner-mechanic of the last honest speeder shop on the Mos Eisley outskirts circuit; she tunes independents' rigs, reads their sensor traces, and signs the haul runs the big outfits won't take."
+        - "A swoop gang called the Dust Wheelers has the circuit fixed: they scan honest riders' repulsors at the start gates and spike the coils of anyone who won't pay for 'track insurance,' so their own rigs win every purse and every haul contract and the independents fold."
+        - "This week the gang spiked a young runner's speeder mid-race and stripped it at their chop-shop in the gutted sandcrawler past the track, with a contracted medical-supply run — bacta and fever-spike for the far moisture farms — still crated on it. There's no law in the outskirts that hasn't already taken the gang's cut."
+        - "The three things she can't do alone: read the spike off the depot gate-scanner logs and trace the gang's rig (the spike leaves a signature, and their chassis runs the same throttle-drift no matter how often they spoof the transponder); run the circuit fast enough to pull their outrider off the chop-shop road; and stand off Drevin Saar, the enforcer who keeps the chop-shop, when he comes to the door."
+      faction: independent
+      dialogue_style: >-
+        Flat, exact spacer-mechanic diction, more comfortable describing a coil
+        than a feeling; talks the way she works — no wasted motion, every word
+        load-bearing.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'The Dust Wheelers sell track insurance. What they mean is they'll spike your coil at the start gate unless you pay them not to. The kid didn't pay. Her rig threw at speed and her whole haul's in their chop-shop now.'"
+        - "*Ria Tann turns a dead spike-coil over in her fingers, reading the gang's work on it the way another woman might read a letter, and sets it back in the row.*"
+        - "'Trace their rig off the depot logs, out-run their picket on the open track, and put yourself between Saar and that chop-shop door. Do that and the run's advance is yours — every credit. I'd rather it bought the gang losing than bought me one more run I have to make alone.'"
+
+  # ── Questline antagonist: Drevin Saar (combat step 4) ───────────────
+  # Single hostile instance in the gutted-sandcrawler chop-shop. Matches
+  # the tatooine_speeder_sabotaged_run step-4 combat_won enemy_template.
+
+  - name: Drevin Saar
+    room: "City Outskirts - Wrecked Sandcrawler"
+    species: Devaronian
+    description: >-
+      A red-skinned, sharp-horned Devaronian in a racer's vest gone grey with
+      hull-dust, a blaster loose in one hand and a coil-spanner still in the
+      other, standing among the stripped speeders and cannibalized repulsors of
+      the Dust Wheelers' chop-shop with a half-stripped rig racked behind him.
+      He is the gang's enforcer — the one who works the spikes at the start
+      gates, keeps the chop-shop in the gutted sandcrawler, and makes sure the
+      independents who don't pay learn what a thrown coil at speed costs. He has
+      bled the outskirts circuit this way for a year and never once had to fight
+      a rider for it, because a fixed track means his marks throw their rigs
+      before they ever reach his door. He came to that door because a clean run
+      pulled his picket off the chop-shop road and the noise told him someone
+      was fool enough to drive all the way out. The lazy contempt in him goes
+      cold the moment he reads that you mean to take the runner's rig back: the
+      gang's rigs win because the gang doesn't lose, and anyone who came to make
+      it lose is going back in pieces or not at all.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 3D
+        perception: 2D+1
+        strength: 3D+1
+        technical: 2D+2
+      skills:
+        blaster: 4D
+        brawling: 4D+1
+        dodge: 3D+2
+        melee_combat: 3D+1
+        repulsorlift operation: 4D
+        intimidation: 3D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: sabotaged_run_enforcer
+      personality: >-
+        A swoop-gang enforcer who wins by rigging the contest and is genuinely
+        unused to being made to fight for it — bored and contemptuous when the
+        spikes do his work, immediately and coldly violent the moment a rider
+        beats the fix and stands in his door. He would rather strip a thrown
+        rig than trade fire, but his pay and his standing in the gang ride on
+        no independent ever walking out of the chop-shop with their speeder, so
+        he will draw on anyone who came to take one back. Combat foil for the
+        questline's confrontation beat.
+      knowledge:
+        - "He is Drevin Saar, the Dust Wheelers' enforcer — he works the spikes at the start gates, keeps the chop-shop in the gutted sandcrawler, and strips the rigs of independents who don't buy 'track insurance.'"
+        - "A clean run pulled his picket off the chop-shop road and brought him to the door; the runner's rig is racked half-stripped behind him with the farm's medical run still crated on it, and he will gun down anyone who came to take either back rather than let a single mark walk out of his shop with a speeder."
+      faction: criminal
+      dialogue_style: >-
+        Flat, unhurried, contemptuous. States once that the rig is the gang's,
+        tells you to turn around, and after that lets the blaster keep the
+        chop-shop the way the spikes keep the track.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'That coil's the gang's now, hauler — same as the run that was on it. Nobody drives out of this shop with a speeder. You can walk out, this once, if you turn around now.'"
+        - "*Drevin Saar weighs the coil-spanner in one hand and the blaster in the other, and decides the stranger in his door is going to be the lesson the circuit needed anyway.*"
+        - "'You beat the picket. Cute. The picket's not what keeps this shop. Last time — out of my door, or you don't leave it on your feet.'"

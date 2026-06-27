@@ -546,3 +546,11 @@ achievements:
     icon: "🗝️"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "coruscant_works_sealed_ledger"}
+
+  - key: sabotaged_run_won
+    name: "The Sabotaged Run"
+    description: "Broke a swoop gang's fix on the Mos Eisley outskirts speeder circuit — read their coil-spike off the depot gate scanners and traced their rig, out-drove their picket on open hardpan to pull it off the chop-shop, and walked their enforcer down in his own gutted-sandcrawler shop to bring back a stripped rig and a stranded medical run. A pilot's hands and a scanner's eye beat a fixed race, and the honest riders queued at the start gates again."
+    category: profession
+    icon: "🏁"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "tatooine_speeder_sabotaged_run"}

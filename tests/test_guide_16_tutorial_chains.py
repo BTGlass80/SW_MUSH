@@ -547,6 +547,7 @@ _FREELANCE_QUESTLINES = {
     "nar_shaddaa_forged_notice": ("The Forged Notice", "Cassa Brel"),
     "nar_shaddaa_warrens_toll": ("The Warrens Toll", "Vessa Tial"),
     "coruscant_works_sealed_ledger": ("The Sealed Ledger", "Terva Dohl"),
+    "tatooine_speeder_sabotaged_run": ("The Sabotaged Run", "Ria Tann"),
 }
 
 
