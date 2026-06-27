@@ -4588,6 +4588,295 @@ chains:
           way of being sent for — the offworlder camps carry a name now, in the
           one corner of Geonosis the war hasn't reached.
 
+  # ─────────────────────────────────────────────────────────────────────
+  # GENERALIZED QUESTLINE #12 — "The Driven Herd" (kamino_driven_herd)
+  # ─────────────────────────────────────────────────────────────────────
+  # The TWELFTH accessible (non-t5, non-tutorial) `kind: questline` chain,
+  # and the FIRST set on KAMINO. Twelfth distinct skill spread: BEAST
+  # RIDING + SWIMMING (none of the prior eleven uses either) — the FIRST
+  # accessible arc whose spread includes a STRENGTH skill (swimming) and
+  # the FIRST to reward BEAST RIDING: the physical creature-handler /
+  # rider-and-swimmer build. The Tipoca City cloning facility and the clone
+  # army stay entirely OFF-STAGE: the whole arc runs on the faction-neutral
+  # fauna-and-spacer margins of the open-ocean platforms — the war kept
+  # offstage the way every prior accessible arc keeps the Republic/Clone-War
+  # offstage. New story shape: breaking a wildlife-poaching racket / rescuing
+  # a driven herd (no prior accessible arc touches fauna). NO new engine
+  # code, slot, event type, schema migration, reward faucet, or
+  # map-coordinate/exit-graph change — pure additive content per
+  # quest_expansion_postlaunch_path_v1.md.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: kamino_driven_herd
+    chain_name: "The Driven Herd"
+    description: >
+      On the storm-lashed ocean platforms of Kamino — out past the Tipoca
+      City cloning halls, on the open-water margin where the offworld
+      outfits and the aiwha stable live — a Nautolan keeper named Neyla Sur
+      tends the working aiwha that ferry rider-and-cargo crossings between
+      the storm-separated pylons, and doctors the foundered beasts the
+      squalls bring in. For a season a poacher has worked her string: in the
+      worst of the squalls he sounds a stolen Kaminoan herd-call goad that
+      panics the aiwha off their roost and scatters them into the open swell,
+      where his crew nets the foundered ones and crates them — under the
+      city's sensor umbrella and off the logs — for off-world collectors who
+      pay a fortune for a thing that flies and swims. The aiwha his crew
+      don't reach drown out in the dark water; the string thins one squall
+      at a time, and the platform outfits that cross by aiwha are stranded.
+      Gentle one of the driven beasts and ride it out to find where the herd
+      was taken, dive the poacher's submerged net-pen and cut the foundering
+      aiwha free before they drown, stand off the poacher when he comes back
+      to an empty pen, and give the platforms their herd back. A freelance
+      favor — open to anyone, no faction required.
+    archetype_label: "Freelance Beast-Keeper's Favor"
+    faction_alignment: independent
+    starting_zone: kamino_ocean_platform
+    starting_room: kamino_aiwha_stable
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["driven_herd_freed"]
+      drop_room: kamino_aiwha_stable
+      follow_up_hint: >
+        The poacher's goad goes silent and his pen stays cut; the aiwha he
+        crated breach back to the roost and the ones his crew never reached
+        stop drowning unnoticed in the swell. Neyla Sur's string fills again,
+        and the platform outfits cross the storm-separated pylons by aiwha
+        the way they did before the squalls turned into a harvest. Word runs
+        the ocean platforms the way it runs nowhere the war touches — there's
+        a rider who can gentle a driven beast and a diver who can cut a
+        drowning herd loose and walk the poacher down — and the keeper hires
+        her crossings out again without counting the roost in the morning to
+        see who's gone.
+
+    steps:
+      - step: 1
+        title: "The Thinning String"
+        location: kamino_aiwha_stable
+        npc: "Neyla Sur"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Neyla Sur at the Aiwha Stable on Kamino's ocean platform."
+        npc_intro: >
+          [A lean, sea-green Nautolan woman looks up from a foundered aiwha
+          she is doctoring on the stable's open deck, the rain beading on her
+          bound head-tresses, a coil of cut net over one shoulder.] "Offworld
+          and looking for a crossing? You came to the right stable and the
+          wrong season. Neyla Sur — I keep the aiwha that ferry the outfits
+          between the pylons, and I doctor the ones the squalls break. Or I
+          did. There's a poacher working my string. Every bad squall he scatters
+          the herd into the swell and his crew nets the foundered ones and
+          crates them off the logs for some collector off-world. The ones they
+          miss drown. My string's half what it was and the platforms can't
+          cross. `talk` to me and I'll show you what he leaves in the water."
+        completion:
+          type: talk_to_npc
+          npc: "Neyla Sur"
+        npc_complete: >
+          [She lifts the coil off her shoulder and runs the cut end through her
+          webbed hands — net-cord sheared clean, not torn.] "His pen's nets.
+          One of my aiwha came home dragging this through the swell with a
+          crate-line still on it before it foundered. He sounds a stolen
+          Kaminoan herd-call goad in the squalls — panics the beasts off the
+          roost, scatters them where his crew can net them under the city's
+          sensor shadow, off every log. Three things stand between me and
+          stopping him, and I can't do one of them. There's a driven aiwha
+          foundering off the ocean-surface platform right now, too spooked to
+          come in — gentle it, ride it out across the swell, and it'll take you
+          to where the herd was driven. Start there. I haven't the seat for a
+          storm-swell, and the platforms haven't the time."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to the Ocean Surface Platform and use your `beast riding` skill to gentle the driven aiwha foundering in the swell and ride it out to where the poacher took the herd — `chain attempt`."
+
+      - step: 2
+        title: "The Driven Beast"
+        location: kamino_ocean_surface
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["beast riding"]
+        objective: "Gentle the driven aiwha foundering off the ocean-surface platform and ride it out across the storm-swell to find where the herd was taken — a beast riding check."
+        npc_intro: >
+          [At ocean level the swells stand four meters on a calm day and this
+          is not a calm day; the city rises overhead on its pylons like an
+          artificial cliff, and out past the platform's edge a single aiwha
+          wallows half-foundered in the swell, wings beating ragged, too
+          panicked from the goad to come in and too spent to fly clear.] No
+          Kaminoan ever taught a clone to approach an aiwha, and the swell
+          will drown a rider who fights the beast instead of reading it. Come
+          in low and slow, match the wallow, put a hand where it can feel you
+          are not the sound that scattered it — gentle the panic out of it,
+          take the seat, and let it carry you where the herd's instinct says
+          the rest were driven: down under the pylons, to the sensor-shadowed
+          dock where the poacher pens his catch. `beast riding`, patient
+          against a panicked beast in a heavy sea — `chain attempt` when you've
+          gentled it and taken the seat.
+        completion:
+          type: skill_check_passed
+          skill: "beast riding"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [The panic goes out of the aiwha under your hand the way a held breath
+          lets go — it stops fighting the swell, folds its great wings to the
+          wallow, and lets you take the seat behind its head-crest. You turn it
+          with the swell instead of against it and it knows at once where you
+          mean to go: it banks down under the lip of the platform, slides along
+          the pylons through the electromagnetic murk that hides the dock from
+          the city's sensors, and brings you in beneath the Unauthorized Docking
+          Point — and there it is, lashed to the underside of the dock and half
+          drowned in the dark water: the poacher's net-pen, crates stacked on
+          the deck above it and, below the waterline, a knot of netted aiwha
+          fighting the strands for the air they can't reach. The beast under you
+          shudders at the sound of them. The crates wait on the tide for a ship;
+          the netted herd does not have until the tide.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "The driven aiwha carried you under the city to the poacher's net-pen beneath the Unauthorized Docking Point — get there and use your `swimming` skill to dive the flooded pen and cut the foundering aiwha free before they drown — `chain attempt`."
+
+      - step: 3
+        title: "The Drowning Pen"
+        location: kamino_smuggler_dock
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["swimming"]
+        objective: "Dive the poacher's submerged net-pen beneath the dock and cut the netted aiwha free before they drown — a swimming check."
+        npc_intro: >
+          [The Unauthorized Docking Point hangs beneath the city's sensor
+          umbrella, its modified pylon-section quiet and unlogged — and lashed
+          to its underside, below the black waterline, is the poacher's pen:
+          a knot of net-mesh and crate-lines holding the netted aiwha under,
+          where every surge drives them deeper from the air they breach to
+          breathe.] Aiwha are air-breathers; netted under, they drown — and
+          the strong, panicking ones drown fastest, fouling themselves deeper
+          the harder they fight. There's no cutting the pen from the deck;
+          you go in the cold dark water after it, find the crate-lines by feel
+          in the surge, and cut the mesh from the beasts without being dragged
+          under by a panicked half-tonne of aiwha or fouled in your own cut
+          net. Free them and they breach for the surface and scatter for the
+          open roost; leave one and the tide finishes it. `swimming`, hard
+          against a heavy surge in a fouling net — `chain attempt` when you're
+          down in it.
+        completion:
+          type: skill_check_passed
+          skill: "swimming"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You go off the dock into water cold enough to stop the breath, find
+          the first crate-line by feel in the surge, and saw the mesh off the
+          nearest aiwha a strand at a time while it thrashes for air it can't
+          reach — then the next, and the next, working the knot of the pen from
+          the outside in, twice nearly dragged under by a freed beast breaching
+          for the surface and once fouled in your own cut net before you kick
+          clear. One by one they tear loose and breach, the dark water boiling
+          white as the freed herd scatters up and out for the open roost, until
+          the pen hangs empty and cut, the crate-lines trailing slack in the
+          surge. You come up under the dock among the empty mesh — and feel,
+          through the pylon, the thud of a boot on the deck above: the poacher's
+          pen-line has gone slack on his count, and Korsa Drael has come back
+          down to the dock to see who emptied it.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "You've cut the pen and the herd's breaching free — but the poacher Korsa Drael has come back down to the dock to a pen cut empty. Stand him off — `attack`, `dodge`."
+
+      - step: 4
+        title: "The Empty Pen"
+        location: kamino_smuggler_dock
+        npc: "Korsa Drael"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Stop Korsa Drael at the dock and break the poaching racket — `attack`, `dodge`."
+        npc_intro: >
+          [You haul out of the black water onto the dock and he is already
+          there at the head of the stacked crates — a weathered, leather-skinned
+          Weequay in a sealed slicker, the stolen herd-call goad slung across
+          his back, a blaster coming up off his hip — reading the cut pen and
+          the freed aiwha breaching off into the swell.] Korsa Drael, the
+          poacher — the hand who sounds the goad in the squalls, the one who
+          came back down the moment his pen-line went slack on the count. The
+          bored contempt of a being who poaches by remote sound and never has
+          to fight for it goes flat. "That's a season's work breaching off into
+          the dark on your account, diver. The herd's my catch and this dock's
+          mine — should've stayed up top where the rain can't reach you. You go
+          out in the nets they just left empty." [He thumbs the blaster up.]
+        completion:
+          type: combat_won
+          enemy_template: "driven_herd_poacher"
+          enemy_count: 1
+        npc_complete: >
+          [Korsa Drael goes down on the dock among his own empty crates, the
+          stolen goad clattering off into the dark water, and the net-crew that
+          works for him — a poaching gang that nets drowning beasts precisely so
+          it never has to stand in a fair fight — scatters for its ship rather
+          than answer for a poacher who just lost on his own dock. The goad sinks
+          where it fell, and with it the only sound that could scatter the herd;
+          the crates on the deck stand empty, their catch breaching free in the
+          swell. Take the cut pen-line and the goad's broken sling for the
+          keeper — the proof that the racket worked her string and not she
+          herself — and there's nothing between here and the stable but the ride
+          back up through the pylons, a gentled aiwha under you and a freed herd
+          scattering for the open roost behind.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The poacher's down, his goad's in the deep, and the herd's breaching free — ride back up to Neyla Sur at the Aiwha Stable."
+
+      - step: 5
+        title: "The Full Roost"
+        location: kamino_aiwha_stable
+        npc: "Neyla Sur"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Neyla Sur with the cut pen-line and word that the poacher is down."
+        npc_intro: >
+          [Neyla Sur is already out on the stable deck when you bring the
+          gentled aiwha in, reading the freed herd scattering for the roost
+          behind you and the cut pen-line and the goad's broken sling in your
+          hands.] "You gentled a driven beast and rode it out, cut my herd loose
+          from his pen before the tide took them, and put Korsa Drael down on
+          his own dock." [She turns the cut net-cord over in her webbed hands,
+          reads where it was sheared, and sets it beside the coil she's kept all
+          season as proof.] "His goad's in the deep and his pen's cut, and the
+          aiwha he crated are breaching home where I can count them. `talk` to
+          me and let me settle up before the roost fills back in."
+        completion:
+          type: talk_to_npc
+          npc: "Neyla Sur"
+        npc_complete: >
+          "Here's the fee — the credits I'd set by to buy my way off this rock
+          if the racket finished my string, and worth a great deal more spent on
+          the poacher finished instead. The goad's silent, the pen's cut, and
+          the herd that drowned a beast a squall stays in the swell where it
+          belongs. The ocean platforms are a hard posting and a small one, and
+          they remember a rider who gentled a driven beast and a diver who cut a
+          drowning herd loose. When somebody out here finds their string going
+          quiet in the squalls, there's a name they'll send for now. Mind the
+          rain on the ride up to the pad."
+        # graduation closes the arc; no extra on-completion side effects.
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The poaching racket dies with the goad in the deep and the ocean
+          platforms cross by aiwha again, the keeper's string filling back to
+          the roost and the squalls turned back into weather instead of a
+          harvest. A rider who can gentle a driven beast and a diver who can cut
+          a drowning herd loose has a way of being sent for — the ocean
+          platforms carry a name now, in the one corner of Kamino the war hasn't
+          reached.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════
