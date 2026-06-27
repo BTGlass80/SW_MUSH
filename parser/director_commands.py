@@ -890,12 +890,13 @@ class BalanceCommand(BaseCommand):
         "  @balance grind      — mob-grind kill volume, payout, cap pressure\n"
         "  @balance cp         — CP-income source mix + weekly-cap pressure\n"
         "  @balance objectives — mission/bounty/smuggling start→complete funnel\n"
+        "  @balance chains     — tutorial-chain / questline completion funnel\n"
         "  @balance encounters — wilderness encounter roll→fire rate by band\n"
         "  @balance events     — communal-objective menace + strike outcomes\n"
         "  @balance raw [N]    — the last N raw telemetry records (default 20)\n"
         "  (reads engine/telemetry.py's dump; fail-open, never blocks the loop)"
     )
-    usage = "@balance [grind|cp|objectives|encounters|events|raw [N]]"
+    usage = "@balance [grind|cp|objectives|chains|encounters|events|raw [N]]"
 
     async def execute(self, ctx: CommandContext):
         parts = (ctx.args or "").split()
@@ -967,6 +968,8 @@ class BalanceCommand(BaseCommand):
             self._render_cp(lines, summary["cp_income"])
         if show_all or sub in ("objectives", "objective", "missions"):
             self._render_objectives(lines, summary["objective"])
+        if show_all or sub in ("chains", "chain", "questlines", "questline"):
+            self._render_chains(lines, summary["chain"])
         if show_all or sub in ("encounters", "encounter"):
             self._render_encounters(lines, summary["wild_encounter"])
         if show_all or sub in ("events", "communal"):
@@ -1026,6 +1029,28 @@ class BalanceCommand(BaseCommand):
             lines.append(
                 f"    {kind:<12} {d['start']:>6,} {d['complete']:>6,} "
                 f"{d['abandon']:>6,}  {rate:>5}  {d['reward']:,} cr")
+
+    def _render_chains(self, lines, ch):
+        # Tutorial-chain / questline completion funnel. ``graduations`` is the
+        # true per-chain completion count (always emitted); ``steps`` is the
+        # reward-bearing-step count. Leads with most-completed so the NPE /
+        # questline-engagement picture is read top-down.
+        lines.append("  \033[1;33mCHAIN / QUESTLINE FUNNEL\033[0m")
+        by = ch["by_chain"]
+        if not by:
+            lines.append("    (no chain reward events recorded)")
+            return
+        lines.append(
+            f"    Graduations: {ch['graduations']:,}   "
+            f"reward-steps: {ch['step_events']:,}   "
+            f"credit flow: {ch['credits']:,} cr")
+        lines.append(f"    {'chain':<26} {'grad':>5} {'steps':>6}  reward")
+        for cid in sorted(by, key=lambda k: (-by[k]["graduations"], k)):
+            d = by[cid]
+            name = (d["label"] or cid)[:26]
+            lines.append(
+                f"    {name:<26} {d['graduations']:>5,} {d['steps']:>6,}  "
+                f"{d['credits']:,} cr")
 
     def _render_encounters(self, lines, e):
         lines.append("  \033[1;33mWILDERNESS ENCOUNTERS\033[0m")

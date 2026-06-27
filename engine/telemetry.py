@@ -709,6 +709,9 @@ def summarize(events: list[dict]) -> dict:
       - cp_income:    CP-source mix + weekly-cap pressure — for the CP levers.
       - objective:    start→complete→abandon funnel + reward, per kind — for
                       mission/bounty/smuggling tier pay.
+      - chain:        tutorial-chain / questline reward-step + graduation
+                      (completion) counts + credit flow, per chain_id — the NPE
+                      / questline-completion health signal.
       - wild_encounter: roll→fire rate by threat band — for encounter pacing.
       - communal:     menace escalation + strike success — for cult tuning.
 
@@ -729,6 +732,15 @@ def summarize(events: list[dict]) -> dict:
     enc = {"rolls": 0, "fired": 0, "by_band": Counter()}
     communal = {"menace_events": 0, "tier_escalations": 0,
                 "strikes": 0, "strike_success": 0}
+    # Tutorial-chain / questline funnel. ``chain_reward`` is emitted at a
+    # reward-bearing step (phase="step") and ALWAYS at graduation
+    # (phase="graduation"), so per-chain ``graduations`` is the true completion
+    # count and ``credits`` is the onboarding/questline credit flow. (Empty-
+    # reward steps emit nothing, so ``steps`` undercounts raw step traversal —
+    # it is the reward-bearing-step count, not the completion count, which is
+    # ``graduations``.)
+    chain = {"step_events": 0, "graduations": 0, "credits": 0,
+             "items": 0, "achievements": 0, "by_chain": {}}
 
     for ev in events:
         if not isinstance(ev, dict):
@@ -787,6 +799,31 @@ def summarize(events: list[dict]) -> dict:
             communal["strikes"] += 1
             if ev.get("success"):
                 communal["strike_success"] += 1
+        elif et == "chain_reward":
+            phase = ev.get("phase") or "?"
+            cid = str(ev.get("chain_id") or "?")
+            d = chain["by_chain"].setdefault(
+                cid, {"steps": 0, "graduations": 0, "credits": 0,
+                      "items": 0, "achievements": 0, "label": ""})
+            cr = _as_int(ev.get("credits"))
+            it = _as_int(ev.get("items"))
+            ach = _as_int(ev.get("achievements"))
+            d["credits"] += cr
+            d["items"] += it
+            d["achievements"] += ach
+            chain["credits"] += cr
+            chain["items"] += it
+            chain["achievements"] += ach
+            # Only the graduation event carries a human label; keep the first.
+            label = ev.get("chain_label")
+            if label and not d["label"]:
+                d["label"] = str(label)
+            if phase == "graduation":
+                d["graduations"] += 1
+                chain["graduations"] += 1
+            elif phase == "step":
+                d["steps"] += 1
+                chain["step_events"] += 1
 
     grind["grinders"] = len(grinders)
     grind["npcs"] = grind["npcs"].most_common(8)
@@ -801,6 +838,7 @@ def summarize(events: list[dict]) -> dict:
         "grind": grind,
         "cp_income": cp,
         "objective": objective,
+        "chain": chain,
         "wild_encounter": enc,
         "communal": communal,
     }
