@@ -103,6 +103,15 @@ QUALITY_TIERS = [
 
 # Skill margin → quality multiplier (applied after base quality from components)
 # Margin ≥ 0: 1.0–1.3 scaled linearly. Critical = ×1.5 (×2.0 on experiment crit).
+#
+# These five are the craft-OUTCOME quality levers. They are externalized to
+# data/tunables.yaml under ``craft.*`` and read at the USE SITE via the live
+# accessors below (get_tunable with the constant as default), so an operator can
+# re-tune the produced-item quality distribution from config — using the
+# ``@balance craft`` telemetry board (which surfaces per-schematic success/
+# partial/fumble + mean produced quality by difficulty band, exactly this
+# signal) as the read-side — with no code edit or redeploy. The constants here
+# remain the behaviour-identical fallback when the YAML omits the key.
 QUALITY_MULT_BASE = 1.0
 QUALITY_MULT_MAX  = 1.3
 QUALITY_MULT_CRIT = 1.5
@@ -110,6 +119,52 @@ QUALITY_MULT_EXP_CRIT = 2.0   # experiment critical
 QUALITY_PARTIAL   = 0.5        # partial success (margin ≥ −4)
 
 STACK_MERGE_TOLERANCE = 5.0    # quality points within which stacks merge
+
+
+def _safe_float(v, default: float) -> float:
+    """Tolerant float — a corrupt tunables value (str/None/bad type) must never
+    crash a craft resolution; it falls back to the in-code default."""
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
+
+# ── Live tunable accessors for the craft-quality knobs ────────────────────
+# Each reads data/tunables.yaml under ``craft.*`` at the USE SITE (not module
+# import) so an edit takes effect on the next load, falling back to the in-code
+# constant when the key is absent. Clamped >= 0.0 so a fat-fingered negative can
+# never invert the quality multiplier — the final quality is independently
+# clamped to [1, 100] at each use site, so this is defense-in-depth plus a clean
+# non-negative accessor contract (mirrors engine/hunting_rewards.py's grind.*).
+def _quality_mult_base() -> float:
+    from engine.tunables import get_tunable
+    return max(0.0, _safe_float(get_tunable("craft.quality_mult_base", QUALITY_MULT_BASE),
+                                QUALITY_MULT_BASE))
+
+
+def _quality_mult_max() -> float:
+    from engine.tunables import get_tunable
+    return max(0.0, _safe_float(get_tunable("craft.quality_mult_max", QUALITY_MULT_MAX),
+                                QUALITY_MULT_MAX))
+
+
+def _quality_mult_crit() -> float:
+    from engine.tunables import get_tunable
+    return max(0.0, _safe_float(get_tunable("craft.quality_mult_crit", QUALITY_MULT_CRIT),
+                                QUALITY_MULT_CRIT))
+
+
+def _quality_mult_exp_crit() -> float:
+    from engine.tunables import get_tunable
+    return max(0.0, _safe_float(get_tunable("craft.quality_mult_exp_crit", QUALITY_MULT_EXP_CRIT),
+                                QUALITY_MULT_EXP_CRIT))
+
+
+def _quality_partial() -> float:
+    from engine.tunables import get_tunable
+    return max(0.0, _safe_float(get_tunable("craft.quality_partial", QUALITY_PARTIAL),
+                                QUALITY_PARTIAL))
 
 SCHEMATICS_YAML = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "data", "schematics.yaml"
@@ -751,7 +806,7 @@ def _resolve_craft_impl(
 
     # ── Partial (near-miss: margin >= -4 but not a success) ─────
     if not result.success and result.margin >= -4:
-        final_quality = round(base_quality * QUALITY_PARTIAL, 1)
+        final_quality = round(base_quality * _quality_partial(), 1)
         final_quality = max(1.0, min(100.0, final_quality))
         consume_components(char, schematic["components"])
         stats = quality_to_stats(final_quality)
@@ -783,16 +838,17 @@ def _resolve_craft_impl(
     # Quality multiplier: margin-scaled between 1.0 and 1.3 (or crit values)
     if result.critical_success:
         if experiment:
-            multiplier = QUALITY_MULT_EXP_CRIT
+            multiplier = _quality_mult_exp_crit()
             crit_note  = "An extraordinary experimental breakthrough!"
         else:
-            multiplier = QUALITY_MULT_CRIT
+            multiplier = _quality_mult_crit()
             crit_note  = "Exceptional craftsmanship!"
     else:
-        # Linear scale: margin 0 → 1.0, margin 10+ → 1.3
-        multiplier = QUALITY_MULT_BASE + min(result.margin, 10) / 10.0 * (
-            QUALITY_MULT_MAX - QUALITY_MULT_BASE
-        )
+        # Linear scale: margin 0 → base, margin 10+ → max (read each once so the
+        # scale endpoints come from a single consistent config snapshot).
+        q_base = _quality_mult_base()
+        q_max  = _quality_mult_max()
+        multiplier = q_base + min(result.margin, 10) / 10.0 * (q_max - q_base)
         crit_note = ""
 
     final_quality = round(base_quality * multiplier, 1)
