@@ -1,76 +1,104 @@
 ---
 key: mastery
-title: Mastery — Master-Trainer Questlines
+title: Mastery — Questlines and the Galaxy-Wide Directory
 category: "Commands: Character"
-summary: End-game questlines offered by master trainers in dangerous zones. Completing a questline unlocks that trainer's Tier-5 schematics. Talk to a master trainer first to be offered one.
+summary: Opt-in mid-game questlines — freelance side-jobs open to anyone, and master-trainer trials that help unlock Tier-5 schematics. Use `mastery browse` to see every questline in the galaxy.
 aliases: [masteries, mastertrials]
 see_also: [chain, +craft, +cpstatus, +teach, skills, advancement]
-tags: [progression, crafting, tier5, questline, command]
+tags: [progression, questline, crafting, tier5, command]
 access_level: 0
 examples:
+  - cmd: "mastery browse"
+    description: "Galaxy-wide directory: every questline, who gives it, and where it starts."
   - cmd: "mastery"
     description: "Show your active questline (or any offer from an NPC in this room)."
+  - cmd: "mastery start nar_freight_ghost_shipment"
+    description: "Begin an offered questline by its id (get the id from `mastery browse`)."
   - cmd: "mastery status"
-    description: "Detailed status of your active questline."
-  - cmd: "mastery start q-fire-3"
-    description: "Begin questline q-fire-3 offered by the master trainer here."
+    description: "Detailed step breakdown of your active questline."
   - cmd: "mastery abandon"
     description: "Abandon your active questline. You can restart it later."
 ---
 
-Master-trainer questlines are end-game tasks that gate Tier-5 crafting
-schematics. Each faction's master trainer offers their own questline —
-complete it to unlock their advanced blueprint catalogue.
+Questlines are opt-in, mid-game story arcs you start deliberately —
+multi-step jobs with their own characters, locations, and rewards. They
+are separate from your chargen-assigned tutorial chain (`chain`) and from
+Director-issued personal quests.
+
+There are TWO kinds, and both use the same `mastery` command:
+
+  • FREELANCE SIDE-JOBS — open to any character once you have finished
+    character creation. A broker in a cantina, market, or back-alley
+    offers them; the rewards are credits, reputation, and a bit of CP.
+    These are the bulk of the galaxy's side-content.
+
+  • MASTER-TRAINER TRIALS — offered by a master trainer in a dangerous
+    or contested zone. Completing one helps unlock that trainer's
+    advanced Tier-5 crafting schematics.
 
 SYNTAX
 
-  mastery               Show active questline or offers in this room
+  mastery               Show your active questline, or offers in this room
+  mastery browse        Galaxy-wide directory of every questline
   mastery status        Detailed step breakdown of your active questline
-  mastery start <id>    Begin an offered questline (get id from `mastery`)
-  mastery abandon       Give up the active questline (can restart later)
+  mastery start <id>    Begin an offered questline (id from `mastery browse`)
+  mastery abandon       Abandon the active questline (you can restart later)
 
-HOW TO BEGIN
+  `mastery browse` also answers to `all`, `directory`, and `catalog`.
 
-  1. Travel to the region where the master trainer is located. Master
-     trainers appear in contested or lawless zones — check `+who` or
-     the zone map for known NPC presences.
-  2. `talk <trainer name>` — opens the NPC dialogue.
-  3. The trainer will offer you a questline if you meet any prerequisites
-     (typically: some crafting CP, relevant schematic tier already bought).
-  4. `mastery` in the same room shows the offer with its questline id.
-  5. `mastery start <id>` accepts and begins the questline.
+FINDING ONE — `mastery browse`
+
+  You no longer have to stumble onto a giver to learn a questline exists.
+  `mastery browse` lists the whole catalogue partitioned by where you
+  stand with each one:
+
+      • AVAILABLE NOW  — what you can start, with the giver, the start
+                         zone, and the exact `mastery start <id>` to type.
+      • LOCKED         — what you cannot start yet, and why (a reputation
+                         or faction requirement you have not met).
+      • COMPLETED      — what you have already finished.
+
+  Browsing shows existence only — `mastery start` still enforces every
+  gate, and starting a questline teleports you to its opening scene from
+  wherever you are. You can also still walk up to a giver and `talk` to
+  them; the in-room offer and the directory always agree.
+
+STARTING — `mastery start <id>`
+
+  Pick an id from `mastery browse` (or from an in-room offer) and begin.
+  You can have ONE active questline at a time; starting a new one
+  requires abandoning the current.
 
 QUESTLINE STEPS
 
-Steps work identically to tutorial chains: most advance automatically
-as you play (fight, travel, collect, complete missions). Steps that
-require a skill roll use `chain attempt` — the `mastery status` output
-will tell you which command to use.
+  Steps work like tutorial chain steps: most advance automatically as you
+  play (talk to the right person, travel, win a fight, complete a job).
+  Steps that require a skill roll use `chain attempt` — `mastery status`
+  tells you which step you are on and what it is waiting for.
 
-  mastery status
-  → Step 2 / 7: Prove your worth in the field
-    Completes when: combat_won (defeat a rival crafter)
-    → You must find and defeat a rival craftsperson in this zone.
-
-You can have ONE active questline at a time. Starting a new one
-requires abandoning the current.
+      mastery status
+      → Step 2 / 5: Trace the skimmed shipment
+        Completes when: skill_check_passed (security)
+        → Type `chain attempt` here to make the roll.
 
 COMPLETION REWARD
 
-On completing the final step, the trainer's full Tier-5 schematic set
-unlocks in your `+craft` panel. Some questlines also grant bonus CP,
-faction reputation, or unique item rewards.
+  Finishing the final step pays out the questline's reward. Freelance
+  arcs grant credits, reputation, and a CP-bearing achievement;
+  master-trainer trials additionally unlock the trainer's Tier-5
+  schematic set in your `+craft` panel. Some arcs add unique items.
 
 ABANDONING
 
-`mastery abandon` returns the questline to "offered" status — you can
-`mastery start <id>` it again from the same trainer at any time. Your
-step progress resets to the beginning.
+  `mastery abandon` drops the active questline so you can pick up a
+  different one; you can `mastery start <id>` it again later. Your step
+  progress resets to the beginning.
 
 CHEAT SHEET
 
-  mastery                = see active questline / room offers
-  mastery start <id>     = begin offered questline
+  mastery browse         = galaxy-wide directory (also: all / directory / catalog)
+  mastery                = active questline / room offers
+  mastery start <id>     = begin a questline
   mastery status         = step-by-step progress
   mastery abandon        = give up (restart later)
-  chain attempt          = roll skill check (when step requires it)
+  chain attempt          = roll a skill check (when a step requires it)
