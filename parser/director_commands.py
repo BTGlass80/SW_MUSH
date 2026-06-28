@@ -918,11 +918,12 @@ class BalanceCommand(BaseCommand):
         "  @balance sessions   — login/logout engagement: play time, transport mix\n"
         "  @balance skills     — out-of-combat skill-check pass rate by skill + DC\n"
         "  @balance progress   — faction rep / influence / titles / spacer-quest\n"
+        "  @balance commands   — command utilization + unknown-command friction\n"
         "  @balance raw [N]    — the last N raw telemetry records (default 20)\n"
         "  (reads engine/telemetry.py's dump; fail-open, never blocks the loop)"
     )
     usage = ("@balance [grind|cp|flows|objectives|chains|encounters|events|"
-             "sessions|skills|progress|raw [N]]")
+             "sessions|skills|progress|commands|raw [N]]")
 
     async def execute(self, ctx: CommandContext):
         parts = (ctx.args or "").split()
@@ -1008,6 +1009,8 @@ class BalanceCommand(BaseCommand):
             self._render_skills(lines, summary["skill_check"])
         if show_all or sub in ("progress", "progression", "standing", "rep"):
             self._render_progress(lines, summary["progression"])
+        if show_all or sub in ("commands", "command", "cmds", "friction"):
+            self._render_command(lines, summary["command"])
 
         lines.append("\033[1;36m══════════════════════════════════════════\033[0m")
         await ctx.session.send_line("\n".join(lines))
@@ -1242,6 +1245,32 @@ class BalanceCommand(BaseCommand):
                 f"step {p['spacer_steps']:,} → complete {p['spacer_completes']:,}"
                 f"   ({p['spacer_credits']:,} cr, {p['spacer_titles']:,} title(s), "
                 f"{p['spacer_phase_gates']:,} phase-gate(s))")
+
+    def _render_command(self, lines, c):
+        # Command utilization + "Huh?" friction funnel — the single dispatch
+        # chokepoint (_emit_command_telemetry). Which commands players actually
+        # use (a dead verb shows ~0 = catalog C), the unknown-command friction
+        # rate, the exact tokens that confuse (catalog D), and how often a typed
+        # form differed from the canonical key (alias/glued-prefix use). The NPE
+        # signal the whole onboarding drive is tuned against.
+        lines.append("  \033[1;33mCOMMAND USAGE\033[0m")
+        total = c["total"]
+        if not total:
+            lines.append("    (no command events recorded)")
+            return
+        lines += [
+            f"    Invocations   : {total:,}  by {c['users']} user(s)",
+            f"    Unmatched     : {c['unmatched']:,}  "
+            f"({self._pct(c['unmatched'], total)} 'Huh?' friction)",
+            f"    Alias/glued   : {c['aliased']:,}  "
+            f"({self._pct(c['aliased'], c['matched'])} of matched)",
+        ]
+        if c["top_commands"]:
+            top = ", ".join(f"{name}×{cnt}" for name, cnt in c["top_commands"][:8])
+            lines.append(f"    Top commands  : {top}")
+        if c["top_unmatched"]:
+            top = ", ".join(f"{tok}×{cnt}" for tok, cnt in c["top_unmatched"][:8])
+            lines.append(f"    Top unknown   : {top}")
 
 
 class LoreCommand(BaseCommand):

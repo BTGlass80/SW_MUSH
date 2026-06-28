@@ -30,6 +30,8 @@ examples:
     description: "Out-of-combat skill-check pass rate, broken out by difficulty band and by skill — the DC-calibration signal."
   - cmd: "@balance progress"
     description: "The non-credit advancement breadth — faction reputation movement (by faction, tier crossings), territorial influence, the prestige-title economy (buys vs earned grants), and the spacer onboarding-questline funnel."
+  - cmd: "@balance commands"
+    description: "Command utilization (which verbs players actually use — a dead command shows ~0), the unknown-command 'Huh?' friction rate, the exact tokens that confuse, and alias-vs-canonical use — the NPE friction signal."
   - cmd: "@balance raw 50"
     description: "Dump the last 50 raw telemetry records verbatim (default 20, clamped 1–200)."
 ---
@@ -66,6 +68,7 @@ SUBCOMMAND REFERENCE
   sessions           Login/logout engagement + retention funnel
   skills             Out-of-combat skill-check pass rate by skill + DC
   progress           Faction rep / influence / titles / spacer-quest funnel
+  commands           Command utilization + unknown-command 'Huh?' friction
   raw [N]            The last N raw telemetry records (default 20)
 
   Sub-board aliases the parser also accepts:
@@ -77,6 +80,7 @@ SUBCOMMAND REFERENCE
     sessions   = session
     skills     = skill
     progress   = progression, standing, rep
+    commands   = command, cmds, friction
 
 READING THE BOARDS
   - **grind** surfaces whether the solo-PvE mob-grind trickle is
@@ -136,6 +140,15 @@ READING THE BOARDS
     with its credit faucet + title grants + phase gates). Faction rep
     and influence are reported as signed NET deltas (they genuinely
     move up and down per actor), unlike the gross-volume credit board.
+  - **commands** is the command-utilization + friction board, read at
+    the single dispatch chokepoint: total invocations and distinct
+    users, the **unknown-command "Huh?" friction rate** (what share of
+    input the parser couldn't resolve — the NPE friction the onboarding
+    drive fights), how often a typed form differed from the canonical
+    key (**alias / glued-prefix use**), the top commands by volume (the
+    utilization histogram — a dead verb shows ~0), and the top unknown
+    tokens (the exact words that confuse players — the catalog-D friction
+    targets). Its keep-rate is sample-tunable (`telemetry.command_sample`).
 
 RAW DUMP
   `@balance raw [N]` prints the last N telemetry records as
@@ -170,6 +183,7 @@ CHEAT SHEET
   @balance sessions     = engagement/retention funnel
   @balance skills       = skill-check pass rate by skill + DC
   @balance progress     = faction rep / influence / titles / spacer-quest
+  @balance commands     = command utilization + 'Huh?' friction
   @balance raw [N]      = last N raw records (default 20)
 
 Sources: T3.19 telemetry read-side (`parser/director_commands.py`

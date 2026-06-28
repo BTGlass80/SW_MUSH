@@ -823,6 +823,12 @@ def summarize(events: list[dict]) -> dict:
                       (vanity_title buys vs earned grants + credit soak), and the
                       spacer onboarding-questline funnel (spacer_quest). The four
                       non-credit progression faucets the credit boards can't see.
+      - command:      command utilization + the unknown-command ("Huh?")
+                      friction rate (command) — the single dispatch chokepoint.
+                      Which verbs players actually use (a dead command shows
+                      ~0 = catalog C), the friction rate, the exact tokens that
+                      confuse (catalog D), and alias-vs-canonical use — the NPE
+                      signal the onboarding drive is tuned against.
 
     Pure + total: never reads files, never raises, accepts a possibly-mixed
     list of dicts and ignores fields it does not recognise.
@@ -911,6 +917,19 @@ def summarize(events: list[dict]) -> dict:
     }
     prog_by_faction: dict = {}
     prog_by_zone: dict = {}
+    # Command utilization + "Huh?" friction funnel (``command``: the single
+    # dispatch chokepoint _emit_command_telemetry). ``matched`` False = an
+    # unknown command (the friction the NPE fights); ``cmd`` is the canonical
+    # key for a resolved command (so aliases + glued prefixes group together)
+    # or the typed word for an unknown one. The catalog-C utilization histogram
+    # (a dead verb shows ~0) + the catalog-D friction rate (which words confuse)
+    # + alias-vs-canonical use — which otherwise appeared nowhere but the
+    # generic event-mix count + the raw dump.
+    command = {"total": 0, "matched": 0, "unmatched": 0, "aliased": 0,
+               "users": 0, "top_commands": [], "top_unmatched": []}
+    cmd_counter: Counter = Counter()
+    unmatched_counter: Counter = Counter()
+    cmd_users: set = set()
 
     for ev in events:
         if not isinstance(ev, dict):
@@ -1113,6 +1132,25 @@ def summarize(events: list[dict]) -> dict:
                 progression["spacer_titles"] += 1
             if ev.get("phase_gate"):
                 progression["spacer_phase_gates"] += 1
+        elif et == "command":
+            command["total"] += 1
+            if ev.get("matched"):
+                command["matched"] += 1
+                # ``cmd`` is the canonical key for a resolved command, so
+                # aliases / glued prefixes / direction words group together.
+                cmd_counter[str(ev.get("cmd") or "?")] += 1
+                # ``typed`` is present only when it differed from the canonical
+                # key — an alias / glued-prefix invocation.
+                if ev.get("typed"):
+                    command["aliased"] += 1
+            else:
+                command["unmatched"] += 1
+                # For an unknown command ``cmd`` IS the typed word — the exact
+                # token that confused (catalog D).
+                unmatched_counter[str(ev.get("cmd") or "?")] += 1
+            cid = ev.get("char_id")
+            if cid is not None:
+                cmd_users.add(cid)
         elif et in _ECONOMY_DOMAINS:
             dom = _ECONOMY_DOMAINS[et]
             cr = _economy_credits(et, ev)
@@ -1148,6 +1186,14 @@ def summarize(events: list[dict]) -> dict:
     session["accounts"] = len(sess_accounts)
     session["by_transport"] = session["by_transport"].most_common()
 
+    command["users"] = len(cmd_users)
+    # Commands ranked by invocation volume (utilization histogram, most-used
+    # first); a dead/rarely-used verb sorts to ~0. Each row is (cmd, count).
+    command["top_commands"] = cmd_counter.most_common(12)
+    # Unknown tokens ranked by how often they confused players (the friction
+    # targets). Each row is (typed-token, count).
+    command["top_unmatched"] = unmatched_counter.most_common(12)
+
     skill["rollers"] = len(skill_rollers)
     # Difficulty bands in canonical (easy→heroic) order; skip bands with no
     # rolls. Each row is (band, checks, successes).
@@ -1176,4 +1222,5 @@ def summarize(events: list[dict]) -> dict:
         "session": session,
         "economy": economy,
         "progression": progression,
+        "command": command,
     }
