@@ -225,7 +225,7 @@ class TestBalanceDashboard:
 
     @pytest.mark.parametrize("sub", [
         "grind", "cp", "flows", "objectives", "chains", "encounters", "events",
-        "sessions", "skills", "raw",
+        "sessions", "skills", "progress", "raw",
     ])
     def test_guide_documents_balance_subforms(self, guide_text, sub):
         assert f"@balance {sub}" in guide_text, (
@@ -234,7 +234,7 @@ class TestBalanceDashboard:
 
     @pytest.mark.parametrize("sub", [
         "grind", "cp", "flows", "objectives", "chains", "encounters", "events",
-        "sessions", "skills", "raw",
+        "sessions", "skills", "progress", "raw",
     ])
     def test_subform_is_really_dispatched(self, sub):
         # Each documented sub-board must actually be handled by execute().

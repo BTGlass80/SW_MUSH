@@ -28,6 +28,8 @@ examples:
     description: "Login/logout engagement: connect→login conversion, play-time distribution, web-vs-telnet transport mix."
   - cmd: "@balance skills"
     description: "Out-of-combat skill-check pass rate, broken out by difficulty band and by skill — the DC-calibration signal."
+  - cmd: "@balance progress"
+    description: "The non-credit advancement breadth — faction reputation movement (by faction, tier crossings), territorial influence, the prestige-title economy (buys vs earned grants), and the spacer onboarding-questline funnel."
   - cmd: "@balance raw 50"
     description: "Dump the last 50 raw telemetry records verbatim (default 20, clamped 1–200)."
 ---
@@ -63,6 +65,7 @@ SUBCOMMAND REFERENCE
   events             Communal-objective menace + strike outcomes
   sessions           Login/logout engagement + retention funnel
   skills             Out-of-combat skill-check pass rate by skill + DC
+  progress           Faction rep / influence / titles / spacer-quest funnel
   raw [N]            The last N raw telemetry records (default 20)
 
   Sub-board aliases the parser also accepts:
@@ -73,6 +76,7 @@ SUBCOMMAND REFERENCE
     events     = communal
     sessions   = session
     skills     = skill
+    progress   = progression, standing, rep
 
 READING THE BOARDS
   - **grind** surfaces whether the solo-PvE mob-grind trickle is
@@ -121,6 +125,17 @@ READING THE BOARDS
     **by skill** (which specific skill is rolling too hard or too
     soft). It is the highest-frequency instrumented chokepoint, so
     its keep-rate is sample-tunable (`telemetry.skill_check_sample`).
+  - **progress** is the non-credit advancement breadth — the four
+    progression faucets the grind / flows / cp credit boards can't
+    see: **faction reputation** movement (gains vs losses, tier
+    up/down crossings, clamp-at-cap pressure, broken out by faction);
+    **territorial influence** movement (by zone); the **prestige-title
+    economy** (titles bought vs earned grants + the credit soak — the
+    signal for tuning the `VANITY_TITLES` cost curve); and the
+    **spacer onboarding-questline** funnel (start → step → complete,
+    with its credit faucet + title grants + phase gates). Faction rep
+    and influence are reported as signed NET deltas (they genuinely
+    move up and down per actor), unlike the gross-volume credit board.
 
 RAW DUMP
   `@balance raw [N]` prints the last N telemetry records as
@@ -154,6 +169,7 @@ CHEAT SHEET
   @balance events       = communal menace + strikes
   @balance sessions     = engagement/retention funnel
   @balance skills       = skill-check pass rate by skill + DC
+  @balance progress     = faction rep / influence / titles / spacer-quest
   @balance raw [N]      = last N raw records (default 20)
 
 Sources: T3.19 telemetry read-side (`parser/director_commands.py`

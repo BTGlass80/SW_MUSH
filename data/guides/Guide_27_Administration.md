@@ -72,7 +72,7 @@ The Director is the Claude-backed world-orchestration layer. Admin controls:
 | `@director influence` | inspect/adjust territory influence |
 | `@director log` / `reset` / `narrative` / `cult` | run log, state reset, narrative & cult subforms |
 | `@economy` | economy dashboard — shops/credits/zones/velocity/alerts/throttle |
-| `@balance` (`@bal`) | telemetry dashboard — the *behavioural* read-side of `@economy` (grind/cp/flows/objectives/chains/encounters/events/sessions/skills/raw) |
+| `@balance` (`@bal`) | telemetry dashboard — the *behavioural* read-side of `@economy` (grind/cp/flows/objectives/chains/encounters/events/sessions/skills/progress/raw) |
 | `@lore` | world-lore entries — list/search/add/disable/enable |
 | `@hazard` | set/clear/list environmental room hazards (heat, toxic atmosphere, …) |
 | `@roomstate` | apply/clear/list dynamic room-state overlays |
@@ -95,7 +95,8 @@ rolls it into the balance-tuning signals you cannot get from a snapshot:
 `@balance encounters` (wilderness roll→fire rate by threat band),
 `@balance events` (communal-objective menace climb + strike outcomes),
 `@balance sessions` (login/logout engagement — connect→login conversion, play-time distribution, web-vs-telnet transport mix, the retention signal),
-`@balance skills` (out-of-combat skill-check pass rate by skill + WEG difficulty band — the single `perform_skill_check` funnel, the DC-calibration signal), and
+`@balance skills` (out-of-combat skill-check pass rate by skill + WEG difficulty band — the single `perform_skill_check` funnel, the DC-calibration signal),
+`@balance progress` (the non-credit advancement breadth — faction-reputation movement by faction with tier crossings + clamp pressure, territorial influence by zone, the prestige-title economy of buys vs earned grants, and the spacer onboarding-questline start→step→complete funnel — the four progression faucets the credit boards can't see), and
 `@balance raw [N]` (the last N raw records). It is the in-game companion to reading the raw
 JSON-line dumps offline, and it is fail-open — a telemetry hiccup never blocks the game loop.
 

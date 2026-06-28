@@ -917,11 +917,12 @@ class BalanceCommand(BaseCommand):
         "  @balance events     — communal-objective menace + strike outcomes\n"
         "  @balance sessions   — login/logout engagement: play time, transport mix\n"
         "  @balance skills     — out-of-combat skill-check pass rate by skill + DC\n"
+        "  @balance progress   — faction rep / influence / titles / spacer-quest\n"
         "  @balance raw [N]    — the last N raw telemetry records (default 20)\n"
         "  (reads engine/telemetry.py's dump; fail-open, never blocks the loop)"
     )
     usage = ("@balance [grind|cp|flows|objectives|chains|encounters|events|"
-             "sessions|skills|raw [N]]")
+             "sessions|skills|progress|raw [N]]")
 
     async def execute(self, ctx: CommandContext):
         parts = (ctx.args or "").split()
@@ -1005,6 +1006,8 @@ class BalanceCommand(BaseCommand):
             self._render_sessions(lines, summary["session"])
         if show_all or sub in ("skills", "skill"):
             self._render_skills(lines, summary["skill_check"])
+        if show_all or sub in ("progress", "progression", "standing", "rep"):
+            self._render_progress(lines, summary["progression"])
 
         lines.append("\033[1;36m══════════════════════════════════════════\033[0m")
         await ctx.session.send_line("\n".join(lines))
@@ -1193,6 +1196,52 @@ class BalanceCommand(BaseCommand):
             for name, n, ok in sk["by_skill"][:8]:
                 lines.append(
                     f"      {name:<20} {n:>6,}  {self._pct(ok, n)}")
+
+    def _render_progress(self, lines, p):
+        # Progression / standing funnel — the four NON-credit advancement
+        # faucets the grind/flows/cp credit boards can't see: personal faction
+        # reputation, territorial influence, the prestige-title economy, and the
+        # spacer onboarding-questline funnel. Net deltas (not gross) here: rep /
+        # influence are signed scores that genuinely net up and down per actor.
+        lines.append("  \033[1;33mPROGRESSION / STANDING\033[0m")
+        rep = p["rep_events"]
+        inf = p["inf_events"]
+        titles = p["title_events"]
+        spacer = (p["spacer_starts"] + p["spacer_steps"]
+                  + p["spacer_completes"])
+        if not (rep or inf or titles or spacer):
+            lines.append("    (no progression events recorded)")
+            return
+        if rep:
+            lines.append(
+                f"    Faction rep   : {rep:,} change(s)  "
+                f"+{p['rep_gain']:,} / -{p['rep_loss']:,}  "
+                f"tier ↑{p['rep_tier_ups']:,} ↓{p['rep_tier_downs']:,}  "
+                f"capped {p['rep_clamped']:,}")
+            if p["by_faction"]:
+                top = ", ".join(f"{fac} ({evs}, net {net:+,})"
+                                for fac, evs, net in p["by_faction"][:5])
+                lines.append(f"      by faction  : {top}")
+        if inf:
+            lines.append(
+                f"    Influence     : {inf:,} change(s)  "
+                f"+{p['inf_gain']:,} / -{p['inf_loss']:,}  "
+                f"capped {p['inf_clamped']:,}")
+            if p["by_zone"]:
+                top = ", ".join(f"{z} ({evs}, net {net:+,})"
+                                for z, evs, net in p["by_zone"][:5])
+                lines.append(f"      by zone     : {top}")
+        if titles:
+            lines.append(
+                f"    Vanity titles : {titles:,}  "
+                f"buys {p['title_buys']:,} / earned {p['title_grants']:,}  "
+                f"({p['title_credits']:,} cr soaked)")
+        if spacer:
+            lines.append(
+                f"    Spacer quest  : start {p['spacer_starts']:,} → "
+                f"step {p['spacer_steps']:,} → complete {p['spacer_completes']:,}"
+                f"   ({p['spacer_credits']:,} cr, {p['spacer_titles']:,} title(s), "
+                f"{p['spacer_phase_gates']:,} phase-gate(s))")
 
 
 class LoreCommand(BaseCommand):

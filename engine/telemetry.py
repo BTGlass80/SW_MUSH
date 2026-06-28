@@ -816,6 +816,13 @@ def summarize(events: list[dict]) -> dict:
                       the engagement/retention signal (is idle_timeout cutting
                       sessions short? do web players stay longer? how many of a
                       day's connects ever reach the world?).
+      - progression:  the standing/advancement breadth — personal faction
+                      reputation movement (faction_rep, by faction + tier
+                      transitions + clamp pressure), territorial influence
+                      movement (influence, by zone), the prestige-title economy
+                      (vanity_title buys vs earned grants + credit soak), and the
+                      spacer onboarding-questline funnel (spacer_quest). The four
+                      non-credit progression faucets the credit boards can't see.
 
     Pure + total: never reads files, never raises, accepts a possibly-mixed
     list of dicts and ignores fields it does not recognise.
@@ -881,6 +888,29 @@ def summarize(events: list[dict]) -> dict:
     # gambling/debt/insurance/housing/den/medical/bounty/entertainer), plus the
     # totals. Gross throughput, not net — see ``_economy_credits``.
     economy = {"events": 0, "credits": 0, "by_domain": {}}
+    # Progression / standing funnel (``progression`` → @balance progress). The
+    # four NON-credit advancement faucets the credit boards can't see:
+    #   faction_rep  — personal reputation movement (delta by faction, tier
+    #                  up/down crossings, clamp-at-cap pressure). ``tier`` is the
+    #                  band's low boundary (an int), so it sorts monotonically.
+    #   influence    — territorial control movement (delta by zone/region).
+    #   vanity_title — the prestige-title sink: ``purchase`` (a title bought,
+    #                  signed-negative ``amount``) vs an earned ``grant`` (no
+    #                  credit movement), + the gross credit soak.
+    #   spacer_quest — the spacer onboarding-questline funnel (start→step→
+    #                  complete), its credit faucet + title grants + phase gates.
+    progression = {
+        "rep_events": 0, "rep_gain": 0, "rep_loss": 0, "rep_clamped": 0,
+        "rep_tier_ups": 0, "rep_tier_downs": 0, "by_faction": [],
+        "inf_events": 0, "inf_gain": 0, "inf_loss": 0, "inf_clamped": 0,
+        "by_zone": [],
+        "title_events": 0, "title_buys": 0, "title_grants": 0,
+        "title_credits": 0,
+        "spacer_starts": 0, "spacer_steps": 0, "spacer_completes": 0,
+        "spacer_credits": 0, "spacer_titles": 0, "spacer_phase_gates": 0,
+    }
+    prog_by_faction: dict = {}
+    prog_by_zone: dict = {}
 
     for ev in events:
         if not isinstance(ev, dict):
@@ -1025,6 +1055,64 @@ def summarize(events: list[dict]) -> dict:
             aid = ev.get("account_id")
             if aid is not None:
                 sess_accounts.add(aid)
+        elif et == "faction_rep":
+            progression["rep_events"] += 1
+            d = _as_int(ev.get("delta"))
+            if d > 0:
+                progression["rep_gain"] += d
+            elif d < 0:
+                progression["rep_loss"] += -d
+            if ev.get("clamped"):
+                progression["rep_clamped"] += 1
+            # ``tier`` / ``prev_tier`` are band low-boundary ints (monotonic).
+            tier = _as_int(ev.get("tier"))
+            prev_tier = _as_int(ev.get("prev_tier"))
+            if tier > prev_tier:
+                progression["rep_tier_ups"] += 1
+            elif tier < prev_tier:
+                progression["rep_tier_downs"] += 1
+            fac = str(ev.get("faction") or "?")
+            fd = prog_by_faction.setdefault(fac, {"events": 0, "net": 0})
+            fd["events"] += 1
+            fd["net"] += d
+        elif et == "influence":
+            progression["inf_events"] += 1
+            d = _as_int(ev.get("delta"))
+            if d > 0:
+                progression["inf_gain"] += d
+            elif d < 0:
+                progression["inf_loss"] += -d
+            if ev.get("clamped"):
+                progression["inf_clamped"] += 1
+            zone = str(ev.get("zone_id") or ev.get("region") or "?")
+            zd = prog_by_zone.setdefault(zone, {"events": 0, "net": 0})
+            zd["events"] += 1
+            zd["net"] += d
+        elif et == "vanity_title":
+            progression["title_events"] += 1
+            action = str(ev.get("action") or "")
+            amt = _as_int(ev.get("amount"))
+            # ``purchase`` is the credit sink; everything else (``grant``) is an
+            # earned, creditless award. Fall back to the amount sign if the
+            # action label is missing.
+            if action == "purchase" or (not action and amt < 0):
+                progression["title_buys"] += 1
+            else:
+                progression["title_grants"] += 1
+            progression["title_credits"] += abs(amt)
+        elif et == "spacer_quest":
+            phase = ev.get("phase") or "?"
+            if phase == "start":
+                progression["spacer_starts"] += 1
+            elif phase == "step":
+                progression["spacer_steps"] += 1
+            elif phase == "complete":
+                progression["spacer_completes"] += 1
+            progression["spacer_credits"] += _as_int(ev.get("credits"))
+            if ev.get("title"):
+                progression["spacer_titles"] += 1
+            if ev.get("phase_gate"):
+                progression["spacer_phase_gates"] += 1
         elif et in _ECONOMY_DOMAINS:
             dom = _ECONOMY_DOMAINS[et]
             cr = _economy_credits(et, ev)
@@ -1044,6 +1132,14 @@ def summarize(events: list[dict]) -> dict:
         ((dom, d["events"], d["credits"])
          for dom, d in economy["by_domain"].items()),
         key=lambda r: (-r[2], -r[1], r[0]))
+    # Progression breakdowns ranked by event volume (the most-active first).
+    # Each row is (key, events, net-delta).
+    progression["by_faction"] = sorted(
+        ((fac, d["events"], d["net"]) for fac, d in prog_by_faction.items()),
+        key=lambda r: (-r[1], r[0]))[:8]
+    progression["by_zone"] = sorted(
+        ((z, d["events"], d["net"]) for z, d in prog_by_zone.items()),
+        key=lambda r: (-r[1], r[0]))[:8]
     enc["by_band"] = dict(sorted(enc["by_band"].items()))
     session["avg_duration_s"] = (_dur_sum / _dur_n) if _dur_n else 0.0
     session["max_duration_s"] = _dur_max
@@ -1079,4 +1175,5 @@ def summarize(events: list[dict]) -> dict:
         "skill_check": skill,
         "session": session,
         "economy": economy,
+        "progression": progression,
     }
