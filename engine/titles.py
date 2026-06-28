@@ -61,6 +61,33 @@ VANITY_TITLES = [
      "blurb": "A name spoken with reverence from the Rim to the Core."},
 ]
 
+
+# ── T3.19 config breadth: the vanity-title cost curve as TUNE levers ──────────
+# The 8 VANITY_TITLES costs above are the prestige-SINK lever the ``@balance
+# progress`` board's "Vanity titles … cr soaked" line exists to inform — and the
+# producer's own telemetry comment (_emit_title_telemetry) names them verbatim:
+# "the signal for tuning the 8-tier VANITY_TITLES cost curve (2k→400k): a dead
+# top tier means it is priced past reach; everyone parked on the cheap tiers
+# means the sink is too shallow". Each tier's cost is externalized to
+# data/tunables.yaml under ``title.cost_<key>`` and read at the USE SITE
+# (catalog_lines + purchase_title) so an operator's reprice takes effect on the
+# next load with no redeploy. Each YAML value EQUALS the in-code ``cost`` above,
+# so the file is purely additive (behaviour-identical to omitting it).
+def title_cost(key: str, default: int) -> int:
+    """Resolved purchase cost for vanity title ``key`` (T3.19 ``title.cost_<key>``).
+
+    Reads the externalized cost at the call site; clamped to ``>= 0`` (a negative
+    would PAY the buyer to take a prestige sink — 0 = a deliberately-free tier).
+    A corrupt / non-numeric YAML value can never crash a ``+title`` buy or the
+    catalog render — it falls back to the in-code ``default`` (the literal
+    ``cost`` from VANITY_TITLES). A float truncates to int (credits are whole)."""
+    from engine.tunables import get_tunable
+    try:
+        return max(0, int(get_tunable(f"title.cost_{key}", default)))
+    except (TypeError, ValueError):
+        return default
+
+
 # ── Earned titles (granted for DEEDS, never purchasable) ─────────────────────
 # The design III.2 extension this module's docstring anticipates: titles awarded
 # for in-game accomplishments flow into the SAME vanity_titles owned-set /
@@ -217,13 +244,14 @@ def catalog_lines(char):
         balance = 0
     rows = []
     for t in VANITY_TITLES:
+        cost = title_cost(t["key"], t["cost"])   # T3.19: operator-tunable price
         if is_owned(char, t["key"]):
             mark = "owned"
-        elif balance >= t["cost"]:
+        elif balance >= cost:
             mark = "buy"
         else:
             mark = "locked"
-        rows.append({"key": t["key"], "label": t["label"], "cost": t["cost"],
+        rows.append({"key": t["key"], "label": t["label"], "cost": cost,
                      "blurb": t["blurb"], "mark": mark})
     return rows
 
@@ -265,7 +293,7 @@ async def purchase_title(db, char: dict, key) -> dict:
     if is_owned(char, t["key"]):
         return {"ok": False, "reason": "owned", "label": t["label"]}
 
-    cost = int(t["cost"])
+    cost = title_cost(t["key"], t["cost"])   # T3.19: operator-tunable price
     try:
         balance = int(char.get("credits") or 0)
     except (TypeError, ValueError):

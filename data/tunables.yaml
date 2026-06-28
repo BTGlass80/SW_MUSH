@@ -342,6 +342,27 @@ communal.title_share_threshold: 0.10 # effort share to also earn the status flag
 encounter.cooldown_seconds: 60                # per-character cooldown between encounter rolls
 encounter.animal_excluder_avert_chance: 0.5  # Animal Excluder turn-away chance (0..1)
 
+# ── Vanity titles (engine/titles.py) ──
+# The 8-tier prestige-SINK cost curve — the lever the `@balance progress` board's
+# "Vanity titles … cr soaked" line exists to inform, and which the producer's own
+# emit-site comment names verbatim ("the signal for tuning the 8-tier
+# VANITY_TITLES cost curve (2k→400k): a dead top tier means it is priced past
+# reach; everyone parked on the cheap tiers means the sink is too shallow"). Each
+# value EQUALS the in-code `cost` in VANITY_TITLES, so this section is
+# behaviour-identical to omitting it; read at the use site (catalog + buy) clamped
+# to >= 0 (0 = a deliberately-free tier; a negative can't pay the buyer to take a
+# sink) so a reprice takes effect on the next load with no redeploy. These are a
+# pure money-burn (no faucet) — raise a tier to deepen the sink for the wealthy,
+# lower it to bring the prestige within reach.
+title.cost_wayfarer: 2000          # the Wayfarer (entry tier)
+title.cost_dealmaker: 5000         # the Dealmaker
+title.cost_high_roller: 12000      # the High Roller
+title.cost_socialite: 25000        # Sector Socialite
+title.cost_magnate: 60000          # Sector Magnate
+title.cost_void_baron: 120000      # Baron of the Void
+title.cost_philanthropist: 200000  # Renowned Philanthropist
+title.cost_luminary: 400000        # Luminary of the Core (headline money-burn)
+
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
 # Brian decision #7 (2026-06-16): T3.14 cities are OPTIONAL at launch.
