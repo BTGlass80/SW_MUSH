@@ -225,6 +225,23 @@ telemetry.session_sample: 1.0         # fraction of session lifecycle events emi
 # only the cap is tunable. Set to 0 to disable entirely.
 combat.early_cp_kill_cap: 5
 
+# ── Mob-grind reward trickle (engine/hunting_rewards.py) ──
+# The solo-PvE grind faucet's three economy levers — the knobs the `@balance
+# grind` telemetry board (grind_kill events) exists to inform. Each value below
+# EQUALS the in-code default, so this section is behaviour-identical to omitting
+# it; read at the use site (clamped to >= 0) so an edit takes effect on reload.
+#  * base_reward: cr per huntable kill while under the daily cap (the headline
+#    payout — raise to make grinding feel more rewarding, lower to tighten the
+#    faucet). A real fight's medical+repair cost exceeds this for any non-trivial
+#    mob, so the loop stays net-negative-to-break-even by design.
+#  * daily_soft_cap: cr/day from grinding before the reward drops to the floor —
+#    the bound that stops a marathon grinder from farming a real income.
+#  * over_cap_floor: cr per kill once past the cap (the "extreme trickle" tail;
+#    prestige/titles carry past the cap, not credits).
+grind.base_reward: 15        # cr per huntable kill, under the daily cap
+grind.daily_soft_cap: 400    # cr/day before the reward drops to the floor
+grind.over_cap_floor: 3      # cr per kill past the daily cap (trickle tail)
+
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
 # Brian decision #7 (2026-06-16): T3.14 cities are OPTIONAL at launch.

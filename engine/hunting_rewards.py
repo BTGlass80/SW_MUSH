@@ -44,7 +44,14 @@ log = logging.getLogger(__name__)
 # ── Per-character attribute key (sibling of tutorial_chain / seen_hints) ──
 HUNT_LOG_KEY = "hunting_log"
 
-# ── Tunable economy knobs (T2.ECON.review owns the final values) ──────────
+# ── Tunable economy knobs (in-code DEFAULTS; live-overridable) ────────────
+# These three are the grind faucet's economy levers. They are externalized to
+# data/tunables.yaml under ``grind.*`` and read at the USE SITE via the live
+# accessors below (get_tunable with the constant as default), so an operator can
+# re-tune the mob-grind credit trickle from config — using the ``@balance grind``
+# telemetry board (which exists to surface exactly this) as the signal — with no
+# code edit or redeploy. The constants here remain the behaviour-identical
+# fallback when the YAML omits the key (T2.ECON.review owns the final values).
 BASE_REWARD = 15          # cr per huntable kill, while under the daily cap
 DAILY_SOFT_CAP = 400      # cr/day from grinding before the reward drops to floor
 OVER_CAP_FLOOR = 3        # cr per kill once past the daily cap (the trickle tail)
@@ -80,6 +87,30 @@ def _safe_int(v, default: int = 0) -> int:
         return int(v)
     except (TypeError, ValueError):
         return default
+
+
+# ── Live tunable accessors (T3.19 config breadth) ─────────────────────────
+# Read the grind economy knobs at the USE SITE so an operator edit to
+# data/tunables.yaml takes effect on the next load (no module-import freeze).
+# Each falls back to the in-code constant when the key is absent, and clamps to
+# >= 0 so a fat-fingered negative can never invert the faucet into a credit SINK
+# on a kill (a negative ``base_reward`` would otherwise debit the killer).
+def _base_reward() -> int:
+    from engine.tunables import get_tunable
+    return max(0, _safe_int(get_tunable("grind.base_reward", BASE_REWARD),
+                            BASE_REWARD))
+
+
+def _daily_soft_cap() -> int:
+    from engine.tunables import get_tunable
+    return max(0, _safe_int(get_tunable("grind.daily_soft_cap", DAILY_SOFT_CAP),
+                            DAILY_SOFT_CAP))
+
+
+def _over_cap_floor() -> int:
+    from engine.tunables import get_tunable
+    return max(0, _safe_int(get_tunable("grind.over_cap_floor", OVER_CAP_FLOOR),
+                            OVER_CAP_FLOOR))
 
 
 def _ai_config(npc_row: dict) -> dict:
@@ -120,7 +151,7 @@ def _load_log(attrs: dict, day_stamp: str) -> dict:
 
 def _reward_for(daily_credits: int) -> int:
     """The per-kill reward given how much grind income today already is."""
-    return BASE_REWARD if daily_credits < DAILY_SOFT_CAP else OVER_CAP_FLOOR
+    return _base_reward() if daily_credits < _daily_soft_cap() else _over_cap_floor()
 
 
 def newly_earned_title(prev_kills: int, new_kills: int):
@@ -151,6 +182,7 @@ async def on_huntable_kill(db, killer_char: dict, npc_row: dict, *,
 
         attrs = _load_attrs(killer_char)
         log_d = _load_log(attrs, day_stamp)
+        cap = _daily_soft_cap()   # read once so the reward + at/over-cap flags agree
 
         daily_before = _safe_int(log_d.get("daily_credits"))
         reward = _reward_for(daily_before)
@@ -194,8 +226,8 @@ async def on_huntable_kill(db, killer_char: dict, npc_row: dict, *,
                 killer_char.get("id"),
                 reward=reward,
                 daily_credits=log_d["daily_credits"],
-                at_cap=log_d["daily_credits"] >= DAILY_SOFT_CAP,
-                over_cap=daily_before >= DAILY_SOFT_CAP,
+                at_cap=log_d["daily_credits"] >= cap,
+                over_cap=daily_before >= cap,
                 total_kills=new_kills,
                 npc_name=npc_row.get("name", ""),
                 room_id=killer_char.get("room_id"),
@@ -211,7 +243,7 @@ async def on_huntable_kill(db, killer_char: dict, npc_row: dict, *,
             "reward": reward,
             "total_kills": new_kills,
             "daily_credits": log_d["daily_credits"],
-            "at_cap": log_d["daily_credits"] >= DAILY_SOFT_CAP,
+            "at_cap": log_d["daily_credits"] >= cap,
             "new_balance": new_balance if isinstance(new_balance, int) else None,
             "title_key": title_key,
             "title_label": title_label,
@@ -242,7 +274,7 @@ def hunting_log_view(char: dict, *, day_stamp: str | None = None) -> dict:
     return {
         "kills": kills,
         "daily_credits": daily,
-        "daily_cap": DAILY_SOFT_CAP,
+        "daily_cap": _daily_soft_cap(),
         "next_threshold": next_thresh[0] if next_thresh else None,
         "next_title_key": next_thresh[1] if next_thresh else None,
     }
