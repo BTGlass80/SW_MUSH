@@ -64,6 +64,71 @@ MENACE_PER_MINUTE = 0.35
 STRIKE_COOLDOWN_S = 600    # 10 minutes
 
 
+# ── Live tunable accessors (T3.19 config breadth) ────────────────────────────
+# The `@balance communal` board observes exactly what these levers tune — menace
+# escalation pace (tier-escalation count) and strike throughput/success — so an
+# operator can re-tune the cult difficulty + prestige reward from
+# data/tunables.yaml under ``communal.*`` with no code edit or redeploy (the
+# producer's own emit-site comments already name MENACE_PER_MINUTE /
+# DEADLINE_HOURS / strike balance as the tuning targets). Each accessor reads at
+# the USE SITE (not module import) so an edit takes effect on the next load, and
+# falls back to the in-code constant when the YAML omits / mistypes / nulls the
+# key (purely additive — behaviour-identical to today). The pure 0..MENACE_MAX
+# menace axis is mechanism, not a balance magnitude, and stays a constant.
+def _safe_int(v, default: int) -> int:
+    """Tolerant int — a corrupt tunables value (str/None) must never crash a
+    menace tick or a strike; it falls back to the in-code default."""
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_float(v, default: float) -> float:
+    """Tolerant float analog of _safe_int for the float-valued levers."""
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def menace_start() -> float:
+    """Menace an objective is posted at. Clamped >= 0 so a negative can't post an
+    objective that begins already-routed (an instant, un-fought win)."""
+    from engine.tunables import get_tunable
+    return max(0.0, _safe_float(get_tunable("communal.menace_start", MENACE_START),
+                                MENACE_START))
+
+
+def menace_per_minute() -> float:
+    """Menace gained per real minute while active — the core win/loss pace lever.
+    Clamped >= 0 so a negative can't make the cult self-route over time (which
+    would invert the whole objective into a guaranteed win)."""
+    from engine.tunables import get_tunable
+    return max(0.0, _safe_float(
+        get_tunable("communal.menace_per_minute", MENACE_PER_MINUTE),
+        MENACE_PER_MINUTE))
+
+
+def deadline_hours() -> int:
+    """Hours from posting to the win/lose deadline. Clamped >= 1 — a 0/negative
+    window posts every objective already past its deadline (instantly LOST =
+    unwinnable), so floor it at the minimum that keeps the win path reachable
+    (the analog of cp.ticks_per_cp's divisor floor)."""
+    from engine.tunables import get_tunable
+    return max(1, _safe_int(get_tunable("communal.deadline_hours", DEADLINE_HOURS),
+                            DEADLINE_HOURS))
+
+
+def strike_cooldown_s() -> int:
+    """Per-character counted-strike cooldown (anti-spam). With menace_per_minute
+    it sets the community's max push-down rate vs the cult's rise = the win/loss
+    equilibrium. Clamped >= 0 (0 = no cooldown, the operator's choice)."""
+    from engine.tunables import get_tunable
+    return max(0, _safe_int(get_tunable("communal.strike_cooldown_s", STRIKE_COOLDOWN_S),
+                            STRIKE_COOLDOWN_S))
+
+
 # ── The cult roster (invented; CW-clean; Q1-clean; one themed cult per launch world) ──
 # `world_key` is informational/flavor; the runtime maps it to a zone for the banner.
 @dataclass(frozen=True)
@@ -142,7 +207,7 @@ def clamp_menace(menace: float) -> float:
 
 def advance_menace(menace: float, minutes_elapsed: float) -> float:
     """Escalate the cult over `minutes_elapsed`. Deterministic, clamped."""
-    m = float(menace) + (MENACE_PER_MINUTE * max(0.0, float(minutes_elapsed)))
+    m = float(menace) + (menace_per_minute() * max(0.0, float(minutes_elapsed)))
     return clamp_menace(m)
 
 
@@ -292,11 +357,38 @@ REP_MAX = 15           # the single largest contributor
 TITLE_SHARE_THRESHOLD = 0.10
 
 
+# ── Reward-lever accessors (T3.19 config breadth; see the difficulty block) ───
+def rep_floor() -> int:
+    """Republic-rep floor for any contributor on a WIN (the show-up reward).
+    Clamped >= 0 so a negative can't turn the prestige faucet into a rep DEBIT on
+    a community win (opportunities-never-penalties)."""
+    from engine.tunables import get_tunable
+    return max(0, _safe_int(get_tunable("communal.rep_floor", REP_FLOOR), REP_FLOOR))
+
+
+def rep_max() -> int:
+    """Republic-rep for the single largest contributor on a WIN (the linear cap).
+    Clamped >= 0 for the same no-DEBIT reason as rep_floor."""
+    from engine.tunables import get_tunable
+    return max(0, _safe_int(get_tunable("communal.rep_max", REP_MAX), REP_MAX))
+
+
+def title_share_threshold() -> float:
+    """Share of total effort at/above which a contributor also earns the
+    commemorative status flag. Clamped >= 0.0 (a value > 1.0 simply means nobody
+    qualifies — harmless — so only the negative floor is enforced)."""
+    from engine.tunables import get_tunable
+    return max(0.0, _safe_float(
+        get_tunable("communal.title_share_threshold", TITLE_SHARE_THRESHOLD),
+        TITLE_SHARE_THRESHOLD))
+
+
 def reward_rep_for_share(points: int, total_points: int, won: bool) -> int:
     """Republic-rep delta for a contributor, given their points and the total.
 
-    Win-only. Linear in share between REP_FLOOR and REP_MAX. A loss pays nothing
-    (opportunities, never penalties — a loss is simply no reward).
+    Win-only. Linear in share between the rep_floor() and rep_max() levers. A
+    loss pays nothing (opportunities, never penalties — a loss is simply no
+    reward).
     """
     if not won:
         return 0
@@ -305,7 +397,11 @@ def reward_rep_for_share(points: int, total_points: int, won: bool) -> int:
         return 0
     total = max(1, int(total_points))
     share = min(1.0, p / total)
-    return int(round(REP_FLOOR + (REP_MAX - REP_FLOOR) * share))
+    # Snapshot both levers once so the floor and cap come from one consistent
+    # config read (an operator edit between the two reads can't skew the scale).
+    floor = rep_floor()
+    top = rep_max()
+    return int(round(floor + (top - floor) * share))
 
 
 def earns_title(points: int, total_points: int, won: bool) -> bool:
@@ -313,7 +409,7 @@ def earns_title(points: int, total_points: int, won: bool) -> bool:
     if not won or int(points) <= 0:
         return False
     total = max(1, int(total_points))
-    return (int(points) / total) >= TITLE_SHARE_THRESHOLD
+    return (int(points) / total) >= title_share_threshold()
 
 
 # ── Player-facing strings (CW-clean; Q1-clean; deterministic fallbacks) ──────────
@@ -356,8 +452,9 @@ def viewer_contribution_line(contributions, char_id, now_ms) -> str:
     ready, secs_left = True, 0
     if last > 0:
         elapsed = int(now_ms) - int(last)
-        if elapsed < STRIKE_COOLDOWN_S * 1000:
-            ready, secs_left = False, (STRIKE_COOLDOWN_S * 1000 - elapsed) // 1000
+        cooldown_ms = strike_cooldown_s() * 1000
+        if elapsed < cooldown_ms:
+            ready, secs_left = False, (cooldown_ms - elapsed) // 1000
     cd = (f"{_GREEN}ready{_RESET}" if ready
           else f"{_DIM}~{max(1, secs_left // 60)}m{_RESET}")
     return (f"{_CYAN}Your effort:{_RESET} {pts} menace pushed back. "

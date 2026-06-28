@@ -290,6 +290,38 @@ cp.kudos_ticks: 35              # ticks awarded per kudos received
 cp.kudos_per_week: 3            # max kudos a character can receive per 7 days
 cp.ai_max_ticks_per_eval: 15    # ceiling on a single AI-evaluation grant
 
+# ── Communal objective / dark-side cult (engine/communal_objective.py) ──
+# The cult-uprising difficulty + prestige-reward levers — the knobs the
+# `@balance communal` board (menace-tick + tier-escalation count, strike count +
+# success rate) exists to inform, and which the producer's own emit-site comments
+# already name as the tuning targets ("for MENACE_PER_MINUTE / DEADLINE_HOURS /
+# strike balance"). Each value below equals the in-code default, so this section
+# is behaviour-identical to omitting it; read at the use site (magnitudes clamped
+# to >= 0 so a negative can't invert a faucet/escalation; deadline_hours clamped
+# to >= 1 since a 0/negative window posts an instantly-LOST = unwinnable
+# objective) so an edit takes effect on the next load with no redeploy. The pure
+# 0..100 menace axis (MENACE_MAX) is mechanism, not a balance magnitude, and
+# stays hardcoded.
+#  * menace_start: menace an objective is posted at (0..100) — how threatening
+#    the cult already is when it appears (higher = a harder/shorter fight).
+#  * menace_per_minute: menace gained per real minute while active — the core
+#    win/loss pace lever (raise = the cult outruns a small community sooner).
+#  * deadline_hours: hours from posting to the win/lose deadline (the win window).
+#  * strike_cooldown_s: per-character counted-strike cooldown (anti-spam) — with
+#    menace_per_minute it sets the community's max push-down rate = the win/loss
+#    equilibrium.
+#  * rep_floor / rep_max: Republic-rep paid on a WIN — the show-up floor (anyone
+#    who landed a strike) and the top-contributor cap (linear in effort share).
+#  * title_share_threshold: share of total effort at/above which a contributor
+#    also earns the commemorative status flag (0.10 = top ~10%-share earners).
+communal.menace_start: 35            # menace at post (0..100)
+communal.menace_per_minute: 0.35     # menace gained per real minute active
+communal.deadline_hours: 48          # hours from post to the win/lose deadline
+communal.strike_cooldown_s: 600      # per-character strike cooldown (10 min)
+communal.rep_floor: 3                # Republic-rep floor for any winning contributor
+communal.rep_max: 15                 # Republic-rep for the single largest contributor
+communal.title_share_threshold: 0.10 # effort share to also earn the status flag
+
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
 # Brian decision #7 (2026-06-16): T3.14 cities are OPTIONAL at launch.

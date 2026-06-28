@@ -147,7 +147,7 @@ async def maybe_post(db, session_mgr, now_ms: "int | None" = None) -> "dict | No
 
     cult = CO.cult_for_index(rotation)
     label = _zone_label(cult)
-    deadline = now + CO.DEADLINE_HOURS * 3600 * 1000
+    deadline = now + CO.deadline_hours() * 3600 * 1000
 
     try:
         await db.execute(
@@ -156,7 +156,7 @@ async def maybe_post(db, session_mgr, now_ms: "int | None" = None) -> "dict | No
             " rotation, started_at, deadline_at, advanced_at, resolved_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
-                cult.key, cult.world_key, label, float(CO.MENACE_START),
+                cult.key, cult.world_key, label, float(CO.menace_start()),
                 CO.STATE_ACTIVE, "{}", int(rotation),
                 float(now), float(deadline), float(now), 0.0,
             ),
@@ -237,8 +237,9 @@ async def record_strike(db, session_mgr, char: dict,
 
     # per-character strike cooldown
     last_strike = float(mine.get("last_strike_at") or 0)
-    if last_strike and (now - int(last_strike)) < CO.STRIKE_COOLDOWN_S * 1000:
-        left = CO.STRIKE_COOLDOWN_S - (now - int(last_strike)) // 1000
+    cooldown_s = CO.strike_cooldown_s()
+    if last_strike and (now - int(last_strike)) < cooldown_s * 1000:
+        left = cooldown_s - (now - int(last_strike)) // 1000
         return StrikeResult(
             False, reason="cooldown", cult=cult,
             lines=[CO.strike_cooldown_line(int(left))],
@@ -829,7 +830,7 @@ async def force_post(db, session_mgr, cult_key=None, now_ms=None) -> "dict | Non
     cult = CO.CULT_BY_KEY.get((cult_key or "").strip().lower()) \
         or CO.cult_for_index(rotation)
     label = _zone_label(cult)
-    deadline = now + CO.DEADLINE_HOURS * 3600 * 1000
+    deadline = now + CO.deadline_hours() * 3600 * 1000
 
     try:
         await db.execute(
@@ -838,7 +839,7 @@ async def force_post(db, session_mgr, cult_key=None, now_ms=None) -> "dict | Non
             " rotation, started_at, deadline_at, advanced_at, resolved_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
-                cult.key, cult.world_key, label, float(CO.MENACE_START),
+                cult.key, cult.world_key, label, float(CO.menace_start()),
                 CO.STATE_ACTIVE, "{}", int(rotation),
                 float(now), float(deadline), float(now), 0.0,
             ),
