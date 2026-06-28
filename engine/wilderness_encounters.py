@@ -61,7 +61,49 @@ _encounter_cooldowns: dict[int, float] = {}
 ENCOUNTER_COOLDOWN_SECONDS = 60
 
 # Default base chance per move if region doesn't override (design §5.1).
+# NOTE: this module-level default has no runtime consumer — base_chance_per_move
+# is a per-pool DATA field (EncounterPool, loaded from each region's YAML), so it
+# is already operator-tunable per region. There is no global lever to externalize
+# here; only the two GLOBAL density knobs below (cooldown + excluder avert) become
+# tunables (T3.19).
 DEFAULT_BASE_CHANCE_PER_MOVE = 0.04
+
+
+# ── T3.19 config breadth: global encounter-DENSITY tunables ──────────────
+# The two GLOBAL spawn-pacing levers the `@balance encounters` board
+# (wild_encounter events) exists to inform — the mob-DENSITY complement to the
+# grind-reward faucet (engine/hunting_rewards.py). The board's own telemetry
+# comment names them: "the signal for tuning base_chance_per_move, the 60s
+# cooldown, ...". base_chance is already per-pool data (above); these two are
+# hardcoded module constants → externalized to data/tunables.yaml under
+# `encounter.*`, read at the USE SITE so an edit takes effect on the next load.
+# Each accessor returns the in-code default below when the key is absent, so the
+# YAML is purely additive (behaviour-identical to omitting it).
+def _safe_int(v, default: int) -> int:
+    """Tolerant int — a corrupt tunables value (str/None) must never crash an
+    encounter roll on a wilderness move; it falls back to the in-code default."""
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_float(v, default: float) -> float:
+    """Tolerant float analog of _safe_int for the probability-valued lever."""
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def cooldown_seconds() -> int:
+    """The per-character encounter cooldown in seconds (the grind-density pacing
+    lever — raise to thin spawns, lower to crowd them). Clamped to >= 0 so a
+    negative can't underflow the window check (0 = no cooldown)."""
+    from engine.tunables import get_tunable
+    return max(0, _safe_int(
+        get_tunable("encounter.cooldown_seconds", ENCOUNTER_COOLDOWN_SECONDS),
+        ENCOUNTER_COOLDOWN_SECONDS))
 
 # Allowed encounter types per design §5.2. Strict whitelist: unknown
 # types are dropped at load time with a warning.
@@ -255,7 +297,7 @@ def _is_on_cooldown(char_id: int, now: Optional[float] = None) -> bool:
         return False
     now = now if now is not None else time.time()
     last = _encounter_cooldowns.get(char_id, 0.0)
-    return (now - last) < ENCOUNTER_COOLDOWN_SECONDS
+    return (now - last) < cooldown_seconds()
 
 
 def _mark_cooldown(char_id: int, now: Optional[float] = None) -> None:
@@ -281,6 +323,18 @@ def clear_cooldowns() -> None:
 # consumer exists. Tunables → T3.19.
 ANIMAL_EXCLUDER_KEY = "animal_excluder"
 ANIMAL_EXCLUDER_AVERT_CHANCE = 0.5
+
+
+def animal_excluder_avert_chance() -> float:
+    """Flat chance the Merr-Sonn Animal Excluder turns a creature encounter away
+    (T3.19 `encounter.animal_excluder_avert_chance`). Clamped to [0.0, 1.0]: it
+    is compared against random() in [0, 1), so a value outside that range is
+    meaningless (>= 1 always averts, < 0 never) — clamping keeps it a probability."""
+    from engine.tunables import get_tunable
+    return max(0.0, min(1.0, _safe_float(
+        get_tunable("encounter.animal_excluder_avert_chance",
+                    ANIMAL_EXCLUDER_AVERT_CHANCE),
+        ANIMAL_EXCLUDER_AVERT_CHANCE)))
 
 
 def _roll_encounter_impl(
@@ -384,7 +438,7 @@ def _roll_encounter_impl(
         _payload = getattr(chosen, "payload", None) or {}
         if (_etype in ("hostile", "non_hostile")
                 and _payload.get("npc_template")
-                and (rng or random).random() < ANIMAL_EXCLUDER_AVERT_CHANCE):
+                and (rng or random).random() < animal_excluder_avert_chance()):
             _mark_cooldown(char_id, now=now)
             return EncounterRollResult(
                 fired=False,

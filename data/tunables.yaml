@@ -322,6 +322,26 @@ communal.rep_floor: 3                # Republic-rep floor for any winning contri
 communal.rep_max: 15                 # Republic-rep for the single largest contributor
 communal.title_share_threshold: 0.10 # effort share to also earn the status flag
 
+# ── Wilderness encounter density (engine/wilderness_encounters.py) ──
+# The two GLOBAL spawn-pacing levers — the mob-DENSITY complement to the
+# grind-reward faucet above (grind.*). The `@balance encounters` board
+# (wild_encounter events: fire-rate / reason / threat-band) is the read-side
+# signal these inform; its telemetry comment names them verbatim ("the signal
+# for tuning base_chance_per_move, the 60s cooldown"). base_chance_per_move is
+# already a per-pool DATA field (each region's encounter YAML), so it has no
+# global lever here — only these two module constants are externalized. Each
+# value below EQUALS the in-code default, so this section is behaviour-identical
+# to omitting it; read at the use site (cooldown clamped >= 0; avert clamped to
+# the [0,1] probability range) so an edit takes effect on the next load.
+#  * cooldown_seconds: per-character seconds between encounter rolls that can
+#    fire — THE grind-density pacing lever (raise to thin spawns / slow the
+#    grind loop, lower to crowd them). 0 = no cooldown (a roll every move).
+#  * animal_excluder_avert_chance: flat chance the Merr-Sonn Animal Excluder
+#    turns away a creature-templated encounter the carrier would otherwise hit
+#    (the device's value lever — higher makes the deterrent stronger).
+encounter.cooldown_seconds: 60                # per-character cooldown between encounter rolls
+encounter.animal_excluder_avert_chance: 0.5  # Animal Excluder turn-away chance (0..1)
+
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
 # Brian decision #7 (2026-06-16): T3.14 cities are OPTIONAL at launch.
