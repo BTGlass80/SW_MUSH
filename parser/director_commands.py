@@ -43,6 +43,27 @@ def _time_ago(ts_val) -> str:
         return str(ts_val)
 
 
+def _fmt_dur(seconds) -> str:
+    """Format a duration in seconds as a compact human string (e.g. ``5m 12s``).
+
+    Used by the @balance sessions board for play-time / connected-span figures.
+    Fail-soft: a non-numeric value renders as ``—``.
+    """
+    try:
+        secs = int(float(seconds))
+    except (TypeError, ValueError):
+        return "—"
+    if secs <= 0:
+        return "0s"
+    if secs < 60:
+        return f"{secs}s"
+    if secs < 3600:
+        return f"{secs // 60}m {secs % 60}s"
+    h = secs // 3600
+    m = (secs % 3600) // 60
+    return f"{h}h {m}m"
+
+
 class DirectorCommand(BaseCommand):
     key = "@director"
     aliases = []
@@ -893,10 +914,12 @@ class BalanceCommand(BaseCommand):
         "  @balance chains     — tutorial-chain / questline completion funnel\n"
         "  @balance encounters — wilderness encounter roll→fire rate by band\n"
         "  @balance events     — communal-objective menace + strike outcomes\n"
+        "  @balance sessions   — login/logout engagement: play time, transport mix\n"
         "  @balance raw [N]    — the last N raw telemetry records (default 20)\n"
         "  (reads engine/telemetry.py's dump; fail-open, never blocks the loop)"
     )
-    usage = "@balance [grind|cp|objectives|chains|encounters|events|raw [N]]"
+    usage = ("@balance [grind|cp|objectives|chains|encounters|events|"
+             "sessions|raw [N]]")
 
     async def execute(self, ctx: CommandContext):
         parts = (ctx.args or "").split()
@@ -974,6 +997,8 @@ class BalanceCommand(BaseCommand):
             self._render_encounters(lines, summary["wild_encounter"])
         if show_all or sub in ("events", "communal"):
             self._render_communal(lines, summary["communal"])
+        if show_all or sub in ("sessions", "session"):
+            self._render_sessions(lines, summary["session"])
 
         lines.append("\033[1;36m══════════════════════════════════════════\033[0m")
         await ctx.session.send_line("\n".join(lines))
@@ -1078,6 +1103,29 @@ class BalanceCommand(BaseCommand):
             f"succeeded {c['strike_success']:,} "
             f"({self._pct(c['strike_success'], c['strikes'])})",
         ]
+
+    def _render_sessions(self, lines, s):
+        # Engagement / retention funnel. ``logouts`` counts connections (every
+        # disconnect funnels through one chokepoint), ``reached_game`` is the
+        # connect→login conversion, durations come on the logout event only.
+        lines.append("  \033[1;33mSESSIONS / ENGAGEMENT\033[0m")
+        if not (s["logouts"] or s["logins"]):
+            lines.append("    (no session events recorded)")
+            return
+        lines += [
+            f"    Connects      : {s['logouts']:,}   logins {s['logins']:,}   "
+            f"reached game {s['reached_game']:,} "
+            f"({self._pct(s['reached_game'], s['logouts'])})",
+            f"    Avg play time : {_fmt_dur(s['avg_duration_s'])}  "
+            f"(max {_fmt_dur(s['max_duration_s'])})",
+            f"    Avg connected : {_fmt_dur(s['avg_connected_s'])}  "
+            f"(connect→disconnect span, incl. login screen)",
+            f"    Distinct      : {s['players']:,} char(s), "
+            f"{s['accounts']:,} account(s)",
+        ]
+        if s["by_transport"]:
+            tr = ", ".join(f"{name}×{cnt}" for name, cnt in s["by_transport"][:4])
+            lines.append(f"    Transport     : {tr}")
 
 
 class LoreCommand(BaseCommand):

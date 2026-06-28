@@ -72,7 +72,7 @@ The Director is the Claude-backed world-orchestration layer. Admin controls:
 | `@director influence` | inspect/adjust territory influence |
 | `@director log` / `reset` / `narrative` / `cult` | run log, state reset, narrative & cult subforms |
 | `@economy` | economy dashboard — shops/credits/zones/velocity/alerts/throttle |
-| `@balance` (`@bal`) | telemetry dashboard — the *behavioural* read-side of `@economy` (grind/cp/objectives/chains/encounters/events/raw) |
+| `@balance` (`@bal`) | telemetry dashboard — the *behavioural* read-side of `@economy` (grind/cp/objectives/chains/encounters/events/sessions/raw) |
 | `@lore` | world-lore entries — list/search/add/disable/enable |
 | `@hazard` | set/clear/list environmental room hazards (heat, toxic atmosphere, …) |
 | `@roomstate` | apply/clear/list dynamic room-state overlays |
@@ -92,7 +92,8 @@ rolls it into the balance-tuning signals you cannot get from a snapshot:
 `@balance objectives` (mission/bounty/smuggling start→complete→abandon funnel),
 `@balance chains` (tutorial-chain / questline completion funnel — graduations + reward-step credit flow, per chain),
 `@balance encounters` (wilderness roll→fire rate by threat band),
-`@balance events` (communal-objective menace climb + strike outcomes), and
+`@balance events` (communal-objective menace climb + strike outcomes),
+`@balance sessions` (login/logout engagement — connect→login conversion, play-time distribution, web-vs-telnet transport mix, the retention signal), and
 `@balance raw [N]` (the last N raw records). It is the in-game companion to reading the raw
 JSON-line dumps offline, and it is fail-open — a telemetry hiccup never blocks the game loop.
 

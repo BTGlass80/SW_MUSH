@@ -22,6 +22,8 @@ examples:
     description: "Wilderness encounter roll→fire rate, broken out by difficulty band."
   - cmd: "@balance events"
     description: "Communal-objective (cult menace) accumulation and strike outcomes."
+  - cmd: "@balance sessions"
+    description: "Login/logout engagement: connect→login conversion, play-time distribution, web-vs-telnet transport mix."
   - cmd: "@balance raw 50"
     description: "Dump the last 50 raw telemetry records verbatim (default 20, clamped 1–200)."
 ---
@@ -54,6 +56,7 @@ SUBCOMMAND REFERENCE
   chains             Tutorial-chain / questline completion funnel
   encounters         Wilderness encounter roll→fire rate by band
   events             Communal-objective menace + strike outcomes
+  sessions           Login/logout engagement + retention funnel
   raw [N]            The last N raw telemetry records (default 20)
 
   Sub-board aliases the parser also accepts:
@@ -61,6 +64,7 @@ SUBCOMMAND REFERENCE
     chains     = chain, questlines, questline
     encounters = encounter
     events     = communal
+    sessions   = session
 
 READING THE BOARDS
   - **grind** surfaces whether the solo-PvE mob-grind trickle is
@@ -80,6 +84,14 @@ READING THE BOARDS
     open world actually triggers content.
   - **events** tracks communal-objective (cult) menace
     accumulation and strike outcomes.
+  - **sessions** is the engagement / retention funnel: connections
+    vs logins (the connect→login conversion — how many of a day's
+    connects ever reach the world), average and peak play time,
+    average connect→disconnect span (which exposes time spent
+    bouncing at the login screen), distinct characters/accounts,
+    and the web-vs-telnet transport mix. This is the signal for
+    whether `idle_timeout` is cutting real sessions short and
+    whether players come back.
 
 RAW DUMP
   `@balance raw [N]` prints the last N telemetry records as
@@ -110,6 +122,7 @@ CHEAT SHEET
   @balance chains       = chain/questline completion funnel
   @balance encounters   = wilderness pacing
   @balance events       = communal menace + strikes
+  @balance sessions     = engagement/retention funnel
   @balance raw [N]      = last N raw records (default 20)
 
 Sources: T3.19 telemetry read-side (`parser/director_commands.py`

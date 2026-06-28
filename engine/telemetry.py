@@ -714,6 +714,11 @@ def summarize(events: list[dict]) -> dict:
                       / questline-completion health signal.
       - wild_encounter: roll→fire rate by threat band — for encounter pacing.
       - communal:     menace escalation + strike success — for cult tuning.
+      - session:      login/logout funnel — connect→login conversion, play-time
+                      distribution, transport mix, distinct players/accounts —
+                      the engagement/retention signal (is idle_timeout cutting
+                      sessions short? do web players stay longer? how many of a
+                      day's connects ever reach the world?).
 
     Pure + total: never reads files, never raises, accepts a possibly-mixed
     list of dicts and ignores fields it does not recognise.
@@ -741,6 +746,25 @@ def summarize(events: list[dict]) -> dict:
     # ``graduations``.)
     chain = {"step_events": 0, "graduations": 0, "credits": 0,
              "items": 0, "achievements": 0, "by_chain": {}}
+    # Session / engagement funnel (``emit_session``: phase login|logout). Every
+    # disconnect path funnels through one chokepoint (SessionManager.remove), so
+    # ``logouts`` counts connections (connects); ``reached_game`` is the
+    # connect→login conversion; durations arrive on the logout event only
+    # (``duration_s`` = play time, ``connected_s`` = full connect→disconnect
+    # span incl. the pre-auth login screen). The richest launch retention
+    # signal — how long players stay, whether they return (distinct accounts),
+    # the web-vs-telnet mix — which otherwise appeared nowhere but the raw dump.
+    session = {"logins": 0, "logouts": 0, "reached_game": 0,
+               "avg_duration_s": 0.0, "max_duration_s": 0.0,
+               "avg_connected_s": 0.0, "players": 0, "accounts": 0,
+               "by_transport": Counter()}
+    _dur_sum = 0.0
+    _dur_n = 0
+    _dur_max = 0.0
+    _con_sum = 0.0
+    _con_n = 0
+    sess_players: set = set()
+    sess_accounts: set = set()
 
     for ev in events:
         if not isinstance(ev, dict):
@@ -824,11 +848,47 @@ def summarize(events: list[dict]) -> dict:
             elif phase == "step":
                 d["steps"] += 1
                 chain["step_events"] += 1
+        elif et == "session":
+            phase = ev.get("phase") or "?"
+            if phase == "login":
+                session["logins"] += 1
+            elif phase == "logout":
+                session["logouts"] += 1
+                if ev.get("reached_game"):
+                    session["reached_game"] += 1
+                dval = ev.get("duration_s")
+                if isinstance(dval, (int, float)):
+                    _dur_sum += dval
+                    _dur_n += 1
+                    if dval > _dur_max:
+                        _dur_max = dval
+                cval = ev.get("connected_s")
+                if isinstance(cval, (int, float)):
+                    _con_sum += cval
+                    _con_n += 1
+                # Count transport per CONNECTION (logout only). Every teardown
+                # funnels through one chokepoint so each connection emits exactly
+                # one logout — counting both phases would double the mix.
+                tr = ev.get("transport")
+                if tr:
+                    session["by_transport"][str(tr)] += 1
+            cid = ev.get("char_id")
+            if cid is not None:
+                sess_players.add(cid)
+            aid = ev.get("account_id")
+            if aid is not None:
+                sess_accounts.add(aid)
 
     grind["grinders"] = len(grinders)
     grind["npcs"] = grind["npcs"].most_common(8)
     cp["by_source"] = cp["by_source"].most_common()
     enc["by_band"] = dict(sorted(enc["by_band"].items()))
+    session["avg_duration_s"] = (_dur_sum / _dur_n) if _dur_n else 0.0
+    session["max_duration_s"] = _dur_max
+    session["avg_connected_s"] = (_con_sum / _con_n) if _con_n else 0.0
+    session["players"] = len(sess_players)
+    session["accounts"] = len(sess_accounts)
+    session["by_transport"] = session["by_transport"].most_common()
 
     return {
         "total": len(events),
@@ -841,4 +901,5 @@ def summarize(events: list[dict]) -> dict:
         "chain": chain,
         "wild_encounter": enc,
         "communal": communal,
+        "session": session,
     }
