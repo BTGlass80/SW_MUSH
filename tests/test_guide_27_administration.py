@@ -224,7 +224,7 @@ class TestBalanceDashboard:
         assert "live db state" in lowered  # the @economy side of the contrast
 
     @pytest.mark.parametrize("sub", [
-        "grind", "cp", "objectives", "chains", "encounters", "events",
+        "grind", "cp", "flows", "objectives", "chains", "encounters", "events",
         "sessions", "skills", "raw",
     ])
     def test_guide_documents_balance_subforms(self, guide_text, sub):
@@ -233,7 +233,7 @@ class TestBalanceDashboard:
         )
 
     @pytest.mark.parametrize("sub", [
-        "grind", "cp", "objectives", "chains", "encounters", "events",
+        "grind", "cp", "flows", "objectives", "chains", "encounters", "events",
         "sessions", "skills", "raw",
     ])
     def test_subform_is_really_dispatched(self, sub):

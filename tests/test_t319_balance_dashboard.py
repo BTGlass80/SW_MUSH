@@ -245,7 +245,7 @@ class BalanceCommandTests(_IsolatedTelemetryTest):
         self.assertIn("@BALANCE DASHBOARD", out)
         self.assertIn("EVENT MIX", out)
         self.assertIn("MOB GRIND", out)
-        self.assertIn("CP INCOME", out)
+        self.assertIn("CP ECONOMY", out)   # income faucet + cp_spend sink
         self.assertIn("OBJECTIVE FUNNEL", out)
         self.assertIn("WILDERNESS ENCOUNTERS", out)
         self.assertIn("COMMUNAL OBJECTIVES", out)
@@ -263,7 +263,7 @@ class BalanceCommandTests(_IsolatedTelemetryTest):
         _run(dc.BalanceCommand().execute(_ctx(sess, "grind")))
         out = "\n".join(sess.lines)
         self.assertIn("MOB GRIND", out)
-        self.assertNotIn("CP INCOME", out)
+        self.assertNotIn("CP ECONOMY", out)
 
     def test_raw_subcommand_lists_records(self):
         self._emit_sample()

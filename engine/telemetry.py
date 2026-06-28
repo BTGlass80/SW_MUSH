@@ -732,6 +732,58 @@ def _difficulty_band(d: Any) -> str:
     return "Heroic+"
 
 
+# Credit-flow funnel (``economy`` rollup → ``@balance flows``). Each of these
+# event types is a distinct credit faucet/sink that the live ``@economy`` board
+# (a DB snapshot of who holds what NOW) cannot trend over time. This rollup
+# captures the behavioural VOLUME of credits MOVING through each system — which
+# systems players actually use and how much money flows through each — the
+# direct signal for tuning a system's prices / fees / payouts. Map: emitted
+# event type -> the human domain label it rolls up under.
+_ECONOMY_DOMAINS = {
+    "vendor_txn":         "vendor",
+    "commissary_txn":     "commissary",
+    "gamble":             "gambling",
+    "debt":               "debt",
+    "gear_insurance":     "insurance",
+    "housing":            "housing",
+    "den":                "den",
+    "medical_treatment":  "medical",
+    "pc_bounty":          "bounty",
+    "entertainer_perform": "entertainer",
+}
+
+
+def _economy_credits(et: str, ev: dict) -> int:
+    """Gross (non-negative) credits that changed hands in one economy event.
+
+    The credit-amount field name varies per producer (``price`` for a vendor
+    trade, ``cost``/``refund`` for a commissary requisition, ``bet`` for a
+    sabacc hand, ``paid`` for a healer treatment, ``payout`` for a performance,
+    a signed ``amount`` for the debt/insurance/housing/den/bounty systems). We
+    report gross THROUGHPUT, not a signed net: these emitters record only the
+    ACTING player's side of a possibly two-sided transfer (a P2P sale emits one
+    event), so a summed "net" would be misleading — gross volume per system is
+    the honest, robust signal. Pure + total: anything unparseable reads 0.
+    """
+    try:
+        if et == "vendor_txn":
+            return abs(_as_int(ev.get("price")))
+        if et == "commissary_txn":
+            # Exactly one of cost (buy) / refund (sell) is present per event.
+            return abs(_as_int(ev.get("cost")) or _as_int(ev.get("refund")))
+        if et == "gamble":
+            return abs(_as_int(ev.get("bet")))
+        if et == "medical_treatment":
+            return abs(_as_int(ev.get("paid")))
+        if et == "entertainer_perform":
+            return abs(_as_int(ev.get("payout")))
+        # debt / gear_insurance / housing / den / pc_bounty carry a signed
+        # ``amount`` (negative for the sink leg, positive for a refund/payout).
+        return abs(_as_int(ev.get("amount")))
+    except Exception:
+        return 0
+
+
 def summarize(events: list[dict]) -> dict:
     """Aggregate parsed telemetry events into balance-tuning rollups (pure).
 
@@ -740,7 +792,14 @@ def summarize(events: list[dict]) -> dict:
       - grind:        kill volume, payout, soft-/over-cap pressure, top mobs,
                       distinct grinders — for BASE_REWARD / DAILY_SOFT_CAP /
                       OVER_CAP_FLOOR.
-      - cp_income:    CP-source mix + weekly-cap pressure — for the CP levers.
+      - cp_income:    CP-source mix + weekly-cap pressure (faucet) PLUS the
+                      ``cp_spend`` sink (CP spent on ``train``, by skill) — for
+                      the CP levers and hoard-vs-spend behaviour.
+      - economy:      per-system gross credit throughput for every credit
+                      faucet/sink the @economy snapshot can't trend (vendor /
+                      commissary / gambling / debt / insurance / housing / den /
+                      medical / bounty / entertainer) — which systems move money
+                      and how much, for tuning each system's prices/fees/payouts.
       - objective:    start→complete→abandon funnel + reward, per kind — for
                       mission/bounty/smuggling tier pay.
       - chain:        tutorial-chain / questline reward-step + graduation
@@ -770,7 +829,12 @@ def summarize(events: list[dict]) -> dict:
     grind = {"kills": 0, "credits": 0, "at_cap": 0, "over_cap": 0,
              "npcs": Counter()}
     grinders: set = set()
-    cp = {"events": 0, "cp": 0, "ticks": 0, "at_cap": 0, "by_source": Counter()}
+    # CP economy: the income FAUCET (``cp_income``: kudos/scene/passive/…) and
+    # its sink (``cp_spend``: the ``train`` advancement spend, by skill). The
+    # faucet was rolled up; the sink was silently dropped — so the board showed
+    # only half the CP economy. Both live here now (joined offline on char_id).
+    cp = {"events": 0, "cp": 0, "ticks": 0, "at_cap": 0, "by_source": Counter(),
+          "spends": 0, "cp_spent": 0, "by_skill": Counter()}
     objective: dict = {}
     enc = {"rolls": 0, "fired": 0, "by_band": Counter()}
     communal = {"menace_events": 0, "tier_escalations": 0,
@@ -812,6 +876,11 @@ def summarize(events: list[dict]) -> dict:
     _con_n = 0
     sess_players: set = set()
     sess_accounts: set = set()
+    # Credit-flow funnel (``economy`` → @balance flows). Per-domain {events,
+    # credits-gross} for every dropped credit faucet/sink (vendor/commissary/
+    # gambling/debt/insurance/housing/den/medical/bounty/entertainer), plus the
+    # totals. Gross throughput, not net — see ``_economy_credits``.
+    economy = {"events": 0, "credits": 0, "by_domain": {}}
 
     for ev in events:
         if not isinstance(ev, dict):
@@ -846,6 +915,15 @@ def summarize(events: list[dict]) -> dict:
             if ev.get("at_cap"):
                 cp["at_cap"] += 1
             cp["by_source"][ev.get("source") or "?"] += 1
+        elif et == "cp_spend":
+            # The CP sink: ``train`` spends CP to raise a skill pip. ``cost`` is
+            # CP spent (after any guild discount). Joined to the cp_income
+            # faucet on char_id this completes the CP-economy picture.
+            cp["spends"] += 1
+            cp["cp_spent"] += _as_int(ev.get("cost"))
+            sk = ev.get("skill")
+            if sk:
+                cp["by_skill"][str(sk)] += 1
         elif et == "objective":
             kind = ev.get("kind") or "?"
             phase = ev.get("phase") or "?"
@@ -947,10 +1025,25 @@ def summarize(events: list[dict]) -> dict:
             aid = ev.get("account_id")
             if aid is not None:
                 sess_accounts.add(aid)
+        elif et in _ECONOMY_DOMAINS:
+            dom = _ECONOMY_DOMAINS[et]
+            cr = _economy_credits(et, ev)
+            d = economy["by_domain"].setdefault(dom, {"events": 0, "credits": 0})
+            d["events"] += 1
+            d["credits"] += cr
+            economy["events"] += 1
+            economy["credits"] += cr
 
     grind["grinders"] = len(grinders)
     grind["npcs"] = grind["npcs"].most_common(8)
     cp["by_source"] = cp["by_source"].most_common()
+    cp["by_skill"] = cp["by_skill"].most_common(8)
+    # Economy domains ranked by gross credit throughput (the biggest credit
+    # movers first). Each row is (domain, events, credits).
+    economy["by_domain"] = sorted(
+        ((dom, d["events"], d["credits"])
+         for dom, d in economy["by_domain"].items()),
+        key=lambda r: (-r[2], -r[1], r[0]))
     enc["by_band"] = dict(sorted(enc["by_band"].items()))
     session["avg_duration_s"] = (_dur_sum / _dur_n) if _dur_n else 0.0
     session["max_duration_s"] = _dur_max
@@ -985,4 +1078,5 @@ def summarize(events: list[dict]) -> dict:
         "communal": communal,
         "skill_check": skill,
         "session": session,
+        "economy": economy,
     }

@@ -13,7 +13,9 @@ examples:
   - cmd: "@balance grind"
     description: "Mob-grind kill volume, credit payout, and how hard players are pressing the daily grind cap."
   - cmd: "@balance cp"
-    description: "Character-Point income source mix and weekly-cap pressure."
+    description: "Character-Point income source mix, weekly-cap pressure, and the train CP-spend sink (by skill)."
+  - cmd: "@balance flows"
+    description: "Per-system credit throughput — vendor, gambling, housing, insurance, debt, dens, medical, bounties, entertainers — the credit faucet/sink volume the @economy snapshot can't trend."
   - cmd: "@balance objectives"
     description: "Mission / bounty / smuggling start→complete funnel (where players abandon)."
   - cmd: "@balance chains"
@@ -53,7 +55,8 @@ T3.19 tunables/telemetry system. It requires admin access
 SUBCOMMAND REFERENCE
   (no arg)            Overview — event mix + every headline rollup
   grind              Mob-grind kill volume, payout, cap pressure
-  cp                 CP-income source mix + weekly-cap pressure
+  cp                 CP income source mix + the train CP-spend sink
+  flows              Per-system credit throughput (vendor/gambling/housing/…)
   objectives         Mission/bounty/smuggling start→complete funnel
   chains             Tutorial-chain / questline completion funnel
   encounters         Wilderness encounter roll→fire rate by band
@@ -63,6 +66,7 @@ SUBCOMMAND REFERENCE
   raw [N]            The last N raw telemetry records (default 20)
 
   Sub-board aliases the parser also accepts:
+    flows      = flow, economy, econ, credits
     objectives = objective, missions
     chains     = chain, questlines, questline
     encounters = encounter
@@ -75,9 +79,22 @@ READING THE BOARDS
     paying out near, at, or under its bounded daily cap — the
     signal for whether the grind faucet needs widening or
     tightening.
-  - **cp** shows where Character Points are actually coming from
-    (early-combat kills, objectives, achievements, the weekly
-    tick) and how close players run to the weekly CP cap.
+  - **cp** is the whole CP economy: where Character Points come
+    from (early-combat kills, objectives, achievements, the weekly
+    tick) and how close players run to the weekly CP cap (the
+    income faucet), **plus** the `train` CP-spend sink — how much
+    CP players spend advancing and which skills they invest in. A
+    wide income-without-spend gap means players are hoarding CP.
+  - **flows** is the credit-economy board: per-system gross credit
+    throughput for every faucet/sink the `@economy` snapshot can't
+    trend — vendor trades, commissary requisitions, sabacc wagers,
+    debt payments, gear-insurance premiums, housing rent, cartel
+    dens, healer-for-hire treatments, player bounties, and
+    entertainer payouts. It reports gross volume per system (the
+    "which systems actually move money, and how much" signal),
+    not a net — these emitters record one side of a transfer, so a
+    summed net would mislead. Use it to see which credit systems
+    players use and where to aim a price / fee / payout knob.
   - **objectives** and **chains** are *funnels*: how many players
     *start* a mission / questline vs how many *complete* it. A
     wide start→complete gap on a chain is an NPE drop-off worth
@@ -129,7 +146,8 @@ OPERATIONAL NOTES
 CHEAT SHEET
   @balance              = overview (event mix + all rollups)
   @balance grind        = grind cap pressure
-  @balance cp           = CP source mix
+  @balance cp           = CP income mix + train spend sink
+  @balance flows        = per-system credit throughput
   @balance objectives   = mission/bounty/smuggling funnel
   @balance chains       = chain/questline completion funnel
   @balance encounters   = wilderness pacing

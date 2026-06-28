@@ -909,7 +909,8 @@ class BalanceCommand(BaseCommand):
         "Admin telemetry dashboard (T3.19 read-side).\n"
         "  @balance            — overview: event mix + headline rollups\n"
         "  @balance grind      — mob-grind kill volume, payout, cap pressure\n"
-        "  @balance cp         — CP-income source mix + weekly-cap pressure\n"
+        "  @balance cp         — CP income source mix + the train CP-spend sink\n"
+        "  @balance flows      — per-system credit throughput (vendor/gambling/…)\n"
         "  @balance objectives — mission/bounty/smuggling start→complete funnel\n"
         "  @balance chains     — tutorial-chain / questline completion funnel\n"
         "  @balance encounters — wilderness encounter roll→fire rate by band\n"
@@ -919,7 +920,7 @@ class BalanceCommand(BaseCommand):
         "  @balance raw [N]    — the last N raw telemetry records (default 20)\n"
         "  (reads engine/telemetry.py's dump; fail-open, never blocks the loop)"
     )
-    usage = ("@balance [grind|cp|objectives|chains|encounters|events|"
+    usage = ("@balance [grind|cp|flows|objectives|chains|encounters|events|"
              "sessions|skills|raw [N]]")
 
     async def execute(self, ctx: CommandContext):
@@ -990,6 +991,8 @@ class BalanceCommand(BaseCommand):
             self._render_grind(lines, summary["grind"])
         if show_all or sub == "cp":
             self._render_cp(lines, summary["cp_income"])
+        if show_all or sub in ("flows", "flow", "economy", "econ", "credits"):
+            self._render_economy(lines, summary["economy"])
         if show_all or sub in ("objectives", "objective", "missions"):
             self._render_objectives(lines, summary["objective"])
         if show_all or sub in ("chains", "chain", "questlines", "questline"):
@@ -1030,19 +1033,53 @@ class BalanceCommand(BaseCommand):
             lines.append(f"    Top farmed    : {top}")
 
     def _render_cp(self, lines, c):
-        lines.append("  \033[1;33mCP INCOME\033[0m")
+        # CP economy: the income FAUCET (cp_income, by source) AND the spend
+        # SINK (cp_spend: train, by skill) — joined offline on char_id, the
+        # hoard-vs-spend / where-CP-comes-from-and-goes signal.
+        lines.append("  \033[1;33mCP ECONOMY\033[0m")
         ev = c["events"]
-        if not ev:
-            lines.append("    (no CP income recorded)")
+        spends = c.get("spends", 0)
+        if not ev and not spends:
+            lines.append("    (no CP income or spend recorded)")
             return
-        lines += [
-            f"    Awards        : {ev:,}  ({c['cp']:,} CP, {c['ticks']:,} ticks)",
-            f"    Weekly-capped : {c['at_cap']:,}  ({self._pct(c['at_cap'], ev)})",
-        ]
-        if c["by_source"]:
-            lines.append("    By source:")
-            for src, cnt in c["by_source"][:8]:
-                lines.append(f"      {src:<18}  {cnt:>6,}  ({self._pct(cnt, ev)})")
+        if ev:
+            lines += [
+                f"    Income        : {ev:,}  ({c['cp']:,} CP, {c['ticks']:,} ticks)",
+                f"    Weekly-capped : {c['at_cap']:,}  ({self._pct(c['at_cap'], ev)})",
+            ]
+            if c["by_source"]:
+                lines.append("    By source:")
+                for src, cnt in c["by_source"][:8]:
+                    lines.append(
+                        f"      {src:<18}  {cnt:>6,}  ({self._pct(cnt, ev)})")
+        else:
+            lines.append("    (no CP income recorded)")
+        if spends:
+            lines.append(
+                f"    Spent (train) : {spends:,}  ({c.get('cp_spent', 0):,} CP)")
+            by_skill = c.get("by_skill") or []
+            if by_skill:
+                lines.append("    Top trained:")
+                for sk, cnt in by_skill[:8]:
+                    lines.append(
+                        f"      {sk:<18}  {cnt:>6,}  ({self._pct(cnt, spends)})")
+
+    def _render_economy(self, lines, e):
+        # Credit-flow funnel: per-system gross credit throughput for every
+        # credit faucet/sink the @economy DB snapshot can't trend. Gross volume,
+        # not net (the emitters record one side of P2P transfers) — the "which
+        # systems move money, and how much" tuning signal. Biggest movers first.
+        lines.append("  \033[1;33mCREDIT FLOWS\033[0m")
+        by = e["by_domain"]
+        if not by:
+            lines.append("    (no economy-flow events recorded)")
+            return
+        lines.append(
+            f"    Events        : {e['events']:,}   "
+            f"gross moved: {e['credits']:,} cr")
+        lines.append(f"    {'system':<14} {'events':>8} {'gross cr':>12}")
+        for dom, evs, cr in by:
+            lines.append(f"    {dom:<14} {evs:>8,} {cr:>12,}")
 
     def _render_objectives(self, lines, obj):
         lines.append("  \033[1;33mOBJECTIVE FUNNEL\033[0m")

@@ -72,7 +72,7 @@ The Director is the Claude-backed world-orchestration layer. Admin controls:
 | `@director influence` | inspect/adjust territory influence |
 | `@director log` / `reset` / `narrative` / `cult` | run log, state reset, narrative & cult subforms |
 | `@economy` | economy dashboard — shops/credits/zones/velocity/alerts/throttle |
-| `@balance` (`@bal`) | telemetry dashboard — the *behavioural* read-side of `@economy` (grind/cp/objectives/chains/encounters/events/sessions/raw) |
+| `@balance` (`@bal`) | telemetry dashboard — the *behavioural* read-side of `@economy` (grind/cp/flows/objectives/chains/encounters/events/sessions/skills/raw) |
 | `@lore` | world-lore entries — list/search/add/disable/enable |
 | `@hazard` | set/clear/list environmental room hazards (heat, toxic atmosphere, …) |
 | `@roomstate` | apply/clear/list dynamic room-state overlays |
@@ -88,7 +88,8 @@ the snapshot. `@balance` reads the append-only **telemetry dump** (`engine/telem
 the *behavioural record over time* of how players actually earn, spend, and progress — and
 rolls it into the balance-tuning signals you cannot get from a snapshot:
 `@balance grind` (mob-grind kill volume / payout / soft- and over-cap pressure),
-`@balance cp` (CP-income source mix + weekly-cap pressure),
+`@balance cp` (the CP economy — income source mix + weekly-cap pressure, and the `train` CP-spend sink by skill: are players hoarding CP or spending it?),
+`@balance flows` (per-system gross credit throughput — vendor / commissary / gambling / debt / insurance / housing / dens / medical / bounties / entertainers — every credit faucet/sink the live `@economy` snapshot can't trend, the signal for which systems move money and where to aim a price/fee/payout knob),
 `@balance objectives` (mission/bounty/smuggling start→complete→abandon funnel),
 `@balance chains` (tutorial-chain / questline completion funnel — graduations + reward-step credit flow, per chain),
 `@balance encounters` (wilderness roll→fire rate by threat band),
