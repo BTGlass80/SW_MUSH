@@ -25,7 +25,7 @@ from parser.commands import BaseCommand, CommandContext
 log = logging.getLogger(__name__)
 from server import ansi
 from engine.character import Character, SkillRegistry, DicePool
-from engine.cp_engine import get_cp_engine, TICKS_PER_CP, WEEKLY_CAP_TICKS, KUDOS_PER_WEEK
+from engine.cp_engine import get_cp_engine, ticks_per_cp, kudos_per_week
 
 
 # ── Skill registry helper (mirrors combat_commands pattern) ──────────────────
@@ -140,10 +140,10 @@ class CPStatusCommand(BaseCommand):
 
         lines += [
             f"",
-            f"  {ansi.BRIGHT_YELLOW}Kudos received:{ansi.RESET}  {kudos_recv}/{KUDOS_PER_WEEK} this week  "
+            f"  {ansi.BRIGHT_YELLOW}Kudos received:{ansi.RESET}  {kudos_recv}/{kudos_per_week()} this week  "
             f"({kudos_left} more receivable)",
             f"",
-            f"  {ansi.DIM}{TICKS_PER_CP} ticks = 1 CP.  Use {ansi.BRIGHT_CYAN}train <skill>{ansi.RESET}{ansi.DIM} to spend CP.{ansi.RESET}",
+            f"  {ansi.DIM}{ticks_per_cp()} ticks = 1 CP.  Use {ansi.BRIGHT_CYAN}train <skill>{ansi.RESET}{ansi.DIM} to spend CP.{ansi.RESET}",
             f"  {ansi.DIM}Use {ansi.BRIGHT_CYAN}kudos <player>{ansi.RESET}{ansi.DIM} to recognise good RP.{ansi.RESET}",
         ]
 
@@ -333,7 +333,7 @@ class KudosCommand(BaseCommand):
         if not raw:
             await ctx.session.send_line(ansi.error("Usage: kudos <player name> [message]"))
             await ctx.session.send_line(
-                ansi.dim(f"Kudos recognise excellent RP.  Each player can receive up to {KUDOS_PER_WEEK} kudos/week.")
+                ansi.dim(f"Kudos recognise excellent RP.  Each player can receive up to {kudos_per_week()} kudos/week.")
             )
             return
 

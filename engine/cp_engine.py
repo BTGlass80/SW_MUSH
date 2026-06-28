@@ -68,6 +68,66 @@ ADMIN_CAP_FLAG_WEEKS = 3        # Flag if cap hit this many consecutive weeks
 PASSIVE_CHECK_INTERVAL = 3600   # Check once per in-game hour (3600 ticks)
 
 
+# ── Live tunable accessors (T3.19 config breadth) ─────────────────────────────
+# The CP progression faucet's reward/cap levers, externalized to
+# data/tunables.yaml under ``cp.*`` and read HERE at the USE SITE via these
+# accessors so an operator can re-tune the whole tick economy from config —
+# using the ``@balance progression`` board (cp_income by source + weekly-cap
+# pressure) as the signal — with no code edit or redeploy. Each falls back to the
+# in-code constant above when the YAML omits (or mis-types) the key, so this is
+# behaviour-identical to today until an operator sets a value. Magnitudes clamp
+# to >= 0 (a fat-fingered negative can never invert an income source into a tick
+# DEBIT). TICKS_PER_CP clamps to >= 1 because it is the tick→CP DIVISOR and a 0
+# would raise ZeroDivisionError on the next award. The structural/timing
+# constants (WEEK_SECONDS, *_COOLDOWN/_LOCKOUT, PASSIVE_CHECK_INTERVAL,
+# ADMIN_CAP_FLAG_WEEKS, AI_EVAL_FLOOR) are deliberately NOT externalized — they
+# are mechanism, not the balance magnitudes the @balance board informs.
+def _cp_tunable(key: str, default: int, floor: int = 0) -> int:
+    from engine.tunables import get_tunable
+    raw = get_tunable(key, default)
+    try:
+        val = int(raw)
+    except (TypeError, ValueError):
+        val = default
+    return max(floor, val)
+
+
+def ticks_per_cp() -> int:
+    return _cp_tunable("cp.ticks_per_cp", TICKS_PER_CP, floor=1)
+
+
+def weekly_cap_ticks() -> int:
+    return _cp_tunable("cp.weekly_cap_ticks", WEEKLY_CAP_TICKS)
+
+
+def passive_ticks_per_day() -> int:
+    return _cp_tunable("cp.passive_ticks_per_day", PASSIVE_TICKS_PER_DAY)
+
+
+def scene_min_poses() -> int:
+    return _cp_tunable("cp.scene_min_poses", SCENE_MIN_POSES)
+
+
+def scene_ticks_per_pose() -> int:
+    return _cp_tunable("cp.scene_ticks_per_pose", SCENE_TICKS_PER_POSE)
+
+
+def scene_max_ticks() -> int:
+    return _cp_tunable("cp.scene_max_ticks", SCENE_MAX_TICKS)
+
+
+def kudos_ticks() -> int:
+    return _cp_tunable("cp.kudos_ticks", KUDOS_TICKS)
+
+
+def kudos_per_week() -> int:
+    return _cp_tunable("cp.kudos_per_week", KUDOS_PER_WEEK)
+
+
+def ai_max_ticks_per_eval() -> int:
+    return _cp_tunable("cp.ai_max_ticks_per_eval", AI_MAX_TICKS_PER_EVAL)
+
+
 # ── Singleton ─────────────────────────────────────────────────────────────────
 
 _cp_engine: "CPEngine | None" = None
@@ -153,10 +213,11 @@ class CPEngine:
 
         # Check weekly cap
         ticks = _safe_int(row.get("ticks_this_week", 0))
-        if ticks >= WEEKLY_CAP_TICKS:
+        cap = weekly_cap_ticks()
+        if ticks >= cap:
             return
 
-        to_award = min(PASSIVE_TICKS_PER_DAY, WEEKLY_CAP_TICKS - ticks)
+        to_award = min(passive_ticks_per_day(), cap - ticks)
         await _award_ticks(db, char_id, to_award, "passive", now,
                            update_passive_ts=True)
         log.debug("CP passive: char %d +%d ticks", char_id, to_award)
@@ -172,7 +233,8 @@ class CPEngine:
 
         Returns {"ticks": int, "message": str, "capped": bool}
         """
-        if pose_count < SCENE_MIN_POSES:
+        min_poses = scene_min_poses()
+        if pose_count < min_poses:
             return {"ticks": 0, "message": "Scene too short for a bonus.", "capped": False}
 
         now = time.time()
@@ -190,7 +252,8 @@ class CPEngine:
 
         # Weekly cap check
         ticks_this_week = _safe_int(row.get("ticks_this_week", 0))
-        if ticks_this_week >= WEEKLY_CAP_TICKS:
+        cap = weekly_cap_ticks()
+        if ticks_this_week >= cap:
             return {
                 "ticks": 0,
                 "message": "Weekly tick cap reached. Scene bonus not awarded.",
@@ -198,17 +261,17 @@ class CPEngine:
             }
 
         # Calculate bonus
-        bonus_poses = max(0, pose_count - SCENE_MIN_POSES)
-        raw_ticks = bonus_poses * SCENE_TICKS_PER_POSE
-        raw_ticks = min(raw_ticks, SCENE_MAX_TICKS)
-        ticks = min(raw_ticks, WEEKLY_CAP_TICKS - ticks_this_week)
+        bonus_poses = max(0, pose_count - min_poses)
+        raw_ticks = bonus_poses * scene_ticks_per_pose()
+        raw_ticks = min(raw_ticks, scene_max_ticks())
+        ticks = min(raw_ticks, cap - ticks_this_week)
 
         if ticks <= 0:
             return {"ticks": 0, "message": "No scene ticks to award.", "capped": False}
 
         await _award_ticks(db, char_id, ticks, "scene", now, update_scene_ts=True)
 
-        capped = (ticks_this_week + ticks) >= WEEKLY_CAP_TICKS
+        capped = (ticks_this_week + ticks) >= cap
         msg = f"Scene bonus: +{ticks} ticks ({pose_count} poses)."
         if capped:
             msg += " Weekly cap reached."
@@ -247,7 +310,7 @@ class CPEngine:
 
         # Check target weekly kudos cap
         kudos_this_week = await db.kudos_count_received_this_week(target_id)
-        if kudos_this_week >= KUDOS_PER_WEEK:
+        if kudos_this_week >= kudos_per_week():
             return {
                 "success": False,
                 "message": "That player has already received their maximum kudos this week.",
@@ -257,16 +320,18 @@ class CPEngine:
         # Check target tick cap
         row = await _ensure_row(db, target_id)
         ticks_this_week = _safe_int(row.get("ticks_this_week", 0))
-        if ticks_this_week >= WEEKLY_CAP_TICKS:
+        cap = weekly_cap_ticks()
+        kudos_award = kudos_ticks()
+        if ticks_this_week >= cap:
             # Log kudos even if capped — still a recognition event
-            await db.kudos_log(giver_id, target_id, KUDOS_TICKS, now)
+            await db.kudos_log(giver_id, target_id, kudos_award, now)
             return {
                 "success": True,
                 "message": "Kudos logged, but the recipient has hit their weekly tick cap.",
                 "ticks_awarded": 0,
             }
 
-        ticks = min(KUDOS_TICKS, WEEKLY_CAP_TICKS - ticks_this_week)
+        ticks = min(kudos_award, cap - ticks_this_week)
         await _award_ticks(db, target_id, ticks, "kudos", now)
         await db.kudos_log(giver_id, target_id, ticks, now)
 
@@ -336,16 +401,17 @@ class CPEngine:
         Returns {"ticks_awarded": int, "dropped": bool}
         """
         try:
-            ticks = max(AI_EVAL_FLOOR, min(ticks, AI_MAX_TICKS_PER_EVAL))
+            ticks = max(AI_EVAL_FLOOR, min(ticks, ai_max_ticks_per_eval()))
             if ticks == 0:
                 return {"ticks_awarded": 0, "dropped": False}
 
             row = await _ensure_row(db, char_id)
             ticks_this_week = _safe_int(row.get("ticks_this_week", 0))
-            if ticks_this_week >= WEEKLY_CAP_TICKS:
+            cap = weekly_cap_ticks()
+            if ticks_this_week >= cap:
                 return {"ticks_awarded": 0, "dropped": False}
 
-            ticks = min(ticks, WEEKLY_CAP_TICKS - ticks_this_week)
+            ticks = min(ticks, cap - ticks_this_week)
             await _award_ticks(db, char_id, ticks, "ai_eval", time.time())
             return {"ticks_awarded": ticks, "dropped": False}
 
@@ -362,7 +428,7 @@ class CPEngine:
         {
             "ticks_total": int,       # Lifetime ticks
             "ticks_this_week": int,   # Ticks earned this rolling 7-day window
-            "weekly_cap": int,        # Always WEEKLY_CAP_TICKS
+            "weekly_cap": int,        # The live weekly tick cap (cp.weekly_cap_ticks)
             "cp_available": int,      # character_points from characters table
             "ticks_to_next_cp": int,  # How many ticks until next CP conversion
             "kudos_received_week": int,
@@ -378,8 +444,9 @@ class CPEngine:
         ticks_total = _safe_int(row.get("ticks_total", 0))
         ticks_this_week = _safe_int(row.get("ticks_this_week", 0))
         cp_available = await _get_cp(db, char_id)
-        ticks_to_next = TICKS_PER_CP - (ticks_total % TICKS_PER_CP)
-        if ticks_to_next == TICKS_PER_CP:
+        per_cp = ticks_per_cp()
+        ticks_to_next = per_cp - (ticks_total % per_cp)
+        if ticks_to_next == per_cp:
             ticks_to_next = 0  # Exactly on a boundary
 
         kudos_received = await db.kudos_count_received_this_week(char_id)
@@ -387,11 +454,11 @@ class CPEngine:
         return {
             "ticks_total": ticks_total,
             "ticks_this_week": ticks_this_week,
-            "weekly_cap": WEEKLY_CAP_TICKS,
+            "weekly_cap": weekly_cap_ticks(),
             "cp_available": cp_available,
             "ticks_to_next_cp": ticks_to_next,
             "kudos_received_week": kudos_received,
-            "kudos_remaining_week": max(0, KUDOS_PER_WEEK - kudos_received),
+            "kudos_remaining_week": max(0, kudos_per_week() - kudos_received),
             "cap_hit_streak": _safe_int(row.get("cap_hit_streak", 0)),
         }
 
@@ -426,6 +493,7 @@ async def _award_ticks(
     """
     row = await _ensure_row(db, char_id)
     week_start = row.get("week_start_ts", 0) or 0
+    cap = weekly_cap_ticks()
 
     # Roll over weekly window if needed
     ticks_this_week = _safe_int(row.get("ticks_this_week", 0))
@@ -433,7 +501,7 @@ async def _award_ticks(
 
     if (now - week_start) >= WEEK_SECONDS:
         # New week — check if previous week hit the cap
-        if ticks_this_week >= WEEKLY_CAP_TICKS:
+        if ticks_this_week >= cap:
             cap_hit_streak += 1
         else:
             cap_hit_streak = 0
@@ -460,9 +528,11 @@ async def _award_ticks(
 
     await db.cp_update_row(char_id, **updates)
 
-    # Convert ticks to CP
-    cp_before = ticks_total_before // TICKS_PER_CP
-    cp_after = ticks_total_after // TICKS_PER_CP
+    # Convert ticks to CP (read the divisor ONCE so both sides of the boundary
+    # use one consistent snapshot — and ticks_per_cp() is clamped >= 1).
+    per_cp = ticks_per_cp()
+    cp_before = ticks_total_before // per_cp
+    cp_after = ticks_total_after // per_cp
     cp_gained = cp_after - cp_before
     if cp_gained > 0:
         await db.cp_add_character_points(char_id, cp_gained)
@@ -487,7 +557,7 @@ async def _award_ticks(
         emit_cp_income(
             source, char_id, cp_gained=cp_gained, ticks=ticks,
             ticks_this_week=ticks_this_week_after,
-            at_cap=ticks_this_week_after >= WEEKLY_CAP_TICKS,
+            at_cap=ticks_this_week_after >= cap,
         )
     except Exception:
         log.debug("cp_income telemetry emit failed", exc_info=True)

@@ -262,6 +262,34 @@ craft.quality_mult_crit: 1.5       # critical-success multiplier
 craft.quality_mult_exp_crit: 2.0   # experiment critical multiplier
 craft.quality_partial: 0.5         # partial-success (near-miss) multiplier
 
+# ── CP progression faucet (engine/cp_engine.py) ──
+# The Character-Point tick economy's reward/cap levers — the knobs the `@balance
+# progression` board (cp_income by source + weekly-cap pressure, paired with the
+# cp_spend sink) exists to inform. Each value below equals the in-code default,
+# so this section is behaviour-identical to omitting it; read at the use site
+# (magnitudes clamped to >= 0; ticks_per_cp clamped to >= 1 since it is the
+# tick→CP DIVISOR) so an edit takes effect on the next load with no redeploy.
+#  * ticks_per_cp: ticks that convert to one CP — the master advancement rate
+#    (raise to slow progression, lower to speed it). Target ~1 CP/10-12 days.
+#  * weekly_cap_ticks: hard ceiling on ticks earned per rolling 7-day window —
+#    the farming bound that keeps the economy RP-first, not a grind.
+#  * passive_ticks_per_day: the just-being-online floor trickle (source 1).
+#  * scene_min_poses / scene_ticks_per_pose / scene_max_ticks: the scene-bonus
+#    shape (source 2) — qualifying poses, per-pose payout, and per-scene ceiling.
+#  * kudos_ticks / kudos_per_week: per-kudos payout and how many a player can
+#    receive each week (source 3 — the dominant social-recognition income).
+#  * ai_max_ticks_per_eval: ceiling on a single AI-evaluation grant (source 4,
+#    dormant at launch).
+cp.ticks_per_cp: 200            # ticks per CP (the advancement conversion rate)
+cp.weekly_cap_ticks: 400        # hard cap on ticks earned per rolling 7 days
+cp.passive_ticks_per_day: 10    # passive online-presence trickle (per day)
+cp.scene_min_poses: 3           # minimum poses to qualify for a scene bonus
+cp.scene_ticks_per_pose: 2      # ticks per pose above the minimum
+cp.scene_max_ticks: 60          # per-scene bonus ceiling
+cp.kudos_ticks: 35              # ticks awarded per kudos received
+cp.kudos_per_week: 3            # max kudos a character can receive per 7 days
+cp.ai_max_ticks_per_eval: 15    # ceiling on a single AI-evaluation grant
+
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
 # Brian decision #7 (2026-06-16): T3.14 cities are OPTIONAL at launch.

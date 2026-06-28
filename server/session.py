@@ -847,18 +847,19 @@ class Session:
         hud["cp_progress"] = None
         if not (db and char_id):
             return
-        from engine.cp_engine import get_cp_engine, TICKS_PER_CP, WEEKLY_CAP_TICKS
+        from engine.cp_engine import get_cp_engine, ticks_per_cp, weekly_cap_ticks
         cp_eng = get_cp_engine()
         status = await cp_eng.get_status(db, char_id)
-        ticks_to_next = status.get("ticks_to_next_cp", TICKS_PER_CP)
+        per_cp = ticks_per_cp()
+        ticks_to_next = status.get("ticks_to_next_cp", per_cp)
         hud["cp_progress"] = {
             "ticks_to_next": ticks_to_next,
-            "ticks_per_cp": TICKS_PER_CP,
+            "ticks_per_cp": per_cp,
             "ticks_this_week": status.get("ticks_this_week", 0),
-            "weekly_cap": WEEKLY_CAP_TICKS,
+            "weekly_cap": weekly_cap_ticks(),
             "pct": round(
-                (TICKS_PER_CP - ticks_to_next) / TICKS_PER_CP * 100
-            ) if ticks_to_next < TICKS_PER_CP else 0,
+                (per_cp - ticks_to_next) / per_cp * 100
+            ) if ticks_to_next < per_cp else 0,
         }
 
     async def _hud_reputation(self, hud: dict, db, char) -> None:
