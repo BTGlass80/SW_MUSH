@@ -698,6 +698,40 @@ def _as_int(v: Any, default: int = 0) -> int:
         return default
 
 
+# WEG R&E difficulty bands for the skill-check rollup. Each boundary is a
+# ``Difficulty`` level's target number (the band's upper bound): a check of
+# difficulty ``d`` falls in the first band whose ceiling it does not exceed.
+# These mirror ``engine.dice.Difficulty`` (VERY_EASY=5 … HEROIC=30); a guard
+# test pins them to the live enum so a rebalance there fails loudly here rather
+# than letting this rollup drift to phantom thresholds. Anything above the top
+# band reads as ``Heroic+``; a non-numeric difficulty reads as ``?``.
+_DIFFICULTY_BANDS = (
+    (5, "Very Easy"),
+    (10, "Easy"),
+    (15, "Moderate"),
+    (20, "Difficult"),
+    (25, "Very Difficult"),
+    (30, "Heroic"),
+)
+_BAND_ORDER = [label for _, label in _DIFFICULTY_BANDS] + ["Heroic+", "?"]
+
+
+def _difficulty_band(d: Any) -> str:
+    """Bucket a skill-check difficulty (target number) into its WEG band label.
+
+    Pure + total: a non-numeric difficulty buckets to ``"?"`` so ``summarize``
+    never raises on a malformed record.
+    """
+    try:
+        di = int(d)
+    except (TypeError, ValueError):
+        return "?"
+    for hi, label in _DIFFICULTY_BANDS:
+        if di <= hi:
+            return label
+    return "Heroic+"
+
+
 def summarize(events: list[dict]) -> dict:
     """Aggregate parsed telemetry events into balance-tuning rollups (pure).
 
@@ -714,6 +748,10 @@ def summarize(events: list[dict]) -> dict:
                       / questline-completion health signal.
       - wild_encounter: roll→fire rate by threat band — for encounter pacing.
       - communal:     menace escalation + strike success — for cult tuning.
+      - skill_check:  out-of-combat dice pass rate by skill + difficulty band
+                      (catalog D — are DCs calibrated). The single funnel for
+                      ALL out-of-combat checks (perform_skill_check), so this is
+                      the whole-game skill-difficulty signal.
       - session:      login/logout funnel — connect→login conversion, play-time
                       distribution, transport mix, distinct players/accounts —
                       the engagement/retention signal (is idle_timeout cutting
@@ -737,6 +775,15 @@ def summarize(events: list[dict]) -> dict:
     enc = {"rolls": 0, "fired": 0, "by_band": Counter()}
     communal = {"menace_events": 0, "tier_escalations": 0,
                 "strikes": 0, "strike_success": 0}
+    # Out-of-combat skill-check funnel (``skill_check``: the perform_skill_check
+    # chokepoint). The whole-game DC-calibration signal — pass rate overall,
+    # per difficulty band, and per skill — which otherwise appeared nowhere but
+    # the raw dump despite being the highest-frequency instrumented chokepoint.
+    skill = {"checks": 0, "successes": 0, "crits": 0, "fumbles": 0,
+             "by_band": [], "by_skill": []}
+    skill_by_band: dict = {}
+    skill_by_skill: dict = {}
+    skill_rollers: set = set()
     # Tutorial-chain / questline funnel. ``chain_reward`` is emitted at a
     # reward-bearing step (phase="step") and ALWAYS at graduation
     # (phase="graduation"), so per-chain ``graduations`` is the true completion
@@ -823,6 +870,28 @@ def summarize(events: list[dict]) -> dict:
             communal["strikes"] += 1
             if ev.get("success"):
                 communal["strike_success"] += 1
+        elif et == "skill_check":
+            skill["checks"] += 1
+            ok = bool(ev.get("success"))
+            if ok:
+                skill["successes"] += 1
+            if ev.get("crit"):
+                skill["crits"] += 1
+            if ev.get("fumble"):
+                skill["fumbles"] += 1
+            band = _difficulty_band(ev.get("difficulty"))
+            bd = skill_by_band.setdefault(band, {"n": 0, "ok": 0})
+            bd["n"] += 1
+            if ok:
+                bd["ok"] += 1
+            sname = str(ev.get("skill") or "?")
+            sd = skill_by_skill.setdefault(sname, {"n": 0, "ok": 0})
+            sd["n"] += 1
+            if ok:
+                sd["ok"] += 1
+            cid = ev.get("char_id")
+            if cid is not None:
+                skill_rollers.add(cid)
         elif et == "chain_reward":
             phase = ev.get("phase") or "?"
             cid = str(ev.get("chain_id") or "?")
@@ -890,6 +959,19 @@ def summarize(events: list[dict]) -> dict:
     session["accounts"] = len(sess_accounts)
     session["by_transport"] = session["by_transport"].most_common()
 
+    skill["rollers"] = len(skill_rollers)
+    # Difficulty bands in canonical (easy→heroic) order; skip bands with no
+    # rolls. Each row is (band, checks, successes).
+    skill["by_band"] = [
+        (b, skill_by_band[b]["n"], skill_by_band[b]["ok"])
+        for b in _BAND_ORDER if b in skill_by_band
+    ]
+    # Skills ranked by roll volume (the most-tuned-against first), top 12. Each
+    # row is (skill, checks, successes).
+    skill["by_skill"] = sorted(
+        ((name, d["n"], d["ok"]) for name, d in skill_by_skill.items()),
+        key=lambda r: (-r[1], r[0]))[:12]
+
     return {
         "total": len(events),
         "by_type": by_type.most_common(),
@@ -901,5 +983,6 @@ def summarize(events: list[dict]) -> dict:
         "chain": chain,
         "wild_encounter": enc,
         "communal": communal,
+        "skill_check": skill,
         "session": session,
     }

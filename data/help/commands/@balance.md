@@ -24,6 +24,8 @@ examples:
     description: "Communal-objective (cult menace) accumulation and strike outcomes."
   - cmd: "@balance sessions"
     description: "Login/logout engagement: connect→login conversion, play-time distribution, web-vs-telnet transport mix."
+  - cmd: "@balance skills"
+    description: "Out-of-combat skill-check pass rate, broken out by difficulty band and by skill — the DC-calibration signal."
   - cmd: "@balance raw 50"
     description: "Dump the last 50 raw telemetry records verbatim (default 20, clamped 1–200)."
 ---
@@ -57,6 +59,7 @@ SUBCOMMAND REFERENCE
   encounters         Wilderness encounter roll→fire rate by band
   events             Communal-objective menace + strike outcomes
   sessions           Login/logout engagement + retention funnel
+  skills             Out-of-combat skill-check pass rate by skill + DC
   raw [N]            The last N raw telemetry records (default 20)
 
   Sub-board aliases the parser also accepts:
@@ -65,6 +68,7 @@ SUBCOMMAND REFERENCE
     encounters = encounter
     events     = communal
     sessions   = session
+    skills     = skill
 
 READING THE BOARDS
   - **grind** surfaces whether the solo-PvE mob-grind trickle is
@@ -92,6 +96,14 @@ READING THE BOARDS
     and the web-vs-telnet transport mix. This is the signal for
     whether `idle_timeout` is cutting real sessions short and
     whether players come back.
+  - **skills** is the single funnel for every out-of-combat dice
+    roll (`perform_skill_check`): the overall pass rate (with crit
+    and fumble counts), then the two breakdowns you actually tune
+    difficulty against — success rate **by WEG difficulty band**
+    (Very Easy → Heroic; the "are the DCs calibrated" signal) and
+    **by skill** (which specific skill is rolling too hard or too
+    soft). It is the highest-frequency instrumented chokepoint, so
+    its keep-rate is sample-tunable (`telemetry.skill_check_sample`).
 
 RAW DUMP
   `@balance raw [N]` prints the last N telemetry records as
@@ -123,6 +135,7 @@ CHEAT SHEET
   @balance encounters   = wilderness pacing
   @balance events       = communal menace + strikes
   @balance sessions     = engagement/retention funnel
+  @balance skills       = skill-check pass rate by skill + DC
   @balance raw [N]      = last N raw records (default 20)
 
 Sources: T3.19 telemetry read-side (`parser/director_commands.py`

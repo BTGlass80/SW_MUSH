@@ -104,7 +104,7 @@ class TestBalanceHelpMatchesProducer(unittest.TestCase):
         boards = _usage_subboards()
         # sanity: the usage actually parsed to the expected core set
         for expected in ("grind", "cp", "objectives", "chains",
-                         "encounters", "events", "raw"):
+                         "encounters", "events", "sessions", "skills", "raw"):
             self.assertIn(expected, boards,
                           f"usage parse missing {expected!r}: {boards}")
         for board in boards:

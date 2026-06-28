@@ -915,11 +915,12 @@ class BalanceCommand(BaseCommand):
         "  @balance encounters — wilderness encounter roll→fire rate by band\n"
         "  @balance events     — communal-objective menace + strike outcomes\n"
         "  @balance sessions   — login/logout engagement: play time, transport mix\n"
+        "  @balance skills     — out-of-combat skill-check pass rate by skill + DC\n"
         "  @balance raw [N]    — the last N raw telemetry records (default 20)\n"
         "  (reads engine/telemetry.py's dump; fail-open, never blocks the loop)"
     )
     usage = ("@balance [grind|cp|objectives|chains|encounters|events|"
-             "sessions|raw [N]]")
+             "sessions|skills|raw [N]]")
 
     async def execute(self, ctx: CommandContext):
         parts = (ctx.args or "").split()
@@ -999,6 +1000,8 @@ class BalanceCommand(BaseCommand):
             self._render_communal(lines, summary["communal"])
         if show_all or sub in ("sessions", "session"):
             self._render_sessions(lines, summary["session"])
+        if show_all or sub in ("skills", "skill"):
+            self._render_skills(lines, summary["skill_check"])
 
         lines.append("\033[1;36m══════════════════════════════════════════\033[0m")
         await ctx.session.send_line("\n".join(lines))
@@ -1126,6 +1129,33 @@ class BalanceCommand(BaseCommand):
         if s["by_transport"]:
             tr = ", ".join(f"{name}×{cnt}" for name, cnt in s["by_transport"][:4])
             lines.append(f"    Transport     : {tr}")
+
+    def _render_skills(self, lines, sk):
+        # Out-of-combat skill-check funnel — the single perform_skill_check
+        # chokepoint. Whole-game pass rate, then the two breakdowns balance is
+        # actually tuned against: success rate by difficulty band ("are DCs
+        # calibrated") and by skill (which skill is too hard/soft).
+        lines.append("  \033[1;33mSKILL CHECKS\033[0m")
+        checks = sk["checks"]
+        if not checks:
+            lines.append("    (no skill checks recorded)")
+            return
+        lines += [
+            f"    Rolls         : {checks:,}  by {sk['rollers']} roller(s)",
+            f"    Success rate  : {self._pct(sk['successes'], checks)} "
+            f"({sk['successes']:,}/{checks:,})  "
+            f"crit {sk['crits']:,}  fumble {sk['fumbles']:,}",
+        ]
+        if sk["by_band"]:
+            lines.append("    By difficulty (pass rate):")
+            for band, n, ok in sk["by_band"]:
+                lines.append(
+                    f"      {band:<16} {n:>6,}  {self._pct(ok, n)}")
+        if sk["by_skill"]:
+            lines.append("    Top skills (pass rate):")
+            for name, n, ok in sk["by_skill"][:8]:
+                lines.append(
+                    f"      {name:<20} {n:>6,}  {self._pct(ok, n)}")
 
 
 class LoreCommand(BaseCommand):

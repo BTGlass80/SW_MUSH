@@ -93,7 +93,8 @@ rolls it into the balance-tuning signals you cannot get from a snapshot:
 `@balance chains` (tutorial-chain / questline completion funnel — graduations + reward-step credit flow, per chain),
 `@balance encounters` (wilderness roll→fire rate by threat band),
 `@balance events` (communal-objective menace climb + strike outcomes),
-`@balance sessions` (login/logout engagement — connect→login conversion, play-time distribution, web-vs-telnet transport mix, the retention signal), and
+`@balance sessions` (login/logout engagement — connect→login conversion, play-time distribution, web-vs-telnet transport mix, the retention signal),
+`@balance skills` (out-of-combat skill-check pass rate by skill + WEG difficulty band — the single `perform_skill_check` funnel, the DC-calibration signal), and
 `@balance raw [N]` (the last N raw records). It is the in-game companion to reading the raw
 JSON-line dumps offline, and it is fail-open — a telemetry hiccup never blocks the game loop.
 
