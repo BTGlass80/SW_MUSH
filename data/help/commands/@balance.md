@@ -32,6 +32,8 @@ examples:
     description: "The non-credit advancement breadth — faction reputation movement (by faction, tier crossings), territorial influence, the prestige-title economy (buys vs earned grants), and the spacer onboarding-questline funnel."
   - cmd: "@balance commands"
     description: "Command utilization (which verbs players actually use — a dead command shows ~0), the unknown-command 'Huh?' friction rate, the exact tokens that confuse, and alias-vs-canonical use — the NPE friction signal."
+  - cmd: "@balance craft"
+    description: "Crafting-outcome calibration — success/partial/fumble distribution, mean produced-item quality, success rate by difficulty band, and the per-schematic breakdown (which recipe is too hard or yields too low) — the signal for tuning the QUALITY_MULT_* knobs and per-recipe difficulty."
   - cmd: "@balance raw 50"
     description: "Dump the last 50 raw telemetry records verbatim (default 20, clamped 1–200)."
 ---
@@ -69,6 +71,7 @@ SUBCOMMAND REFERENCE
   skills             Out-of-combat skill-check pass rate by skill + DC
   progress           Faction rep / influence / titles / spacer-quest funnel
   commands           Command utilization + unknown-command 'Huh?' friction
+  craft              Crafting outcome + item quality + per-schematic DC
   raw [N]            The last N raw telemetry records (default 20)
 
   Sub-board aliases the parser also accepts:
@@ -81,6 +84,7 @@ SUBCOMMAND REFERENCE
     skills     = skill
     progress   = progression, standing, rep
     commands   = command, cmds, friction
+    craft      = crafting, crafts
 
 READING THE BOARDS
   - **grind** surfaces whether the solo-PvE mob-grind trickle is
@@ -149,6 +153,16 @@ READING THE BOARDS
     utilization histogram — a dead verb shows ~0), and the top unknown
     tokens (the exact words that confuse players — the catalog-D friction
     targets). Its keep-rate is sample-tunable (`telemetry.command_sample`).
+  - **craft** is the crafting-outcome board, read at the unified
+    `resolve_craft` completion chokepoint. The credit cost already rides
+    `flows` and the skill roll rides `skills`, but the per-recipe
+    *outcome distribution* (success / partial / fumble), the **mean
+    produced-item quality** (the direct read on the `QUALITY_MULT_*`
+    yield knobs), success rate **by difficulty band** (is a recipe's DC
+    calibrated), and the **per-schematic** breakdown (which recipe rolls
+    too hard or yields too low) live only here. Use it to tune a
+    schematic's difficulty or quality curve against how it actually
+    plays out.
 
 RAW DUMP
   `@balance raw [N]` prints the last N telemetry records as
@@ -184,6 +198,7 @@ CHEAT SHEET
   @balance skills       = skill-check pass rate by skill + DC
   @balance progress     = faction rep / influence / titles / spacer-quest
   @balance commands     = command utilization + 'Huh?' friction
+  @balance craft        = crafting outcome + item quality + per-schematic DC
   @balance raw [N]      = last N raw records (default 20)
 
 Sources: T3.19 telemetry read-side (`parser/director_commands.py`

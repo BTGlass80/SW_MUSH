@@ -919,11 +919,12 @@ class BalanceCommand(BaseCommand):
         "  @balance skills     — out-of-combat skill-check pass rate by skill + DC\n"
         "  @balance progress   — faction rep / influence / titles / spacer-quest\n"
         "  @balance commands   — command utilization + unknown-command friction\n"
+        "  @balance craft      — crafting outcome + item quality + per-schematic DC\n"
         "  @balance raw [N]    — the last N raw telemetry records (default 20)\n"
         "  (reads engine/telemetry.py's dump; fail-open, never blocks the loop)"
     )
     usage = ("@balance [grind|cp|flows|objectives|chains|encounters|events|"
-             "sessions|skills|progress|commands|raw [N]]")
+             "sessions|skills|progress|commands|craft|raw [N]]")
 
     async def execute(self, ctx: CommandContext):
         parts = (ctx.args or "").split()
@@ -1011,6 +1012,8 @@ class BalanceCommand(BaseCommand):
             self._render_progress(lines, summary["progression"])
         if show_all or sub in ("commands", "command", "cmds", "friction"):
             self._render_command(lines, summary["command"])
+        if show_all or sub in ("craft", "crafting", "crafts"):
+            self._render_craft(lines, summary["craft"])
 
         lines.append("\033[1;36m══════════════════════════════════════════\033[0m")
         await ctx.session.send_line("\n".join(lines))
@@ -1271,6 +1274,37 @@ class BalanceCommand(BaseCommand):
         if c["top_unmatched"]:
             top = ", ".join(f"{tok}×{cnt}" for tok, cnt in c["top_unmatched"][:8])
             lines.append(f"    Top unknown   : {top}")
+
+    def _render_craft(self, lines, c):
+        # Crafting-outcome funnel — the unified resolve_craft completion
+        # chokepoint. The outcome distribution (success/partial/fumble) + the
+        # mean item quality is the direct tuning signal for the QUALITY_MULT_*
+        # knobs; success rate by difficulty band reads "is this recipe's DC
+        # calibrated", and the per-schematic breakdown surfaces which recipe is
+        # rolling too hard or yielding too low.
+        lines.append("  \033[1;33mCRAFTING\033[0m")
+        crafts = c["crafts"]
+        if not crafts:
+            lines.append("    (no craft attempts recorded)")
+            return
+        lines += [
+            f"    Crafts        : {crafts:,}  by {c['crafters']} crafter(s)",
+            f"    Outcomes      : {self._pct(c['successes'], crafts)} success "
+            f"({c['successes']:,})  partial {c['partials']:,}  "
+            f"fumble {c['fumbles']:,}  crit {c['crits']:,}",
+            f"    Avg quality   : {c['avg_quality']:.2f}  "
+            f"(experiments {c['experiments']:,})",
+        ]
+        if c["by_band"]:
+            lines.append("    By difficulty (success rate):")
+            for band, n, ok in c["by_band"]:
+                lines.append(
+                    f"      {band:<16} {n:>6,}  {self._pct(ok, n)}")
+        if c["by_schematic"]:
+            lines.append("    Top schematics (success / avg quality):")
+            for name, n, ok, q in c["by_schematic"][:8]:
+                lines.append(
+                    f"      {name:<20} {n:>6,}  {self._pct(ok, n)}  q{q:.1f}")
 
 
 class LoreCommand(BaseCommand):

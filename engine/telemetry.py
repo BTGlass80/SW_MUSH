@@ -829,6 +829,13 @@ def summarize(events: list[dict]) -> dict:
                       ~0 = catalog C), the friction rate, the exact tokens that
                       confuse (catalog D), and alias-vs-canonical use — the NPE
                       signal the onboarding drive is tuned against.
+      - craft:        crafting-outcome calibration (craft) — the unified
+                      resolve_craft completion chokepoint. The outcome
+                      distribution (success/partial/fumble) + the item-quality
+                      mean is the direct tuning signal for the QUALITY_MULT_*
+                      knobs; success rate by difficulty band + per schematic is
+                      the per-recipe DC signal (skill-check-shaped, so it reads
+                      like the skill board).
 
     Pure + total: never reads files, never raises, accepts a possibly-mixed
     list of dicts and ignores fields it does not recognise.
@@ -930,6 +937,22 @@ def summarize(events: list[dict]) -> dict:
     cmd_counter: Counter = Counter()
     unmatched_counter: Counter = Counter()
     cmd_users: set = set()
+    # Crafting-outcome funnel (``craft``: the unified resolve_craft completion
+    # chokepoint). The credit SINK (schematic tuition) already rides
+    # ``economy``/``credit_flow`` and the skill roll rides ``skill_check``, but
+    # the per-schematic success/partial/fumble + item-quality distribution — the
+    # direct tuning signal for the QUALITY_MULT_* knobs and per-recipe
+    # difficulty — was dropped on the floor. ``quality`` is the produced item's
+    # quality multiplier (>0 only when something was produced); skill-check-
+    # shaped (carries a ``difficulty``), so success rate buckets by WEG band.
+    craft = {"crafts": 0, "successes": 0, "partials": 0, "fumbles": 0,
+             "crits": 0, "experiments": 0, "avg_quality": 0.0,
+             "crafters": 0, "by_band": [], "by_schematic": []}
+    craft_by_band: dict = {}
+    craft_by_schem: dict = {}
+    craft_crafters: set = set()
+    _cq_sum = 0.0
+    _cq_n = 0
 
     for ev in events:
         if not isinstance(ev, dict):
@@ -1151,6 +1174,41 @@ def summarize(events: list[dict]) -> dict:
             cid = ev.get("char_id")
             if cid is not None:
                 cmd_users.add(cid)
+        elif et == "craft":
+            craft["crafts"] += 1
+            ok = bool(ev.get("success"))
+            if ok:
+                craft["successes"] += 1
+            if ev.get("partial"):
+                craft["partials"] += 1
+            if ev.get("fumble"):
+                craft["fumbles"] += 1
+            if ev.get("critical"):
+                craft["crits"] += 1
+            if ev.get("experiment"):
+                craft["experiments"] += 1
+            q = ev.get("quality")
+            has_q = isinstance(q, (int, float)) and q > 0
+            if has_q:
+                _cq_sum += float(q)
+                _cq_n += 1
+            band = _difficulty_band(ev.get("difficulty"))
+            bd = craft_by_band.setdefault(band, {"n": 0, "ok": 0})
+            bd["n"] += 1
+            if ok:
+                bd["ok"] += 1
+            schem = str(ev.get("schematic") or "?")
+            sd = craft_by_schem.setdefault(
+                schem, {"n": 0, "ok": 0, "qsum": 0.0, "qn": 0})
+            sd["n"] += 1
+            if ok:
+                sd["ok"] += 1
+            if has_q:
+                sd["qsum"] += float(q)
+                sd["qn"] += 1
+            cid = ev.get("char_id")
+            if cid is not None:
+                craft_crafters.add(cid)
         elif et in _ECONOMY_DOMAINS:
             dom = _ECONOMY_DOMAINS[et]
             cr = _economy_credits(et, ev)
@@ -1207,6 +1265,25 @@ def summarize(events: list[dict]) -> dict:
         ((name, d["n"], d["ok"]) for name, d in skill_by_skill.items()),
         key=lambda r: (-r[1], r[0]))[:12]
 
+    craft["crafters"] = len(craft_crafters)
+    # Mean produced-item quality over crafts that produced something (quality>0);
+    # a fumble that yields nothing carries quality 0 and is excluded so it does
+    # not drag the QUALITY_MULT signal down spuriously.
+    craft["avg_quality"] = (_cq_sum / _cq_n) if _cq_n else 0.0
+    # Difficulty bands in canonical (easy→heroic) order; skip empty bands. Each
+    # row is (band, crafts, successes).
+    craft["by_band"] = [
+        (b, craft_by_band[b]["n"], craft_by_band[b]["ok"])
+        for b in _BAND_ORDER if b in craft_by_band
+    ]
+    # Schematics ranked by craft volume (the most-crafted recipe first), top 12.
+    # Each row is (schematic, crafts, successes, mean-quality) — the per-recipe
+    # success-rate + quality signal for tuning a schematic's difficulty / yield.
+    craft["by_schematic"] = sorted(
+        ((name, d["n"], d["ok"], (d["qsum"] / d["qn"]) if d["qn"] else 0.0)
+         for name, d in craft_by_schem.items()),
+        key=lambda r: (-r[1], r[0]))[:12]
+
     return {
         "total": len(events),
         "by_type": by_type.most_common(),
@@ -1223,4 +1300,5 @@ def summarize(events: list[dict]) -> dict:
         "economy": economy,
         "progression": progression,
         "command": command,
+        "craft": craft,
     }
