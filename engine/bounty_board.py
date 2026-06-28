@@ -68,6 +68,12 @@ PAY_RANGES: dict[BountyTier, tuple[int, int]] = {
     BountyTier.SUPERIOR: (3000, 10000),
 }
 
+# Bring-'em-in-alive bonus: a fraction of the base reward (random.uniform),
+# rounded to 50cr. Externalized to bounty.alive_bonus_{min,max}_pct and read at
+# the use site via _alive_bonus_pct_range (T3.19 config breadth).
+ALIVE_BONUS_MIN_PCT = 0.10
+ALIVE_BONUS_MAX_PCT = 0.20
+
 # Spawn weight: extras are common, superiors are rare
 TIER_WEIGHTS: dict[BountyTier, int] = {
     BountyTier.EXTRA:    5,
@@ -350,9 +356,80 @@ def _gen_id() -> str:
     return "b-" + str(uuid.uuid4())[:8]
 
 
+def _safe_int(v, default: int) -> int:
+    """Tolerant int — a corrupt operator tunable (str/None) must never crash
+    bounty generation; it falls back to the in-code default."""
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_float(v, default: float) -> float:
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
+
+# ── Live tunable accessors (T3.19 config breadth) ─────────────────────────
+# The bounty board's reward model — the levers the ``@balance objectives`` board
+# (the per-kind start→complete funnel + the `reward` column) exists to inform.
+# Each accessor reads ``bounty.*`` from data/tunables.yaml at the USE SITE so an
+# operator edit takes effect on the next load (no module-import freeze), and
+# falls back to the in-code constant when the key is absent — so the YAML is
+# purely additive and behaviour-identical to omitting it. Magnitudes clamp to
+# >= 0 so a fat-fingered negative can't pay the hunter a debit; band/weight
+# guards keep random.randint / random.choices from ever raising on bad config.
+def _pay_range(tier: BountyTier) -> tuple[int, int]:
+    """The credit reward band [lo, hi] for a bounty tier, operator-tunable.
+
+    Reads bounty.reward_<tier>_min / _max (e.g. bounty.reward_superior_max — the
+    one band edge externalized in T3.19 Phase 1; the rest join it here). lo/hi
+    clamp >= 0 and hi clamps >= lo so random.randint can never get an empty range
+    from a bad operator value (the superior tier already had this guard; it now
+    covers every tier symmetrically)."""
+    base_lo, base_hi = PAY_RANGES[tier]
+    name = tier.value
+    lo = max(0, _safe_int(get_tunable(f"bounty.reward_{name}_min", base_lo),
+                          base_lo))
+    hi = max(0, _safe_int(get_tunable(f"bounty.reward_{name}_max", base_hi),
+                          base_hi))
+    return lo, max(lo, hi)
+
+
+def _alive_bonus_pct_range() -> tuple[float, float]:
+    """The [min, max] fraction of the base reward paid as the bring-'em-in-alive
+    bonus (random.uniform). Clamped >= 0 with max >= min."""
+    lo = max(0.0, _safe_float(
+        get_tunable("bounty.alive_bonus_min_pct", ALIVE_BONUS_MIN_PCT),
+        ALIVE_BONUS_MIN_PCT))
+    hi = max(0.0, _safe_float(
+        get_tunable("bounty.alive_bonus_max_pct", ALIVE_BONUS_MAX_PCT),
+        ALIVE_BONUS_MAX_PCT))
+    return lo, max(lo, hi)
+
+
+def _tier_weights() -> dict[BountyTier, int]:
+    """Per-tier spawn-rarity weights — with the reward band, the bounty faucet's
+    expected value the @balance objectives reward column reflects (more superiors
+    posted = a richer board). Each weight clamps >= 0; if the total comes out
+    <= 0 (an operator zeroed them all) the in-code TIER_WEIGHTS are used so
+    random.choices never raises 'Total of weights must be greater than zero'."""
+    out: dict[BountyTier, int] = {}
+    for t in TIER_WEIGHTS:
+        out[t] = max(0, _safe_int(
+            get_tunable(f"bounty.tier_weight_{t.value}", TIER_WEIGHTS[t]),
+            TIER_WEIGHTS[t]))
+    if sum(out.values()) <= 0:
+        return dict(TIER_WEIGHTS)
+    return out
+
+
 def _pick_tier() -> BountyTier:
-    tiers  = list(TIER_WEIGHTS.keys())
-    weights = [TIER_WEIGHTS[t] for t in tiers]
+    weights_map = _tier_weights()
+    tiers  = list(weights_map.keys())
+    weights = [weights_map[t] for t in tiers]
     return random.choices(tiers, weights=weights, k=1)[0]
 
 
@@ -382,12 +459,9 @@ def krayt_upgrade_tier(tier: BountyTier, krayt_active: bool) -> BountyTier:
 
 
 def _scale_reward(tier: BountyTier) -> int:
-    lo, hi = PAY_RANGES[tier]
-    if tier == BountyTier.SUPERIOR:
-        # clamp hi >= lo so an out-of-range operator value can't make
-        # random.randint raise "empty range" (mission._scale_reward is already
-        # min/max-guarded; bounty's randint is not).
-        hi = max(lo, get_tunable("bounty.reward_superior_max", hi))
+    # _pay_range reads the full operator-tunable band (bounty.reward_<tier>_*)
+    # and is already lo/hi-clamped so random.randint can't get an empty range.
+    lo, hi = _pay_range(tier)
     raw = random.randint(lo, hi)
     # Round to nearest 50cr
     return int(round(raw / 50) * 50)
@@ -513,7 +587,8 @@ async def generate_bounty(db, rooms: Optional[list[dict]] = None) -> Optional[Bo
         return None
 
     reward = _scale_reward(tier)
-    alive_bonus = int(reward * random.uniform(0.10, 0.20))
+    _ab_lo, _ab_hi = _alive_bonus_pct_range()
+    alive_bonus = int(reward * random.uniform(_ab_lo, _ab_hi))
     alive_bonus = int(round(alive_bonus / 50) * 50)
 
     now = time.time()

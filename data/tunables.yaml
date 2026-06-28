@@ -26,7 +26,41 @@ trade.supply_max_luxury_goods: 6      # luxury_goods units per refresh (tightest
 mission.reward_smuggling_max: 5000    # top of the smuggling pay band (lo stays 500)
 
 # ── Bounty rewards (engine/bounty_board.py) ──
-bounty.reward_superior_max: 10000     # top of the superior-tier bounty band (lo stays 3000)
+# The procedurally-generated bounty-board reward model — the levers the
+# `@balance objectives` board (the per-kind start→complete funnel + its `reward`
+# column, tagged `bounty`) exists to inform. T3.19 Phase 1 externalized only the
+# superior-tier ceiling (`bounty.reward_superior_max`); the rest of the curve
+# joins it here so the whole faucet is operator-tunable. Each value EQUALS the
+# in-code default (PAY_RANGES / TIER_WEIGHTS / the alive-bonus pct), so this
+# section is behaviour-identical to omitting it; read at the use site (clamped
+# >= 0, with hi >= lo so random.randint can't get an empty range and a zeroed
+# weight-set falling back to the in-code weights so random.choices can't raise)
+# so an edit takes effect on the next load with no redeploy.
+#  * reward_<tier>_min / _max: the credit band a tier's reward is rolled from,
+#    rounded to 50cr — the headline bounty faucet (raise to make hunting pay
+#    more, lower to tighten it). 5 tiers, extras cheap → superiors rich.
+#  * alive_bonus_{min,max}_pct: the extra fraction of the base reward paid for
+#    bringing the target in alive (rolled per contract; 0.10–0.20 by default).
+#  * tier_weight_<tier>: spawn rarity per refresh — with the bands, this sets the
+#    board's expected value (more superiors = a richer board). Extras common,
+#    superiors rare.
+bounty.reward_extra_min: 100          # extra-tier band low
+bounty.reward_extra_max: 300          # extra-tier band high
+bounty.reward_average_min: 300        # average-tier band low
+bounty.reward_average_max: 800        # average-tier band high
+bounty.reward_novice_min: 800         # novice-tier band low
+bounty.reward_novice_max: 1500        # novice-tier band high
+bounty.reward_veteran_min: 1500       # veteran-tier band low
+bounty.reward_veteran_max: 3000       # veteran-tier band high
+bounty.reward_superior_min: 3000      # superior-tier band low
+bounty.reward_superior_max: 10000     # superior-tier band high (T3.19 Phase 1 lever)
+bounty.alive_bonus_min_pct: 0.10      # min bring-'em-alive bonus (fraction of base)
+bounty.alive_bonus_max_pct: 0.20      # max bring-'em-alive bonus (fraction of base)
+bounty.tier_weight_extra: 5           # spawn weight: extras common
+bounty.tier_weight_average: 4         # spawn weight: average
+bounty.tier_weight_novice: 3          # spawn weight: novice
+bounty.tier_weight_veteran: 2         # spawn weight: veteran
+bounty.tier_weight_superior: 1        # spawn weight: superiors rare
 
 # ── Player-to-player trade (parser/builtin_commands.py) ──
 p2p.tax_pct: 5                        # percent sink on consented credit trades (floor 1cr)
