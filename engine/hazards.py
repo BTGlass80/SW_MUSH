@@ -24,6 +24,8 @@ import logging
 import time
 from typing import Optional
 
+from engine.tunables import get_tunable
+
 log = logging.getLogger(__name__)
 
 
@@ -119,6 +121,60 @@ _hazard_timers: dict[tuple[int, int], float] = {}
 HAZARD_CHECK_INTERVAL = 300
 
 
+# ── Live tunable accessors (T3.19 config breadth) ─────────────────────────
+# The hazard balance model — the DENSITY (check cadence), DIFFICULTY (per-type DC
+# + the shared severity step + the extreme_heat clock grading) and SINK (the
+# urban_danger pickpocket theft) levers. Each reads ``hazards.*`` from
+# data/tunables.yaml at the USE SITE so an operator edit takes effect on the next
+# load, falling back to the in-code constant when the key is absent — the YAML is
+# purely additive (behaviour-identical to omitting it). Mirrors
+# engine/bounty_board.py's tolerant-coerce + get_tunable fallback. Guards:
+# interval/DC clamp so a fat-fingered tunable can't make checks fire every tick or
+# hand the player an auto-pass DC; theft fractions clamp to [0,1] / magnitudes >= 0
+# so the SINK can never pay the victim.
+def _safe_int(v, default: int) -> int:
+    """Tolerant int — a corrupt operator tunable (str/None) must never crash the
+    hazard tick; it falls back to the in-code default."""
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_float(v, default: float) -> float:
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def _check_interval() -> int:
+    """Per-(char,room) seconds between hazard checks (the hazard-DENSITY pacing
+    lever). Reads hazards.check_interval_seconds; HAZARD_CHECK_INTERVAL is the
+    default. Clamped >= 0 (0 = a check every hazard tick, no extra cooldown)."""
+    return max(0, _safe_int(
+        get_tunable("hazards.check_interval_seconds", HAZARD_CHECK_INTERVAL),
+        HAZARD_CHECK_INTERVAL))
+
+
+def _scaled_difficulty(hazard_type: str, severity) -> int:
+    """Severity-scaled skill-check DC for a hazard, operator-tunable.
+
+    DC = hazards.difficulty_<type> + (severity-1) * hazards.severity_difficulty_step,
+    falling back to the in-code HAZARD_TYPES base_difficulty + a 3-DC step — so it
+    is behaviour-identical to the old ``base + (severity-1)*3`` when the YAML is
+    absent. Clamped >= 1 so a misconfigured tunable can't yield a non-positive
+    (auto-pass) DC. The single source of the formula the three call sites share."""
+    template = HAZARD_TYPES.get(hazard_type, {})
+    base_default = template.get("base_difficulty", 10)
+    base = _safe_int(
+        get_tunable(f"hazards.difficulty_{hazard_type}", base_default),
+        base_default)
+    step = _safe_int(get_tunable("hazards.severity_difficulty_step", 3), 3)
+    sev = max(1, _safe_int(severity, 1))
+    return max(1, base + (sev - 1) * step)
+
+
 # Lane E2b (Secrets of Tatooine §3): time-of-day grading for the extreme_heat
 # hazard — worst under the noon suns ("day"), eased after dark ("night"). Steps
 # are -1D-band (3 pips); the caller floors the result. Pure + table-driven so it
@@ -128,8 +184,15 @@ _EXTREME_HEAT_TOD_MOD = {"day": 3, "dusk": 0, "night": -4}
 
 def _extreme_heat_time_mod(time_of_day: str) -> int:
     """Difficulty modifier for extreme_heat by clock band (day hotter, night eased).
-    Unknown/None -> 0 (no-op)."""
-    return _EXTREME_HEAT_TOD_MOD.get((time_of_day or "").strip().lower(), 0)
+    Unknown/None -> 0 (no-op). Operator-tunable via hazards.heat_tod_<band>; the
+    in-code _EXTREME_HEAT_TOD_MOD value is the default (modifiers may be negative —
+    night relief — so no clamp)."""
+    band = (time_of_day or "").strip().lower()
+    if band not in _EXTREME_HEAT_TOD_MOD:
+        return 0
+    return _safe_int(
+        get_tunable(f"hazards.heat_tod_{band}", _EXTREME_HEAT_TOD_MOD[band]),
+        _EXTREME_HEAT_TOD_MOD[band])
 
 
 # ── Hazard Resolution ─────────────────────────────────────────────────────────
@@ -154,7 +217,7 @@ def _should_check(char_id: int, room_id: int) -> bool:
     """Return True if enough time has passed since last hazard check."""
     key = (char_id, room_id)
     last = _hazard_timers.get(key, 0)
-    return (time.time() - last) >= HAZARD_CHECK_INTERVAL
+    return (time.time() - last) >= _check_interval()
 
 
 def _mark_checked(char_id: int, room_id: int) -> None:
@@ -341,7 +404,7 @@ async def check_hazard_for_character(
     if "difficulty" in hazard_cfg:
         difficulty = hazard_cfg["difficulty"]
     else:
-        difficulty = template["base_difficulty"] + (severity - 1) * 3
+        difficulty = _scaled_difficulty(hazard_type, severity)
 
     # Lane E2b (Secrets of Tatooine §3): the desert heat-and-thirst hazard is
     # graded by the twin-sun clock — at its worst under the noon suns, eased
@@ -358,7 +421,10 @@ async def check_hazard_for_character(
             if not isinstance(_rprops, dict):
                 _rprops = {}
             _tod = resolve_time_of_day(_rprops)
-            difficulty = max(5, difficulty + _extreme_heat_time_mod(_tod))
+            _heat_floor = max(0, _safe_int(
+                get_tunable("hazards.heat_difficulty_floor", 5), 5))
+            difficulty = max(_heat_floor,
+                             difficulty + _extreme_heat_time_mod(_tod))
         except Exception as _e:
             log.debug("silent except in engine/hazards.py extreme_heat tod mod: %s",
                       _e, exc_info=True)
@@ -426,10 +492,17 @@ async def check_hazard_for_character(
                 except Exception as _e:
                     log.debug("silent except in engine/hazards.py:246: %s", _e, exc_info=True)
         elif hazard_type == "urban_danger":
-            # Pickpocket — steal credits
+            # Pickpocket — steal credits (operator-tunable SINK; funnel-routed
+            # below via adjust_credits "hazard_theft").
+            _frac = min(1.0, max(0.0, _safe_float(
+                get_tunable("hazards.theft_credit_fraction", 0.05), 0.05)))
+            _floor = max(0, _safe_int(
+                get_tunable("hazards.theft_floor", 50), 50))
+            _per_sev = max(0, _safe_int(
+                get_tunable("hazards.theft_per_severity", 100), 100))
             stolen = min(
-                int(char.get("credits", 0) * 0.05),  # 5% of credits
-                max(50, severity * 100),  # 50-300 cr cap
+                int(char.get("credits", 0) * _frac),   # fraction of credits
+                max(_floor, severity * _per_sev),       # floor .. severity cap
             )
             if stolen > 0 and char.get("credits", 0) >= stolen:
                 char["credits"] = char.get("credits", 0) - stolen
@@ -579,7 +652,6 @@ async def _check_wilderness_hazard(char: dict, db, session=None) -> bool:
     # stable per-region negative pseudo-id to keep wilderness cooldowns
     # separate from any real room cooldowns. Negative numbers are not
     # used by the rooms table (id INTEGER PRIMARY KEY → always > 0).
-    template = HAZARD_TYPES[hazard_type]
     pseudo_room_id = _wilderness_pseudo_room_id(slug)
     synthetic_room = {
         "id": pseudo_room_id,
@@ -587,7 +659,7 @@ async def _check_wilderness_hazard(char: dict, db, session=None) -> bool:
             "environment_hazard": {
                 "type": hazard_type,
                 "severity": severity,
-                "difficulty": template["base_difficulty"] + (severity - 1) * 3,
+                "difficulty": _scaled_difficulty(hazard_type, severity),
             },
         }),
     }
@@ -637,7 +709,7 @@ async def set_room_hazard(
         props["environment_hazard"] = {
             "type": hazard_type,
             "severity": severity,
-            "difficulty": template["base_difficulty"] + (severity - 1) * 3,
+            "difficulty": _scaled_difficulty(hazard_type, severity),
         }
 
         await db.execute(

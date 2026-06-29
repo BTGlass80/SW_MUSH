@@ -507,6 +507,41 @@ title.cost_void_baron: 120000      # Baron of the Void
 title.cost_philanthropist: 200000  # Renowned Philanthropist
 title.cost_luminary: 400000        # Luminary of the Core (headline money-burn)
 
+# ── Environmental hazards (engine/hazards.py) ──
+# The hazard balance model — the DENSITY (check cadence), DIFFICULTY (per-type base
+# DC + the shared severity step + the extreme_heat clock grading), and SINK (the
+# urban_danger pickpocket theft) levers governing the periodic hazard tick. Sibling
+# to encounter.* above: that paces how often a huntable mob spawns; these pace how
+# often a hazard checks, how hard, and how much the pickpocket bites. The theft is
+# funnel-routed (adjust_credits "hazard_theft") so it surfaces as a credit sink in
+# @balance flows / @economy velocity. Each value EQUALS the in-code default, so this
+# section is behaviour-identical to omitting it; read at the use site (interval/DC
+# clamped, fractions clamped to [0,1], theft magnitudes >= 0) so an edit takes
+# effect on the next load with no redeploy.
+#  * check_interval_seconds: per-(char,room) cooldown between hazard checks — THE
+#    hazard-DENSITY pacing lever (raise to ease the attrition, lower to bite more;
+#    0 = a check every hazard tick).
+#  * difficulty_<type>: base skill-check DC for a severity-1 hazard of each type.
+#  * severity_difficulty_step: DC added per severity level above 1 (the shared
+#    base + (severity-1)*step curve; e.g. severity-3 radiation = 15 + 2*3 = 21).
+#  * heat_tod_<band>: extreme_heat time-of-day DC modifier (noon suns hotter, night
+#    eased; may be negative); heat_difficulty_floor: DC floor night relief can't pass.
+#  * theft_credit_fraction / theft_floor / theft_per_severity: the urban_danger
+#    pickpocket SINK — steals min(fraction*credits, max(floor, severity*per_sev)).
+hazards.check_interval_seconds: 300         # per-(char,room) seconds between hazard checks
+hazards.difficulty_extreme_heat: 10         # base DC: Extreme Heat (Stamina)
+hazards.difficulty_toxic_atmosphere: 12     # base DC: Toxic Atmosphere (Stamina)
+hazards.difficulty_urban_danger: 10         # base DC: Urban Danger (Perception)
+hazards.difficulty_radiation: 15            # base DC: Radiation (Stamina, Difficult)
+hazards.severity_difficulty_step: 3         # DC added per severity level above 1
+hazards.heat_tod_day: 3                     # extreme_heat: noon-suns DC penalty
+hazards.heat_tod_dusk: 0                    # extreme_heat: dusk DC modifier (no-op)
+hazards.heat_tod_night: -4                  # extreme_heat: night DC relief
+hazards.heat_difficulty_floor: 5            # extreme_heat: DC floor night relief can't pass
+hazards.theft_credit_fraction: 0.05        # urban_danger: fraction of credits a pickpocket lifts
+hazards.theft_floor: 50                     # urban_danger: minimum theft cap (cr)
+hazards.theft_per_severity: 100            # urban_danger: theft cap per severity level (cr)
+
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
 # Brian decision #7 (2026-06-16): T3.14 cities are OPTIONAL at launch.
