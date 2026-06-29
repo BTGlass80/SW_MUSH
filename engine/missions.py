@@ -181,6 +181,79 @@ REQUIRED_SKILLS: dict[MissionType, list[str]] = {
 }
 
 
+# ── Live tunable accessors (T3.19 config breadth) ─────────────────────────────
+# The mission board's reward model — the levers the ``@balance objectives`` board
+# (the per-kind start→complete funnel + its `reward` column, the `mission` rows)
+# exists to inform, the mission-faucet complement to the bounty-board model
+# (engine/bounty_board.py) already externalized. Each accessor reads ``mission.*``
+# from data/tunables.yaml at the USE SITE so an operator edit takes effect on the
+# next load (no module-import freeze) and falls back to the in-code constant when
+# the key is absent — so the YAML is purely additive and behaviour-identical to
+# omitting it. Magnitudes clamp to >= 0 so a fat-fingered negative can't pay a
+# debit; band/weight guards keep random.randint / random.choices from ever
+# raising on bad config. (mission.* is a distinct namespace from the bounty.*
+# bounty-BOARD keys — the mission BOUNTY type is a separate faucet.)
+def _safe_int(v, default: int) -> int:
+    """Tolerant int — a corrupt operator tunable (str/None) must never crash
+    mission generation; it falls back to the in-code default."""
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_float(v, default: float) -> float:
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def _pay_range(mission_type: MissionType) -> tuple[int, int]:
+    """The credit reward band [lo, hi] for a mission type, operator-tunable.
+
+    Reads mission.reward_<type>_min / _max (e.g. mission.reward_smuggling_max —
+    the one band edge externalized in T3.19 Phase 1; the rest of the 14-type
+    table joins it here). lo/hi clamp >= 0 and hi clamps >= lo so random.randint
+    can never get an empty range from a bad operator value (smuggling already had
+    the max lever; every type now has the symmetric guard)."""
+    base_lo, base_hi = PAY_RANGES[mission_type]
+    name = mission_type.value
+    lo = max(0, _safe_int(get_tunable(f"mission.reward_{name}_min", base_lo),
+                          base_lo))
+    hi = max(0, _safe_int(get_tunable(f"mission.reward_{name}_max", base_hi),
+                          base_hi))
+    return lo, max(lo, hi)
+
+
+def _spawn_weights() -> dict[MissionType, int]:
+    """Per-type spawn-rarity weights — with the reward bands, the mission faucet's
+    expected value the @balance objectives reward column reflects (the rare social
+    job vs the always-on delivery floor). Each weight clamps >= 0; if the total
+    comes out <= 0 (an operator zeroed them all) the in-code SPAWN_WEIGHTS are
+    used so random.choices never raises 'Total of weights must be greater than
+    zero'. Ground types only — space missions are generated separately and never
+    appear in SPAWN_WEIGHTS."""
+    out: dict[MissionType, int] = {}
+    for t in SPAWN_WEIGHTS:
+        out[t] = max(0, _safe_int(
+            get_tunable(f"mission.spawn_weight_{t.value}", SPAWN_WEIGHTS[t]),
+            SPAWN_WEIGHTS[t]))
+    if sum(out.values()) <= 0:
+        return dict(SPAWN_WEIGHTS)
+    return out
+
+
+def _distress_bonus_pct() -> float:
+    """The distress-emergency pay premium (a fraction of the base reward) added
+    while a DISTRESS_SIGNAL world-event is live — the lever behind the objective
+    funnel's reward column lifting during a crisis. Clamped >= 0 so a negative
+    can't cut the reward below base; the worst a bad value does is no premium."""
+    return max(0.0, _safe_float(
+        get_tunable("mission.distress_reward_bonus_pct", DISTRESS_REWARD_BONUS),
+        DISTRESS_REWARD_BONUS))
+
+
 # ── Flavor text tables ─────────────────────────────────────────────────────────
 
 _GIVERS = [
@@ -409,7 +482,7 @@ def _generate_id() -> str:
 
 def _pick_type() -> MissionType:
     """Weighted random mission type selection, biased by zone alert level."""
-    weights = dict(SPAWN_WEIGHTS)  # mutable local copy
+    weights = _spawn_weights()  # operator-tunable, mutable local copy
     # Bias weights based on Director zone alert level
     try:
         from engine.director import get_director, AlertLevel
@@ -457,7 +530,7 @@ def distress_mission_bonus(reward: int, distress_active: bool) -> int:
     boosted) reward, rounded to 50cr."""
     if not distress_active or reward <= 0:
         return reward
-    boosted = int(reward * (1.0 + DISTRESS_REWARD_BONUS))
+    boosted = int(reward * (1.0 + _distress_bonus_pct()))
     return int(round(boosted / 50) * 50)
 
 
@@ -470,9 +543,7 @@ def _scale_reward(mission_type: MissionType, skill_level: int = 3) -> int:
     skill_level 3-4 = moderate missions (middle 50%)
     skill_level 5-6 = hard missions (top 30%)
     """
-    lo, hi = PAY_RANGES[mission_type]
-    if mission_type == MissionType.SMUGGLING:
-        hi = get_tunable("mission.reward_smuggling_max", hi)
+    lo, hi = _pay_range(mission_type)
     span = hi - lo
     # Position within range: clamp skill_level to 1-6
     sl = max(1, min(6, skill_level))
@@ -667,8 +738,10 @@ def generate_board(
     # Guarantee one delivery (always available)
     delivery = generate_mission(destination_rooms, skill_level=max(1, skill_level - 1))
     delivery.mission_type = MissionType.DELIVERY
-    lo, hi = PAY_RANGES[MissionType.DELIVERY]
-    delivery.reward = random.randint(lo, hi // 2)  # delivery always low-end
+    lo, hi = _pay_range(MissionType.DELIVERY)
+    # delivery always low-end (bottom half of the band); max(lo, …) keeps
+    # randint safe if an operator collapses the delivery band so hi//2 < lo.
+    delivery.reward = random.randint(lo, max(lo, hi // 2))
     delivery.title = f"Delivery: {delivery.destination}"
     delivery.objective = random.choice(_DELIVERY_OBJECTIVES).format(dest=delivery.destination)
     delivery.required_skill = "stamina"
@@ -677,7 +750,6 @@ def generate_board(
     # Guarantee one combat
     combat = generate_mission(destination_rooms, skill_level=skill_level)
     combat.mission_type = MissionType.COMBAT
-    lo, hi = PAY_RANGES[MissionType.COMBAT]
     combat.reward = _scale_reward(MissionType.COMBAT, skill_level)
     combat.title = f"Combat: {combat.destination}"
     combat.objective = random.choice(_COMBAT_OBJECTIVES).format(dest=combat.destination)

@@ -23,7 +23,66 @@ trade.supply_refresh_seconds: 2700    # supply-pool refresh cadence (45 min)
 trade.supply_max_luxury_goods: 6      # luxury_goods units per refresh (tightest cap)
 
 # ── Mission rewards (engine/missions.py) ──
-mission.reward_smuggling_max: 5000    # top of the smuggling pay band (lo stays 500)
+# The procedurally-generated mission-board reward model — the levers the `@balance
+# objectives` board (the per-kind start→complete funnel + its `reward` column, the
+# `mission` rows) exists to inform, the mission-faucet complement to the bounty
+# model below. T3.19 Phase 1 externalized ONLY the smuggling-tier ceiling
+# (`mission.reward_smuggling_max`); the rest of the curve joins it here so the
+# whole faucet is operator-tunable. Each value EQUALS the in-code default
+# (PAY_RANGES / SPAWN_WEIGHTS / DISTRESS_REWARD_BONUS), so this section is
+# behaviour-identical to omitting it; read at the use site (clamped >= 0, hi >= lo
+# so random.randint can't get an empty range, and a zeroed weight-set falling back
+# to the in-code weights so random.choices can't raise) so an edit takes effect on
+# the next load with no redeploy. NOTE: these `mission.*` keys are a DISTINCT
+# namespace from the `bounty.*` bounty-BOARD keys — the mission BOUNTY type is a
+# separate faucet (a contract picked off the mission board).
+#  * reward_<type>_min / _max: the credit band a type's reward is rolled from
+#    (scaled within the band by mission difficulty, rounded to 50cr) — the
+#    headline mission faucet. 14 types: cheap deliveries → rich space intercepts.
+#  * spawn_weight_<type>: relative spawn rarity on the board (ground types only —
+#    space missions are generated separately). With the bands this sets the
+#    board's expected value: delivery always available, social/slicing rare.
+#  * distress_reward_bonus_pct: the extra fraction of pay added to a mission while
+#    a DISTRESS_SIGNAL world-event is live (the emergency premium).
+mission.reward_delivery_min: 100        # delivery band low
+mission.reward_delivery_max: 300        # delivery band high
+mission.reward_combat_min: 300          # combat band low
+mission.reward_combat_max: 1000         # combat band high
+mission.reward_investigation_min: 200   # investigation band low
+mission.reward_investigation_max: 800   # investigation band high
+mission.reward_social_min: 500          # social band low
+mission.reward_social_max: 2000         # social band high
+mission.reward_technical_min: 300       # technical band low
+mission.reward_technical_max: 1500      # technical band high
+mission.reward_medical_min: 200         # medical band low
+mission.reward_medical_max: 1000        # medical band high
+mission.reward_smuggling_min: 500       # smuggling band low
+mission.reward_smuggling_max: 5000      # smuggling band high (T3.19 Phase 1 lever)
+mission.reward_bounty_min: 300          # mission-board bounty type band low
+mission.reward_bounty_max: 3000         # mission-board bounty type band high
+mission.reward_slicing_min: 400         # slicing band low
+mission.reward_slicing_max: 2000        # slicing band high
+mission.reward_salvage_min: 200         # salvage band low
+mission.reward_salvage_max: 1000        # salvage band high
+mission.reward_patrol_min: 600          # space: patrol band low
+mission.reward_patrol_max: 1000         # space: patrol band high
+mission.reward_escort_min: 1500         # space: escort band low
+mission.reward_escort_max: 2500         # space: escort band high
+mission.reward_intercept_min: 2000      # space: intercept band low
+mission.reward_intercept_max: 3000      # space: intercept band high
+mission.reward_survey_zone_min: 1200    # space: survey-zone band low
+mission.reward_survey_zone_max: 1800    # space: survey-zone band high
+mission.spawn_weight_delivery: 10       # spawn weight: delivery always available
+mission.spawn_weight_combat: 8          # spawn weight: combat common
+mission.spawn_weight_investigation: 6   # spawn weight: investigation
+mission.spawn_weight_social: 2          # spawn weight: social rare
+mission.spawn_weight_technical: 6       # spawn weight: technical
+mission.spawn_weight_medical: 8         # spawn weight: medical common
+mission.spawn_weight_smuggling: 5       # spawn weight: smuggling
+mission.spawn_weight_bounty: 5          # spawn weight: bounty
+mission.spawn_weight_slicing: 2         # spawn weight: slicing rare
+mission.spawn_weight_salvage: 6         # spawn weight: salvage
+mission.distress_reward_bonus_pct: 0.30 # +30% emergency pay while DISTRESS_SIGNAL is live
 
 # ── Bounty rewards (engine/bounty_board.py) ──
 # The procedurally-generated bounty-board reward model — the levers the
