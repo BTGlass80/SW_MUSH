@@ -542,6 +542,31 @@ hazards.theft_credit_fraction: 0.05        # urban_danger: fraction of credits a
 hazards.theft_floor: 50                     # urban_danger: minimum theft cap (cr)
 hazards.theft_per_severity: 100            # urban_danger: theft cap per severity level (cr)
 
+# ── Dark-Side bounty hunter pacing (engine/dsp_hunter.py) ──
+# The roaming-DSP-hunter PACING model — the DENSITY/DIFFICULTY levers governing the
+# deterministic pursuit that closes in on a Force-user once their Dark Side Points
+# cross the wanted threshold. Prestige-domain (no credits move — defeating or
+# atoning past the hunter IS the resolution), so there is no SINK lever. Sibling to
+# hazards.* / encounter.* above: those pace the wilderness attrition; these pace how
+# fast the dark path's consequence catches up and where the dread escalates. Each
+# value EQUALS the in-code default, so this section is behaviour-identical to
+# omitting it; read at the use site (steps/boundaries clamped >= 0, the ceiling
+# >= 1) so an edit takes effect on the next load with no redeploy.
+#  * step_<tier>: pursuit-progress advanced per tick at each DSP tier (Marked 4-5 /
+#    Hunted 6-8 / Darkest 9+) — THE closing-speed lever (raise to make the dark
+#    path bite faster). The 4/6/9 tier cutoffs are single-sourced with the bounty
+#    board's notoriety tiers and are NOT tunable here (they'd drift from the board).
+#  * progress_max: the 0..N pursuit scale ceiling = the `at_heels` climax point.
+#  * stage_closing / stage_imminent / stage_at_heels: progress at which the pursuit
+#    enters each escalating dread stage (the warning the quarry sees steps up).
+dsp_hunter.step_marked: 5                   # progress/tick at DSP 4-5 (Marked)
+dsp_hunter.step_hunted: 9                   # progress/tick at DSP 6-8 (Hunted)
+dsp_hunter.step_darkest: 14                 # progress/tick at DSP 9+ (Darkest — fastest)
+dsp_hunter.progress_max: 100                # pursuit scale ceiling (the at_heels climax)
+dsp_hunter.stage_closing: 40                # progress entering `closing` (hunter named, getting closer)
+dsp_hunter.stage_imminent: 75              # progress entering `imminent` (nearly on top of the quarry)
+dsp_hunter.stage_at_heels: 100             # progress entering `at_heels` (climax / live-spawn)
+
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
 # Brian decision #7 (2026-06-16): T3.14 cities are OPTIONAL at launch.

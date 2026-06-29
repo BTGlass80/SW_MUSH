@@ -42,6 +42,7 @@ from __future__ import annotations
 # Single-source the wanted threshold from the DSP-notoriety module so the hunter
 # and the board can never drift apart.
 from engine.bounty_board import DSP_BOUNTY_THRESHOLD
+from engine.tunables import get_tunable
 
 # ── ANSI (mirrors engine/bounty_board.py's local palette) ───────────────────
 _BOLD = "\033[1m"
@@ -71,6 +72,77 @@ _AT_HEELS_AT = 100
 _STEP_MARKED = 5
 _STEP_HUNTED = 9
 _STEP_DARKEST = 14
+
+
+# ── Live tunable accessors (T3.19 config breadth) ─────────────────────────
+# The DSP-hunter PACING model — the DENSITY/DIFFICULTY levers that govern how fast
+# a pursuit closes (the per-DSP-tier step) and where the dread escalates (the stage
+# boundaries + the progress ceiling). Each reads ``dsp_hunter.*`` from
+# data/tunables.yaml at the USE SITE so an operator edit takes effect on the next
+# load, falling back to the in-code constant when the key is absent — the YAML is
+# purely additive (behaviour-identical to omitting it). Mirrors engine/hazards.py's
+# tolerant-coerce + get_tunable fallback. Guards: every value clamps to a safe
+# magnitude (steps/boundaries >= 0, the ceiling >= 1) so a fat-fingered tunable can
+# never crash the deterministic tick or collapse the 0..N scale. The pursuit stays
+# prestige-domain (no credits move here), so there is no SINK lever.
+#
+# The DSP TIER bands themselves (the 4/6/9 Marked/Hunted/Darkest cutoffs in
+# step_for_dsp / _dsp_tier) are deliberately NOT externalized: they are
+# single-sourced with engine/bounty_board's notoriety tiers and the board labels,
+# and must never drift from them. Only the *pace* of the hunt is operator-tunable.
+def _safe_int(v, default: int) -> int:
+    """Tolerant int — a corrupt operator tunable (str/None) must never crash the
+    deterministic pursuit tick; it falls back to the in-code default."""
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def _step_marked() -> int:
+    return max(0, _safe_int(get_tunable("dsp_hunter.step_marked", _STEP_MARKED),
+                            _STEP_MARKED))
+
+
+def _step_hunted() -> int:
+    return max(0, _safe_int(get_tunable("dsp_hunter.step_hunted", _STEP_HUNTED),
+                            _STEP_HUNTED))
+
+
+def _step_darkest() -> int:
+    return max(0, _safe_int(get_tunable("dsp_hunter.step_darkest", _STEP_DARKEST),
+                            _STEP_DARKEST))
+
+
+def progress_max() -> int:
+    """The pursuit-progress ceiling (the `at_heels` climax point). Operator-tunable
+    via dsp_hunter.progress_max; clamped >= 1 so a misconfigured value can't
+    collapse the whole 0..N scale to a single point."""
+    return max(1, _safe_int(get_tunable("dsp_hunter.progress_max", PROGRESS_MAX),
+                            PROGRESS_MAX))
+
+
+def closing_at() -> int:
+    """Progress at which the pursuit enters `closing` (first named-hunter warning).
+    Operator-tunable via dsp_hunter.stage_closing; clamped >= 0."""
+    return max(0, _safe_int(get_tunable("dsp_hunter.stage_closing", _CLOSING_AT),
+                            _CLOSING_AT))
+
+
+def imminent_at() -> int:
+    """Progress at which the pursuit enters `imminent`. Operator-tunable via
+    dsp_hunter.stage_imminent; clamped >= 0. Also the progress a slipped quarry's
+    dread resets to (the tick driver's escape reconcile)."""
+    return max(0, _safe_int(get_tunable("dsp_hunter.stage_imminent", _IMMINENT_AT),
+                            _IMMINENT_AT))
+
+
+def at_heels_at() -> int:
+    """Progress at which the pursuit reaches `at_heels` (the climax / live-spawn).
+    Operator-tunable via dsp_hunter.stage_at_heels; clamped >= 0."""
+    return max(0, _safe_int(get_tunable("dsp_hunter.stage_at_heels", _AT_HEELS_AT),
+                            _AT_HEELS_AT))
+
 
 # Invented, Q1-clean hunter roster. A character is assigned one deterministically
 # (stable across restarts), so "their" hunter has a consistent name.
@@ -119,17 +191,19 @@ def select_primary_quarry(wanted: list) -> "dict | None":
 
 
 def step_for_dsp(dsp: int) -> int:
-    """How far the hunter closes in one tick, by DSP tier."""
+    """How far the hunter closes in one tick, by DSP tier (operator-tunable per
+    tier via dsp_hunter.step_marked/step_hunted/step_darkest)."""
     d = int(dsp or 0)
     if d >= 9:
-        return _STEP_DARKEST
+        return _step_darkest()
     if d >= 6:
-        return _STEP_HUNTED
-    return _STEP_MARKED
+        return _step_hunted()
+    return _step_marked()
 
 
 def advance_progress(progress: int, dsp: int) -> int:
-    """Advance pursuit progress by one tick's worth, clamped to [0, PROGRESS_MAX]."""
+    """Advance pursuit progress by one tick's worth, clamped to [0, progress_max()]
+    (the ceiling is operator-tunable via dsp_hunter.progress_max)."""
     try:
         p = int(progress or 0)
     except (TypeError, ValueError):
@@ -137,8 +211,9 @@ def advance_progress(progress: int, dsp: int) -> int:
     p += step_for_dsp(dsp)
     if p < 0:
         return 0
-    if p > PROGRESS_MAX:
-        return PROGRESS_MAX
+    ceiling = progress_max()
+    if p > ceiling:
+        return ceiling
     return p
 
 
@@ -148,11 +223,11 @@ def pursuit_stage(progress: int) -> str:
         p = int(progress or 0)
     except (TypeError, ValueError):
         p = 0
-    if p >= _AT_HEELS_AT:
+    if p >= at_heels_at():
         return STAGE_AT_HEELS
-    if p >= _IMMINENT_AT:
+    if p >= imminent_at():
         return STAGE_IMMINENT
-    if p >= _CLOSING_AT:
+    if p >= closing_at():
         return STAGE_CLOSING
     return STAGE_TRACKING
 

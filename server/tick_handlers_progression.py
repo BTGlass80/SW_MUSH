@@ -439,7 +439,7 @@ async def dsp_hunter_tick(ctx: "TickContext") -> None:
                             room_id=cur_npc.get("room_id"),
                             line=H.collected_line(hunter))
                         await ctx.db.upsert_dsp_pursuit(
-                            cid, hunter, H._IMMINENT_AT, H.STAGE_IMMINENT)
+                            cid, hunter, H.imminent_at(), H.STAGE_IMMINENT)
             except Exception:
                 log.debug("[dsp_hunter] spawn/reconcile failed for %s", cid,
                           exc_info=True)
