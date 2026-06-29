@@ -7868,6 +7868,337 @@ chains:
           being sent for — the Kuat City surface carries a name now, out where the crews
           land and an honest tally is the difference between a foreman and a bondsman.
 
+  # GENERALIZED QUESTLINE — "The Kept Watch" (tatooine_market_kept_watch)
+  # The TWENTY-SECOND accessible (non-t5, non-tutorial) kind:questline chain, the
+  # FOURTH set on TATOOINE — and the FIRST on the Mos Eisley MARKET SHOP ROW (the
+  # tatooine_market zone): the row of independent storefronts off the spaceport — a
+  # general store, a banking concern, a weapon shop, and the Jawa traders' stalls
+  # (lups_general_store / zygians_banking / kaysons_weapon_shop / jawa_traders), reusing
+  # NONE of The Rigged Issue's civic-compound rooms, The Long Haul's haul-road rooms, or
+  # The Short Weight's spaceport-dock rooms — every room fresh to the corpus, and the shop
+  # row has never carried a chain before. Where those worked the compound, the roads, and
+  # the docks, this works the STOREFRONTS — the row's own counters. A STAGED-PROTECTION /
+  # FAKE-ENFORCEMENT racket: a leased "civil patrol" outfit, Vorrun Civil Patrol, holds a
+  # Mos Eisley town watch license and sells the market shop row protection against
+  # break-ins, then stages those break-ins itself on the shops that will not pay or will
+  # not renew — padding its incident reports to justify a rising fee and to drive the
+  # holdouts out so its own front buyers can take the emptied stalls, and filing each
+  # staged hit with the town as honest patrol work the licensing prefect reads as genuine.
+  # A retired Mos Eisley sector-watch deputy who keeps a store on the row and wrote enough
+  # real break-in reports to know a staged scene from a true one is badgeless and unheard —
+  # beaten by PROCEDURE-AND-ANTICIPATION work: pull Vorrun Civil Patrol's filed incident
+  # reports at the banking concern and read them against how a real enforcement scene is
+  # documented to prove the break-ins staged, not real (law enforcement), read the outfit's
+  # patrol and collection pattern and set the interception at the next holdout's shop so
+  # the staged hit is caught in the act and the proof cannot be carried off (tactics),
+  # stand off the outfit's lead patroller who comes for the proof (combat), and get the
+  # report audit and the in-the-act proof to the Mos Eisley licensing prefect. The
+  # TWENTY-SECOND distinct skill spread (law enforcement + tactics — both Knowledge), the
+  # FIRST accessible arc to reward the PROCEDURE-AND-ANTICIPATION / LAWMAN'S-EYE build (the
+  # duty-log and the stake-out), mechanically and thematically distinct from the only prior
+  # arc that works a protective racket — The Warrens Toll (command + demolitions, a safety-
+  # TOLL / community-defense where a real hazard is charged a toll to keep at bay, not a
+  # manufactured one). This does not keep a danger at bay the way The Warrens Toll does; it
+  # MANUFACTURES the danger — the shops robbed by the watch they pay to be safe from.
+  # Tatooine is Hutt-fringe with no Republic presence to keep offstage at all, and the
+  # outfit is run afoul of in the end by the town's own licensing prefect, who will not
+  # have a protection outfit forging incident reports under a town watch license — the way
+  # every prior accessible arc keeps the larger powers offstage. Reuses the live questline
+  # engine (kind:questline + active_questline + existing event types + the four reward
+  # funnels) with NO new engine code, no new slot/event type, no schema migration, no new
+  # reward faucet, and NO map-coordinate or exit-graph change.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: tatooine_market_kept_watch
+    chain_name: "The Kept Watch"
+    description: >
+      On the Mos Eisley market shop row — the row of independent storefronts off the
+      spaceport, a general store, a banking concern, a weapon shop, and the Jawa traders'
+      stalls — a retired sector-watch deputy named Oren Vask keeps a store and knows the
+      break-ins are staged and cannot prove it. There is a leased "civil patrol" outfit
+      holding a Mos Eisley town watch license, Vorrun Civil Patrol, and it sells the row
+      protection against break-ins and vandalism, then stages those break-ins itself on the
+      shops that will not pay or will not renew: it opens locks it does not force, damages
+      the insured stock and never the till, keeps the patrol a street away when it happens
+      and first on the scene after, and files a stamped incident report before the dust
+      settles — padding the reports to justify a rising fee and to drive the holdouts out
+      so its own front buyers can take the emptied stalls, the shops robbed by the watch
+      they pay to be safe from while the town reads the reports as honest patrol work. Vask
+      turned in a deputy's badge years ago and has kept Lup's General Store on the row ever
+      since, and he wrote a great many real break-in reports in his years on the watch and
+      knew these for staged the first time he saw one. But a retired deputy with no badge
+      does not get a licensed outfit's reports pulled on his say-so, and he cannot pull the
+      reports and prove them staged, set the interception that catches the next staged hit,
+      and stand off the outfit's lead patroller all in one watch before the next holdout's
+      shop burns. He needs a neutral hand who can do the three things he cannot: pull Vorrun
+      Civil Patrol's filed incident reports at the banking concern where the shops lodge
+      their loss claims and read them against how a real enforcement scene is documented, to
+      prove the break-ins staged and not real; read the outfit's patrol and collection
+      pattern and set the interception at the next holdout's shop so the staged hit is
+      caught in the act and the proof cannot be carried off; and carry the proof to the one
+      desk a town watch license answers to — before the outfit's patroller can take it back,
+      and before the next holdout's shop goes up. A freelance favor — open to anyone, no
+      faction required.
+    archetype_label: "Freelance Deputy's Favor"
+    faction_alignment: independent
+    starting_zone: tatooine_market
+    starting_room: lups_general_store
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["kept_watch_cleared"]
+      drop_room: lups_general_store
+      follow_up_hint: >
+        The report audit and the in-the-act proof reach the Mos Eisley licensing prefect
+        and the racket comes apart with them: Vorrun Civil Patrol's reports are read for
+        the staged break-ins they cover, the outfit's town watch license pulled, the shops'
+        protection fees refunded, the holdouts' losses laid at the outfit's own door, and
+        its front buyers' claims on the emptied stalls voided. The outfit that lived by
+        break-ins the town read as real and reports no one ever laid beside its own
+        duty-log finds the one thing the racket needed buried — its filed reports read
+        against real procedure, set beside a staged hit caught in the act — read into the
+        record at the desk it was certain it could never reach. The patroller who meant to
+        walk one more holdout's shop into ash collects nothing but a pulled license. Word
+        travels the shop row the way it never travels the prefect's office: there is a hand
+        who can read a staged break-in off a stamped report, set the trap that catches the
+        watch at its own work, and stand in the way when the patroller comes — and the
+        shopkeepers who have been paying a watch to break into the row next door stop
+        believing the break-ins are real just because the report is filed in order.
+
+    steps:
+      - step: 1
+        title: "The Watch That Robbed the Row"
+        location: lups_general_store
+        npc: "Oren Vask"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Oren Vask behind the counter of Lup's General Store on the Mos Eisley market shop row."
+        npc_intro: >
+          [A spare, grey-templed human stands behind the counter of a general store gone
+          quiet, the shelves thinner than they were and the door barred with a length of
+          pipe within reach — but he stands square to the door the way a man stands who
+          once walked a beat.] "You can read a scene? Then you'll read these straighter
+          than the prefect will. I'm Oren Vask — twenty years on this sector's watch
+          before I hung up the badge for this counter. `talk` to me. Vorrun Civil Patrol
+          came around with a town license and a fee for protection, and the shops that pay
+          stay whole and the shops a contract behind get broken into. I wrote a hundred
+          real break-ins in my time. These aren't break-ins — and the paper's all in
+          order, so the prefect calls it honest patrol work and I can't prove it off the
+          reports and set the trap and stand off Vorrun's man, all at once."
+        completion:
+          type: talk_to_npc
+          npc: "Oren Vask"
+        npc_complete: >
+          [He sets a worn store ledger on the counter beside a Vorrun Civil Patrol fee
+          notice, one finger moving down the column of shops that paid against the column
+          that got hit.] "There's who pays, and there's who burned, and they're the same
+          list a contract behind — every time. The locks get opened, not forced. The
+          damage is tidy and it's always the insured stock, never the till. The patrol's
+          a street away when it happens and first on the scene after, and the report's
+          stamped before the dust settles. That's the watch robbing the shops it's paid to
+          guard. The outfit files its reports at Zygian's, with the shops' loss claims — go
+          there and pull them, and read them against how a real scene gets written. You'll
+          see the staging in the paper. Put that where a prefect has to read it."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to Zygian's Banking Concern, where the shops lodge their loss claims and Vorrun Civil Patrol files its incident reports, and pull the reports — read them against how a real enforcement scene is documented to prove the break-ins were staged, not real. Use your `law enforcement` skill, then `chain attempt`."
+
+      - step: 2
+        title: "The Reports That Read the Same"
+        location: zygians_banking
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["law enforcement"]
+        objective: "At Zygian's Banking Concern, pull Vorrun Civil Patrol's filed incident reports and read them against real enforcement procedure to prove the break-ins were staged — a law enforcement check."
+        npc_intro: >
+          [Zygian's Banking Concern is where the row's shops lodge their loss claims and
+          where a licensed patrol files its incident reports, and a patrol's report is a
+          thing of ordinary record: a scene noted, a forced entry described, a loss
+          itemized, a patrol response logged — and that is exactly the cover, a staging
+          dressed as an honest scene write-up.] A real break-in leaves a real scene: the
+          lock forced where the report says forced, the entry where a thief would make one,
+          the loss where the easy money is, the report filed after a patrol that was
+          somewhere else. These do not. Pull Vorrun's filed reports and read them the way a
+          watch officer reads a scene the patrol wrote up — the "forced" locks against
+          what a forced lock actually leaves, the timestamps against when the patrol logs
+          put its people on the row, the loss against what a real thief takes, the MO across
+          a dozen "unrelated" hits that all read the same hand. `law enforcement`, a watch
+          officer's eye for a scene and a report that lies by procedure and not by forgery —
+          `chain attempt` when you've read the reports and proven the break-ins staged.
+        completion:
+          type: skill_check_passed
+          skill: "law enforcement"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You pull the filed reports and read them the way you would read a scene, and the
+          racket shows itself in the procedure: not one "forced" lock leaves the splintering
+          a forced lock leaves; every entry is made where a key-holder would enter, not
+          where a thief would; every loss is the insured stock the claim pays out on and
+          never the till a real thief empties first; and the report timestamps put the
+          patrol filing the scene at hours its own duty-log has it three streets away — and
+          the same hand wrote every one, the same phrasing, the same tidy scene, a dozen
+          "unrelated" break-ins that are one patrol's signature repeated. There is the proof
+          Vask could read and never make heard: the break-ins are the watch's own work,
+          staged on the shops a contract behind and written up as real. But a report audit
+          is not a staged hit caught in the act, and the outfit runs a clockwork patrol that
+          will burn the next holdout on schedule — and a staged break-in caught while it
+          happens, laid beside your audit, is what turns a suspicious stack of reports into
+          a proven racket.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "You've proven the break-ins staged on paper — now catch one in the act. Go to Kayson's Weapon Shop, the holdout that refused to renew and is next on the outfit's schedule, read the patrol's pattern, and set the interception so the staged hit is caught as it happens — use your `tactics` skill, then `chain attempt`."
+
+      - step: 3
+        title: "The Trap at the Holdout"
+        location: kaysons_weapon_shop
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["tactics"]
+        objective: "At Kayson's Weapon Shop, read Vorrun Civil Patrol's patrol pattern and set the interception so the staged break-in is caught in the act and the proof cannot be carried off — a tactics check."
+        npc_intro: >
+          [Kayson's Weapon Shop is the row's holdout — it would not renew Vorrun's fee, and
+          a holdout a contract behind is a shop with a "break-in" coming, on a schedule the
+          outfit keeps like clockwork. The patrol runs the same beat the same hours; the
+          staging hits the same dead window when the patrol is logged elsewhere; the
+          junior watchman who does the torching comes and goes the same approach every
+          time.] You do not need to guess when; you need to read the beat and be where the
+          watchman will be, with the proof of it in hand before he can carry it off. Read
+          the patrol's pattern off what it does — the dead window in the duty-log, the
+          approach the staging uses, the way the "first responder" arrives — and set the
+          interception so the staged hit at Kayson's is caught as it happens and the proof
+          is yours, not the outfit's to spirit away. `tactics`, a watch officer's read of a
+          beat and the anticipation to be one step ahead of it — `chain attempt` when
+          you've set the trap and caught the staged hit in the act.
+        completion:
+          type: skill_check_passed
+          skill: "tactics"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You read the beat the way the watchman who keeps it never expects an outsider to
+          and you are waiting at Kayson's in the dead window when he comes — the junior
+          watchman in a patrol jacket, with the outfit's own opener and a can of the tidy
+          accelerant that only ever touches insured stock, doing at the holdout exactly what
+          the reports describe a thief doing, an hour before the patrol's own log will have
+          him three streets off "responding." You take it cold — the watchman, the opener,
+          the accelerant, the half-written report already in his jacket dated to a break-in
+          that has not happened yet — and the staging stands caught in the act, the one
+          thing the stack of filed reports could never be argued past. Now the audit has the
+          break-in caught while it happened, the suspicious stack is a proven racket, and
+          there is a watchman who staged it standing in his own patrol jacket. But a report
+          audit and a caught watchman on the row are not a report audit and a caught
+          watchman on the prefect's desk, and the outfit has a man whose whole job is making
+          sure a staged break-in never gets read as anything but real.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "You've proven the break-ins staged and caught one in the act — now get the proof to a desk. Carry the report audit and the caught-in-the-act proof through the Jawa traders' stall lane toward the Mos Eisley licensing prefect, and stand off the outfit's lead patroller when he comes for it — `attack`, `dodge`."
+
+      - step: 4
+        title: "The Lead Patroller"
+        location: jawa_traders
+        npc: "Dussek Rao"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Carry the report audit and the in-the-act proof through the Jawa traders' stall lane and stop Dussek Rao when the outfit's lead patroller comes for it — `attack`, `dodge`."
+        npc_intro: >
+          [The Jawa traders' stall lane is a crowded run of droid parts and salvage and
+          haggling under patched awnings, and the way from the holdout toward the Mos Eisley
+          licensing prefect crosses it. A broad, leather-skinned Weequay steps out from
+          between the stalls as you come through with the report audit and the caught
+          watchman's proof under your arm, a worn blaster riding under a patrol jacket with
+          a Vorrun Civil Patrol flash at the shoulder, the unhurried weight of a being who
+          collects more than he fights.] Dussek Rao — the lead patroller Vorrun keeps on the
+          row to make sure a shop that pays stays paid, a street away when a holdout burns
+          and first through the door after with a report half-written. He has watched a
+          retired deputy he expected to keep his head down put an outsider onto the reports,
+          and the easy menace of a man who collects from the frightened goes hard. "That's
+          outfit paper you're carrying, friend — our reports, our license. The break-ins are
+          real; the row's lucky to have a watch at all, the way this town runs. It doesn't
+          go on any prefect's desk." [He sets himself across the lane between you and the way
+          out.] "Hand it over and walk back out, or you don't walk to that desk. The
+          outfit's a patient sort. I'm the part of it that came to collect."
+        completion:
+          type: combat_won
+          enemy_template: "kept_watch_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Dussek Rao goes down in the dust of the stall lane, the blaster spinning away
+          under a Jawa cart, and the traders who have learned, the way the shopkeepers
+          learned, not to watch a collection on the row find somewhere else to look. The
+          way out toward the prefect's desk stands clear. Take the proof with you — the
+          filed reports read against real procedure beside the staged break-in caught in the
+          act — and there is nothing between here and the desk but the lane, the racket
+          proven, and a row that can have its watch pulled.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The patroller's down and the way out is clear — get the report audit and the caught-in-the-act proof filed with the Mos Eisley licensing prefect, then go back to Oren Vask at Lup's General Store."
+
+      - step: 5
+        title: "The Row's Watch Back"
+        location: lups_general_store
+        npc: "Oren Vask"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Oren Vask at Lup's General Store with the staged-protection racket filed and coming apart."
+        npc_intro: >
+          [Vask is standing square to the door when you come back, the barred pipe set aside
+          and a prefect's licensing notice in his hand, watching the row's foot traffic pick
+          up past his window with the look of a man reading a beat that has finally gone
+          quiet the right way.] "Filed. Vorrun Civil Patrol's reports read for the staged
+          break-ins they covered, the license pulled, the fees coming back to the shops, the
+          holdouts' losses laid at the outfit's own door, its buyers' claims on the empty
+          stalls voided. The prefect's no friend of this row — but a protection outfit
+          forging reports under a town watch license is the town's own license made
+          worthless, and that the prefect would not have." [He turns the notice over the way
+          a watch officer checks a scene one last time.] "A season that outfit broke into
+          this row and called it a watch, and the paper was all in order, so it was honest.
+          `talk` to me and let me say it plain, while there's finally a desk with a stamp on
+          it that has to hear it."
+        completion:
+          type: talk_to_npc
+          npc: "Oren Vask"
+        npc_complete: >
+          "Here's your fee — what a quiet store on a shaken-down row still turns, and worth
+          twice the credits to hand it to the hand who read a staged break-in off a stamped
+          report, set the trap that caught the watch at its own work, and stood in the lane
+          when the patroller came for the proof. A report audit proves a break-in false; a
+          staged hit caught in the act ends a racket. The license gets pulled, the shops get
+          their fees and their losses back, the next holdout stops paying a watch to break
+          into the row next door, and a season of shopkeepers who could only pay or burn get
+          read for the marks they were. The row's a small world for all the traffic that
+          crosses it, and a shop learns fast who read a staged report straight and who kept
+          the watch that robbed them. When a shopkeeper on this row gets a fee notice and a
+          patrol that's always a street away, there's a name they'll send for now. Carry
+          mine with it — and read a break-in by what the scene shows, not by how good the
+          report looks; I'd not have the hand that proved this one take a watch on faith."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The shop row's watch is filed pulled and the racket is coming apart: Vorrun Civil
+          Patrol's protection dies as a report audit proves the break-ins staged and a
+          staged hit caught in the act names the patrol's own work, a season of one outfit's
+          "honest patrols" becomes a forgery racket on the town's licensing record, and a
+          row of shopkeepers who could only learn whether a break-in was real by being
+          robbed learns to read the scene before they pay the watch. A hand who can read a
+          staged break-in off a stamped report, set the trap that catches the watch at its
+          own work, and stand in the way when the patroller comes has a way of being sent
+          for — the Mos Eisley shop row carries a name now, out where the storefronts stand
+          and an honest scene is the difference between a watch and a robbery with a license.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════

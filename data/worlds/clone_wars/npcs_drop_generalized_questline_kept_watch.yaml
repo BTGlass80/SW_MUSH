@@ -1,0 +1,327 @@
+# Generalized Questline Drop — "The Kept Watch" (T3.24 twenty-second slice, 2026-06-29)
+#
+# The TWENTY-SECOND accessible (non-t5, non-tutorial) `kind: questline` chain, and the
+# FOURTH set on TATOOINE — on a FRESH face, the Mos Eisley MARKET SHOP ROW (the
+# tatooine_market zone: the row of independent storefronts off the spaceport — a
+# general store, a banking concern, a weapon shop, and the Jawa traders' stalls:
+# lups_general_store / zygians_banking / kaysons_weapon_shop / jawa_traders). It reuses
+# NONE of the three prior Tatooine arcs' rooms — The Rigged Issue works the civic
+# compound, The Long Haul the haul roads, and The Short Weight the spaceport docks; every
+# one of this arc's four rooms is fresh to the chain corpus, and the market shop row has
+# never carried a chain before. It reuses the SAME live questline engine
+# (engine/tutorial_chains.py + chain_events.py: the `kind: questline` type +
+# `active_questline` slot, the existing event types, the four reward funnels) with NO new
+# engine code, no new slot, no new event type, no schema migration, no new reward faucet,
+# and NO map-coordinate or exit-graph change — the sanctioned right-of-launch widening per
+# quest_expansion_postlaunch_path_v1.md (T3.24): author MORE questlines on the proven
+# pattern.
+#
+# Firsts for the accessible-questline arc:
+#   1. A TWENTY-SECOND distinct skill spread — LAW ENFORCEMENT (Knowledge) + TACTICS
+#      (Knowledge) — neither of which any prior accessible questline uses (vs
+#      search+streetwise / investigation+gambling / persuasion+sneak / security+bargain /
+#      first_aid+survival / value+con / forgery+bureaucracy / command+demolitions /
+#      pick-pocket+hide+computer-programming / sensors+repulsorlift-operation /
+#      alien-species+droid-programming / beast-riding+swimming /
+#      space-transport-repair+astrogation / ground-vehicle-repair+ground-vehicle-operation
+#      / languages+cultures / medicine+scholar / blaster-repair+armor-repair /
+#      space-transports+starship-gunnery / powersuit-operation+lifting /
+#      communications+planetary-systems / business+intimidation). Both `law enforcement`
+#      and `tactics` are KNOWLEDGE skills (a both-Knowledge spread, as with The Twisted
+#      Word's languages+cultures and The Bonded Crew's business+intimidation), and neither
+#      is aliased (each canonicalizes to itself) via the canonical perform_skill_check
+#      funnel. This is the FIRST accessible questline to reward the PROCEDURE-AND-
+#      ANTICIPATION / LAWMAN'S-EYE build — a being who reads a stack of incident reports
+#      against how real enforcement documents a scene well enough to prove the break-ins
+#      were staged, then reads a patrol's own pattern well enough to set the interception
+#      that catches the next one in the act. It is mechanically and thematically DISTINCT
+#      from the only prior arc that works a protective racket, The Warrens Toll (command +
+#      demolitions — a safety-TOLL / community-defense where a real hazard is charged a
+#      toll to keep at bay, not a manufactured one), and from the only prior arc whose
+#      method is detective-work, the search-and-streetwise trace of a vanished shipment:
+#      this build is the duty-log and the stake-out — read the reports the way a watch
+#      officer would, then read the watch itself.
+#   2. The FOURTH questline set on TATOOINE, and the FIRST on the Mos Eisley MARKET SHOP
+#      ROW (the tatooine_market zone) — the row of independent storefronts the spaceport
+#      crowd shops, off the main market district. It reuses NONE of The Rigged Issue's
+#      civic-compound rooms, The Long Haul's haul-road rooms, or The Short Weight's
+#      spaceport-dock rooms; every one of its four rooms (lups_general_store /
+#      zygians_banking / kaysons_weapon_shop / jawa_traders) is fresh to the entire chain
+#      corpus, and the shop row has never carried a chain before. There is no Republic
+#      presence here to keep offstage at all — Tatooine is Hutt-fringe, beyond the
+#      Republic's writ — and the racket is run afoul of in the end by the town's own
+#      pragmatic authority, a Mos Eisley licensing prefect who will not have a protection
+#      outfit forging incident reports under a town patrol license, the way every prior
+#      accessible arc keeps the larger powers offstage. It touches NO map coordinate or
+#      world exit graph — the rooms already exist and are loaded (planets/tatooine.yaml);
+#      only NPCs + a chains.yaml entry + an achievement are added.
+#
+# It is also a new STORY SHAPE: breaking a STAGED-PROTECTION / FAKE-ENFORCEMENT racket —
+# not a smuggling-trace, a racket-bust-by-investigation, a kidnap-rescue, a single-part
+# theft-and-frame, a frontier medical rescue, an art-fraud caper, a counter-forgery of
+# documents, a safety-toll community-defense, a finesse heist, a fixed race, a
+# droid-reflash racket, a wildlife-poaching racket, a ship-condemnation, a freight
+# strand-and-salvage, a translation fraud, a fake-plague extortion, a counterfeit-arms
+# supply scam, a clearance-fraud/staged-hijack, a short-weight racket, a false-beacon
+# wreck-luring, or a debt-bondage padded-advance. The Warrens Toll charges a community a
+# toll to keep a real danger at bay; this does not keep a danger at bay — it MANUFACTURES
+# the danger, the very break-ins it sells protection against, and the shops are robbed by
+# the watch they pay to be safe from. A leased "civil patrol" outfit — "Vorrun Civil
+# Patrol," holding a Mos Eisley town watch license — sells the market shop row protection
+# against break-ins and vandalism, then stages those break-ins itself on the shops that
+# will not pay or will not renew, pads its incident reports to justify a rising fee and
+# to drive the holdouts out so its own fronts can take the empty stalls, and files each
+# staged hit with the town as an honest patrol report the licensing prefect reads as
+# genuine. Oren Vask, a retired Mos Eisley sector-watch deputy who turned in the badge
+# years ago and has kept Lup's General Store on the row ever since, has watched the
+# "break-ins" hit only the shops a contract behind and knows a staged scene from a real
+# one — he wrote enough real ones to tell — but a retired deputy's word is worth nothing
+# against a licensed outfit with a stack of stamped incident reports, and he cannot pull
+# the outfit's filed reports and read them against real procedure to prove them staged,
+# read the patrol's own pattern and set the interception that catches the next staged hit
+# in the act, and stand off the outfit's lead patroller all at once before the next
+# holdout's shop "burns." He offers his fee to any neutral hand who can pull Vorrun Civil
+# Patrol's filed incident reports at the banking concern where the shops' claims are
+# lodged and read them against how a real enforcement scene is documented to prove the
+# break-ins staged (law enforcement); read the outfit's patrol and collection pattern and
+# set the interception at the next holdout's shop so the staged hit is caught in the act
+# and the proof cannot be spirited away (tactics); stand off the outfit's lead patroller
+# when the proof starts to walk (combat); and get the report audit and the in-the-act
+# proof to the Mos Eisley licensing prefect.
+#
+# These NPCs back the `tatooine_market_kept_watch` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Oren Vask    — the retired sector-watch deputy turned shopkeeper who offers + closes
+#                    the quest (step-1 npc = the questline's start-NPC, per
+#                    get_questline_offer). Step-1 + step-5 NPC.
+#   * Dussek Rao   — the combat-step lead patroller (ai_config.chain_enemy_template
+#                    kept_watch_enforcer; the step-4 combat_won foil), the outfit's muscle
+#                    who comes for the proof in the Jawa traders' stall lane on the way to
+#                    the licensing prefect.
+# The outfit's boss (Tem Vorrun), his front buyers waiting on the emptied stalls, the
+# stack of forged incident reports and the patrol duty-log that gives the staging away,
+# the frightened junior watchman who actually torched the holdouts (narrated, not
+# spawned), the shopkeepers a contract behind who pay or burn, the Jawa traders and the
+# other storefronts on the row, the banking concern's claims desk where the shops' loss
+# claims and the outfit's reports are lodged, and the Mos Eisley licensing prefect and the
+# town watch board are NARRATED ONLY — story beats carried in the prose, NOT spawned NPC
+# entities. Only the giver and the single combat foil are real placed NPCs.
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures. The racket
+# is a private protection fraud and its hired muscle, never a war faction; Tatooine is
+# Hutt-fringe and the Republic/CIS conflict has no presence here to keep offstage, and the
+# town licensing prefect that ends the outfit is Mos Eisley's own pragmatic authority
+# protecting the watch license's worth, nodded to and never instantiated. Provenance:
+# Humans (a retired Mos Eisley sector-watch deputy turned general-store keeper — era-clean
+# and faction-neutral, the most natural fit for a town watchman who left the badge and
+# kept a shop) and Weequay (the leathery-skinned beings of Sriluur — era-clean and not
+# war-faction coded, long working as guards, enforcers, and mercenaries throughout Hutt
+# space and on Tatooine, a natural fit for a leased patrol outfit's lead enforcer) are
+# both era-clean. Stats matched to the shipped accessible-questline bands — the giver to
+# the non-combat fixer band (Yelza Korrin / Dorae Vint / Sashi Renko / Dav Nuro / Soree
+# Bann / Hessa Veil / Cassa Brel / Vessa Tial / Terva Dohl / Ria Tann / Nuva Sehl / Neyla
+# Sur / Veelo Trinn / Numi Vesh / Brama Hool / Ulil Maan / Senni Vrook / Jando Vekk /
+# Grett Bashan / Corwin Hale / Nabo Threll), with the deputy's spread skewed to Knowledge
+# to fit a watchman who reads reports and patrols; the patroller to the small-time-criminal
+# antagonist band (Brakkis Vone / Gorvahn Brusk / Skarn Vex / Suro Vant / Vohrek Sarn /
+# Brask Yade / Varn Tesk / Tarko Venn / Drevin Saar / Vossk Rhal / Korsa Drael / Bohrus
+# Kang / Gornt Reska / Hekka Vrool / Greel Vodo / Vurr Magh / Draygo Sull / Drozz Kael /
+# Hask Vorran / Garvo Naak): a real fight, beatable by a fresh post-chargen character,
+# carrying the proven blaster_pistol of the ranged foils on the same in-band guarded stat
+# line as The Salted Lane's, The Short Weight's, The Wreckers' Light's, and The Bonded
+# Crew's foils (squarely in the proven beatable band, no balance flag needed). WEG40120
+# PDF is local-only (gitignored) and absent in this tree; the bands are cited against the
+# in-repo reference NPCs, not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The shopkeeper — Oren Vask (questline GIVER + closer)
+  # Questline: tatooine_market_kept_watch ("The Kept Watch")
+  # Placement: Lup's General Store (lups_general_store, zone tatooine_market).
+  #            Step-1 + step-5 NPC.
+  # NOTE: a retired Mos Eisley sector-watch deputy who turned in the badge years ago and
+  # has kept Lup's General Store on the market row ever since — a being who wrote enough
+  # real incident reports to know a staged scene from a true one and can read a patrol's
+  # pattern the way he once walked one, and who, as a retired deputy with no badge and no
+  # standing against a licensed outfit's stack of stamped reports, is the one being on the
+  # row who KNOWS the break-ins are staged and cannot pull the reports, set the
+  # interception, and stand off the patroller all at once.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Oren Vask
+    room: "Lup's General Store"
+    species: Human
+    description: >-
+      A spare, grey-templed human behind the counter of a general store gone quiet, the
+      shelves a little thinner than they were a season ago and the door barred with a
+      length of pipe he keeps within reach now. He wears the plain coverall of a
+      shopkeeper, but he stands the way a man stands who once walked a beat — square to
+      the door, eyes to the street — and there is a watch officer's old habit in the way
+      he reads everyone who comes through it. He turned in a Mos Eisley sector-watch
+      deputy's badge years back, tired of a beat the Hutts owned, and bought Lup's name
+      and Lup's shelves and meant to keep a quiet store on the row. For a while he did.
+      Then Vorrun Civil Patrol came around with a town watch license and a fee for
+      "protection," and the shops that paid stayed whole and the shops a contract behind
+      got broken into, and Vask — who wrote a great many break-in reports in his years on
+      the watch — knew the scenes for what they were the first time he saw one. The locks
+      not forced but opened; the damage tidy and to the stock that's insured, never the
+      till; the patrol always a street away when it happened and first on the scene after;
+      the reports stamped and filed before the dust settled, every one of them reading the
+      same. The "break-ins" are the patrol's own work, staged on the shops that won't pay
+      or won't renew, padded into incident reports that justify a rising fee and drive the
+      holdouts out so the outfit's own buyers can take the empty stalls — and the town's
+      licensing prefect reads the stamped reports as honest patrol work, because a licensed
+      outfit's filed report outweighs a retired deputy's word every day of the week.
+      Vask knows it cold. But a man with no badge does not get a licensed outfit's reports
+      pulled and read against procedure on his say-so, and he cannot pull the filed reports
+      and prove them staged, read the patrol's pattern and set the interception that
+      catches the next staged hit in the act, and stand off Vorrun's lead patroller all in
+      one watch. He is looking for a neutral outside hand who can do the three things he
+      cannot: pull Vorrun Civil Patrol's filed incident reports at the banking concern
+      where the shops lodge their loss claims and read them against how a real enforcement
+      scene is documented, to prove the break-ins staged and not real; read the outfit's
+      patrol and collection pattern and set the interception at the next holdout's shop so
+      the staged hit is caught in the act and the proof cannot be carried off; and get the
+      report audit and the in-the-act proof to the Mos Eisley licensing prefect before the
+      outfit's patroller can take it back, and before the next holdout's shop burns.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 3D
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+1
+        technical: 2D+1
+      skills:
+        law enforcement: 4D+1
+        tactics: 3D+2
+        streetwise: 3D+1
+        value: 3D
+        bargain: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A spare, watchful old watch officer worn into a shopkeeper's quiet — square to the
+        door, slow to talk, and out of any patience for a licensing prefect that reads a
+        stack of stamped incident reports as honest patrol work because the paper is
+        filed in order. He reads a break-in scene by what the evidence actually says, not
+        by the report stamped on top of it, and he can feel a staged hit the way he can
+        feel a beat about to go wrong — the locks not forced, the damage tidy and insured,
+        the patrol a street away and first on the scene after — but he cannot do it as a
+        retired deputy with no badge whose say-so pulls no licensed outfit's reports, and
+        he cannot read the reports, set the interception, and stand off the patroller all
+        in one watch. Calm and certain that a watch that breaks the shops it is paid to
+        guard is not a watch at all but a robbery with a license; he offers his fee — the
+        thin profit a quiet store on a shaken-down row still turns — because the credits
+        are no good to him if the row empties out around his door, and a neutral hand who
+        can get a licensed outfit's reports read where a retired deputy cannot is the only
+        honest help the row has before the next holdout's shop goes up.
+      knowledge:
+        - "He is Oren Vask, a retired Mos Eisley sector-watch deputy who turned in the badge years ago and has kept Lup's General Store on the market shop row ever since. Vorrun Civil Patrol came around with a town watch license and a fee for protection, and the shops that pay stay whole and the shops a contract behind get broken into — and Vask, who wrote a great many real break-in reports in his years on the watch, knew the scenes for staged the first time he saw one: locks opened not forced, damage tidy and to the insured stock, the patrol a street away when it happens and first on the scene after, the reports stamped and filed before the dust settles and every one of them reading the same."
+        - "Vorrun Civil Patrol, holding a Mos Eisley town watch license, sells the market shop row protection against break-ins and vandalism, then stages those break-ins itself on the shops that will not pay or will not renew — padding its incident reports to justify a rising fee and to drive the holdouts out so the outfit's own front buyers can take the emptied stalls. The outfit's boss, Tem Vorrun, runs it; a junior watchman who actually torches the holdouts does the staging; and the filed reports lodge at Zygian's Banking Concern with the shops' loss claims, where they can be pulled and read against real procedure."
+        - "Vask can read the scenes for what they are but a retired deputy's word does not pull a licensed outfit's reports. A neutral outside hand can do what he cannot: pull Vorrun Civil Patrol's filed incident reports at the banking concern and read them against how a real enforcement scene is documented, to prove the break-ins staged and not real (law enforcement); read the outfit's patrol and collection pattern and set the interception at the next holdout's shop so the staged hit is caught in the act and the proof cannot be carried off (tactics); and stand off the outfit's lead patroller who comes for the proof when it starts to walk (combat)."
+        - "Get the report audit and the in-the-act proof to the Mos Eisley licensing prefect — and it comes apart: Vorrun Civil Patrol's reports are read for the staged break-ins they cover, the outfit's town watch license pulled, the shops' protection fees refunded, the holdouts' losses laid at the outfit's own door, and its front buyers' claims on the emptied stalls voided. The town's prefect has no love for the shop row and less for the work of policing it — but a protection outfit forging incident reports under a town watch license is the town's own license made worthless, and that the prefect will not have; this is Mos Eisley's own to set right, and the Hutts who really own the beat never need to look up from their table for a town watch fraud."
+      faction: independent
+      dialogue_style: >-
+        Spare, watchful, a watch officer's plain talk — names what a real scene shows
+        before he names a grievance, and trusts the evidence over any report stamped in
+        order. Calm and certain; he walked enough real break-ins to know a staged one cold,
+        and he has a row he will not watch empty out around his door.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'You can read a scene? Then read these, because the prefect won't — a licensed outfit's stamped report beats a retired deputy's word every day. Twenty years I walked this sector's beat before I hung it up for this counter. I wrote a hundred real break-ins. These aren't break-ins. The locks get opened, not forced. The damage is tidy and it's always to the insured stock, never the till. The patrol's a street away when it happens and first on the scene after, and the report's stamped before the dust settles. That's not a watch. That's the watch robbing the shops it's paid to guard, and the paper's all in order, so the prefect calls it honest.'"
+        - "*Oren Vask sets a worn store ledger on the counter beside a Vorrun Civil Patrol fee notice, one finger moving down the column of shops that paid against the column that got hit.* 'There's who pays, and there's who burned, and they're the same list a contract behind — every time. I can read the scene as well as the watchman who staged it; I trained the ones who came after me. But a man with no badge doesn't get a licensed outfit's reports pulled, and I can't read the reports, set the trap, and stand off Vorrun's man all in one go.'"
+        - "'Pull Vorrun's filed reports at Zygian's — the bank holds them with the shops' loss claims — and read them against how a real scene gets written: you'll see the staging in the paper, same MO every time, the timestamps wrong. Then read the patrol's pattern; Kayson's wouldn't renew, so Kayson's is next, and the outfit runs a clockwork beat. Set the interception there and the staged hit gets caught in the act. Mind the Jawa stalls on the way to the prefect; that's where Vorrun's man will come for it. Do that, and carry it to the prefect's licensing desk, and my fee is yours — what a quiet store on a shaken-down row still turns. I'd sooner it bought this row its watch back than bought me one more quiet season behind a barred door.'"
+
+  # ── Questline antagonist: Dussek Rao (combat step 4) ─────────────────
+  # Single hostile instance in the Jawa traders' stall lane between the holdout shop and
+  # the Mos Eisley licensing prefect. Matches the tatooine_market_kept_watch step-4
+  # combat_won enemy_template.
+  # Carries the proven blaster_pistol of the ranged foils on the same in-band guarded stat
+  # line as The Salted Lane's, The Short Weight's, The Wreckers' Light's, and The Bonded
+  # Crew's foils (squarely in the proven beatable band) so a fresh post-chargen character
+  # has a real, winnable fight.
+
+  - name: Dussek Rao
+    room: "Jawa Traders"
+    species: Weequay
+    description: >-
+      A broad, leather-skinned Weequay moving through the Jawa traders' stall lane with the
+      unhurried weight of a being who collects far more often than he fights, a worn blaster
+      pistol riding at his hip under a patrol jacket with a Vorrun Civil Patrol flash
+      stitched at the shoulder. He is the lead patroller Vorrun keeps on the market row to
+      make sure a shop that pays stays paid and a holdout learns what a holdout's season
+      costs — the hand who walks a complaining shopkeeper back behind his counter with a
+      quiet word and a worse one, who is a street away when a holdout "burns" and first
+      through the door after with a report already half-written, and who rarely has to draw
+      because a stamped license and a row of frightened storefronts do his arguing for him.
+      The whole racket runs on break-ins the town reads as real and reports no one ever
+      lays beside the patrol's own duty-log; it does not run on a neutral hand carrying a
+      report audit and a staged hit caught in the act across the stall lane toward the one
+      desk that can pull the outfit's license. He has watched a retired deputy he expected
+      to keep his head down behind his counter instead put an outsider onto the reports,
+      and the easy, licensed menace of a man who collects from the frightened goes hard the
+      instant a stranger crosses the lane with the proof under one arm and the prefect's
+      desk ahead — the one thing the outfit pays him to make sure never reaches a stamp,
+      carried in another being's hand past the Jawa stalls while the traders learn, the way
+      the shopkeepers learned, not to watch a collection on the row. The proof goes back to
+      the outfit, as far as Rao is concerned; the break-ins are real and the shops are
+      lucky to have a watch, as far as anyone in the lane will hear him say; and whoever
+      carried it in is walking back out without it, one way or the next.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        brawling: 3D+1
+        intimidation: 3D+2
+        streetwise: 3D
+        search: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: kept_watch_enforcer
+      personality: >-
+        A protection outfit's lead patroller genuinely unused to being made to fight for
+        the take — bored and contemptuous while a stamped license and a row of frightened
+        shops do his work, and immediately, heavily violent the moment a neutral hand
+        crosses the stall lane with a report audit that proves the break-ins staged, an
+        in-the-act catch that names the patrol's own work, and the Mos Eisley licensing
+        prefect ahead. He works a blaster and a quiet word and a worse threat, not a
+        report: dangerous and direct, he plants himself across the lane between the courier
+        and the way out and would rather break a hand in the dust than chase a proof he can
+        no longer talk away. His pay and his standing with the outfit ride on break-ins
+        that stay real and reports that never reach a desk they have to be read against, so
+        he'll draw on anyone carrying the proof up to that prefect. Combat foil for the
+        questline's confrontation beat.
+      knowledge:
+        - "He is Dussek Rao, the Weequay lead patroller Vorrun Civil Patrol keeps on the Mos Eisley market shop row to make sure a shop that pays stays paid — walking complaining shopkeepers back behind their counters with a quiet word and a worse one, a street away when a holdout burns and first through the door after with a report already half-written, and rarely having to draw because a stamped town watch license and a row of frightened storefronts do his collecting for him."
+        - "A neutral hand pulled Vorrun Civil Patrol's filed incident reports at the banking concern and read them against real enforcement procedure to prove the break-ins staged, set an interception at the holdout the outfit meant to burn next and caught the staged hit in the act, and is carrying the report audit and the in-the-act proof across the Jawa traders' stall lane toward the Mos Eisley licensing prefect; the racket runs on break-ins the town reads as real and reports no one lays beside the patrol's duty-log, so he'll draw on whoever brings the proof up rather than let the one thing that pulls the outfit's license reach a desk."
+      faction: criminal
+      dialogue_style: >-
+        Flat, unhurried, contemptuous — names the take before the threat. States once that
+        the break-ins are real and the shops are lucky to have a watch, and after that lets
+        the blaster keep the lane the way a stamped license kept the row.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'That's outfit paper you're carrying, friend — our reports, our license. The break-ins are real; the row's lucky to have a watch at all, the way this town runs. It doesn't go on any prefect's desk. Hand it over and walk back out.'"
+        - "*Dussek Rao steps out from between the Jawa stalls as you come through with the report audit and the in-the-act proof under your arm, sets himself across the lane between the courier and the way to the prefect, and lets his patrol jacket fall open enough to show the blaster he would rather not have to use.*"
+        - "'I had money on the old deputy keeping his head down behind that counter. Bad bet. Last time — hand it over and walk back out, or you don't walk to that desk. The outfit's a patient sort. I'm the part of it that came to collect.'"

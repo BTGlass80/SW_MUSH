@@ -804,3 +804,26 @@ achievements:
     icon: "📒"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "kuat_city_bonded_crew"}
+
+  # T3.24 generalized-questline arc (Jun 29 2026): "The Kept Watch"
+  # (tatooine_market_kept_watch) — the TWENTY-SECOND accessible kind:questline chain and
+  # the FOURTH set on Tatooine, on a fresh face: the Mos Eisley market shop row. Breaking
+  # a staged-protection / fake-enforcement racket: pull a leased "civil patrol" outfit's
+  # filed incident reports and read them against real enforcement procedure to prove the
+  # break-ins staged (law enforcement), read the patrol's pattern and set the interception
+  # at the next holdout's shop so the staged hit is caught in the act (tactics), stand off
+  # the outfit's lead patroller (combat), and get the report audit and the in-the-act
+  # proof to the Mos Eisley licensing prefect. The TWENTY-SECOND distinct skill spread
+  # (law enforcement + tactics — both Knowledge — the first PROCEDURE-AND-ANTICIPATION /
+  # LAWMAN'S-EYE build, the duty-log and the stake-out, mechanically and thematically
+  # distinct from The Warrens Toll's safety-toll community-defense, which keeps a real
+  # danger at bay rather than manufacturing one). Same lower-tier band as the prior
+  # twenty-one accessible arcs (cp_reward 3 vs the t5 trainer chains' 5): open freelance
+  # side-content, not a rep-gated trial.
+  - key: kept_watch_cleared
+    name: "The Kept Watch"
+    description: "Broke a staged-protection racket on the Mos Eisley market shop row — pulled a leased civil-patrol outfit's filed incident reports at the banking concern and read them against how a real enforcement scene is documented to prove the break-ins it sold protection against were the watch's own work, staged on the shops a contract behind rather than real thefts (law enforcement), read the outfit's clockwork patrol pattern and set the interception at the holdout it meant to burn next so the staged break-in was caught in the act with the watchman, the opener, and the half-written report in hand (tactics), and stood off the outfit's lead patroller who came for the proof in the Jawa traders' stall lane. A watch officer's read of a stamped report and the trap that caught the watch at its own work pulled a town watch license and refunded a season of shops robbed by the patrol they paid to be safe from — and turned an outfit's 'honest patrols' into a forgery racket on the town's licensing record."
+    category: profession
+    icon: "🛡️"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "tatooine_market_kept_watch"}
