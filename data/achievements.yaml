@@ -594,3 +594,26 @@ achievements:
     icon: "🛠️"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "kuat_condemned_hull"}
+
+  # ── "The Long Haul" — fourteenth accessible questline (T3.24), fourth on
+  # Tatooine, on the FREIGHT-HAUL face of the Mos Eisley margins (power_station
+  # / dewback_stables_garage / outskirts_hermits_ridge / outskirts_eastern_gate;
+  # reuses none of The Crooked Wheel's, The Dust-Sick's, or The Sabotaged Run's
+  # rooms). Earned by breaking a FREIGHT STRAND-AND-SALVAGE racket — a bigger
+  # freight outfit plants a fault to strand the independents' rigs on the ridge
+  # road, where its recovery crew tows the load off under a salvage lien and
+  # buys the missed run cheap — by WHEELMAN-MECHANIC work: clear the planted
+  # sabotage before the rig rolls (ground vehicle repair), drive the loaded rig
+  # through the ridge the outfit owns (ground vehicle operation), stand off the
+  # recovery-crew enforcer at the gate (combat), and bring the run in on the
+  # window. The FOURTEENTH distinct skill spread (ground vehicle repair + ground
+  # vehicle operation — the first groundside hauler / wheelman-mechanic build).
+  # Same lower-tier band as the prior thirteen accessible arcs (cp_reward 3 vs
+  # the t5 trainer chains' 5): open freelance side-content, not a rep-gated trial.
+  - key: long_haul_cleared
+    name: "The Long Haul"
+    description: "Broke a freight strand-and-salvage racket on the Tatooine haul roads — found and cleared the fault a rival outfit planted to strand an independent hauler's rig (ground vehicle repair), drove the loaded rig through the killing ridge stretch where every independent gets stranded (ground vehicle operation), and stood off the recovery crew that came to tow the load off as salvage at the gate. A wheelman's hands on a sabotaged rig and a hauler's nerve on a bad road brought one independent's run in on the window — and turned a season of 'salvaged' loads into a string of plantings on the record."
+    category: profession
+    icon: "🚚"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "tatooine_long_haul"}

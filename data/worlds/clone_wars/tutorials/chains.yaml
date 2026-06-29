@@ -5183,6 +5183,295 @@ chains:
           the Kuat ring carry a name now, on the one front of the Drive Yards
           the war never reaches.
 
+  # ─────────────────────────────────────────────────────────────────────
+  # The FOURTEENTH accessible (non-t5, non-tutorial) kind:questline chain,
+  # and the FOURTH on Tatooine — on the FREIGHT-HAUL face of the Mos Eisley
+  # margins (the power-station trade stop + the town garage + the open desert
+  # haul road), reusing NONE of The Crooked Wheel's market, The Dust-Sick's
+  # Jundland, or The Sabotaged Run's speeder-circuit rooms. A FREIGHT
+  # STRAND-AND-SALVAGE racket — a bigger freight outfit corners the runs to
+  # the outlying moisture farms by planting a fault to strand the independents'
+  # rigs on the killing ridge stretch, where its recovery crew tows the load
+  # off under a salvage lien and buys the missed contract cheap — beaten by
+  # WHEELMAN-MECHANIC work: find and clear the planted sabotage before the rig
+  # rolls (ground vehicle repair), drive the loaded rig through the ridge the
+  # outfit owns without breaking down (ground vehicle operation), stand off the
+  # recovery-crew enforcer who comes for the load at the gate (combat), and
+  # bring the run in on the window. The FOURTEENTH distinct skill spread
+  # (ground vehicle repair + ground vehicle operation), the FIRST accessible
+  # arc to reward the groundside hauler — mechanically distinct from The
+  # Sabotaged Run's repulsorlift swoop-racer and The Condemned Hull's starship
+  # engineer-navigator. Reuses the live questline engine (kind:questline +
+  # active_questline + existing event types + the four reward funnels) with NO
+  # new engine code, no new slot/event type, no schema migration, no new reward
+  # faucet, and NO map-coordinate or exit-graph change.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: tatooine_long_haul
+    chain_name: "The Long Haul"
+    description: >
+      On the dusty margins of Mos Eisley — out at the power station where the
+      moisture farmers and the independent haulers gather to recharge and trade
+      word — a Sullustan owner-driver named Numi Vesh stands beside a freight
+      rig she can't afford to lose and a run she can't afford to miss. A bigger
+      freight outfit has spent the season cornering the only paying water-and-
+      parts runs to the outlying farms, and not by underbidding: they pay a hand
+      to plant a fault in an independent's rig — a fouled coolant line, a shimmed
+      bearing — so it strands on the worst stretch of the ridge road, where the
+      outfit's own recovery crew is always waiting to tow the load off under a
+      salvage lien and buy the missed contract for a song. Two haulers folded
+      this season; Numi's driver quit scared a week ago; she has one rig, one
+      run, and one delivery window left, and she cannot both wrench the sabotage
+      and drive the road and stand off the crew alone. She is a master of the rig
+      and the road, but no one being can do all three at once on a road the
+      outfit owns. Find and clear the planted fault before the rig rolls, drive
+      the loaded rig through the ridge stretch where every independent gets
+      stranded, stand on the gate when the recovery crew comes for the load, and
+      bring an honest hauler's run in on the window. A freelance favor — open to
+      anyone, no faction required.
+    archetype_label: "Freelance Hauler's Favor"
+    faction_alignment: independent
+    starting_zone: tatooine_mos_eisley
+    starting_room: power_station
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["long_haul_cleared"]
+      drop_room: power_station
+      follow_up_hint: >
+        The run comes in on the window and the racket comes apart with it: the
+        load the recovery crew was paid to tow off as salvage is logged
+        delivered, the salvage lien dies on a rig that made its window, and the
+        string of "breakdowns" the outfit lived on turns into a string of
+        plantings nobody on this road can call an accident anymore. The freight
+        outfit that won by making honest rigs fail finds the one thing the racket
+        needed — a rig stranding where its crew was waiting — gone, and the
+        independents it squeezed off the route start running it again. Word goes
+        the haul roads the way it never goes the corporate docks: there's a hand
+        who'll wrench a planted fault clear, drive a sabotaged rig through the
+        ridge the outfit owns, and stand on the gate when the crew comes — and
+        the haulers who watched their loads towed off as salvage stop running the
+        road afraid of the breakdown that was never an accident.
+
+    steps:
+      - step: 1
+        title: "One Rig, One Window"
+        location: power_station
+        npc: "Numi Vesh"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Numi Vesh at the Power Station on the Mos Eisley outskirts."
+        npc_intro: >
+          [A short, broad-shouldered Sullustan in a heat-bleached driver's coat
+          stands among the merchants and moisture farmers at the recharge stop, a
+          coil of coolant line over one arm and a delivery flimsi gone soft at the
+          folds in her grease-dark hand, her wide black eyes ringed red from too
+          many nights under a rig.] "Hauling something, or just charging up? If
+          you haul on this road, find another — while there still is one for the
+          independents. Numi Vesh. I own and drive the Sand Loper, run water and
+          parts to the far farms, eleven years. A freight outfit's been pushing me
+          off the route all season, and not by underbidding. They make sure I
+          break down. `talk` to me and I'll show you how the racket runs."
+        completion:
+          type: talk_to_npc
+          npc: "Numi Vesh"
+        npc_complete: >
+          [She lays the soft delivery flimsi flat on the recharge rail and taps
+          the window time stamped on it, then a column of breakdown logs beside
+          it — every one on the same stretch of ridge road.] "They don't beat my
+          price. They beat my window. Somebody plants a fault in the rig — a
+          fouled coolant line, a shimmed bearing — and she dies on the ridge,
+          right where the outfit's recovery crew is already parked. They tow my
+          load off under a salvage lien and buy my missed contract cheap. Two of
+          us folded this season. My driver quit a week ago. I've got one rig, one
+          run, and one window left, and I can't wrench the sabotage and drive the
+          road and fight that crew all in one trip. But you can. Get to the garage
+          before she rolls and find me the fault they planted — there'll be one."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to the Dewback Stables and Garage where the Sand Loper is staged, find the planted sabotage in the rig, and clear it before the run — use your `ground vehicle repair` skill, then `chain attempt`."
+
+      - step: 2
+        title: "The Planted Fault"
+        location: dewback_stables_garage
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["ground vehicle repair"]
+        objective: "Inspect the Sand Loper at the Dewback Stables and Garage and find and clear the planted fault before the run — a ground vehicle repair check."
+        npc_intro: >
+          [The Sand Loper sits loaded in a garage bay, a heavy freight rig dressed
+          and ready for a long haul — and somewhere in her drivetrain is the
+          reason every independent on this road dies on the same ridge.] A rig
+          this well-kept doesn't break down twice in a season by chance. The
+          outfit's hand has been in here; the fault is planted to read sound until
+          the worst possible kilometer of the run. Go over her the way Numi can't
+          spare the trip to do herself: pull the coolant line and the bearing
+          races the breakdown logs all point to, and find the one wrong thing a
+          saboteur left and an owner would never — a fouled line dressed to look
+          clean, a bearing shimmed to seize under load and heat. Clear it now and
+          the rig that was built to strand on the ridge makes the run instead.
+          `ground vehicle repair`, careful work against a rig dressed to fail —
+          `chain attempt` when you're under her.
+        completion:
+          type: skill_check_passed
+          skill: "ground vehicle repair"
+          difficulty: 12
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You pull the coolant line and the bearing races the logs kept pointing
+          at, and there it is — a coolant line fouled with a slow-clogging grit
+          that would read clean cold and choke hot, riding a bearing shimmed a
+          hair out of true to seize exactly when the ridge climb loads it. A rig
+          built to die at one kilometer and call it wear. Flush the line, pull the
+          shim, reseat the bearing true, and the Sand Loper turns over sweet and
+          even — a sound rig that was made to fail on schedule. Pocket the shim,
+          stamped with a yard mark that isn't Numi's, and the first half of the
+          racket is in your hand. The fault's cleared, but clearing it isn't
+          making the run: the ridge stretch the outfit owns is still between the
+          load and the window, and a sound rig still has to be driven through it.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "The sabotage is cleared — now the run. Drive the loaded Sand Loper through the ridge stretch the outfit owns, the road where every independent gets stranded — use your `ground vehicle operation` skill, then `chain attempt`."
+
+      - step: 3
+        title: "The Killing Stretch"
+        location: outskirts_hermits_ridge
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["ground vehicle operation"]
+        objective: "Drive the loaded Sand Loper through the ridge stretch where the outfit strands the independents and make the delivery window — a ground vehicle operation check."
+        npc_intro: >
+          [The ridge road runs a high, exposed sandstone shelf with the desert
+          falling away for kilometers on one side and the thermal updrafts making
+          the air itself dance — the stretch every breakdown log pointed to, the
+          place a heavy rig is hardest to hold and easiest to lose, and the place
+          the outfit's recovery crew waits.] A sound rig isn't a safe run here. The
+          shelf narrows where the loaded weight wants to drift, the heat blooms off
+          the rock straight into the drivetrain you just nursed back, and a hauler
+          who muscles it wrong puts a wheel over the edge or cooks a bearing the
+          honest way. Drive her the way Numi would — read the shelf, hold the line
+          the loaded weight fights, keep the temp off the redline through the
+          climb, and bring the rig and the load through the one stretch that was
+          supposed to strand them. `ground vehicle operation`, a heavy rig on a bad
+          shelf against a hard window — `chain attempt` when you've got her through.
+        completion:
+          type: skill_check_passed
+          skill: "ground vehicle operation"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You hold the Sand Loper to the shelf through the narrows and the climb,
+          read the drift before the loaded weight can take it, and keep the temp a
+          hair off the redline where the heat blooms worst — and the rig comes off
+          the ridge whole and on the clock, past the one kilometer that was built
+          to kill the run. Below, where the recovery crew's dust-rig is parked in
+          the shade of the rock, you can see a hauler take in the thing the racket
+          was never set up to handle: an independent's load coming down off the
+          ridge clean, on the window, with a stranger holding the wheel. The strand
+          failed. There's nothing between the load and a logged delivery now but the
+          eastern gate — and the crew that was paid to tow this load off as salvage
+          is already moving to take it the only way left.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "You've driven the ridge and beaten the strand — now the gate. Get the load to the Eastern Gate and stand off the recovery-crew enforcer who comes to take it by force — `attack`, `dodge`."
+
+      - step: 4
+        title: "The Gate"
+        location: outskirts_eastern_gate
+        npc: "Gornt Reska"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Bring the load to the Eastern Gate and stop Gornt Reska when the recovery crew comes for it — `attack`, `dodge`."
+        npc_intro: >
+          [The eastern gate is the last chokepoint before town and a logged
+          delivery — a weathered ferrocrete wall, a gate half-open for years, the
+          Jundland shimmering beyond. The recovery crew's dust-rig slews in across
+          the road ahead of the Sand Loper, and a heavy, thick-necked Klatooinian
+          steps down from it into the gateway, a worn blaster on his hip and a
+          tow-hook coiled at his belt, reading the loaded rig that was supposed to
+          be his salvage and the driver who brought it in clean.] Gornt Reska —
+          the muscle who keeps the outfit's recovery work quiet, who has rarely had
+          to draw because a stranded rig and a missed window do the taking for him.
+          The bored contempt of a being whose work tows itself goes flat. "That
+          load's under a salvage lien, hauler, signed before you turned a wheel. The
+          rig strands, we recover — that's the deal on this road. Step off her and
+          walk, or go out on the hook with the rest of the strand." [He sets the
+          tow-hook down where you can see it and plants himself across the gate.]
+        completion:
+          type: combat_won
+          enemy_template: "long_haul_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Gornt Reska goes down in the gateway, the tow-hook ringing off the
+          ferrocrete, and the recovery crew that worked the ridge — a tow-gang that
+          lived on a planted fault and a missed window — pulls its dust-rig back
+          rather than answer at the gate for a racket coming apart in the open road.
+          The way to town stands clear. Take the shimmed bearing and the fouled
+          line with you — the saboteur's own work, stamped to a yard the outfit
+          buys from off the books — and there's nothing between here and the power
+          station but the run in, the load logged delivered, and a window made for
+          the first time all season.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The enforcer's down, the crew's pulled back, and the road to town is clear — bring the load in on the window and go back to Numi Vesh at the Power Station."
+
+      - step: 5
+        title: "On the Window"
+        location: power_station
+        npc: "Numi Vesh"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Numi Vesh at the Power Station with the run delivered and the planted sabotage in hand."
+        npc_intro: >
+          [Numi Vesh is already at the recharge rail when you come in, the delivery
+          flimsi stamped delivered in front of her and the shimmed bearing and the
+          fouled line laid out beside it.] "On the window. First time all season."
+          [She turns the shimmed bearing to the light and reads the yard mark
+          stamped on it, the mark that isn't hers, and something that has been wound
+          tight for a week lets go.] "Eleven years I've run this road honest and a
+          season of breakdowns nearly took it. `talk` to me and let me get this on
+          the record before the outfit hears its crew came back to town empty."
+        completion:
+          type: talk_to_npc
+          npc: "Numi Vesh"
+        npc_complete: >
+          "Here's your fee — and worth twice the credits to hand it to the hand
+          who drove my run in instead of to a recovery crew that'd have it towed
+          and sold by now. A delivered load kills a salvage lien; a planted bearing
+          and a missed window's worth of logs kill the racket. The route stays open
+          to the independents, and every breakdown the outfit called an accident
+          this season is a planting now that the bearing in your hand can prove. The
+          haul roads are a small world and a long-memoried one, and they tell the
+          difference between the outfit that strands an honest rig and the hand who
+          drives it through. When a hauler on this road finds a fault they didn't
+          leave, there's a name they'll send for now. Fair roads on the way out —
+          yours are clear."
+        # graduation closes the arc; no extra on-completion side effects.
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The run is in on the window and the racket is on the record: the salvage
+          lien dies on a delivered load, the freight outfit's string of "accidents"
+          turns into a string of plantings the shimmed bearing can prove, and the
+          independents squeezed off the route start running it again. A hand who can
+          wrench a planted fault clear, drive a sabotaged rig through the ridge the
+          outfit owns, and stand on the gate when the crew comes has a way of being
+          sent for — the haul roads of the Mos Eisley margins carry a name now, on
+          the frontier the war leaves alone.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════
