@@ -698,3 +698,33 @@ achievements:
     icon: "🔧"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "tatooine_rigged_issue"}
+
+  # ── "The Salted Lane" — eighteenth accessible questline (T3.24), second on
+  # Kuat, on the PASSENGER-TRANSIT face (kuat_spaceport_concourse / kuat_shuttle_bay
+  # / kuat_ring_transit_hub / kuat_transit_lounge; reuses none of The Condemned
+  # Hull's industrial shipyard berths — every room fresh to the corpus; the bored
+  # clone garrison + constant KSF presence the room descriptions name stay distant
+  # background, a clearance-slot racket running on a crooked broker and a hijack
+  # crew not a war faction, the way every prior accessible arc keeps the
+  # Republic/CIS conflict offstage). Earned by breaking a CLEARANCE-FRAUD /
+  # STAGED-HIJACK racket — a clearance broker sells independent freighter crews
+  # forged transit priority slots that squawk a clean fast lane while bending the
+  # helm out through a dead stretch of the outer ring where a partnered hijack crew
+  # strips the ship, logged by KSF as an independent's "nav error" and written off —
+  # by PILOT-GUNNER work: fly the salted slot and hold the true lane against the
+  # deviation it feeds the helm (space transports), work the gun and drive off the
+  # hijack crew at the deviation point (starship gunnery), stand off the broker's
+  # collector (combat), and get the flight recorder to the KSF traffic-authority
+  # desk. The EIGHTEENTH distinct skill spread (space transports + starship gunnery
+  # — both Mechanical — the first independent freighter PILOT-GUNNER build,
+  # mechanically distinct from The Condemned Hull's engineer-navigator who works a
+  # sealed hull on the bench, and The Sabotaged Run's ground speeder racer). Same
+  # lower-tier band as the prior seventeen accessible arcs (cp_reward 3 vs the t5
+  # trainer chains' 5): open freelance side-content, not a rep-gated trial.
+  - key: salted_lane_cleared
+    name: "The Salted Lane"
+    description: "Broke a clearance-fraud racket against the independent crews of the Kuat transit ring — took a freighter out on a broker's salted priority slot and held the true lane by hand against the slow deviation the doctored code fed the helm, proving the slot squawked a clean fast vector while steering ships wrong on purpose (space transports), held the bent lane on to its end and worked the gun to drive off the hijack crew waiting in the dead stretch, proving the loss no 'nav error' but a staged ambush (starship gunnery), and stood off the collector the broker sent to take the flight recorder back in the spaceport transit lounge. A working pilot's hands on a salted lane and a gunner's hand on the trap at the end of it pulled a year of independents' deaths off a KSF traffic log and re-filed them as the hijacks they always were — and turned a fast queue that flew crews into the dark into a clearance racket on the traffic-authority record."
+    category: profession
+    icon: "🚀"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "kuat_salted_lane"}

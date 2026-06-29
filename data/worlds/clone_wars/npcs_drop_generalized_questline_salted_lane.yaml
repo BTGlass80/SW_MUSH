@@ -1,0 +1,312 @@
+# Generalized Questline Drop — "The Salted Lane" (T3.24 eighteenth slice, 2026-06-29)
+#
+# The EIGHTEENTH accessible (non-t5, non-tutorial) `kind: questline` chain, and
+# the SECOND set on KUAT — after "The Condemned Hull" (kuat_condemned_hull, the
+# industrial shipyard berths). It reuses the SAME live questline engine
+# (engine/tutorial_chains.py + chain_events.py: the `kind: questline` type +
+# `active_questline` slot, the existing event types, the four reward funnels) with
+# NO new engine code, no new slot, no new event type, no schema migration, no new
+# reward faucet, and NO map-coordinate or exit-graph change — the sanctioned
+# right-of-launch widening per quest_expansion_postlaunch_path_v1.md (T3.24):
+# author MORE questlines on the proven pattern.
+#
+# Firsts for the accessible-questline arc:
+#   1. An EIGHTEENTH distinct skill spread — SPACE TRANSPORTS + STARSHIP GUNNERY
+#      (both MECHANICAL) — neither of which any prior accessible questline uses (vs
+#      search+streetwise / investigation+gambling / persuasion+sneak /
+#      security+bargain / first_aid+survival / value+con / forgery+bureaucracy /
+#      command+demolitions / pick-pocket+hide+computer-programming /
+#      sensors+repulsorlift-operation / alien-species+droid-programming /
+#      beast-riding+swimming / space-transport-repair+astrogation /
+#      ground-vehicle-repair+ground-vehicle-operation / languages+cultures /
+#      medicine+scholar / blaster-repair+armor-repair). `space transports` and
+#      `starship gunnery` each resolve to MECHANICAL via the canonical
+#      perform_skill_check funnel; neither is aliased (each canonicalizes to
+#      itself). This is the FIRST accessible questline to reward the independent
+#      freighter PILOT-GUNNER build — the hand on the yoke who feels a salted lane
+#      bending the helm and refuses it, and the hand on the gun who meets the
+#      hijack crew the bent lane steers toward. It is mechanically DISTINCT from
+#      the two prior space/ground-vehicle arcs: The Condemned Hull rewards SPACE
+#      TRANSPORT REPAIR + ASTROGATION (a starship ENGINEER-NAVIGATOR who works a
+#      sealed hull on the bench and plots a jump, not the helm under way) and The
+#      Sabotaged Run rewards SENSORS + REPULSORLIFT OPERATION (a GROUND speeder
+#      racer). This is the cockpit under way — a lane to hold and a gun to work,
+#      not a hull to strip or a jump to plot.
+#   2. The SECOND questline set on KUAT, and the first on the PASSENGER-TRANSIT
+#      face: the civilian spaceport and ring-transit chokepoint where independent
+#      freighter crews wait out KSF's strict inspection-and-traffic queue — the
+#      spaceport concourse, the shuttle bay, the orbital-ring transit hub, and the
+#      spaceport transit lounge: kuat_spaceport_concourse / kuat_shuttle_bay /
+#      kuat_ring_transit_hub / kuat_transit_lounge. It reuses NONE of The Condemned
+#      Hull's industrial shipyard rooms (kuat_deporin_shipyards /
+#      kuat_ileu_shipyards / kuat_customs_checkpoint / kuat_ring_cantina /
+#      kuat_ring_factories / kuat_ring_machine_shops / kuat_ring_warehouses /
+#      kuat_supply_station) — every one of its four rooms is fresh to the chain
+#      corpus. Where The Condemned Hull worked the drydocks, this works the TRAFFIC
+#      LANES. The bored clone garrison and the constant-but-unobtrusive KSF
+#      presence the concourse/shuttle-bay/lounge room descriptions already name
+#      stay DISTANT BACKGROUND — the garrison and the security forces are here for
+#      the war and the Yards, not for a clearance-slot racket against shoestring
+#      independents — the way every prior accessible arc keeps the Republic/CIS
+#      conflict offstage. It touches NO map coordinate or world exit graph — the
+#      rooms already exist and are loaded (planets/kuat.yaml); only NPCs + a
+#      chains.yaml entry + an achievement are added.
+#
+# It is also a new STORY SHAPE: breaking a CLEARANCE-FRAUD / STAGED-HIJACK racket
+# (a forged-clearance scam that steers ships into a partnered hijack) — not a
+# smuggling-trace, a racket-bust-by-investigation, a kidnap-rescue, an
+# industrial-skim, a frontier medical rescue, an art-fraud caper, a
+# counter-forgery of documents, a safety-toll community-defense, a finesse heist,
+# a fixed race, a droid-reflash racket, a wildlife-poaching racket, a ship-
+# CONDEMNATION (The Condemned Hull falsely condemns a GOOD ship to seize it on the
+# ground; this SELLS clearance to fly an independent into a hijack), a freight
+# strand-and-salvage, a translation fraud, a fake-plague extortion, or a
+# counterfeit-arms supply scam. A "clearance broker" working the Kuat orbital ring
+# sells small independent freighter crews forged transit PRIORITY SLOTS — a fast
+# lane through KSF's inspection-and-traffic queue a shoestring crew cannot afford
+# to wait out — but the slots are SALTED: the priority code squawks a clean fast
+# vector to traffic control while feeding the helm a slow, constant deviation off
+# the filed line and out through a dead stretch of the outer ring, where the
+# broker's partnered hijack crew strips the ship and KSF logs the loss as a
+# "navigation error" by an unlicensed independent, written off and the dead crew
+# blamed for their own murder. Jando Vekk, a Duros hauler captain who has already
+# buried a wing partner to a salted slot, KNOWS the slots steer ships wrong — he
+# can feel a bad lane in his hands — but he is an unlicensed independent whose word
+# is worth nothing against a KSF traffic log, and he cannot fly the salted slot,
+# work the gun when the hijackers close, and stand off the broker's collector all
+# at once before the next crew flies it blind. He offers his fee to any freelance
+# hand who can take his freighter out on the salted slot and HOLD the true lane
+# against the deviation the doctored code feeds the helm (space transports), work
+# the gun and drive off the hijack crew when it closes on the deviation point
+# (starship gunnery), stand off the collector the broker sends when the proof
+# starts to walk, and get the flight recorder and the salted code to the one desk
+# on the ring a clearance racket answers to.
+#
+# These NPCs back the `kuat_salted_lane` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Jando Vekk  — the Duros freighter captain who offers + closes the quest
+#                   (step-1 npc = the questline's start-NPC, per
+#                   get_questline_offer). Step-1 + step-5 NPC.
+#   * Draygo Sull — the combat-step enforcer (ai_config.chain_enemy_template
+#                   salted_lane_enforcer; the step-4 combat_won foil), the Weequay
+#                   collector the broker sends to take the flight recorder back in
+#                   the spaceport transit lounge.
+# The clearance broker himself, his partnered hijack crew, the dead wing partner
+# (Daro) and his stripped ship, the salted priority-slot codes and the freighter's
+# flight recorder, the bored clone garrison and the constant KSF presence (nodded
+# to in the room text, not re-instantiated), and the KSF traffic-authority desk are
+# NARRATED ONLY — story beats carried in the prose, NOT spawned NPC entities. Only
+# the giver and the single combat foil are real placed NPCs.
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures.
+# The racket is a local clearance-fraud scam run by a crooked broker and a hijack
+# crew, never a war faction; the Republic/CIS conflict stays offstage. Provenance:
+# Duros (the blue-skinned, red-eyed beings of Duro — the galaxy's archetypal
+# spacers and natural pilots, an era-clean, faction-neutral fixture wherever ships
+# move; a natural fit for an independent freighter captain) and Weequay (the
+# leathery beings of Sriluur, era-clean and not war-faction coded, long employed as
+# spacer muscle and collectors across the lanes) are both era-clean. Stats matched
+# to the shipped accessible-questline bands — the giver to the non-combat fixer
+# band (Yelza Korrin / Dorae Vint / Sashi Renko / Dav Nuro / Soree Bann / Hessa
+# Veil / Cassa Brel / Vessa Tial / Terva Dohl / Ria Tann / Nuva Sehl / Neyla Sur /
+# Veelo Trinn / Numi Vesh / Brama Hool / Ulil Maan / Senni Vrook), with the
+# captain's spread skewed to Mechanical to fit a pilot-gunner; the enforcer to the
+# small-time-criminal antagonist band (Brakkis Vone / Gorvahn Brusk / Skarn Vex /
+# Suro Vant / Vohrek Sarn / Brask Yade / Varn Tesk / Tarko Venn / Drevin Saar /
+# Vossk Rhal / Korsa Drael / Bohrus Kang / Gornt Reska / Hekka Vrool / Greel Vodo /
+# Vurr Magh): a real fight, beatable by a fresh post-chargen character, carrying the
+# proven blaster_pistol of the ranged foils (squarely in the proven beatable band,
+# no balance flag needed — the same in-band stat line as The Rigged Issue's foil).
+# WEG40120 PDF is local-only (gitignored) and absent in this tree; the bands are
+# cited against the in-repo reference NPCs, not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The captain — Jando Vekk (questline GIVER + closer)
+  # Questline: kuat_salted_lane ("The Salted Lane")
+  # Placement: Kuat Spaceport Concourse (kuat_spaceport_concourse, zone
+  #            kuat_main_spaceport). Step-1 + step-5 NPC.
+  # NOTE: a Duros independent freighter captain who has already buried one wing
+  # partner to a salted priority slot — a natural pilot who can feel a bad lane in
+  # his hands, who is, as an unlicensed independent whose word is worth nothing
+  # against a KSF traffic log, the one being on the ring who KNOWS the slots steer
+  # ships wrong and cannot prove it to a desk and fly the salted lane and live, all
+  # at once.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Jando Vekk
+    room: "Kuat - Spaceport Concourse"
+    species: Duros
+    description: >-
+      A lean, blue-skinned Duros leaning against a pillar at the edge of the
+      spaceport concourse where the independent crews wait out the queue, the large
+      red eyes and lipless mouth of his species fixed on the transit board with the
+      flat patience of a pilot who has read a thousand of them. A worn flight bag
+      sits at his feet and a clearance chit turns over and over in his long fingers,
+      as if it might read different the next time. He is no broker and no fixer — he
+      is an independent freighter captain, a working hauler with twenty years on the
+      lanes and a ship racked in the shuttle bay, and he has flown enough vectors to
+      feel a wrong one in his hands before an instrument will admit it. Last cycle he
+      buried his wing partner, a Duros named Daro who could hold a vector in his
+      sleep, and watched KSF write the man off as a "navigation error" — an
+      unlicensed independent who couldn't fly a clean lane. Daro could fly a clean
+      lane. What he could not fly clean was the priority slot he bought off a broker
+      on the ring: a clearance code that promised the front of the queue and a fast
+      lane out, and instead bent his helm out through a dead stretch of the outer
+      lanes where his ship came apart and was stripped to the frame. Vekk has the
+      same broker's slot in his own hand now and a run he cannot afford to refuse,
+      and he is certain to his bones the slots are SALTED — that the code does not
+      speed the lane, it steers it, squawking a clean vector to traffic control while
+      pulling the helm toward a dead spot where a crew is waiting, every ship the
+      same way, dressed up as the kind of nav error KSF expects of independents and
+      never looks twice at. He can feel the bad lane, but a feeling does not pull a
+      broker's slots off the ring. He is looking for a neutral outside hand who can
+      do the three things he cannot: take his freighter out on the salted slot and
+      hold the true lane against the deviation the code feeds the helm, work the gun
+      and drive off the hijack crew when it closes on the dead stretch, and carry the
+      flight recorder to the KSF traffic-authority desk before the next independent
+      crew flies the salted lane blind.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D
+        mechanical: 3D+2
+        perception: 3D
+        strength: 2D
+        technical: 2D+1
+      skills:
+        space transports: 4D+1
+        starship gunnery: 4D
+        astrogation: 3D+2
+        sensors: 3D
+        communications: 2D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A steady, plain-spoken Duros freighter captain worn raw by a season of
+        watching a clearance racket fly independents like him into the dark and call
+        the dead bad pilots — patient, exact, and out of any patience for a KSF
+        traffic log that writes off a murdered wing partner as a man who couldn't
+        hold a vector. He reads a lane by the feel of it in his hands and the pull on
+        the yoke, not by the clean vector a doctored slot squawks to traffic control,
+        and he can take a freighter out on a salted slot and tell you to the degree
+        where it is steering you wrong — but he cannot do it as an unlicensed
+        independent whose word a desk will not hear, and he cannot fly the salted
+        lane, work the gun when the hijackers close, and stand off the broker's man
+        all in one run. Calm where the armorer was fast, and quietly certain that a
+        fraud could turn the one thing a pilot is for — bringing a crew home down a
+        lane that holds — into a stripped hull and a dead partner on a traffic log;
+        he offers his fee because the credits were always going to be spent either
+        proving the slots salted or burying the crews who fly them, and a neutral
+        hand who can be heard at a traffic-authority desk where he cannot is the only
+        honest help the lanes have left before the next crew flies it blind.
+      knowledge:
+        - "He is Jando Vekk, a Duros independent freighter captain with twenty years on the lanes and a ship racked in the Kuat shuttle bay — a working hauler and a natural pilot who can feel a wrong vector in his hands before an instrument will admit it. He waits out KSF's strict inspection-and-traffic queue at the concourse with the other independents, and he buried his wing partner Daro to a salted priority slot last cycle."
+        - "A clearance broker on the ring sells small independent crews forged transit PRIORITY SLOTS — a fast lane through the queue a shoestring crew can't afford to wait out. But the slots are salted: the priority code squawks a clean fast vector to traffic control while pulling the helm onto a slow deviation out through a dead stretch of the outer lanes, where the broker's partnered hijack crew strips the ship. KSF logs the loss as a 'navigation error' by an unlicensed independent, writes it off, and blames the dead crew. Daro was steered to his death, not lost to bad flying."
+        - "Vekk knows the slots steer ships wrong — he can feel the bad lane — but he is an unlicensed independent whose word is worth nothing against a KSF traffic log. A neutral outside hand can do what he cannot: take his freighter out on the salted slot and hold the true lane against the deviation the code feeds the helm, proving the slot steers ships wrong (space transports); work the gun and drive off the hijack crew when it closes on the deviation point out past the ring transit hub, proving the 'nav error' a staged ambush (starship gunnery); and stand off the broker's collector who comes for the flight recorder when the proof starts to walk (combat)."
+        - "Get the flight recorder and the salted code to the KSF traffic-authority desk — the one authority on the ring a clearance racket answers to — and it comes apart: the broker's slots are flagged for the deviation vector they always carried, the dead stretch is swept and the hijack crew taken off it, and a year of independents' deaths is re-filed off the books as the staged hijacks they always were. The bored clone garrison and the KSF presence on the concourse are here for the war and the Yards, not for a clearance-slot racket against shoestring independents; this is the lanes' own to set right."
+      faction: independent
+      dialogue_style: >-
+        Steady, plain, exact — a working pilot's talk, sized up by the feel of a
+        lane and the pull on a yoke, names a vector before a motive, and trusts his
+        hands over any clearance a broker squawks. Calm where the armorer was fast;
+        he has flown enough dark lanes to say a salted one flat, and he has a dead
+        partner he will not let stay a bad pilot on a log.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'They didn't raise the queue or steal the cargo. They sold us a fast lane. A clean vector, squawked to traffic control, priority to the front of the line — and the moment you're under way it bends the helm, slow and steady, out toward a dead stretch nobody watches. I know the feel of a lane being steered the way you know a friend's hand on your shoulder. That is not bad flying. That is a fraud with a clearance code on it.'"
+        - "*Jando Vekk turns the broker's clearance chit over in his long fingers and taps the routing block burned into it, his red eyes flat with a pilot's certainty.* 'Read the vector it feeds the transponder. It isn't the fast lane it squawks — it's a bend, out through the same dead spot, every ship that flies it. Daro didn't drift out there. He was steered. A recorder that flew the salted lane and held the true one will say so where a desk has to read it.'"
+        - "'Take my freighter out on this slot and hold the true lane against it — prove it steers ships wrong. When the dead stretch turns out to have a crew waiting in it, work the gun and drive them off — prove it's an ambush. And mind the transit lounge on the way back to the desk; that's where the broker's man will come for the recorder. Do that, and carry it to the traffic-authority desk, and my fee is yours, every credit. I'd rather it bought these lanes a clean queue than bought one more box for a crew a salted slot flew into the dark.'"
+
+  # ── Questline antagonist: Draygo Sull (combat step 4) ───────────────
+  # Single hostile instance in the spaceport transit lounge between the shuttle bay
+  # and the KSF traffic-authority desk. Matches the kuat_salted_lane step-4
+  # combat_won enemy_template.
+  # Carries the proven blaster_pistol of the ranged foils (squarely in the proven
+  # beatable band, the same in-band stat line as The Rigged Issue's foil) so a
+  # fresh post-chargen character has a real, winnable fight.
+
+  - name: Draygo Sull
+    room: "Kuat - Spaceport Transit Lounge"
+    species: Weequay
+    description: >-
+      A heavyset Weequay in a flight-scarred jacket rising from a corner seat of the
+      transit lounge, the leathery, deep-folded hide of his face unreadable above a
+      worn blaster pistol that rides his hip with the ease of a being who collects far
+      more often than he fights. He is the collector the clearance broker keeps on the
+      Kuat ring to make sure a salted slot's proof never comes off the ship that flew
+      it — the hand who buys back a flight recorder with a quiet word and a worse
+      threat, who leans on a crew a payment behind and walks a grieving captain away
+      from a traffic desk, and who rarely has to draw because a KSF "nav error" log and
+      a stripped hull in a dead lane do his arguing for him. The whole racket runs on a
+      fraud KSF will never read against its own traffic log and a salted slot no crew
+      can prove without a recorder; it does not run on a neutral hand walking a flight
+      recorder that flew the bent lane and held the true one across the lounge toward
+      the one desk that can pull the broker's slots. He has watched a freighter he
+      expected back stripped come back armed instead, and the easy, unhurried menace of
+      a man who collects from the written-off and the dead goes hard the instant a
+      stranger comes through the lounge with the recorder under one arm and the KSF
+      traffic-authority desk ahead — the one thing the broker pays him to make sure
+      never reaches a seal, walking the soft, crowded lounge in another being's hand
+      while the resting crews learn not to see a collection on the ring. The recorder
+      goes back to the broker, as far as Sull is concerned; the far-side trouble is a
+      nav matter, as far as anyone in the lounge will hear him say; and whoever carried
+      it in is walking back to their bay without it, one way or the next.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        brawling: 3D+1
+        intimidation: 3D+2
+        search: 3D
+        streetwise: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: salted_lane_enforcer
+      personality: >-
+        A broker's collector genuinely unused to being made to fight for the take —
+        bored and contemptuous while a KSF 'nav error' log and a stripped hull in a
+        dead lane do his work, and immediately, heavily violent the moment a neutral
+        hand comes through the lounge with a flight recorder that flew the salted lane,
+        held the true one, and a traffic-authority desk ahead. He works a blaster and a
+        quiet word and a worse threat, not a yoke: dangerous and direct, he plants
+        himself across the transit lounge between the courier and the KSF desk and would
+        rather break a hand among the crew chairs than chase a recorder he can no longer
+        buy back. His pay and his standing with the broker ride on a fraud that stays a
+        nav matter and a salted slot that never reaches a desk a traffic log has to read
+        against, so he'll draw on anyone carrying the proof up to that desk. Combat foil
+        for the questline's confrontation beat.
+      knowledge:
+        - "He is Draygo Sull, the Weequay collector the clearance broker keeps on the Kuat ring to make sure a salted slot's proof never comes off the ship that flew it — buying back recorders with a quiet word and a worse threat, walking grieving captains away from traffic desks, and rarely having to draw because a KSF 'nav error' log and a stripped hull in a dead lane do his collecting for him."
+        - "A neutral hand flew the broker's salted priority slot on Jando Vekk's freighter, held the true lane to prove the slot bends the helm, worked the gun out past the ring transit hub to drive off the waiting hijack crew and prove the 'nav error' a staged ambush, and is carrying the flight recorder through the transit lounge toward the KSF traffic-authority desk; the racket runs on a fraud KSF will never read against its own log, so he'll draw on whoever brings the recorder up rather than let the one thing that pulls the broker's slots reach a traffic desk."
+      faction: criminal
+      dialogue_style: >-
+        Flat, unhurried, contemptuous — names the take before the threat. States once
+        that the recorder belongs to the broker and the far-side trouble is a nav
+        matter, and after that lets the blaster keep the lounge the way a stripped hull
+        in a dead lane kept the racket.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'That recorder belongs to the broker, friend — you flew his slot, you flew his property. The far-side trouble's a nav matter; it doesn't go on any traffic desk. Hand it over and walk back to your bay.'"
+        - "*Draygo Sull rises from a corner seat as you come through the lounge with the recorder under your arm, sets himself across the soft, crowded space between the courier and the KSF desk, and lets his jacket fall open enough to show the blaster he would rather not have to use.*"
+        - "'I had money on you coming back stripped. Bad bet. Last time — hand it over and walk back to your bay, or you don't walk to that desk. The broker's a patient man. I'm the part of him that came to collect.'"
