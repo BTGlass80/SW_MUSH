@@ -1,0 +1,284 @@
+# Generalized Questline Drop — "The Condemned Hull" (T3.24 thirteenth slice, 2026-06-29)
+#
+# The THIRTEENTH accessible (non-t5, non-tutorial) `kind: questline` chain, and
+# the SECOND set on KUAT — after "The Ghost Shipment" (nar_freight_ghost_
+# shipment, Nar Shaddaa), "The Crooked Wheel" (mos_eisley_crooked_wheel,
+# Tatooine/Mos Eisley market), "The Lost Courier" (coruscant_lower_lost_courier,
+# Coruscant LOWER city), "The Skimmed Line" (kuat_ring_skimmed_line, Kuat
+# orbital ring — the FIRST Kuat arc), "The Dust-Sick" (jundland_dust_sick,
+# Tatooine Jundland wilderness), "The False Provenance" (coruscant_petrax_false_
+# provenance, Coruscant cultural district), "The Forged Notice" (nar_shaddaa_
+# forged_notice, Nar Shaddaa upper docks), "The Warrens Toll" (nar_shaddaa_
+# warrens_toll, Nar Shaddaa Warrens), "The Sealed Ledger" (coruscant_works_
+# sealed_ledger, Coruscant mid-city), "The Sabotaged Run" (tatooine_speeder_
+# sabotaged_run, Tatooine outskirts speeder circuit), "The Hollow Crew"
+# (geonosis_offworld_hollow_crew, Geonosis offworlder surface), and "The Driven
+# Herd" (kamino_driven_herd, Kamino ocean platforms). It reuses the SAME live
+# questline engine (engine/tutorial_chains.py + chain_events.py: the
+# `kind: questline` type + `active_questline` slot, the existing event types,
+# the four reward funnels) with NO new engine code, no new slot, no new event
+# type, no schema migration, no new reward faucet, and NO map-coordinate or
+# exit-graph change — the sanctioned right-of-launch widening per
+# quest_expansion_postlaunch_path_v1.md (T3.24): author MORE questlines on the
+# proven pattern.
+#
+# Firsts for the accessible-questline arc:
+#   1. A THIRTEENTH distinct skill spread — SPACE TRANSPORT REPAIR + ASTROGATION
+#      — neither of which any prior accessible questline uses (vs search+
+#      streetwise / investigation+gambling / persuasion+sneak / security+bargain
+#      / first_aid+survival / value+con / forgery+bureaucracy / command+
+#      demolitions / pick-pocket+hide+computer-programming / sensors+
+#      repulsorlift-operation / alien-species+droid-programming / beast-riding+
+#      swimming). `space transport repair` resolves to TECHNICAL and
+#      `astrogation` to MECHANICAL via the canonical perform_skill_check funnel;
+#      neither is aliased (each canonicalizes to itself). This is the FIRST
+#      accessible questline to reward the spacer ENGINEER-NAVIGATOR build — the
+#      hand who can survey a hyperdrive and re-plot a hyperspace jump — which
+#      the social, investigative, appraisal, leadership, finesse, slicer, pilot,
+#      xeno-scholar, and beast-handler arcs never serve.
+#   2. The SECOND questline set on KUAT, and the FIRST on a fresh FACE of the
+#      Drive Yards: the customs-and-cert front + the independent berths + the
+#      supply station + the leased Ileu strip-berth (kuat_customs_checkpoint /
+#      kuat_deporin_shipyards / kuat_supply_station / kuat_ileu_shipyards). It
+#      reuses NONE of The Skimmed Line's rooms (kuat_ring_cantina /
+#      kuat_ring_machine_shops / kuat_ring_warehouses / kuat_ring_factories).
+#      The great Republic drydocks (the Venator / Acclamator military berths)
+#      and the war stay entirely OFF-STAGE — the whole arc runs on the
+#      faction-neutral independent-freighter margins of the ring, the way every
+#      prior accessible arc keeps the Republic/CIS conflict offstage. It touches
+#      NO map coordinate or world exit graph — the rooms already exist and are
+#      loaded (planets/kuat.yaml); only NPCs + a chains.yaml entry + an
+#      achievement are added.
+#   3. The FIRST MELEE-ARMED combat foil across all thirteen arcs: the prior
+#      eleven combat foils all carry blaster_pistol; Bohrus Kang is a Houk
+#      hull-stripper with a vibroaxe. He is stat-OFFSET to stay in the proven
+#      beatable band (see his block) — high per-hit but modest to-hit and weak
+#      at range, so a fresh post-chargen character who keeps distance keeps the
+#      edge. ⚠ BALANCE FLAG: vibroaxe (STR+3D+1) is higher per-hit than the
+#      prior foils' blaster_pistol (4D); if telemetry/playtest shows the melee
+#      climax is too lethal for a fresh character, swap his weapon to vibroblade
+#      (STR+3D) or blaster_pistol — a one-line change, no other edit needed.
+#
+# It is also a new STORY SHAPE: breaking a ship-condemnation / certification-
+# fraud racket — not a smuggling-trace, a racket-bust-by-investigation, a
+# kidnap-rescue, an industrial-skim, a frontier medical rescue, an art-fraud
+# caper, a counter-forgery, a community-defense, a finesse heist, a fixed race,
+# a droid-reflash racket, or a wildlife-poaching racket. A corrupt KSF
+# cert-inspector (narrated only) condemns honest independent freighters: he
+# plants a fault in the hyperdrive AND cooks the jump-cert (swears the ship's
+# astrogation can no longer safely plot its runs), seals the drive bay so the
+# owner is legally barred from touching it to argue, and posts the hull for
+# forced sale as scrap — where a chop-crew buys the condemned hulls cheap and
+# strips them at a leased Ileu berth. Veelo Trinn, the Verpine engineer-captain
+# whose freighter the Resin Wing was just condemned, is a master of the drive
+# and the jump but is barred from her own sealed bay and is no match for the
+# chop-crew. She offers her fee to any freelance surveyor who can crack the
+# seal and survey the drive to find the planted fault (space transport repair),
+# re-run the condemned jump to prove the nav sound and the cert cooked
+# (astrogation), trace the condemned hulls to the strip-berth's buy-ledger and
+# stand off the enforcer who comes for it (attack/dodge), and get the
+# condemnation overturned.
+#
+# These NPCs back the `kuat_condemned_hull` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Veelo Trinn  — the Verpine engineer-captain who offers + closes the quest
+#                    (step-1 npc = the questline's start-NPC, per
+#                    get_questline_offer). Step-1 + step-5 NPC.
+#   * Bohrus Kang  — the combat-step enforcer (ai_config.chain_enemy_template
+#                    condemned_hull_enforcer; the step-4 combat_won foil), the
+#                    Houk muscle who keeps the strip-berth quiet and comes for
+#                    the buy-ledger when an independent survey pulls it.
+# The corrupt cert-inspector, the chop-crew, the off-books buyers, the planted
+# calibration chip, the cooked jump-cert, the four condemned hulls in mid-strip,
+# and the freighter Resin Wing are NARRATED ONLY — story beats carried in the
+# prose, NOT spawned NPC entities. Only the giver and the single combat foil are
+# real placed NPCs.
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures.
+# KSF (Kuat System Forces / Kuat Security Force) is referenced INSTITUTIONALLY
+# as the established Kuat-local corporate force the loaded rooms already name
+# (KSF Customs Checkpoint / KSF Security Substation / KSF Headquarters) — a
+# corporate/local force, never the Republic clone army (kept offstage with the
+# military drydocks). Provenance: Verpine (the insectoid engineering-savant
+# species of the Roche asteroids — a wholly era-clean, faction-neutral fixture
+# of the galaxy and the natural fit for a master shipwright-navigator) and Houk
+# (a large, powerful, long-spacefaring species, a faction-neutral fixture of
+# Outer Rim and Hutt-space muscle) are both era-clean and not war-faction coded.
+# Stats matched to the shipped accessible-questline bands — the giver to the
+# non-combat fixer band (Yelza Korrin / Dorae Vint / Sashi Renko / Dav Nuro /
+# Soree Bann / Hessa Veil / Cassa Brel / Vessa Tial / Terva Dohl / Ria Tann /
+# Nuva Sehl / Neyla Sur), with the engineer-captain's spread skewed to
+# Technical/Mechanical to fit a master shipwright-navigator; the enforcer to the
+# small-time-criminal antagonist band (Brakkis Vone / Gorvahn Brusk / Skarn Vex
+# / Suro Vant / Vohrek Sarn / Brask Yade / Varn Tesk / Tarko Venn / Drevin Saar
+# / Vossk Rhal / Korsa Drael): a real fight, beatable by a fresh post-chargen
+# character, the Houk bruiser's threat front-loaded into melee and STRENGTH and
+# offset by a modest to-hit and a weak ranged attack. WEG40120 PDF is local-only
+# (gitignored) and absent in this tree; the bands are cited against the in-repo
+# reference NPCs, not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The engineer-captain — Veelo Trinn (questline GIVER + closer)
+  # Questline: kuat_condemned_hull ("The Condemned Hull")
+  # Placement: Kuat - KSF Customs Checkpoint (kuat_customs_checkpoint, zone
+  #            kuat_orbital). Step-1 + step-5 NPC.
+  # NOTE: an independent freighter owner-operator grounded at the customs front
+  # by a fraudulent condemnation — a master of her own drive and her own jump,
+  # barred from the sealed bay and no hand in a fight, a rooted presence
+  # contesting the cert, not one of the ring's transients.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Veelo Trinn
+    room: "Kuat - KSF Customs Checkpoint"
+    species: Verpine
+    description: >-
+      A tall, narrow Verpine in a grease-darkened ship-suit, the green chitin of
+      her long-fingered hands ticking against the customs rail in the steady,
+      thinking-out-loud way of her species, a sheaf of flimsi condemnations under
+      one arm and her grounded freighter visible past the viewport with a KSF
+      seal welded across its drive bay. She is no shipyard hand on a corporate
+      payroll — she built the Resin Wing's hyperdrive herself and has plotted the
+      ship's own jumps clean for nine years, an owner-operator who knows her
+      drive and her nav the way another being knows their own hands. A KSF
+      cert-inspector has just condemned that drive as unspaceworthy scrap and
+      cooked the jump-cert to match, sealed the bay so she's legally barred from
+      laying a tool on her own ship to argue, and posted the hull for forced sale
+      — where, a week on, the same handful of buyers will take it for a song and
+      strip it at a leased Ileu berth. She has read the citation a hundred times
+      and knows both halves of it are lies, but the one thing a master engineer
+      can't do is open a drive a seal forbids her to touch, and the chop-crew is
+      past anything an engineer can argue. She is looking for a freelance
+      surveyor with no stake in the hull who can do the three things she cannot:
+      crack the seal and survey the drive to find the planted fault, re-run the
+      jump the inspector swore she could never make, and stand on the strip-berth
+      when the crew comes.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 3D
+        mechanical: 3D
+        perception: 2D+2
+        strength: 2D
+        technical: 3D+1
+      skills:
+        space transport repair: 4D+2
+        astrogation: 4D+1
+        sensors: 3D+2
+        space transports: 3D+1
+        bargain: 2D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A precise, level Verpine engineer-captain worn raw by a week of being
+        told the ship she built with her own hands is scrap — patient, exact,
+        and unable to lie about a drive or a jump because to her species the
+        numbers either hold or they don't. She can survey a hyperdrive and plot
+        a hyperspace run better than any corporate tech on the ring, and she
+        knows to the decimal that her drive is sound and her cert is cooked —
+        but the seal is the one thing her own hands are barred from, and a Houk
+        with a hull-cutter's axe is past anything she can argue. Tired,
+        clear-eyed, and quietly furious at a racket that runs on a sealed drive
+        nobody opens and a cert nobody re-runs; she offers her fee because the
+        credits were always going to be spent either buying her ship back or
+        losing it, and a stranger willing to spend them on the inspector losing
+        instead is the only honest help the independent berths get.
+      knowledge:
+        - "She is Veelo Trinn, a Verpine engineer-captain on the Kuat Drive Yards ring; she built the hyperdrive on her freighter the Resin Wing and plots the ship's own jumps, an independent owner-operator put in for her routine cert."
+        - "A KSF cert-inspector condemned the Resin Wing as unspaceworthy scrap: he logged a phase-fault in the hyperdrive that wasn't there — he had to plant one under the seal to make it stick — and he cooked her jump-cert, swearing on the record her astrogation can no longer safely plot the runs she's flown clean for nine years."
+        - "The moment a hull is condemned, KSF seals the drive bay and the owner can't lay a tool on it without forfeiting the ship — so she can't open her own drive to prove him a liar. A week on, the Resin Wing posts for forced sale as scrap, and the same buyers who took the last four condemned hulls take her for a song and strip her at a leased Ileu berth."
+        - "A freelance surveyor with no stake in the hull can crack the seal to survey it — a contest, not tampering. The three things she needs and can't do: survey the sealed drive at the Deporin berth and find the planted fault (space transport repair); re-run the condemned jump at the Supply Space Station nav console to prove her astrogation sound and the cert cooked (astrogation); and pull the chop-crew's buy-ledger at the Ileu strip-berth and stand off the enforcer who comes for it."
+      faction: independent
+      dialogue_style: >-
+        Precise, level, engineer's diction — happiest stating a tolerance or a
+        margin, least at ease with a feeling; talks the way she works a drive,
+        no wasted motion and every number load-bearing.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'A KSF inspector condemned my hull. He logged a phase-fault that wasn't there — planted one under the seal to make it stick — and cooked my jump-cert, swore my astrogation can't make a run I've flown clean for nine years. The day they seal the bay the owner can't touch it to argue. The drive's sound. I know it's sound the way you know your own hand.'"
+        - "*Veelo Trinn runs a chitinous finger down the condemnation flimsi, reading the two signatures that are the same signature, her long fingers going still the way they only do over a number that's been falsified.*"
+        - "'Crack the seal and survey her at the Deporin berth — find me the fault he planted. Re-run the condemned jump at the supply station — prove the cert's a fabrication. Pull the buy-ledger off the Ileu berth that strips the hulls, and mind the crew when you do. Do that and my fee's yours, every credit. I'd rather it bought the inspector losing than bought a chop-crew my drive.'"
+
+  # ── Questline antagonist: Bohrus Kang (combat step 4) ───────────────
+  # Single hostile instance at the chop-crew's leased Ileu strip-berth.
+  # Matches the kuat_condemned_hull step-4 combat_won enemy_template.
+  # FIRST melee-armed foil across all 13 arcs (vibroaxe); stat-offset to the
+  # proven beatable band — high per-hit, modest to-hit, weak at range — so a
+  # fresh post-chargen character who keeps distance keeps the edge. See the
+  # header BALANCE FLAG: swap weapon to vibroblade/blaster_pistol if too lethal.
+
+  - name: Bohrus Kang
+    room: "Kuat Drive Yards - Ileu Shipyards"
+    species: Houk
+    description: >-
+      A heavy, slab-shouldered Houk in a stripper's rig, the leathery grey hide
+      of his species scarred from years of hull-cutting work, a vibroaxe meant
+      for shearing condemned hulls held easy in fists that have never once had to
+      lift it at an owner. He is the muscle who keeps the leased Ileu strip-berth
+      quiet — the enforcer for a chop-crew that has lived all season on a steady
+      feed of "scrap" hulls, every one of them sound, condemned out from under
+      honest independent captains by a KSF inspector's sealed drives and cooked
+      certs. He has never had to fight for the racket, because the seal and the
+      cert do the taking for him and a grounded captain barred from her own bay
+      can't lay a hand on anything; the bored calm of a being whose work runs
+      itself goes flat the instant a freelance surveyor cracks a seal he counted
+      on no one opening and pulls the buy-ledger off the foreman's stand. The
+      hulls come to the berth condemned, fair and legal as far as the paper goes;
+      the ledger in the surveyor's hand says otherwise; and whoever read it is
+      going on the rack with the rest of the scrap.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D+1
+        perception: 2D+1
+        strength: 3D+1
+        technical: 2D+1
+      skills:
+        melee_combat: 4D
+        brawling: 4D+1
+        lifting: 4D
+        dodge: 3D
+        intimidation: 3D+2
+        blaster: 2D+2
+      weapon: vibroaxe
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: condemned_hull_enforcer
+      personality: >-
+        A chop-crew enforcer genuinely unused to being made to fight for the
+        racket — bored and contemptuous while the seal and the cooked cert do
+        his taking, immediately and heavily violent the moment a surveyor cracks
+        a seal and pulls the buy-ledger that ties the berth to the inspector. He
+        is a hull-cutter, not a marksman: dangerous with the vibroaxe in close
+        and slow to bring a blaster up, so he closes hard and would rather break
+        a surveyor at arm's length than trade fire across the berth. His pay and
+        his standing with the off-books buyers ride on a quiet berth and a clean
+        ledger, so he'll take the axe to anyone who came to pull it. Combat foil
+        for the questline's confrontation beat.
+      knowledge:
+        - "He is Bohrus Kang, the Houk enforcer who keeps the chop-crew's leased Ileu strip-berth quiet — where condemned independent freighters, every one of them sound, are bought cheap as scrap and stripped, fed to the berth by a KSF inspector's sealed drives and cooked certs."
+        - "A surveyor cracked a seal he counted on no one opening and pulled the buy-ledger that ties every condemned hull of the season to one crew and one inspector; he'll take the axe to anyone who came to walk that ledger off his berth rather than lose the racket and the unlogged buyers waiting on it."
+      faction: criminal
+      dialogue_style: >-
+        Flat, unhurried, contemptuous. States once that the ledger is berth
+        property and the surveyor should put it down and walk, and after that
+        lets the vibroaxe keep the berth the way the seal and the cert kept the
+        racket.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'That ledger's berth property, surveyor, and so's everything you just read off it. The hulls come to us condemned, fair and legal. Put it down and walk.'"
+        - "*Bohrus Kang sets the vibroaxe across his fists and steps off the gantry, between the surveyor and the only way off the strip-berth.*"
+        - "'Last time — put it down and walk, or you go on the rack with the rest of the scrap. The seal does my taking. The axe is just for the ones who make me lift it.'"

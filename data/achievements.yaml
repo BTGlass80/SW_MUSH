@@ -570,3 +570,27 @@ achievements:
     icon: "🐋"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "kamino_driven_herd"}
+
+  # T3.24 generalized-questline arc (2026-06-29): the THIRTEENTH accessible
+  # (non-t5, non-tutorial) questline, the SECOND set on Kuat (after The Skimmed
+  # Line) and the first on a fresh face of the Drive Yards — the customs/cert
+  # front + independent berths + supply station + the Ileu strip-berth (reuses
+  # none of The Skimmed Line's cantina/machine-shops/warehouses/factories).
+  # Earned by breaking a ship-condemnation / certification-fraud racket — a KSF
+  # cert-inspector plants a drive fault and cooks the jump-cert to condemn an
+  # honest freighter as scrap for a chop-crew to strip — by ENGINEERING the
+  # proof: survey the sealed drive to find the planted fault (space transport
+  # repair), re-run the condemned jump to prove the nav sound and the cert
+  # cooked (astrogation), pull the strip-berth's buy-ledger and stop the
+  # enforcer (combat), and get the condemnation overturned. The THIRTEENTH
+  # distinct skill spread (space transport repair + astrogation — the first
+  # spacer engineer-navigator build). Same lower-tier band as the prior twelve
+  # accessible arcs (cp_reward 3 vs the t5 trainer chains' 5): open freelance
+  # side-content, not a rep-gated trial.
+  - key: condemned_hull_cleared
+    name: "The Condemned Hull"
+    description: "Overturned a ship-condemnation racket on the Kuat Drive Yards ring — cracked a crooked KSF seal to survey a freighter's hyperdrive and find the fault an inspector planted (space transport repair), re-ran the jump he swore she could never make to prove her nav sound and her cert cooked (astrogation), and pulled the chop-crew's buy-ledger off the strip-berth and stood off the enforcer who came for it. An engineer's eye in a sealed drive and a navigator's hands at a cooked cert gave an honest captain her ship and her cert back — and turned a season of condemned hulls into a theft on the record."
+    category: profession
+    icon: "🛠️"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "kuat_condemned_hull"}

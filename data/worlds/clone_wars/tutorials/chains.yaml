@@ -4877,6 +4877,312 @@ chains:
           platforms carry a name now, in the one corner of Kamino the war hasn't
           reached.
 
+  # ─────────────────────────────────────────────────────────────────────
+  # GENERALIZED QUESTLINE — "The Condemned Hull" (kuat_condemned_hull)
+  # T3.24 thirteenth accessible (non-t5, non-tutorial) kind:questline chain.
+  # The SECOND arc set on Kuat (after "The Skimmed Line"), on a FRESH FACE of
+  # the Drive Yards — the customs/cert front + the independent berths + the
+  # supply station + the Ileu strip-berth; reuses NONE of the Skimmed Line's
+  # cantina/machine-shops/warehouses/factories rooms. Thirteenth DISTINCT skill
+  # spread: SPACE TRANSPORT REPAIR (Technical) + ASTROGATION (Mechanical) — the
+  # FIRST accessible arc to reward the spacer ENGINEER-NAVIGATOR build (neither
+  # skill used by any prior arc). New story shape: a ship-condemnation /
+  # certification-fraud racket — a corrupt KSF cert-inspector plants a drive
+  # fault and falsifies the jump-cert to condemn honest independent freighters
+  # as unspaceworthy scrap, which a chop-crew then buys cheap and strips — beaten
+  # by ENGINEERING the proof: survey the sealed drive to find the planted fault
+  # (space transport repair), re-run the condemned jump to prove the nav sound
+  # and the cert cooked (astrogation), trace the condemned hulls to the strip-
+  # berth's buy-ledger and stand off the enforcer (combat), and get the
+  # condemnation overturned. Reuses the live questline engine (kind:questline +
+  # active_questline + existing event types + the four reward funnels) with NO
+  # new engine code, no new slot/event type, no schema migration, no new reward
+  # faucet, and NO map-coordinate or exit-graph change.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: kuat_condemned_hull
+    chain_name: "The Condemned Hull"
+    description: >
+      On the Kuat Drive Yards orbital ring — out past the great Republic
+      drydocks, on the customs-and-cert front where the independent freighters
+      put in for the inspection that lets them keep flying — a Verpine
+      engineer-captain named Veelo Trinn sits grounded beside a freighter that
+      is not broken. A KSF cert-inspector condemned the Resin Wing's hyperdrive
+      as unspaceworthy and cooked her jump-cert to match, sealed the drive bay
+      so her owner can't legally touch it to argue, and posted the hull for
+      forced sale as scrap — where, a week later, the same handful of buyers
+      take it for a song and strip it at a leased Ileu berth. It is not the
+      first honest hull he has condemned and it will not be the last; the
+      racket runs on a sealed drive nobody is allowed to open and a cert nobody
+      bothers to re-run. Trinn is a master of the drive and a master of the
+      jump, but the seal is the one thing her own hands are barred from, and
+      the chop-crew is past anything an engineer can argue. Survey the sealed
+      drive and find the fault the inspector planted, re-run the jump he swore
+      she could never make, trace the condemned hulls to the berth that strips
+      them, stand off the crew that came when you pulled their ledger, and get
+      an honest captain her ship and her cert back. A freelance favor — open to
+      anyone, no faction required.
+    archetype_label: "Freelance Ship-Surveyor's Favor"
+    faction_alignment: independent
+    starting_zone: kuat_main_spaceport
+    starting_room: kuat_customs_checkpoint
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["condemned_hull_cleared"]
+      drop_room: kuat_customs_checkpoint
+      follow_up_hint: >
+        The independent survey overturns the condemnation: the planted
+        phase-fault and the cooked jump-cert go on the record, the Resin Wing's
+        seal comes off, and the cert-inspector's name comes off the duty
+        roster a great deal faster than the racket took to build. The chop-crew
+        that lived on a steady feed of condemned hulls finds the feed cut and
+        scatters for a friendlier ring, and the buy-ledger you pulled turns
+        every "scrap" sale of the season back into a theft on the record. Word
+        runs the independent berths the way it never runs the corporate ones —
+        there's a surveyor who'll crack a crooked seal and re-run a cooked
+        cert and put it on paper, and stand on the berth when the crew comes —
+        and the captains who've watched an honest hull condemned out from under
+        them stop flying the ring afraid of the inspection that was supposed to
+        keep them safe.
+
+    steps:
+      - step: 1
+        title: "The Grounded Wing"
+        location: kuat_customs_checkpoint
+        npc: "Veelo Trinn"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Veelo Trinn at the KSF Customs Checkpoint on the Kuat Drive Yards ring."
+        npc_intro: >
+          [A tall, narrow Verpine in a grease-darkened ship-suit stands at the
+          customs rail beside a sheaf of flimsi condemnations, the chitin of her
+          long fingers ticking against the rail in the steady way her species
+          thinks out loud, her freighter visible past the viewport with a KSF
+          seal welded across its drive bay.] "Offworld, and put in for your
+          cert? Then put in somewhere else this season, while you still can.
+          Veelo Trinn — I built the drive on that hull and I plot her own jumps,
+          and a KSF inspector just condemned her as scrap. The drive's sound. I
+          know it's sound the way you know your own hand. But he sealed the bay,
+          and the day they seal it the owner can't lay a tool on it without
+          forfeiting the hull — so I can't open my own drive to prove him a liar.
+          `talk` to me and I'll show you how the racket runs."
+        completion:
+          type: talk_to_npc
+          npc: "Veelo Trinn"
+        npc_complete: >
+          [She lays the condemnation flat on the rail and runs a chitinous
+          finger down it — a planted-fault citation and a failed jump-cert,
+          both signed by the same inspector.] "Two lies on one page. He logged
+          a phase-fault in the hyperdrive that isn't there — and to make a
+          fault stick he had to put one there, under the seal where only he's
+          been. And he failed her jump-cert: swore on the record her
+          astrogation can't safely plot the runs she's flown for nine years.
+          A week from now the Resin Wing posts for forced sale as scrap, and
+          the same buyers who took the last four condemned hulls take her for a
+          song and strip her at an Ileu berth. I can't touch the seal and I'm
+          no hand in a fight. But a freelance surveyor with no stake in the
+          hull CAN crack the seal to survey it — that's a contest, not
+          tampering. Go to her berth at the Deporin yard, get under the seal,
+          and find me the fault he planted. Then we'll have the first of the
+          two lies on paper."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to the Deporin Shipyards berth where the Resin Wing is grounded, crack the KSF seal to survey the sealed hyperdrive, and find the planted fault — use your `space transport repair` skill, then `chain attempt`."
+
+      - step: 2
+        title: "The Planted Fault"
+        location: kuat_deporin_shipyards
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["space transport repair"]
+        objective: "Crack the KSF seal on the Resin Wing's drive bay at the Deporin berth and survey the hyperdrive to find the planted fault — a space transport repair check."
+        npc_intro: >
+          [The Resin Wing sits cold in an independent Deporin berth with a KSF
+          condemnation seal welded across the drive bay, the kind of seal whose
+          whole purpose is that the owner never gets to argue with what's behind
+          it.] A condemned-as-scrap drive is supposed to be a wreck; this one is
+          a Verpine's life's work, every line dressed and labeled, and somewhere
+          in it is a fault that was put there by a hand that doesn't build drives
+          for a living. Crack the seal as the independent surveyor a contest
+          allows, open the hyperdrive, and read it the way the inspector counted
+          on no one reading it: trace the phase-regulator he cited, find where a
+          sound part was made to read faulted — a shimmed coupling, a swapped
+          calibration chip, a fault a builder would never leave and only a
+          saboteur would plant. `space transport repair`, careful work against a
+          drive dressed to lie — `chain attempt` when you're down in it.
+        completion:
+          type: skill_check_passed
+          skill: "space transport repair"
+          difficulty: 12
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You crack the seal, lift the drive cover, and the Resin Wing is
+          exactly what Trinn said — a sound hyperdrive in tournament order, with
+          one wrong thing in it. The phase-regulator the inspector condemned
+          reads faulted on the panel, but pull the housing and it's a swapped
+          calibration chip riding a shimmed coupling: a good regulator made to
+          fail its self-test by a hand that knew precisely which reading a
+          condemnation needs. Pocket the swapped chip and the shim — the
+          inspector's own planted fault, the part number stamped to a yard he
+          buys from off the books — and the drive, with its real chip back in,
+          spins up sweet on the first try. The first lie is on paper now, and in
+          your pocket. There's still the cert he cooked: he swore her
+          astrogation couldn't make the jump she's flown for years, and that
+          lie is re-run at a nav console, not under a seal.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "You've pulled the planted fault — now the inspector's other lie, the cooked jump-cert. Go to the Supply Space Station's nav console and re-run the condemned jump to prove her astrogation sound — use your `astrogation` skill, then `chain attempt`."
+
+      - step: 3
+        title: "The Cooked Cert"
+        location: kuat_supply_station
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["astrogation"]
+        objective: "Re-run the condemned jump-cert at the Supply Space Station nav console to prove the Resin Wing's astrogation sound and the cert falsified — an astrogation check."
+        npc_intro: >
+          [The Supply Space Station's open nav console looks out on the same
+          star-field the Resin Wing's cert was failed against — the standard
+          ring-to-Outer-Rim runs she's flown clean for nine years, that an
+          inspector swore on the record her astrogation could no longer safely
+          plot.] A cooked cert is a subtle lie: you don't claim a jump is
+          impossible, you claim the margin's gone — that her nav can't hold the
+          tolerance the run needs anymore, so the safe answer is to ground her.
+          Re-run it honestly. Pull her flight logs, plot the condemned jump
+          fresh against the real mass-shadows and the live hazard tables, and
+          read the margin the inspector buried: either her astrogation makes the
+          run inside tolerance — and his cert is a fabrication — or it doesn't,
+          and Trinn's wrong about her own ship. `astrogation`, an honest plot
+          against a dishonest one — `chain attempt` when you've run the numbers.
+        completion:
+          type: skill_check_passed
+          skill: "astrogation"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You pull the Resin Wing's logs and plot the condemned run fresh, and
+          the numbers come up exactly where nine clean years said they would:
+          her astrogation holds the run well inside tolerance, margin to spare,
+          on the same hazard tables the inspector certified her against last
+          year and failed her against this one with not one mass-shadow changed.
+          The cert isn't a close call gone the wrong way — it's a fabrication,
+          a margin written down to fail a ship that plots better than half the
+          corporate hulls on the ring. Stamp the honest plot, log it beside the
+          swapped chip in your pocket, and the inspector's two lies are both on
+          paper now. The only thing left is where the condemned hulls go: the
+          Ileu strip-berth the last four were broken at, where a buy-ledger ties
+          every "scrap" sale of the season back to one crew — and where that
+          crew will be when an independent survey starts pulling their feed
+          apart.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "Both lies are on paper — now the crew that profits. Go to the Ileu Shipyards strip-berth, pull the buy-ledger tying the condemned hulls to one buyer, and stand off the enforcer who comes for it — `attack`, `dodge`."
+
+      - step: 4
+        title: "The Strip Berth"
+        location: kuat_ileu_shipyards
+        npc: "Bohrus Kang"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Pull the chop-crew's buy-ledger at the Ileu strip-berth and stop Bohrus Kang when he comes for it — `attack`, `dodge`."
+        npc_intro: >
+          [The leased Ileu berth is a graveyard of honest hulls: four condemned
+          freighters in mid-strip, their drives — every one of them sound —
+          pulled and racked for resale, and on the foreman's stand a buy-ledger
+          that ties every "scrap" sale of the season to one crew and one
+          inspector's signature. You have it in hand when the berth's enforcer
+          comes off the gantry: a heavy, slab-shouldered Houk in a stripper's
+          rig, a hull-cutter's vibro-axe in his fists, reading the pulled ledger
+          and the surveyor holding it.] Bohrus Kang — the muscle who keeps the
+          strip-berth quiet, who never had to lift the axe at an owner because
+          the seal and the cert did the taking for him. The bored calm of a
+          being whose racket runs itself goes flat. "That ledger's berth
+          property, surveyor, and so's everything you just read off it. The
+          hulls come to us condemned, fair and legal, and what's on that stand
+          stays on it. Put it down and walk, or go on the rack with the rest of
+          the scrap." [He sets the axe.]
+        completion:
+          type: combat_won
+          enemy_template: "condemned_hull_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Bohrus Kang goes down among the gutted hulls and the racked drives,
+          the vibro-axe ringing off the berth deck, and the strip-crew that
+          works the condemned freighters — a chop-gang that lived on a seal
+          nobody opened and a cert nobody re-ran — scatters for its skiff rather
+          than answer for a racket pulled apart on its own berth. The buy-ledger
+          stays in your hand: every condemned hull of the season, every "scrap"
+          price, every sale tied back to one inspector's signature. Take it with
+          the swapped chip and the honest plot — the three things together that
+          turn a condemnation into a fraud and a fraud into a forfeiture — and
+          there's nothing between here and the customs front but the ride back
+          to a captain who's been told for a week that the ship she built was
+          scrap.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The enforcer's down, the strip-crew's scattered, and you've got the ledger, the planted chip, and the honest plot — go back to Veelo Trinn at the KSF Customs Checkpoint."
+
+      - step: 5
+        title: "The Cert Reinstated"
+        location: kuat_customs_checkpoint
+        npc: "Veelo Trinn"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Veelo Trinn at the customs front with the planted fault, the honest jump-plot, and the chop-crew's buy-ledger."
+        npc_intro: >
+          [Veelo Trinn is already at the customs rail when you come back, the
+          chitin of her fingers gone still for the first time as she reads the
+          swapped chip, the stamped honest plot, and the buy-ledger laid out in
+          front of her.] "The fault he planted, the jump he cooked, and the
+          ledger that says where my ship was going to go." [She lifts the
+          swapped calibration chip to the light and reads the off-books part
+          number stamped on it, and something that has been wound tight for a
+          week lets go.] "Nine years I've flown her clean and a week ago a man
+          with a seal told me I'd built scrap. `talk` to me and let me file
+          this before he hears his berth went quiet."
+        completion:
+          type: talk_to_npc
+          npc: "Veelo Trinn"
+        npc_complete: >
+          "Here's your fee — and worth ten times the credits to me to hand it
+          to the surveyor who cracked his seal instead of to the chop-crew who'd
+          have stripped my drive by now. An independent survey overturns a
+          condemnation; two lies on paper and a buy-ledger overturn the
+          inspector. The seal comes off the Resin Wing tonight and his name
+          comes off the roster tomorrow, and every captain he grounded this
+          season gets a hull and a cert back out of that ledger you pulled. The
+          independent berths are a small world and a long-memoried one, and they
+          remember the difference between the inspector who condemns an honest
+          hull and the surveyor who proves it sound. When a captain on this ring
+          finds their cert cooked and their drive sealed, there's a name they'll
+          send for now. Fair skies on the way out — yours are clear."
+        # graduation closes the arc; no extra on-completion side effects.
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The condemnation is overturned and the racket is on the record: the
+          Resin Wing's seal comes off, the cert-inspector's name comes off the
+          roster, and a season of honest hulls condemned as scrap turns back
+          into a theft the buy-ledger can prove. A surveyor who can crack a
+          crooked seal, re-run a cooked cert, and stand on the berth when the
+          crew comes has a way of being sent for — the independent berths of
+          the Kuat ring carry a name now, on the one front of the Drive Yards
+          the war never reaches.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════
