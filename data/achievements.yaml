@@ -754,3 +754,31 @@ achievements:
     icon: "📦"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "mos_eisley_short_weight"}
+
+  # T3.24 generalized-questline arc (Jun 29 2026): "The Wreckers' Light"
+  # (nar_shaddaa_wreckers_light) — the TWENTIETH accessible (non-t5, non-tutorial)
+  # kind:questline chain and the SECOND set on Nar Shaddaa, on the CORELLIAN-SECTOR /
+  # PROMENADE DOCKS face (every room fresh to the corpus; reuses none of The Wasting
+  # Ward's refugee-and-undercity rooms). A false-beacon / wreck-luring salvage racket:
+  # a freelance salvage outfit plants spoofed distress beacons on the outer approach to
+  # drag ships off the corridor into the Saljenn Drift, logs the dead ships as
+  # "derelicts," files salvage claims, and strips the hulls while the dock authority
+  # writes the losses up as bad piloting — work the broker's comm-feed grid to capture
+  # the spoofed beacon and triangulate the transmitter that fakes it (communications),
+  # lay the outfit's filed claims over the true approach lanes to prove every wreck
+  # sits off the corridor on the beacon's drag-bearing in the Drift (planetary
+  # systems), stand off the outfit's claims-agent (combat), and get the beacon trace
+  # and the claim overlay to the dock authority's claims board. The TWENTIETH distinct
+  # skill spread (communications + planetary systems — Mechanical + Knowledge — the
+  # first SIGNALS-AND-LANES INTEL build, a comm board and a chart table, mechanically
+  # distinct from The Sabotaged Run's sensor-reading speeder racer and The Condemned
+  # Hull's astrogation-and-repair engineer-navigator). Same lower-tier band as the
+  # prior nineteen accessible arcs (cp_reward 3 vs the t5 trainer chains' 5): open
+  # freelance side-content, not a rep-gated trial.
+  - key: wreckers_light_cleared
+    name: "The Wreckers' Light"
+    description: "Broke a false-beacon wreck-luring racket on the Corellian-sector approach of Nar Shaddaa — worked an information-broker's comm-feed grid to capture a spoofed distress beacon and triangulate the transmitter that faked it, proving the foundering-ship call a plant with no ship under it (communications), laid a salvage outfit's own filed claim coordinates over the system's true approach lanes to prove every claimed wreck sat off the safe corridor on the beacon's drag-bearing inside the Saljenn Drift, engineered losses and not accidents (planetary systems), and stood off the outfit's claims-agent who came for the proof in the vertical bazaar. A navigator's read of a faked light and the lane it flew ships into pulled a year of independents off a dock-authority log that called them bad pilots and re-filed them as the lured wrecks they were — and turned a killing approach that herded honest traffic onto a salvage outfit's escort service into a wreck-luring racket on the dock-authority record."
+    category: profession
+    icon: "📡"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "nar_shaddaa_wreckers_light"}

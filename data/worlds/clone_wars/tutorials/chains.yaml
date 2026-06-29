@@ -7157,6 +7157,372 @@ chains:
           a name now, out where the cargo moves and an honest scale is the difference
           between a clean crew and a name as thieves.
 
+  # ─────────────────────────────────────────────────────────────────────
+  # GENERALIZED QUESTLINE — "The Wreckers' Light" (nar_shaddaa_wreckers_light)
+  # The TWENTIETH accessible (non-t5, non-tutorial) kind:questline chain, the
+  # SECOND set on NAR SHADDAA — and the FIRST on the CORELLIAN-SECTOR / PROMENADE
+  # DOCKS face: the old Corellian spacer enclave, the information-broker's comm-feed
+  # den, the leased Promenade trade tower, and the hollowed-spire market
+  # (old_corellian_quarter / the_grid / promenade_corporate_tower / vertical_bazaar),
+  # reusing NONE of The Wasting Ward's refugee-and-undercity rooms — every room fresh
+  # to the corpus. Where that worked the undercity warrens, this works the SPACER
+  # DOCKS — the trade-tower district and old captains' enclave of the Smugglers'
+  # Moon's busiest approach. A FALSE-BEACON / WRECK-LURING (salvage) racket: a
+  # freelance salvage outfit, Coreward Salvage & Reclamation, plants spoofed distress
+  # and navigation beacons on the outer Corellian-sector approach — calls that read as
+  # a foundering ship to any decent spacer, set on a bearing that drags whoever
+  # answers them off the charted corridor into the Saljenn Drift, a derelict field and
+  # gravity-shadow that kills a ship that strays in. The outfit logs the dead ship as
+  # a fresh "derelict," files a salvage claim, and strips and fences the hull, while
+  # the dock authority writes each loss up as one more independent who flew the Drift
+  # on bad piloting and the approach earns a name as a killing lane that herds honest
+  # traffic onto the outfit's own escort service. A captain who answered one of those
+  # lights and lost his ship and two crew in the Drift is grounded and unheard —
+  # beaten by SIGNALS-AND-LANES work: work the information-broker's comm-feed grid to
+  # capture the spoofed distress beacon and triangulate the transmitter that fakes it,
+  # proving the call a plant and not a foundering ship (communications), lay the
+  # outfit's filed claim coordinates over the system's true approach lanes to prove
+  # every claimed wreck sits off the corridor on the beacon's drag-bearing inside the
+  # Drift, engineered and not accident (planetary systems), stand off the outfit's
+  # claims-agent who comes for the proof (combat), and get the beacon trace and the
+  # claim overlay to the dock authority's claims board. The TWENTIETH distinct skill
+  # spread (communications — Mechanical — + planetary systems — Knowledge), the FIRST
+  # accessible arc to reward the SIGNALS-AND-LANES INTEL build (a comm board and a
+  # chart table), mechanically distinct from the only prior arc to work a sensor/comm
+  # feed — The Sabotaged Run (sensors + repulsorlift operation, a ground speeder racer
+  # reading doctored telemetry, who works SENSORS not the comm set and drives a
+  # repulsor speeder not a comm trace) — and from the only prior arc to plot the void —
+  # The Condemned Hull (space transport repair + astrogation, a starship
+  # engineer-navigator who plots a HYPERSPACE JUMP and services a sealed hull, not a
+  # star system's sublight approach lanes and hazards). The Hutt-front dock authority
+  # that watches the approach for Republic interdiction (named in the upper-dock and
+  # Grid room text) stays distant background — and is the pragmatic local power a
+  # freelance outfit poaching the moon's own approach lanes runs afoul of in the end —
+  # the way every prior accessible arc keeps the war offstage. Reuses the live
+  # questline engine (kind:questline + active_questline + existing event types + the
+  # four reward funnels) with NO new engine code, no new slot/event type, no schema
+  # migration, no new reward faucet, and NO map-coordinate or exit-graph change.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: nar_shaddaa_wreckers_light
+    chain_name: "The Wreckers' Light"
+    description: >
+      On the Corellian-sector docks of Nar Shaddaa — the old spacer enclave and trade
+      towers of the Promenade, where independent freighter crews live and work the
+      Smugglers' Moon's busiest approach — a Corellian captain named Corwin Hale is
+      grounded with a wrecked ship and two dead crew and a story no one on the docks
+      will hear. There is a salvage outfit leased in behind discreet signage in the
+      Promenade trade tower, Coreward Salvage & Reclamation, and it has been planting
+      spoofed distress and navigation beacons on the outer Corellian-sector approach:
+      foundering-ship calls, clean and desperate, the kind no decent spacer flies
+      past, set on a bearing that drags whoever answers them off the charted corridor
+      and into the Saljenn Drift — the derelict field and gravity-shadow off the lane
+      that kills a ship that strays into it. The outfit logs the dead ship as a fresh
+      "derelict," files a salvage claim, and strips and fences the hull and cargo,
+      while the dock authority writes each loss up as one more independent who flew the
+      Drift on bad piloting and the approach earns a name as a killing lane. Hale
+      answered one of those beacons himself — put his helm on the bearing the way every
+      honest spacer would — and came out of the Drift with a wreck and two of his crew
+      gone and the beacon scrubbed off the air. He has read enough comm traffic and
+      enough charts to feel a beacon that sits wrong on a lane, and that one sat
+      wrong — but a grounded independent's word does not pull a salvage claim a dock
+      authority has stamped, and he cannot pull the beacon off the air, lay the
+      outfit's claims over the true lanes, and stand off its collector all in one
+      watch before the next ship answers the next light. He needs a neutral hand who
+      can do the three things he cannot: work the information-broker's comm-feed grid
+      to capture the spoofed distress beacon and TRIANGULATE the transmitter that fakes
+      it, proving the call a plant and not a foundering ship; lay the salvage outfit's
+      own filed claim coordinates over the system's true approach lanes to prove every
+      claimed wreck sits off the corridor on the beacon's drag-bearing inside the
+      Drift, engineered and not accident; and carry the proof to the one board a stamped
+      claim answers to — before the outfit's claims-agent can take it back, and before
+      the next distress call goes out with no ship under it. A freelance favor — open to
+      anyone, no faction required.
+    archetype_label: "Freelance Captain's Favor"
+    faction_alignment: independent
+    starting_zone: nar_shaddaa_promenade
+    starting_room: old_corellian_quarter
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["wreckers_light_cleared"]
+      drop_room: old_corellian_quarter
+      follow_up_hint: >
+        The beacon trace and the claim overlay reach the dock authority's claims board
+        and the racket comes apart with them: the spoofed distress beacons are flagged
+        and the transmitter that hung them run down, Coreward Salvage's claims are
+        pulled and its dead-ship "derelicts" re-read as the lured wrecks they always
+        were, the stripped hulls traced offworld and the run stopped, and an approach a
+        year of independents died flying has the killing light pulled off it. The
+        outfit that lived by a faked call the dock authority would never read against a
+        filed claim finds the one thing the racket needed buried — a beacon's own
+        signature triangulated to a transmitter that no foundering ship ever carried,
+        laid beside a claim map that puts every "derelict" off the corridor on the same
+        drag-bearing in the Drift — read into the record at the board it was certain it
+        could never reach. The claims-agent who meant to walk one more grieving captain
+        away from that board collects nothing but a pulled claim. Word travels the
+        spacer docks the way it never travels a dock authority: there is a hand who can
+        pull a faked light off the air, read a lane well enough to prove where it kills,
+        and stand in the way when the collector comes — and the independent crews who
+        have been flying an approach that takes a ship a season and calling it bad luck
+        stop believing the next distress call has a ship under it just because it sounds
+        like one.
+
+    steps:
+      - step: 1
+        title: "A Light That Wasn't There"
+        location: old_corellian_quarter
+        npc: "Corwin Hale"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Corwin Hale at the communal kitchen in the Old Corellian Quarter."
+        npc_intro: >
+          [A lean, weathered Corellian leans at the communal kitchen's long table, a
+          navigator's squint in a face that has read more approach charts than most
+          spacers will ever fly, the Corellian script over the archway — 'Never tell me
+          the odds' — at his back like a thing he used to believe without thinking.]
+          "You fly? Then you'll read this straighter than the dock authority did. I'm
+          Corwin Hale — I ran an independent freighter on the Corellian-sector runs, my
+          own hull, my own crew. Three weeks ago I answered a distress beacon off the
+          outer approach. A foundering ship's call — clean, desperate, the kind you do
+          not fly past. I put my helm on the bearing it gave me, and the bearing walked
+          me off the corridor into the Saljenn Drift. I came out with a wrecked hull and
+          two of my crew dead and the beacon scrubbed off the air. `talk` to me. The
+          dock authority wrote it up as bad piloting, and I am telling you that beacon
+          was a light somebody hung — and I cannot prove it off the air and read it off
+          the charts and stand off the outfit's man, all at once."
+        completion:
+          type: talk_to_npc
+          npc: "Corwin Hale"
+        npc_complete: >
+          [He lays a worn approach chart flat on the table and sets one finger off the
+          marked corridor, into the empty space past it.] "There's the lane, and there's
+          the Drift off the side of it, and there's where my beacon called me — out
+          here, off the corridor, onto a bearing that only ever ends in the Drift. A
+          foundering ship does not broadcast from inside a gravity-shadow that would
+          have killed it already. The call came from a transmitter sitting out there
+          waiting for someone decent enough to answer it. There's a salvage outfit in
+          the trade tower — Coreward Salvage — that logs the ships it lures as fresh
+          'derelicts' and files claims on them and strips them. I can feel the beacon
+          sat wrong. A feeling does not pull a claim — the beacon's own signature does.
+          Go to the Grid, where the broker trades in comm intercepts off the whole moon,
+          and work the feeds: capture that spoofed distress call and triangulate the
+          transmitter that hangs it. Put on a trace what I cannot put on a board — that
+          the light had no ship under it."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to the Grid, where the blind Miralukan broker runs comm intercepts off the whole moon, and work the feeds to capture the spoofed distress beacon and triangulate the transmitter that fakes it — use your `communications` skill, then `chain attempt`."
+
+      - step: 2
+        title: "The Signature on the Air"
+        location: the_grid
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["communications"]
+        objective: "In the Grid, work the comm-feed intercepts to capture the spoofed distress beacon and triangulate the transmitter that fakes it — a communications check."
+        npc_intro: >
+          [The Grid is banks of screens fed from across the Smuggler's Moon — dock
+          cameras, comm intercepts, patrol schedules from both sides of the war — the
+          blind Miralukan broker who trades only in information seated at the center of
+          it, three armed Gamorrean sentinels making sure no violence touches his feeds.
+          A spacer who can work a comm board can rent a watch on the Corellian-sector
+          approach traffic, and that is where a faked light gives itself away.] A
+          distress beacon is supposed to be a ship screaming for help — a transmitter
+          burning power it cannot spare, drifting with a wreck, its signal degrading as
+          the ship dies. The lure does not drift and does not degrade: it sits on a
+          fixed bearing, broadcasts a clean foundering-ship call on a loop, and carries
+          a carrier signature no ship's distress rig ever stamped. Pull the
+          Corellian-sector approach feeds, isolate the distress call Hale answered out
+          of the traffic, and read it for what a real one cannot fake — then cross the
+          intercept timing across the Grid's own dock cameras to TRIANGULATE the
+          transmitter and put it where no foundering ship could be. `communications`, a
+          working spacer's hands on a comm board and a faked call broadcasting on a
+          loop — `chain attempt` when you've captured the beacon and pinned the
+          transmitter.
+        completion:
+          type: skill_check_passed
+          skill: "communications"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You pull the approach feeds and walk the distress call back out of the
+          traffic, and the lure shows itself the moment you read it: the same
+          foundering-ship loop, hour on hour, never drifting, never degrading, a clean
+          carrier signature stamped by a transmitter and not a dying ship — and when you
+          lay the intercept timing across the Grid's dock cameras, the bearing closes on
+          a point off the corridor where no ship in distress could ever be, a
+          transmitter parked at the edge of the Saljenn Drift broadcasting a death into
+          the dark. There is the proof Hale could feel and never show a board: the light
+          had no ship under it. Pinning the beacon is not ending it — a faked call is a
+          rigged light; it is not yet the wrecks it lured. The ships that answered it
+          went somewhere, into the Drift, logged as 'derelicts' and claimed, and that is
+          where the proof finishes — over the charts.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "You've pinned the beacon — now prove the wrecks. Go to the Promenade trade tower where Coreward Salvage files its claims, and lay the outfit's claim coordinates over the system's true approach lanes to prove every claimed wreck sits off the corridor on the beacon's drag-bearing in the Drift — use your `planetary systems` skill, then `chain attempt`."
+
+      - step: 3
+        title: "Off the Corridor"
+        location: promenade_corporate_tower
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["planetary systems"]
+        objective: "At the Promenade trade tower's claims registry, lay Coreward Salvage's filed claim coordinates over the system's true approach lanes to prove every claimed wreck sits off the safe corridor on the beacon's drag-bearing in the Saljenn Drift — a planetary systems check."
+        npc_intro: >
+          [The Promenade trade tower is fifteen stories of fortified, separately-leased
+          office floors — bounty chapter houses, mercenary command posts, a Hutt-tied
+          trading consortium, a handful of independent operators behind discreet
+          signage — Coreward Salvage among them, and a salvage claim is a thing of
+          public record: filed coordinates, a derelict logged, a hull claimed. A faked
+          beacon is a rigged light; the ships it killed are the wrecks — and the wrecks
+          ride here, on the outfit's own filed claims, each one a set of coordinates
+          stamped honest in the registry.] No one need break a lock for this; the claims
+          are open record. What the registry will not tell you and a chart will is where
+          those coordinates LIE. Pull Coreward Salvage's filed claims for the
+          Corellian-sector approach and lay them over the system's true approach
+          geometry — the charted safe corridor, the Saljenn Drift off its flank, the
+          drag-bearing the beacon pulls onto — and read where the outfit's "derelicts"
+          actually sit. `planetary systems`, a navigator's knowledge of the lanes
+          against a year of claims that all swear to be accidents — `chain attempt` when
+          you've laid the claims over the lanes and read where they fall.
+        completion:
+          type: skill_check_passed
+          skill: "planetary systems"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You pull the filed claims and lay them over the approach charts, and the
+          racket falls open coordinate by coordinate: not one of Coreward Salvage's
+          "derelicts" sits on the charted corridor where a ship under power belongs —
+          every claimed wreck falls off the lane, off the flank of the safe approach, on
+          the exact drag-bearing the spoofed beacon pulls onto, deep inside the Saljenn
+          Drift. A ship loses power and drifts; it does not steer itself off a corridor
+          into a gravity-shadow and pile up in a neat line a year long on one bearing. A
+          year of independents the dock authority filed as bad piloting, every one of
+          them lying where a faked light called them. There is the whole of it now: the
+          transmitter that hung the call and the chart that shows where it flew them —
+          the kind of proof the outfit left because it never thought a grounded captain
+          it had written off would pull the beacon off the air and read the claims off
+          the lanes. But a trace and an overlay in a tower are not a trace and an overlay
+          on the claims board, and the outfit has a man on the Promenade whose whole job
+          is making sure a lured ship's death never gets read as anything but a derelict.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "You've pinned the beacon and proven the wrecks — now get the proof to a board. Carry the beacon trace and the claim overlay through the Vertical Bazaar toward the dock authority's claims board, and stand off the salvage outfit's claims-agent when he comes for it — `attack`, `dodge`."
+
+      - step: 4
+        title: "The Collector"
+        location: vertical_bazaar
+        npc: "Hask Vorran"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Carry the beacon trace and the claim overlay through the Vertical Bazaar and stop Hask Vorran when the salvage outfit's claims-agent comes for it — `attack`, `dodge`."
+        npc_intro: >
+          [The vertical bazaar is a hollowed-out spire, shops and stalls ringing the
+          interior on rickety turbolifts and spiral ramps, a central open shaft falling
+          and rising fifty stories — and the quiet way from the trade tower toward the
+          dock authority's claims board crosses straight through it. A weathered Weequay
+          steps off a spiral ramp into the open shaft as you come across with the trace
+          and the overlay under your arm, the braided, leathery hide of his face
+          unreadable, a worn blaster riding his hip with the ease of a being who walks
+          claims away from desks more than he fights.] Hask Vorran — the claims-agent
+          Coreward Salvage keeps on the Promenade to make sure a lured ship's death
+          never gets read as anything but a derelict, who walks a grieving captain away
+          from the board with a quiet word and a worse threat and rarely has to draw
+          because a stamped claim and a written-off independent do his arguing for him.
+          He has watched a captain he expected to drink himself off the docks turn
+          around and pull the beacon off the air instead, and the easy menace of a man
+          who collects from the wrecked and the written-off goes hard. "That trace
+          belongs to the outfit, friend — that's our claim you've been reading. The
+          wreck's a derelict; your captain flew the Drift like the rest of them. It
+          doesn't go on any claims board." [He sets himself across the shaft between you
+          and the way up.] "Hand it over and walk back down, or you don't walk to that
+          board. The outfit's a patient sort. I'm the part of it that came to collect."
+        completion:
+          type: combat_won
+          enemy_template: "wreckers_light_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Hask Vorran goes down on the ramp, the blaster spinning away over the edge
+          and falling into the shaft, and the spacers on the levels above and below who
+          have learned not to watch a collection in the bazaar find somewhere else to
+          look. The way up to the claims board stands clear. Take the proof with you —
+          the beacon's signature triangulated to a transmitter no foundering ship ever
+          carried beside the claim overlay that puts every "derelict" off the corridor
+          in the Drift — and there is nothing between here and the board but the open
+          shaft, the racket filed, and an approach that can carry an honest light again.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The collector's down and the way up is clear — get the beacon trace and the claim overlay filed at the dock authority's claims board, then go back to Corwin Hale in the Old Corellian Quarter."
+
+      - step: 5
+        title: "An Honest Light"
+        location: old_corellian_quarter
+        npc: "Corwin Hale"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Corwin Hale at the communal kitchen in the Old Corellian Quarter with the wreck-luring racket filed and coming apart."
+        npc_intro: >
+          [Hale is on his feet when you come back through the old quarter, standing
+          straighter than a man who lost a ship and two crew three weeks gone has any
+          right to, the worn approach chart rolled and put away and a dock-authority
+          filing receipt in his hand.] "Filed. The beacons flagged and the transmitter
+          run down, Coreward Salvage's claims pulled and every 'derelict' on them
+          re-read as a lured wreck, the stripped hulls traced offworld, the run stopped.
+          The dock authority doesn't love independents — but it loves a freelance outfit
+          poaching the moon's own approach lanes and scaring traffic off them even less,
+          and that it would not have." [He looks at the receipt the way a navigator
+          looks at a number that finally closes.] "A year that outfit hung a light over
+          that approach and called the dead bad pilots to cover it. My two among them.
+          `talk` to me and let me say it plain, while there's finally a board with a
+          stamp on it that has to hear it."
+        completion:
+          type: talk_to_npc
+          npc: "Corwin Hale"
+        npc_complete: >
+          "Here's your fee — and worth twice the credits to hand it to the hand who
+          pulled a faked light off the air, read a lane well enough to prove where it
+          killed, and stood in the shaft when the collector came for the proof. A
+          signature on a trace proves a rigged light; the claims laid over the lanes
+          end a racket. The beacons come off the approach, the claims get pulled, the
+          crews stop flying a corridor that takes a ship a season and calling it bad
+          luck, and a year of independents the authority filed as bad pilots get read
+          for the lured wrecks they were — my two among them. The spacer docks are a
+          small world for all the ships that cross them, and a crew learns fast who hung
+          an honest light over a lane and who hung a killing one. When a captain on
+          these docks gets a distress call off that approach and feels it sit wrong,
+          there's a name they'll send for now. Carry mine with it — and read a beacon by
+          the shape of it on the air, not by how badly you want it to be a ship; I'd not
+          have the hand that pulled this one answer a light it couldn't prove was true."
+        # graduation closes the arc; no extra on-completion side effects.
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The wreckers' light is filed and the racket is coming apart: Coreward
+          Salvage's claims die as a beacon's own signature names the transmitter that
+          hung them and a claim map names the Drift it flew ships into, a year of one
+          approach's "bad piloting" becomes a wreck-luring racket on the dock-authority
+          record, and a face of independent crews who could only learn whether a
+          distress call had a ship under it by answering it learns to read the light
+          before they fly it. A hand who can pull a faked beacon off the air, read a
+          lane well enough to prove where it kills, and stand in the way when the
+          collector comes has a way of being sent for — the Corellian-sector docks carry
+          a name now, out where the ships cross and an honest light is the difference
+          between a captain and a derelict.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════
