@@ -121,6 +121,57 @@ bounty.tier_weight_novice: 3          # spawn weight: novice
 bounty.tier_weight_veteran: 2         # spawn weight: veteran
 bounty.tier_weight_superior: 1        # spawn weight: superiors rare
 
+# ── Smuggling rewards (engine/smuggling.py) ──
+# The contraband-run reward model — the third leg of the `@balance objectives`
+# board's reward triad (the per-kind start→complete funnel + its `reward` column,
+# tagged `smuggling`) after the mission and bounty faucets. Each value EQUALS the
+# in-code default (TIER_PAY_RANGE / ROUTE_TIERS pay overrides / ROUTE_SPAWN_WEIGHTS
+# / FINE_FRACTION_BY_TIER), so this section is behaviour-identical to omitting it;
+# read at the use site (pay clamped >= 0 with hi >= lo so random.randint can't get
+# an empty range; a zeroed route-weight set falls back to the in-code weights so
+# random.choices can't raise; fine fraction clamped to [0,1]) so an edit takes
+# effect on the next load with no redeploy. NOTE: smuggling has TWO pay paths — a
+# direct per-tier job and a multi-planet ROUTE job — so the route bands are
+# SEPARATE levers from the tier bands (local/blackmkt routes happen to mirror the
+# grey/black tier bands; interplan/spicerun/corerun pay their own route rates).
+# The patrol-chance / scrutiny difficulty levers are a distinct (encounters) board
+# and stay hardcoded for now (see the CHECKPOINT_* comment in smuggling.py).
+#  * pay_<tier>_min / _max: per-tier band for a direct-tier job (rounded to 50cr).
+#  * route_<key>_pay_min / _max: band for a multi-planet route job (supersedes the
+#    tier band on the route path — a spice run pays its own rate, not the tier's).
+#  * route_weight_<key>: spawn rarity of each route in the weighted-random pick —
+#    with the bands, this sets the board's expected value (local common, core rare).
+#  * fine_fraction_<tier> / _default: the bust SINK — fine = this fraction of the
+#    reward when a patrol catches the run (apex tiers keep more; risk is the variance).
+smuggling.pay_grey_market_min: 200    # tier 0 (Grey Market) band low
+smuggling.pay_grey_market_max: 500    # tier 0 band high
+smuggling.pay_black_market_min: 500   # tier 1 (Black Market) band low
+smuggling.pay_black_market_max: 1500  # tier 1 band high
+smuggling.pay_contraband_min: 1500    # tier 2 (Contraband) band low
+smuggling.pay_contraband_max: 5000    # tier 2 band high
+smuggling.pay_spice_min: 5000         # tier 3 (Spice Run) band low
+smuggling.pay_spice_max: 15000        # tier 3 band high
+smuggling.route_local_pay_min: 200    # local run (Tatooine) band low
+smuggling.route_local_pay_max: 500    # local run band high
+smuggling.route_blackmkt_pay_min: 500   # black-market local run band low
+smuggling.route_blackmkt_pay_max: 1500  # black-market local run band high
+smuggling.route_interplan_pay_min: 1500 # interplanetary (Nar Shaddaa) band low
+smuggling.route_interplan_pay_max: 3000 # interplanetary band high
+smuggling.route_spicerun_pay_min: 3000  # spice run (Geonosis) band low
+smuggling.route_spicerun_pay_max: 6000  # spice run band high
+smuggling.route_corerun_pay_min: 4000   # core run (Coruscant) band low
+smuggling.route_corerun_pay_max: 8000   # core run band high
+smuggling.route_weight_local: 40      # spawn weight: local runs common
+smuggling.route_weight_blackmkt: 25   # spawn weight: black-market local
+smuggling.route_weight_interplan: 20  # spawn weight: interplanetary
+smuggling.route_weight_spicerun: 10   # spawn weight: spice runs
+smuggling.route_weight_corerun: 5     # spawn weight: core runs rare
+smuggling.fine_fraction_grey_market: 0.50   # bust sink: grey market (low stakes)
+smuggling.fine_fraction_black_market: 0.50  # bust sink: black market
+smuggling.fine_fraction_contraband: 0.25    # bust sink: contraband (apex keeps more)
+smuggling.fine_fraction_spice: 0.25         # bust sink: spice run (apex keeps more)
+smuggling.fine_fraction_default: 0.50       # bust sink: any tier not in the per-tier map
+
 # ── Player-to-player trade (parser/builtin_commands.py) ──
 p2p.tax_pct: 5                        # percent sink on consented credit trades (floor 1cr)
 

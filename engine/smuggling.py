@@ -45,6 +45,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
+from engine.tunables import get_tunable
+
 log = logging.getLogger(__name__)
 
 # ── A5: SPICE_DEMAND world event ─────────────────────────────────────────────
@@ -125,9 +127,92 @@ FINE_FRACTION_BY_TIER = {
 }
 
 
+def _safe_int(v, default: int) -> int:
+    """Tolerant int — a corrupt operator tunable (str/None) must never crash
+    job generation; it falls back to the in-code default."""
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_float(v, default: float) -> float:
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
+
+# CargoTier → the lowercase key used in tunables.yaml (grey_market, black_market,
+# contraband, spice). Built off the enum names so a tier rename can't silently
+# desync the keys from the constants.
+_TIER_KEY = {t: t.name.lower() for t in CargoTier}
+
+
 def _fine_fraction(tier) -> float:
-    """Fine fraction for a cargo tier (falls back to the flat FINE_FRACTION)."""
-    return FINE_FRACTION_BY_TIER.get(tier, FINE_FRACTION)
+    """Fine-on-bust fraction for a cargo tier — the smuggling SINK, operator-tunable
+    via smuggling.fine_fraction_<tier> (and smuggling.fine_fraction_default for any
+    tier not in the per-tier map). Falls back to the in-code FINE_FRACTION_BY_TIER /
+    flat FINE_FRACTION so the YAML is purely additive. Clamped to [0, 1] so a bad
+    value can neither PAY the smuggler on a bust (negative) nor confiscate more than
+    the reward (>1)."""
+    name = _TIER_KEY.get(tier)
+    if name is None:
+        base = FINE_FRACTION
+        key = "smuggling.fine_fraction_default"
+    else:
+        base = FINE_FRACTION_BY_TIER.get(tier, FINE_FRACTION)
+        key = f"smuggling.fine_fraction_{name}"
+    return min(1.0, max(0.0, _safe_float(get_tunable(key, base), base)))
+
+
+# ── Live tunable accessors for the smuggling PAY model (T3.19 config breadth) ──
+# The smuggling reward model — the levers the ``@balance objectives`` board (the
+# per-kind start→complete funnel + its `reward` column, tagged ``smuggling``)
+# exists to inform; the third leg of that board's reward triad after the mission
+# and bounty faucets. Each accessor reads ``smuggling.*`` from data/tunables.yaml
+# at the USE SITE (operator edit takes effect on the next load) and falls back to
+# the in-code constant when absent — purely additive, behaviour-identical to
+# omitting it. Pay magnitudes clamp >= 0 with hi >= lo so random.randint can never
+# get an empty range; a zeroed route-weight set falls back to the in-code weights
+# so random.choices can't raise "Total of weights must be greater than zero".
+def _tier_pay_range(tier) -> tuple[int, int]:
+    """Per-tier pay band [lo, hi] for a direct-tier job (generate_job(tier=...)),
+    read from smuggling.pay_<tier>_min / _max."""
+    base_lo, base_hi = TIER_PAY_RANGE[tier]
+    name = _TIER_KEY.get(tier, str(tier))
+    lo = max(0, _safe_int(get_tunable(f"smuggling.pay_{name}_min", base_lo), base_lo))
+    hi = max(0, _safe_int(get_tunable(f"smuggling.pay_{name}_max", base_hi), base_hi))
+    return lo, max(lo, hi)
+
+
+def _route_pay_range(route_key: str, base_lo: int, base_hi: int) -> tuple[int, int]:
+    """Pay band [lo, hi] for a multi-planet ROUTE job, read from
+    smuggling.route_<key>_pay_min / _max (these supersede the per-tier band on the
+    route path — e.g. a spice run pays its own 3000-6000, not the contraband tier's
+    1500-5000). base_lo/base_hi are the in-code ROUTE_TIERS override."""
+    lo = max(0, _safe_int(get_tunable(f"smuggling.route_{route_key}_pay_min", base_lo), base_lo))
+    hi = max(0, _safe_int(get_tunable(f"smuggling.route_{route_key}_pay_max", base_hi), base_hi))
+    return lo, max(lo, hi)
+
+
+def _route_weights() -> tuple[list, list]:
+    """(route_keys, weights) for the weighted-random route pick — the smuggling
+    spawn-rarity model (local common → core run rare), with the pay bands the
+    expected value the @balance objectives reward column reflects. Each weight
+    clamps >= 0; if the total comes out <= 0 (an operator zeroed them all) the
+    in-code ROUTE_SPAWN_WEIGHTS are used so random.choices never raises."""
+    keys = list(ROUTE_TIERS.keys())
+    weights = [
+        max(0, _safe_int(
+            get_tunable(f"smuggling.route_weight_{k}", ROUTE_SPAWN_WEIGHTS[k]),
+            ROUTE_SPAWN_WEIGHTS[k]))
+        for k in keys
+    ]
+    if sum(weights) <= 0:
+        weights = [ROUTE_SPAWN_WEIGHTS[k] for k in keys]
+    return keys, weights
+
 
 TIER_PATROL_CHANCE = {
     CargoTier.GREY_MARKET: 0.00,
@@ -178,6 +263,17 @@ ROUTE_TIERS = {
     "interplan": (CargoTier.BLACK_MARKET, "nar_shaddaa",(1500, 3000), 0.30),
     "spicerun":  (CargoTier.CONTRABAND,   "geonosis",   (3000, 6000), 0.55),
     "corerun":   (CargoTier.SPICE,        "coruscant",  (4000, 8000), 0.65),
+}
+
+# Spawn-rarity weights for the weighted-random route pick (local common → core
+# run rare). Named (keyed to ROUTE_TIERS) so the T3.19 config pass can lift them
+# to tunables.yaml; read live via _route_weights().
+ROUTE_SPAWN_WEIGHTS = {
+    "local":     40,
+    "blackmkt":  25,
+    "interplan": 20,
+    "spicerun":  10,
+    "corerun":   5,
 }
 
 # How often customs patrols intercept at arrival by planet
@@ -305,20 +401,17 @@ def generate_job(
 
     if route_key and route_key in ROUTE_TIERS:
         tier, destination_planet, pay_range, patrol = ROUTE_TIERS[route_key]
-        lo, hi = pay_range
+        lo, hi = _route_pay_range(route_key, *pay_range)
     elif tier is not None:
-        lo, hi = TIER_PAY_RANGE[tier]
+        lo, hi = _tier_pay_range(tier)
         patrol = TIER_PATROL_CHANCE[tier]
     else:
-        # Weighted random: 40% local, 25% black market, 20% interplanetary,
-        # 10% spice run, 5% core run
-        route_key = random.choices(
-            list(ROUTE_TIERS.keys()),
-            weights=[40, 25, 20, 10, 5],
-            k=1,
-        )[0]
+        # Weighted random over the routes (local common → core run rare); weights
+        # are operator-tunable via smuggling.route_weight_<key> (default 40/25/20/10/5).
+        keys, weights = _route_weights()
+        route_key = random.choices(keys, weights=weights, k=1)[0]
         tier, destination_planet, pay_range, patrol = ROUTE_TIERS[route_key]
-        lo, hi = pay_range
+        lo, hi = _route_pay_range(route_key, *pay_range)
 
     reward = random.randint(lo, hi)
     # Round to nearest 50cr
