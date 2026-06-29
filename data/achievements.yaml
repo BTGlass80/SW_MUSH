@@ -617,3 +617,28 @@ achievements:
     icon: "🚚"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "tatooine_long_haul"}
+
+  # ── "The Twisted Word" — fifteenth accessible questline (T3.24), fourth on
+  # Coruscant, on the GILDED CAGE alien-quarter face (gilded_cage_alien_quarter /
+  # gilded_cage_bazaar / gilded_cage_courtyard / upper_city_promenade; reuses
+  # none of The Lost Courier's, The False Provenance's, or The Sealed Ledger's
+  # rooms). Earned by breaking a TRANSLATION-FRAUD / FEUD-BAITING racket — a
+  # licensed sole go-between doctors the rendering of a charter shared by two
+  # Gilded Cage communities so each reads the other as having reneged, baiting a
+  # feud the broker's backers can buy the lapsed rights off cheap — by
+  # INTERPRETER-MEDIATOR work: read the original-tongue charter against the
+  # doctored Basic and catch the inverted honor-clause (languages), walk the
+  # correction through the wronged hall's own protocol so the challenge stands
+  # down (cultures), stand off the broker's enforcer at the promenade (combat),
+  # and get the fraud on the charter record. The FIFTEENTH distinct skill spread
+  # (languages + cultures — both Knowledge — the first scholar-diplomat /
+  # interpreter-mediator build). Same lower-tier band as the prior fourteen
+  # accessible arcs (cp_reward 3 vs the t5 trainer chains' 5): open freelance
+  # side-content, not a rep-gated trial.
+  - key: twisted_word_cleared
+    name: "The Twisted Word"
+    description: "Broke a translation-fraud racket in the Gilded Cage on Coruscant — read the original Bothan charter against a broker's doctored Basic rendering and found the honor-clause he'd inverted to bait a feud (languages), carried the true reading to the wronged hall in their own protocol so the challenge stood down without a hall losing face (cultures), and stood off the broker's enforcer who came for the proof on the upper-city promenade. An interpreter's eye on a turned clause and a mediator's care in a proud hall set two old communities' words straight between them — and turned a season of feud-baiting renderings into a forgery on the charter record."
+    category: profession
+    icon: "🗣️"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "coruscant_gilded_twisted_word"}

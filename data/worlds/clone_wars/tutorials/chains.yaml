@@ -5472,6 +5472,324 @@ chains:
           sent for — the haul roads of the Mos Eisley margins carry a name now, on
           the frontier the war leaves alone.
 
+  # ─────────────────────────────────────────────────────────────────────
+  # GENERALIZED QUESTLINE — "The Twisted Word" (coruscant_gilded_twisted_word)
+  # The FIFTEENTH accessible (non-t5, non-tutorial) kind:questline chain, the
+  # FOURTH on Coruscant — on the GILDED CAGE alien-quarter face (the cosmopolitan
+  # multi-species enclave under the old Hutt-mediated charters: the alien quarter
+  # + the unlicensed bazaar + the courtyard of heritage halls + the upper-city
+  # promenade chokepoint out of the district), reusing NONE of The Lost Courier's
+  # lower-city, The False Provenance's Petrax/museum, or The Sealed Ledger's
+  # mid-city rooms. A TRANSLATION-FRAUD / FEUD-BAITING racket — a licensed sole
+  # go-between doctors the rendering of a renewal charter shared by two Gilded
+  # Cage communities (the Gran mutual-aid society and the Bothan trade
+  # confederacy) so each reads the other as having reneged, baiting a blood-feud
+  # the broker's backers can pick the lapsed charter rights off of cheap — beaten
+  # by INTERPRETER-MEDIATOR work: read the original-tongue charter against the
+  # broker's twisted Basic rendering and catch the inverted honor-clause
+  # (languages), carry the true reading to the wronged hall and present it in
+  # correct protocol so it's received as redress and the feud stands down
+  # (cultures), stand off the broker's enforcer who comes for the proof at the
+  # promenade (combat), and get the fraud on the charter record. The FIFTEENTH
+  # distinct skill spread (languages + cultures — both Knowledge), the FIRST
+  # accessible arc to reward the SCHOLAR-DIPLOMAT / INTERPRETER-MEDIATOR build,
+  # mechanically distinct from every prior arc's Perception social skills
+  # (persuasion / bargain / con): this is reading a tongue and a people's
+  # protocol, not charming a mark. Reuses the live questline engine
+  # (kind:questline + active_questline + existing event types + the four reward
+  # funnels) with NO new engine code, no new slot/event type, no schema
+  # migration, no new reward faucet, and NO map-coordinate or exit-graph change.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: coruscant_gilded_twisted_word
+    chain_name: "The Twisted Word"
+    description: >
+      Deep in the Gilded Cage — the cosmopolitan alien quarter Coruscant
+      tolerates because its old Hutt-mediated charters predate the modern Senate
+      — a Gran keeper named Brama Hool stands between her people and a feud she
+      can see coming and cannot stop alone. Two old communities of the district,
+      the Gran mutual-aid society she keeps and the Bothan trade confederacy
+      across the courtyard, have shared a charter for generations: water rights,
+      berth rights, a standing of mutual honor written into the old Hutt papers.
+      It comes up for renewal this season, and by district custom every word
+      between the two halls passes through one licensed go-between — and that
+      broker has spent the season feeding each hall a doctored rendering of the
+      other's terms, twisting a single honor-clause so each reads the other as
+      having reneged and meant insult by it. The Bothan hall has called a
+      challenge; the Gran hall is days from answering it; and when the charter
+      lapses in blood, the broker's backers stand ready to pick the rights off
+      both halls cheap. Brama Hool knows the rendering is a lie, but she is the
+      accused party — barred from the filed copies as conflicted, and no reading
+      from her hand would be trusted across the courtyard. She needs a neutral
+      outside hand who can do the three things she cannot: read the original
+      Bothan-tongue charter against the broker's Basic and find the clause he
+      inverted, carry the true reading to the Bothan hall in their own protocol
+      so it lands as redress and not a fresh slight, and get the fraud onto the
+      charter record before the broker's muscle can bury it. A freelance favor —
+      open to anyone, no faction required.
+    archetype_label: "Freelance Interpreter's Favor"
+    faction_alignment: independent
+    starting_zone: entertainment_district
+    starting_room: gilded_cage_alien_quarter
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["twisted_word_cleared"]
+      drop_room: gilded_cage_alien_quarter
+      follow_up_hint: >
+        The fraud goes onto the charter record and the racket comes apart with
+        it: the inverted clause is logged a forgery, the Bothan challenge is
+        withdrawn, and the renewal both halls thought the other had wrecked is
+        signed in the courtyard in the old form. The broker who lived as the only
+        voice between the two halls — feeding each a twisted rendering of the
+        other and waiting for the charter to lapse in blood — finds the one thing
+        the racket needed gone: two communities who could not hear each other
+        except through him, now holding a true reading neither of them needs him
+        to carry. The backers who meant to buy the lapsed rights cheap buy
+        nothing. Word goes the courtyard the way it never goes a Senate office:
+        there is a hand who can read a tongue a broker swore could not be read
+        and walk a correction through a hall's own protocol without giving fresh
+        offense — and the old communities of the Gilded Cage, who have watched a
+        season of words turned against them, stop trusting that the only voice
+        between two halls has to be a crooked one.
+
+    steps:
+      - step: 1
+        title: "The Only Voice Between"
+        location: gilded_cage_alien_quarter
+        npc: "Brama Hool"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Brama Hool in the Gilded Cage Alien Quarter."
+        npc_intro: >
+          [A three-eyed Gran in the muted formal sash of a heritage-hall keeper
+          stands at the edge of the alien quarter's evening crowd, where a dozen
+          untranslated tongues run together into one low murmur, a soft-folded
+          sheaf of old charter papers held flat against her chest in both hands.]
+          "You hear it — the quarter, all of it talking and none of it in Basic.
+          A keeper learns to live inside that. I am Brama Hool, keeper of the
+          Gran hall, and I am about to watch two communities who have shared a
+          charter for four generations cut each other over words neither of them
+          ever said. `talk` to me. I have one season's renewal and one broker's
+          rendering between my people and a feud, and I cannot read my way out of
+          it alone."
+        completion:
+          type: talk_to_npc
+          npc: "Brama Hool"
+        npc_complete: >
+          [She lays the charter sheaf flat and taps two columns side by side — a
+          dense Bothan-tongue clause and a clean Basic rendering beneath it, the
+          broker's seal at the foot of both.] "Every word between my hall and the
+          Bothan confederacy passes through one licensed go-between — district
+          custom, four generations old. This season he has rendered each of us a
+          lie of the other. One honor-clause, turned over: the Bothans read us as
+          having renounced the shared berth; we read them as having spat on the
+          old standing. Their hall has called a challenge. Mine will answer it. And
+          when the charter lapses in blood, his backers buy the rights off both of
+          us for nothing. I know the rendering is false — but I am the accused
+          party, barred from the filed copies, and no word from my hand crosses
+          that courtyard clean. You can go where I cannot. The broker keeps his
+          filed renderings down in the bazaar, with the off-license crystals. Read
+          the original Bothan charter against his Basic and find me the clause he
+          turned."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to the Gilded Cage Bazaar where the broker files his renderings, read the original Bothan-tongue charter against his doctored Basic, and find the inverted honor-clause — use your `languages` skill, then `chain attempt`."
+
+      - step: 2
+        title: "The Inverted Clause"
+        location: gilded_cage_bazaar
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["languages"]
+        objective: "At the Gilded Cage Bazaar, read the original Bothan-tongue charter against the broker's Basic rendering and find the inverted honor-clause — a languages check."
+        npc_intro: >
+          [The bazaar runs under transparisteel canopies that throw the Coruscant
+          sky in broken color across stalls of off-license crystals and goods no
+          upper-city customs would pass. In a clerk's nook behind the comm-crystal
+          stalls the broker keeps his filed renderings — the original Bothan
+          charter and his Basic beneath it, both stamped, both meant to be read
+          only by him.] A doctored rendering hides in plain sight: the Basic is
+          clean, fluent, and signed, and only the original tongue beside it can
+          show what was turned. Bothan honor-grammar runs on standing — who is
+          owed, who renounces, who restores — and a single voicing flipped from
+          the giving case to the renouncing case reads, in Basic, like a wronged
+          party deserved the insult. Go down the clause the challenge was called
+          over, set the Bothan against the Basic word by word, and find the one
+          place the broker turned a vow of standing into a renunciation. `languages`,
+          careful reading against a rendering built to pass — `chain attempt` when
+          you have the clause.
+        completion:
+          type: skill_check_passed
+          skill: "languages"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You set the original Bothan against the broker's Basic and walk the
+          honor-clause case by case — and there it is, one voicing turned: a vow
+          in the giving case, the Bothan hall pledging to hold the shared berth
+          for the Gran, rendered into Basic as a renunciation of it. Read straight,
+          the clause is the opposite of the insult both halls were handed: each
+          pledged the other the standing, and the broker turned each pledge into a
+          spurning in the other's copy. Copy out the true reading, the turned
+          voicing marked against the broker's own filed seal, and the fraud is in
+          your hand — proof a forger left because he never meant the two tongues to
+          be set side by side by anyone but him. Reading it isn't ending it: the
+          Bothan hall has already called its challenge on the lie, and a true
+          reading carried wrong across that courtyard is one more offense, not a
+          peace.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "You have the true clause — now the harder hall. Carry the corrected reading to the Bothan confederacy in the Gilded Cage Courtyard and present it in their own honor-protocol so it lands as redress, not a fresh slight — use your `cultures` skill, then `chain attempt`."
+
+      - step: 3
+        title: "Across the Courtyard"
+        location: gilded_cage_courtyard
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["cultures"]
+        objective: "Bring the corrected reading to the Bothan confederacy hall in the Gilded Cage Courtyard and present it in correct Bothan honor-protocol so the challenge is withdrawn — a cultures check."
+        npc_intro: >
+          [The courtyard is a ring of heritage halls, a dozen architectural
+          traditions layered in by centuries — the Gran hall behind you, the
+          Bothan trade confederacy's across the plaza, its door carved with the
+          standing-marks of a people who measure everything in honor owed and
+          honor restored.] A true reading is not enough; how it is carried across
+          this courtyard is the whole of it. To a Bothan hall mid-challenge, an
+          outsider striding in to announce they were deceived is a second insult —
+          you call them fools who could not read their own charter. Carry it the
+          way their protocol allows a wrong to be unmade: enter by the petitioner's
+          mark, name the broker's seal and not the hall as the author of the slight,
+          set the turned clause before the speaker as a matter put right rather than
+          a correction handed down, and let the redress be theirs to take. Do it in
+          their form and the challenge can be withdrawn without a hall losing face;
+          do it wrong and the true reading becomes the spark. `cultures`, an
+          outsider walking a redress through a proud hall's own protocol —
+          `chain attempt` when the challenge stands down.
+        completion:
+          type: skill_check_passed
+          skill: "cultures"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You enter by the petitioner's mark, name the broker's seal as the author
+          of the turned clause, and set the true reading before the Bothan speaker
+          as a standing to be restored rather than an error to be admitted — and the
+          hall that was a day from blood reads its own pledge back in its own tongue
+          and takes the redress as its own. The speaker lifts the challenge: not
+          because an outsider told them they were wrong, but because the protocol
+          let a fraud be named without a hall bowing to name it. The Bothan
+          confederacy will hold to the true charter — on one condition any honor-
+          court would set: that the forgery go onto the charter record, sealed,
+          so the broker cannot render the clause a third way tomorrow. Take the
+          marked reading and the withdrawn challenge toward the record office up in
+          the upper city. The broker has held this courtyard as the only voice
+          between two halls for four generations; he is not going to let the proof
+          that ends that walk out of the district in your hand.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "The challenge is withdrawn — now get the fraud on the record. Carry the marked reading up to the Upper City Promenade toward the charter record office, and stand off the broker's enforcer who comes to take it — `attack`, `dodge`."
+
+      - step: 4
+        title: "On the Promenade"
+        location: upper_city_promenade
+        npc: "Hekka Vrool"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Carry the proof up to the Upper City Promenade and stop Hekka Vrool when the broker's enforcer comes for it — `attack`, `dodge`."
+        npc_intro: >
+          [The Upper City Promenade runs its mag-elevated walkways above the smog
+          line, the way up out of the Gilded Cage and toward the charter record
+          office — and a heavy, leather-skinned Weequay steps out of the packed
+          restaurant crowd into the walkway ahead, a worn blaster pistol on his
+          hip and a quiet menace in how little he hurries.] Hekka Vrool — the
+          muscle who keeps the broker's renderings from ever being questioned, who
+          has rarely had to draw because a doctored word and a called challenge do
+          his work for him. He reads the marked charter in your hand and the easy
+          contempt of a being whose threats keep themselves goes flat. "That paper
+          stays in the district, friend. A charter dispute is a private hall matter
+          — it does not go on any record up here." [He sets himself across the
+          walkway between you and the record office.] "Hand it over and walk back
+          down, or you don't walk up. The broker's a patient man. I'm the part of
+          him that isn't."
+        completion:
+          type: combat_won
+          enemy_template: "twisted_word_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Hekka Vrool goes down on the bright walkway above the smog, the blaster
+          spinning away across the mag-elevated deck, and the crowd that pays for a
+          view and not for trouble parts and pretends it saw nothing. The way up to
+          the record office stands clear. Take the marked reading with you — the
+          turned clause set against the broker's own filed seal, the withdrawn
+          Bothan challenge folded in beside it — and there is nothing between here
+          and the record but the climb, the fraud sealed onto the charter, and a
+          renewal two halls can sign in the old form for the first time in four
+          generations.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The enforcer's down and the way up is clear — get the fraud sealed onto the charter record, then go back to Brama Hool in the Gilded Cage Alien Quarter."
+
+      - step: 5
+        title: "In the Old Form"
+        location: gilded_cage_alien_quarter
+        npc: "Brama Hool"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Brama Hool in the Gilded Cage Alien Quarter with the fraud on the record and the renewal saved."
+        npc_intro: >
+          [Brama Hool is at the heart of the alien quarter when you come in, the
+          charter sheaf open before her and the record office's sealed mark fresh
+          on the corrected clause, the murmur of the quarter's dozen tongues going
+          on around her the way it has for four generations.] "On the record.
+          Sealed. The challenge withdrawn." [She turns the marked clause to the
+          quarter-light and reads her own people's pledge and the Bothans', set
+          true at last, side by side.] "Four generations one broker stood between
+          two halls and called it the only way two peoples could speak. `talk` to
+          me and let me say it plain before he finds another word to turn."
+        completion:
+          type: talk_to_npc
+          npc: "Brama Hool"
+        npc_complete: >
+          "Here is your fee — and worth twice the credits to hand it to the hand
+          who read the lie clean and carried the truth across that courtyard
+          without making it a new wound. A fraud on the record kills a challenge; a
+          clause read true in both tongues kills the racket. The renewal is signed
+          in the old form, the berth and the standing hold, and the backers who
+          meant to buy us cheap in our own blood buy nothing. The Gilded Cage is a
+          small world for all its hundred peoples, and a long-memoried one. It will
+          tell the difference between the broker who turns two halls against each
+          other and the hand who set their own words straight between them. When a
+          hall in this quarter finds a rendering it cannot trust, there is a name
+          they will send for now. Fair speaking on the way out — yours has been
+          true."
+        # graduation closes the arc; no extra on-completion side effects.
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The fraud is sealed onto the charter and the renewal is signed in the old
+          form: the challenge dies on a true reading, the broker's season of turned
+          words becomes a forgery on the record, and the two old communities who
+          could only hear each other through one crooked voice find they never
+          needed him to carry a true one. A hand who can read a tongue a broker
+          swore could not be read, walk a redress through a proud hall's own
+          protocol, and stand on the promenade when the muscle comes has a way of
+          being sent for — the heritage halls of the Gilded Cage carry a name now,
+          under the old charters the war leaves alone.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════

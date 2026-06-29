@@ -1,0 +1,302 @@
+# Generalized Questline Drop — "The Twisted Word" (T3.24 fifteenth slice, 2026-06-29)
+#
+# The FIFTEENTH accessible (non-t5, non-tutorial) `kind: questline` chain, and
+# the FOURTH set on CORUSCANT — after "The Ghost Shipment" (nar_freight_ghost_
+# shipment, Nar Shaddaa), "The Crooked Wheel" (mos_eisley_crooked_wheel,
+# Tatooine/Mos Eisley market), "The Lost Courier" (coruscant_lower_lost_courier,
+# Coruscant LOWER city), "The Skimmed Line" (kuat_ring_skimmed_line, Kuat
+# orbital ring), "The Dust-Sick" (jundland_dust_sick, Tatooine Jundland
+# wilderness), "The False Provenance" (coruscant_petrax_false_provenance,
+# Coruscant Petrax/museum cultural district), "The Forged Notice"
+# (nar_shaddaa_forged_notice, Nar Shaddaa upper docks), "The Warrens Toll"
+# (nar_shaddaa_warrens_toll, Nar Shaddaa Warrens), "The Sealed Ledger"
+# (coruscant_works_sealed_ledger, Coruscant mid-city), "The Sabotaged Run"
+# (tatooine_speeder_sabotaged_run, Tatooine outskirts speeder circuit), "The
+# Hollow Crew" (geonosis_offworld_hollow_crew, Geonosis offworlder surface),
+# "The Driven Herd" (kamino_driven_herd, Kamino ocean platforms), "The Condemned
+# Hull" (kuat_condemned_hull, Kuat customs front), and "The Long Haul"
+# (tatooine_long_haul, Tatooine freight-haul margins). It reuses the SAME live
+# questline engine (engine/tutorial_chains.py + chain_events.py: the
+# `kind: questline` type + `active_questline` slot, the existing event types, the
+# four reward funnels) with NO new engine code, no new slot, no new event type,
+# no schema migration, no new reward faucet, and NO map-coordinate or exit-graph
+# change — the sanctioned right-of-launch widening per
+# quest_expansion_postlaunch_path_v1.md (T3.24): author MORE questlines on the
+# proven pattern.
+#
+# Firsts for the accessible-questline arc:
+#   1. A FIFTEENTH distinct skill spread — LANGUAGES + CULTURES — neither of
+#      which any prior accessible questline uses (vs search+streetwise /
+#      investigation+gambling / persuasion+sneak / security+bargain /
+#      first_aid+survival / value+con / forgery+bureaucracy / command+demolitions
+#      / pick-pocket+hide+computer-programming / sensors+repulsorlift-operation /
+#      alien-species+droid-programming / beast-riding+swimming / space-transport-
+#      repair+astrogation / ground-vehicle-repair+ground-vehicle-operation). BOTH
+#      `languages` and `cultures` resolve to KNOWLEDGE via the canonical
+#      perform_skill_check funnel; neither is aliased (each canonicalizes to
+#      itself). This is the FIRST accessible questline to reward the
+#      SCHOLAR-DIPLOMAT / INTERPRETER-MEDIATOR build — the hand who can read an
+#      unfamiliar tongue against a doctored rendering and then walk a correction
+#      through a proud people's own protocol. It is mechanically DISTINCT from
+#      every prior social arc: The False Provenance / The Crooked Wheel and the
+#      con/persuasion/bargain arcs reward PERCEPTION social skills (charming or
+#      reading a mark); this rewards KNOWLEDGE — reading a LANGUAGE and a
+#      CULTURE'S protocol, not persuading a person. The interpreter is not the
+#      con artist and not the negotiator.
+#   2. The FOURTH questline set on CORUSCANT, and the first on the GILDED CAGE
+#      alien-quarter face: the cosmopolitan multi-species enclave under the old
+#      Hutt-mediated charters — the alien quarter + the unlicensed bazaar + the
+#      courtyard of heritage halls + the upper-city promenade chokepoint out of
+#      the district: gilded_cage_alien_quarter / gilded_cage_bazaar /
+#      gilded_cage_courtyard / upper_city_promenade. It reuses NONE of The Lost
+#      Courier's lower-city rooms (crystal_jewel_cantina / factory_district /
+#      lower_refugee_warren / petrax_sublevels), NONE of The False Provenance's
+#      Petrax/museum rooms (calocour_heights / coruscant_westport_landing /
+#      galactic_museum / petrax_quarter), and NONE of The Sealed Ledger's
+#      mid-city rooms (commercial_district_atmospheric / commercial_district_main
+#      / dexters_diner / mid_transit_hub) — every one of its four rooms is fresh
+#      to the chain corpus. The Republic the room descriptions already name
+#      ("Republic patrols rarely come this far in") stays distant background, the
+#      way every prior accessible arc keeps the Republic/CIS conflict offstage:
+#      the whole arc runs on the faction-neutral old charters of the Gilded Cage.
+#      It touches NO map coordinate or world exit graph — the rooms already exist
+#      and are loaded (planets/coruscant.yaml); only NPCs + a chains.yaml entry +
+#      an achievement are added. The two feuding communities are grounded in the
+#      gilded_cage_courtyard room description itself, which names the Gran
+#      Heritage Hall and the Bothan Trade Confederacy office among the district's
+#      fraternal halls.
+#
+# It is also a new STORY SHAPE: breaking a TRANSLATION-FRAUD / FEUD-BAITING
+# racket — not a smuggling-trace, a racket-bust-by-investigation, a kidnap-
+# rescue, an industrial-skim, a frontier medical rescue, an art-fraud caper, a
+# counter-forgery, a community-defense, a finesse heist, a fixed race, a
+# droid-reflash racket, a wildlife-poaching racket, a ship-condemnation, or a
+# freight strand-and-salvage. By district custom every word between two old
+# Gilded Cage communities — the Gran mutual-aid society and the Bothan trade
+# confederacy — passes through one licensed go-between (narrated only), who has
+# spent the renewal season feeding each hall a doctored rendering of the other's
+# charter terms: a single honor-clause turned over so each reads the other as
+# having reneged and meant insult by it. The Bothan hall has called a challenge;
+# the Gran hall will answer it; and when the shared charter lapses in blood, the
+# broker's backers buy the rights off both halls cheap. Brama Hool, the Gran
+# keeper who knows the rendering is a lie, is the accused party — barred from the
+# filed copies as conflicted, her word untrusted across the courtyard — and
+# cannot read the fraud, carry the correction, and stand off the broker's muscle
+# alone. She offers her fee to any freelance hand who can read the original
+# Bothan charter against the broker's Basic and find the inverted clause
+# (languages), carry the true reading to the Bothan hall in their own honor-
+# protocol so the challenge stands down (cultures), stand off the broker's
+# enforcer who comes for the proof at the promenade, and get the fraud onto the
+# charter record.
+#
+# These NPCs back the `coruscant_gilded_twisted_word` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Brama Hool — the Gran heritage-hall keeper who offers + closes the quest
+#                  (step-1 npc = the questline's start-NPC, per
+#                  get_questline_offer). Step-1 + step-5 NPC.
+#   * Hekka Vrool — the combat-step enforcer (ai_config.chain_enemy_template
+#                   twisted_word_enforcer; the step-4 combat_won foil), the
+#                   Weequay muscle who keeps the broker's renderings from ever
+#                   being questioned and comes for the proof at the promenade.
+# The licensed broker/go-between, his backers, the Bothan confederacy speaker and
+# hall, the Gran hall's members, the charter record office, and the doctored
+# renewal charter itself are NARRATED ONLY — story beats carried in the prose,
+# NOT spawned NPC entities. Only the giver and the single combat foil are real
+# placed NPCs.
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures.
+# The broker is a civilian district fixer, never a war faction; the Republic/CIS
+# conflict stays offstage. Provenance: Gran (the three-eyed, herd-cultured,
+# communal near-humans of Kinyen — an era-clean, faction-neutral fixture of the
+# galaxy with a long reputation as mediators and community keepers, a natural
+# fit for a heritage-hall keeper), Bothan (the honor-and-standing-driven
+# politicking species of Bothawui — era-clean, named in the gilded_cage_courtyard
+# room description's "Bothan Trade Confederacy office"; NARRATED only, no placed
+# entity), and Weequay (a leathery-skinned Outer Rim / Hutt-space mercenary-and-
+# muscle species, era-clean and not war-faction coded) are all era-clean. Stats
+# matched to the shipped accessible-questline bands — the giver to the non-combat
+# fixer band (Yelza Korrin / Dorae Vint / Sashi Renko / Dav Nuro / Soree Bann /
+# Hessa Veil / Cassa Brel / Vessa Tial / Terva Dohl / Ria Tann / Nuva Sehl /
+# Neyla Sur / Veelo Trinn / Numi Vesh), with the keeper's spread skewed to
+# Knowledge to fit a master interpreter-mediator; the enforcer to the small-time-
+# criminal antagonist band (Brakkis Vone / Gorvahn Brusk / Skarn Vex / Suro Vant
+# / Vohrek Sarn / Brask Yade / Varn Tesk / Tarko Venn / Drevin Saar / Vossk Rhal
+# / Korsa Drael / Bohrus Kang / Gornt Reska): a real fight, beatable by a fresh
+# post-chargen character, carrying the proven blaster_pistol of the twelve ranged
+# foils (squarely in the proven beatable band, no balance flag needed).
+# WEG40120 PDF is local-only (gitignored) and absent in this tree; the bands are
+# cited against the in-repo reference NPCs, not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The keeper — Brama Hool (questline GIVER + closer)
+  # Questline: coruscant_gilded_twisted_word ("The Twisted Word")
+  # Placement: Gilded Cage Alien Quarter (gilded_cage_alien_quarter, zone
+  #            entertainment_district). Step-1 + step-5 NPC.
+  # NOTE: a Gran heritage-hall keeper run ragged by a season of turned words at
+  # the residential heart of the alien quarter, where a dozen untranslated
+  # tongues run together — a master interpreter-mediator who is, this season, the
+  # accused and conflicted party, barred from the proof of her own people's
+  # innocence and unable to be in three places at once.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Brama Hool
+    room: "Coruscant - Gilded Cage - Alien Quarter"
+    species: Gran
+    description: >-
+      A three-eyed Gran of late middle years in the muted formal sash of a
+      heritage-hall keeper, her goatlike features set in the patient lines of a
+      being who has spent a lifetime standing between peoples and making them
+      understood to one another, a soft-folded sheaf of old charter papers held
+      flat against her chest in both hands. She is no clerk of the modern Senate
+      bureaucracy — she keeps the Gran mutual-aid hall of the Gilded Cage, one of
+      the dozen old fraternal societies of the alien quarter, under charters the
+      Hutts mediated long before the Republic bothered to notice the district, and
+      she has read tongues and walked protocols between its hundred peoples for
+      thirty years. This renewal season a licensed go-between — the one voice
+      district custom puts between her hall and the Bothan trade confederacy
+      across the courtyard — has fed each community a doctored rendering of the
+      other's terms, a single honor-clause turned over so each reads the other as
+      having renounced the shared standing and meant insult by it. The Bothan hall
+      has called a challenge; her own hall will answer it; and when the charter
+      lapses in blood the broker's backers stand ready to buy the rights off both
+      communities cheap. She knows to the voicing that the rendering is a lie — but
+      she is the accused party, barred from the filed copies as conflicted, and no
+      reading from her hand crosses the courtyard trusted. She is looking for a
+      neutral outside hand who can do the three things she cannot all at once: read
+      the original Bothan charter against the broker's Basic, carry the truth to
+      the Bothan hall in their own protocol, and get the fraud onto the record.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 3D+1
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D
+        technical: 2D+1
+      skills:
+        languages: 4D+1
+        cultures: 4D
+        bureaucracy: 3D+1
+        persuasion: 3D
+        value: 2D+2
+      weapon: blaster_pistol
+      move: 9
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A patient, exact Gran keeper worn thin by a season of watching her own
+        people's words turned against them — measured, courteous, and out of any
+        patience left for a racket that would set two old communities cutting each
+        other over things neither ever said. She can read a tongue against a
+        doctored rendering by the weight of a single voicing and walk a redress
+        through a proud hall's protocol without a soul losing face — but she
+        cannot do it as the accused party, and she cannot read the fraud, carry
+        the truth, and stand off the broker's muscle all in one day. Grave,
+        dry-spoken, and quietly furious at a broker who lives as the only voice
+        between two peoples by making sure they cannot trust each other; she
+        offers her fee because the credits were always going to be spent either
+        keeping the charter or losing it, and a neutral stranger who can carry a
+        true word where her own cannot go is the only honest help the old halls
+        have left.
+      knowledge:
+        - "She is Brama Hool, a Gran keeper of the Gilded Cage's Gran mutual-aid hall, one of the alien quarter's dozen old fraternal societies under the Hutt-mediated charters; she has read tongues and walked protocols between the district's peoples for thirty years."
+        - "By district custom every word between her hall and the Bothan trade confederacy across the courtyard passes through one licensed go-between. This renewal season he has rendered each hall a lie of the other: a single honor-clause turned over, so the Bothans read the Gran as having renounced the shared berth and the Gran read the Bothans as spurning the old standing. The Bothan hall has called a challenge; hers will answer it; and when the charter lapses in blood the broker's backers buy the rights off both communities cheap."
+        - "She knows the rendering is false but she is the accused party — barred from the filed copies as conflicted, her word untrusted across the courtyard. A neutral outside hand can do what she cannot: read the original Bothan charter against the broker's Basic in the bazaar and find the inverted clause (languages); carry the true reading to the Bothan hall in their own honor-protocol so the challenge stands down (cultures); and stand off the broker's enforcer who comes for the proof on the upper-city promenade."
+        - "Get the fraud onto the charter record and the racket comes apart: the challenge is withdrawn, the renewal is signed in the old form, the berth and the standing hold, and the backers who meant to buy two communities cheap in their own blood buy nothing — and the old halls stop trusting that the only voice between them has to be a crooked one."
+      faction: independent
+      dialogue_style: >-
+        Measured, precise, an interpreter's careful plain talk — names a voicing
+        before a grievance, weighs a people in protocols kept and a fraud in
+        clauses turned; speaks the way she reads, nothing assumed and every word
+        chosen.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'He does not underbid us or outvote us. He renders us. One honor-clause, turned over — the Bothans read us as renouncing the berth, we read them as spurning the standing, and neither hall ever said it. Their challenge is called. Mine will answer. And when the charter lapses in blood his backers buy us both cheap.'"
+        - "*Brama Hool lays the charter sheaf flat and sets a dense Bothan clause beside its clean Basic rendering, the broker's seal at the foot of both, and her three eyes move slowly from one column to the other the way they do over a word she already knows was turned.*"
+        - "'Read the original against his Basic in the bazaar and find me the clause he turned. Carry it to the Bothan hall in their own form, so a true word lands as redress and not a fresh wound. And mind the way up out of the district — that is where his muscle comes for the proof. Do that and my fee is yours, every credit. I would rather it bought his racket ending than bought my people one more season turned against their oldest friends.'"
+
+  # ── Questline antagonist: Hekka Vrool (combat step 4) ───────────────
+  # Single hostile instance at the way up out of the district, the upper-city
+  # promenade chokepoint toward the charter record office. Matches the
+  # coruscant_gilded_twisted_word step-4 combat_won enemy_template.
+  # Carries the proven blaster_pistol of the ranged foils (squarely in the proven
+  # beatable band) so a fresh post-chargen character has a real, winnable fight.
+
+  - name: Hekka Vrool
+    room: "Coruscant - Upper City Promenade"
+    species: Weequay
+    description: >-
+      A heavy, leather-skinned Weequay in a well-cut coat a shade too good for the
+      work it does, the deep-creased hide of his species gone to scar at the
+      knuckles and the jaw, a worn blaster pistol riding his hip with the easy
+      familiarity of a tool used more by showing than by firing. He is the muscle
+      who keeps the broker's renderings from ever being questioned — the hand who
+      meets a hall that asks too many questions, reminds it that a charter dispute
+      is a private matter, and has rarely had to draw because a doctored word and a
+      called challenge do his taking for him. The whole racket runs on two
+      communities that cannot trust each other except through the broker; it does
+      not run on a neutral hand reading the fraud clean and walking the truth
+      across the courtyard. The bored, unhurried menace of a being whose threats
+      keep themselves goes flat the instant a freelance hand comes up off the
+      Gilded Cage stair with the marked charter in hand and the record office above
+      — proof the broker was paid to make sure never reached a sealed page, coming
+      up the promenade in a stranger's grip. The paper stays in the district, as
+      far as the broker is concerned; the dispute is a private hall matter, as far
+      as anyone on the walkway can hear him say; and whoever carried it up is going
+      back down without it, one way or the next.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D+2
+        perception: 2D+1
+        strength: 3D+1
+        technical: 2D+1
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        brawling: 4D
+        intimidation: 3D+1
+        streetwise: 2D+2
+        search: 2D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: twisted_word_enforcer
+      personality: >-
+        A broker's enforcer genuinely unused to being made to fight for the
+        racket — bored and contemptuous while a turned clause and a called
+        challenge do his work, immediately and heavily violent the moment a
+        neutral hand comes up off the district stair with proof of the fraud and a
+        record office above. He works a blaster and a quiet word, not a charter:
+        dangerous and direct, he plants himself across the promenade and would
+        rather break a courier at the chokepoint than chase a sealed page he can
+        no longer stop. His pay and his standing with the broker ride on charters
+        that stay private and disputes that stay in the district, so he'll draw on
+        anyone carrying the fraud up to the record. Combat foil for the
+        questline's confrontation beat.
+      knowledge:
+        - "He is Hekka Vrool, the Weequay enforcer who keeps the broker's renderings from ever being questioned — meeting any hall that asks too many questions, reminding it that a charter dispute is a private district matter, and rarely having to draw because a doctored word does the taking for him."
+        - "A neutral hand read the fraud the broker counted on no one setting the two tongues against, walked a redress through the Bothan hall's own protocol, and is carrying the marked charter up the promenade to the record office; the racket runs on two communities that can only speak through the broker, so he'll draw on whoever brings the proof up rather than let the one thing that ends the racket reach a sealed page."
+      faction: criminal
+      dialogue_style: >-
+        Flat, unhurried, contemptuous. States once that the paper stays in the
+        district and a charter dispute is a private hall matter, and after that
+        lets the blaster keep the walkway the way the turned renderings kept the
+        courtyard.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'That paper stays in the district, friend. A charter dispute is a private hall matter — it does not go on any record up here. Hand it over and walk back down.'"
+        - "*Hekka Vrool steps out of the packed restaurant crowd into the walkway, sets himself across the promenade between the courier and the record office, and lets his coat fall open enough to show the blaster he would rather not have to use.*"
+        - "'Last time — hand it over and walk back down, or you don't walk up. The broker's a patient man. I'm the part of him that isn't.'"
