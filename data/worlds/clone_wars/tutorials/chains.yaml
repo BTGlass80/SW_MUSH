@@ -7523,6 +7523,351 @@ chains:
           a name now, out where the ships cross and an honest light is the difference
           between a captain and a derelict.
 
+  # GENERALIZED QUESTLINE — "The Bonded Crew" (kuat_city_bonded_crew)
+  # The TWENTY-FIRST accessible (non-t5, non-tutorial) kind:questline chain, the
+  # THIRD set on KUAT — and the FIRST on the planetside KUAT CITY surface (the
+  # kuat_city_embassy zone): the Ten Kuati merchant houses' mercantile and aristocratic
+  # city, reached only by scheduled shuttle from the orbital ring — the surface landing
+  # pad, the merchant-house boulevard, the Ten families' contract forum, and the grand
+  # hotel where the houses do their quiet business (kuat_city_landing_pad /
+  # kuat_city_main_street / kuat_mercantile_forum / kuat_city_hotel), reusing NONE of
+  # The Skimmed Line's orbital-ring rooms or The Condemned Hull's and The Salted Lane's
+  # main-spaceport rooms — every room fresh to the corpus. Where those worked the ring
+  # and the spaceport, this works the SURFACE CITY — the merchant houses' own ground.
+  # A DEBT-BONDAGE / PADDED-ADVANCE (labor) racket: a labor-contracting outfit, Drale
+  # Contract Labor & Provisioning, recruits offworld contract crews for the Ten houses'
+  # surface staffing on a "passage advance" — fronts each worker's shuttle fare,
+  # lodging, and tools, books every line at an inflated rate against company scrip with
+  # compounding carry, pays the logged hours back in the same scrip at a discount, and
+  # so engineers a debt that grows no matter how hard the crew works: a passage out
+  # that can never be bought, the crews held on a surface they cannot afford to leave
+  # while the books show nothing but an advance honestly owed. A Sullustan crew foreman
+  # who came on one of those advances and has watched his crew's debt climb for two
+  # years is bonded and unheard — beaten by LEDGER-AND-LEVERAGE work: reconcile Drale
+  # Contract Labor's advance ledger against the real costs and the crew's logged hours
+  # to prove the debt is engineered never to clear, not an honest advance (business),
+  # corner the outfit's junior contracts-clerk in the forum's records annex and lean on
+  # him until he hands over the true second ledger and names the scheme (intimidation),
+  # stand off the outfit's collector who comes for the proof (combat), and get the
+  # audit and the true ledger to the merchant houses' contract arbiter. The TWENTY-FIRST
+  # distinct skill spread (business + intimidation — both Knowledge), the FIRST
+  # accessible arc to reward the LEDGER-AND-LEVERAGE / FORENSIC-PRESSURE build (the
+  # audit desk and the cornered clerk), mechanically and thematically distinct from the
+  # only two prior arcs that touch money and records — The Skimmed Line (security +
+  # bargain, a freelance RECOVERY that bypasses a lock and negotiates a return, not an
+  # audit) and The Sealed Ledger (pick pocket + hide + computer programming, a HEIST
+  # that lifts and slices a sealed record, not a forensic read of an open one). This
+  # does not skim the top the way The Skimmed Line does; it inflates the bottom — the
+  # crew is held by the books, not robbed by them. The Republic procurement liaison the
+  # Kuat City room text names stays distant background — and the outfit is run afoul of
+  # in the end by the merchant houses' own contract arbiter, who will not have a
+  # peonage scandal soured onto a House's name — the way every prior accessible arc
+  # keeps the war offstage. Reuses the live questline engine (kind:questline +
+  # active_questline + existing event types + the four reward funnels) with NO new
+  # engine code, no new slot/event type, no schema migration, no new reward faucet, and
+  # NO map-coordinate or exit-graph change.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: kuat_city_bonded_crew
+    chain_name: "The Bonded Crew"
+    description: >
+      On the planetside surface of Kuat — Kuat City, the mercantile and aristocratic
+      ground city of the Ten merchant houses, reached only by scheduled shuttle from
+      the orbital ring — a Sullustan crew foreman named Nabo Threll is bonded to a debt
+      he cannot pay and cannot prove was rigged. There is a labor-contracting outfit
+      leased into a merchant-house office on the boulevard, Drale Contract Labor &
+      Provisioning, and it recruits offworld contract crews for the Ten houses' surface
+      staffing on a "passage advance": it fronts each worker's shuttle fare, lodging,
+      and tools, books every line at an inflated rate against company scrip with
+      compounding carry, pays the logged hours back in the same scrip at a discount, and
+      so engineers a debt that grows no matter how hard the crew works — a passage out
+      that can never be bought, the crews held on a surface they cannot afford to leave
+      while the books show nothing but an advance honestly owed. Threll came on one of
+      those advances two years ago and has run his crew clean and hard every quarter
+      since, and watched the debt on the outfit's books climb instead of fall. He can
+      read a provisioning ledger as well as the clerk who cooked it, and he knows the
+      contract is built never to clear — but a bonded laborer whose own contract says he
+      owes the outfit does not get heard against a debt the merchant houses' arbiter has
+      on file as legitimate, and he cannot reconcile the books, break the clerk, and
+      stand off the outfit's collector all in one watch before the next crew lands and
+      signs the same advance. He needs a neutral hand who can do the three things he
+      cannot: reconcile Drale Contract Labor's advance ledger against the real costs and
+      the crew's logged hours to prove the debt is engineered never to clear, not an
+      honest advance; corner the outfit's junior contracts-clerk in the forum's records
+      annex and lean on him until he hands over the true second ledger and names the
+      scheme; and carry the proof to the one desk a stamped advance answers to — before
+      the outfit's collector can take it back, and before the next crew signs the same
+      passage out that was never meant to be bought. A freelance favor — open to anyone,
+      no faction required.
+    archetype_label: "Freelance Foreman's Favor"
+    faction_alignment: independent
+    starting_zone: kuat_city_embassy
+    starting_room: kuat_city_landing_pad
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["bonded_crew_cleared"]
+      drop_room: kuat_city_landing_pad
+      follow_up_hint: >
+        The audit and the true ledger reach the merchant houses' contract arbiter and
+        the racket comes apart with them: Drale Contract Labor's advances are read for
+        the engineered peonage they are, the bonded crews' debts struck and their
+        passage out restored, the scrip discount and the compounding carry pulled, the
+        outfit's lease on the boulevard voided and its take traced offworld. The outfit
+        that lived by a debt the arbiter read as honest and a second ledger no one ever
+        laid beside the first finds the one thing the racket needed buried — an advance
+        ledger reconciled against the real costs and the work, set beside a true ledger
+        that names the rates and the carry for what they are — read into the record at
+        the desk it was certain it could never reach. The collector who meant to walk
+        one more bonded foreman back to his bunk collects nothing but a voided lease.
+        Word travels the surface crews the way it never travels a merchant house: there
+        is a hand who can read a rigged debt off an honest-looking ledger, break the
+        clerk who keeps the real one, and stand in the way when the collector comes —
+        and the offworld crews who have been signing a passage out that was never meant
+        to be bought stop believing the advance is honest just because the paper is in
+        order.
+
+    steps:
+      - step: 1
+        title: "A Debt That Wouldn't Clear"
+        location: kuat_city_landing_pad
+        npc: "Nabo Threll"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Nabo Threll at the edge of the surface landing pad in Kuat City."
+        npc_intro: >
+          [A compact, round-eyed Sullustan stands at the edge of the landing pad with
+          the still patience of a being who has watched a great many shuttles lift again
+          without him aboard, a foreman's tally-slate clipped at his hip.] "You read
+          figures? Then you'll read these straighter than the arbiter will. I'm Nabo
+          Threll — I run a surface labor crew, came up on a passage advance two years
+          back: the outfit fronted my fare, my bunk, my crew's tools, all owed back out
+          of the work. I've run that crew clean every quarter since. `talk` to me. And
+          every quarter the outfit's books say we owe more than we did the quarter
+          before. That's not a debt being paid down. That's a debt built never to clear —
+          and the paper's all in order, so the houses' arbiter calls it honest and I
+          can't prove it off the books and break the clerk and stand off Drale's man, all
+          at once."
+        completion:
+          type: talk_to_npc
+          npc: "Nabo Threll"
+        npc_complete: >
+          [He unclips his tally-slate and sets it beside a worn print of the outfit's
+          quarterly statement, one blunt finger moving from his crew's logged hours to
+          the figure at the bottom that does not match them.] "There's the work, and
+          there's what they say it bought, and there's the gap — and the gap grows every
+          quarter no matter how hard we run. The advance is booked at rates no honest
+          provisioner charges, the carry runs faster than the work, and they pay our
+          hours back in their own scrip at a discount. It was never a passage we could
+          buy. It was a way to own us without buying us. The outfit's leased into an
+          office on the boulevard — Drale Contract Labor. Go there and get into the
+          advance ledger, and reconcile it: my crew's real hours, the real cost of fare
+          and bunk and tools, against what they booked. The numbers won't close to an
+          honest advance. Put that on a reconciliation I can't make heard alone."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to the merchant-house boulevard, where Drale Contract Labor leases its office, and get into the advance ledger — reconcile it against the real costs and your crew's logged hours to prove the debt is engineered never to clear, not an honest advance. Use your `business` skill, then `chain attempt`."
+
+      - step: 2
+        title: "The Numbers That Wouldn't Close"
+        location: kuat_city_main_street
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["business"]
+        objective: "On the merchant-house boulevard, get into Drale Contract Labor's advance ledger and reconcile it against the real costs and the crew's logged hours to prove the debt is engineered never to clear — a business check."
+        npc_intro: >
+          [The main boulevard is wide and tended, lined with the offices of the Ten
+          merchant houses and the smaller operators leased in among them — Drale Contract
+          Labor & Provisioning behind discreet signage between a shipping factor and a
+          house procurement office. A labor outfit's advance ledger is a thing of
+          ordinary commerce: passage fronted, provisioning charged, hours credited, a
+          balance carried — and that is exactly the cover, an engineered peonage dressed
+          as an honest account.] A debt that is honest pays down: the work credits faster
+          than the carry, the balance falls, the passage gets bought. This one does not.
+          Pull Drale's advance ledger and reconcile it the way the arbiter never has — the
+          fare and the bunk and the tools against what those actually cost on Kuat, the
+          carry rate against any honest provisioner's, the crew's logged hours against
+          the scrip they were paid back in — and read what the numbers do. `business`, a
+          forensic head for an account and a ledger that lies by arithmetic and not by
+          forgery — `chain attempt` when you've reconciled the books and proven the debt
+          built never to clear.
+        completion:
+          type: skill_check_passed
+          skill: "business"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You pull the advance ledger and reconcile it line by line, and the racket
+          shows itself in the arithmetic: the fare booked at three times the scheduled
+          shuttle rate, the bunk and the tools the same, the carry compounding on a
+          quarter where an honest provisioner charges simple interest on a year, the
+          logged hours credited back in company scrip discounted a third before it ever
+          touches the balance — and the sum at the bottom of every quarter larger than
+          the sum at the top no matter how the crew works. There is the proof Threll
+          could read and never make heard: the debt does not pay down because it was
+          never built to, an account engineered to grow forever and own a crew without
+          buying it. But a reconciliation is not the second ledger that names the rates
+          deliberate, and the outfit keeps a clerk who cooked the first set and knows the
+          real one — and a clerk's true ledger laid beside your audit is what turns a
+          suspicious account into a proven racket.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "You've proven the debt by the numbers — now get the second ledger. Go to the Mercantile Forum's records annex, where the outfit's junior contracts-clerk works, corner him, and lean on him until he hands over the true second ledger and names the scheme — use your `intimidation` skill, then `chain attempt`."
+
+      - step: 3
+        title: "The Man Who Kept the Real Books"
+        location: kuat_mercantile_forum
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["intimidation"]
+        objective: "In the Mercantile Forum's records annex, corner Drale Contract Labor's junior contracts-clerk and lean on him until he hands over the true second ledger and confirms the scheme — an intimidation check."
+        npc_intro: >
+          [The Mercantile Forum is where the Ten Kuati houses conduct their surface
+          business — trade practices, contract disputes, the elaborate maneuvering of
+          aristocratic life — and the labor contracts the houses let to outfits like
+          Drale are filed and disputed in its records annex, where a frightened junior
+          clerk does the filing. He cooked the first set of books under orders and keeps
+          the true second ledger that shows the rates and the carry for what they are,
+          and he is far more afraid of the collector than of any arbiter — but more
+          afraid still, if you make him see it, of going down with the outfit when the
+          racket comes apart.] No one need break a lock for this; the clerk is right
+          there in the annex. What he will not give for asking he will give for the
+          plain truth that the audit is already made, the arbiter is already coming, and
+          the only question left is whether he hands over the real ledger now and is the
+          witness or holds it and is the last name on a peonage filing. `intimidation`, a
+          hard read of a scared man and the leverage of a racket already proven — `chain
+          attempt` when you've cornered the clerk and walked out with the true ledger.
+        completion:
+          type: skill_check_passed
+          skill: "intimidation"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You put it to the clerk flat in the annex — the audit's made, the arbiter's
+          coming, and he can be the witness or the last name on the filing — and you
+          watch the calculation run behind his eyes and come out where fear of the
+          outfit loses to fear of going down with it. He pulls the true second ledger
+          from where it never should have been kept and sets it in your hands, and it is
+          everything the audit guessed and could not name: the inflated rates entered
+          deliberately, the carry set to compound past any wage, the scrip discount
+          logged as policy, a column of crews and the debts engineered to hold each one —
+          and a note, in the boss's own hand, that no crew is ever to clear. Now the
+          reconciliation has the ledger that names it, the suspicious account is a proven
+          racket, and there is a clerk who will say so. But an audit and a true ledger in
+          a records annex are not an audit and a ledger on the arbiter's desk, and the
+          outfit has a man whose whole job is making sure a bonded crew's debt never gets
+          read as anything but honest.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "You've proven the debt and you have the true ledger — now get them to a desk. Carry the audit and the ledger through the Andris Grand Hotel toward the merchant houses' contract arbiter, and stand off the outfit's collector when he comes for it — `attack`, `dodge`."
+
+      - step: 4
+        title: "The Collector"
+        location: kuat_city_hotel
+        npc: "Garvo Naak"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Carry the audit and the true ledger through the Andris Grand Hotel and stop Garvo Naak when the outfit's collector comes for it — `attack`, `dodge`."
+        npc_intro: >
+          [The Andris Grand is marble floors and wood-paneled walls and the quiet hum of
+          money, and the discreet way from the forum toward the merchant houses' contract
+          arbiter crosses its lobby. A broad, scaled-faced Nikto crosses the marble as you
+          come through with the audit and the true ledger under your arm, a worn blaster
+          riding under a jacket cut to pass in a merchant-house hotel, the unhurried
+          weight of a being who collects more than he fights.] Garvo Naak — the collector
+          Drale Contract Labor keeps in Kuat City to make sure a bonded crew's debt stays
+          a debt, who walks a complaining foreman back to his bunk with a quiet word and a
+          worse threat and rarely has to draw because a stamped advance and a scrip-poor
+          crew do his arguing for him. He has watched a foreman he expected to run out his
+          contract turn around and put an outsider onto the books, and the easy menace of
+          a man who collects from the bonded goes hard. "That ledger belongs to the
+          outfit, friend — those are our books you've been reading. The debt's honest;
+          your foreman signed the advance like the rest of them. It doesn't go on any
+          arbiter's desk." [He sets himself across the lobby between you and the way out.]
+          "Hand it over and walk back out, or you don't walk to that desk. The outfit's a
+          patient sort. I'm the part of it that came to collect."
+        completion:
+          type: combat_won
+          enemy_template: "bonded_crew_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Garvo Naak goes down on the marble, the blaster spinning away across the
+          polished floor, and the hotel staff who have learned, the way the crews
+          learned, not to watch a collection in Kuat City find somewhere else to look.
+          The way out toward the arbiter's desk stands clear. Take the proof with you —
+          the advance ledger reconciled against the work beside the true ledger that
+          names the rates deliberate — and there is nothing between here and the desk but
+          the lobby, the racket proven, and a crew that can buy a passage home.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The collector's down and the way out is clear — get the audit and the true ledger filed with the merchant houses' contract arbiter, then go back to Nabo Threll at the landing pad."
+
+      - step: 5
+        title: "A Passage Home"
+        location: kuat_city_landing_pad
+        npc: "Nabo Threll"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Nabo Threll at the surface landing pad with the debt-bondage racket filed and coming apart."
+        npc_intro: >
+          [Threll is standing at the edge of the pad when you come back, the tally-slate
+          put away and an arbiter's filing receipt in his hand, watching a scheduled
+          shuttle settle onto the marked landing with the look of a man doing arithmetic
+          that finally closes.] "Filed. Drale Contract Labor's advances read for the
+          peonage they are, the crews' debts struck and the passage restored, the scrip
+          discount and the carry pulled, the lease on the boulevard voided. The houses
+          don't love offworld labor — but an outfit running peonage under a House's
+          surface contract is a scandal on a House's name, and that they would not have."
+          [He turns the receipt over the way a foreman checks a tally one last time.] "Two
+          years that outfit owned my crew by a debt that was never meant to clear, and
+          called it an honest advance because the paper was in order. `talk` to me and let
+          me say it plain, while there's finally a desk with a stamp on it that has to
+          hear it."
+        completion:
+          type: talk_to_npc
+          npc: "Nabo Threll"
+        npc_complete: >
+          "Here's your fee — what little of it the scrip ever let me keep, and worth
+          twice the credits to hand it to the hand who read a rigged debt off an
+          honest-looking ledger, broke the clerk who kept the real one, and stood in the
+          lobby when the collector came for the proof. A reconciliation proves a debt
+          dishonest; a true ledger ends a racket. The advances get struck, the crews buy
+          their passage out, the next crew that lands stops signing a debt that was never
+          meant to clear, and a year of foremen who could only owe and run out the
+          contract get read for the bonded crews they were. The surface crews are a small
+          world for all the rock they work, and a crew learns fast who read a rigged
+          ledger straight and who kept the books that held them. When a foreman on this
+          surface gets handed an advance and feels the numbers sit wrong, there's a name
+          they'll send for now. Carry mine with it — and read a debt by what the numbers
+          do, not by how good the paper looks; I'd not have the hand that proved this one
+          owe a debt it couldn't prove was honest."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The bonded crew's debt is filed struck and the racket is coming apart: Drale
+          Contract Labor's advances die as a reconciled audit proves the debt built never
+          to clear and a true second ledger names the rates and the carry deliberate, two
+          years of one outfit's "honest advances" become an engineered peonage on the
+          merchant houses' record, and a surface of offworld crews who could only learn
+          whether an advance was honest by working it off learns to read the debt before
+          they sign it. A hand who can read a rigged ledger straight, break the clerk who
+          keeps the real one, and stand in the way when the collector comes has a way of
+          being sent for — the Kuat City surface carries a name now, out where the crews
+          land and an honest tally is the difference between a foreman and a bondsman.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════

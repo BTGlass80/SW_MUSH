@@ -782,3 +782,25 @@ achievements:
     icon: "📡"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "nar_shaddaa_wreckers_light"}
+
+  # T3.24 generalized-questline arc (Jun 29 2026): "The Bonded Crew"
+  # (kuat_city_bonded_crew) — the TWENTY-FIRST accessible kind:questline chain and the
+  # THIRD set on Kuat, on the planetside Kuat City surface. Breaking a debt-bondage /
+  # padded-advance labor racket: reconcile a labor outfit's advance ledger against the
+  # real costs and a crew's logged hours to prove the debt engineered never to clear
+  # (business), corner the outfit's junior contracts-clerk and lean on him until he
+  # hands over the true second ledger (intimidation), stand off the outfit's collector
+  # (combat), and get the audit and the ledger to the merchant houses' contract
+  # arbiter. The TWENTY-FIRST distinct skill spread (business + intimidation — both
+  # Knowledge — the first LEDGER-AND-LEVERAGE / FORENSIC-PRESSURE build, the audit desk
+  # and the cornered clerk, mechanically and thematically distinct from The Skimmed
+  # Line's recovery and The Sealed Ledger's heist). Same lower-tier band as the prior
+  # twenty accessible arcs (cp_reward 3 vs the t5 trainer chains' 5): open freelance
+  # side-content, not a rep-gated trial.
+  - key: bonded_crew_cleared
+    name: "The Bonded Crew"
+    description: "Broke a debt-bondage labor racket on the planetside surface of Kuat — reconciled a labor-contracting outfit's passage-advance ledger against the real costs and a bonded crew's logged hours to prove the debt was engineered never to clear, an account built to own a crew without buying it rather than an honest advance (business), cornered the outfit's junior contracts-clerk in the merchant forum's records annex and leaned on him until he gave up the true second ledger that named the inflated rates and compounding carry deliberate (intimidation), and stood off the outfit's collector who came for the proof in the Andris Grand Hotel. A forensic read of a rigged debt and the clerk who kept the real books struck a column of engineered debts and restored a year of bonded crews' passage out — and turned an outfit's 'honest advances' into a peonage racket on the merchant houses' contract record."
+    category: profession
+    icon: "📒"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "kuat_city_bonded_crew"}
