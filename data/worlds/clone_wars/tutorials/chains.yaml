@@ -6798,6 +6798,365 @@ chains:
           a name now, out where the lanes run dark and a clean vector is the
           difference between a hold and a grave.
 
+  # GENERALIZED QUESTLINE — "The Short Weight" (mos_eisley_short_weight)
+  # The NINETEENTH accessible (non-t5, non-tutorial) kind:questline chain, the
+  # SIXTH set on TATOOINE — and the FIRST ever set on the iconic Mos Eisley
+  # docking bays — on the SPACEPORT FREIGHT-TERMINAL face: the big shipping
+  # company's lobby, two working cargo bays, and the spacers' dockside cafe
+  # (notsub_shipping_lobby / docking_bay_87 / docking_bay_86 / dockside_cafe),
+  # reusing NONE of the five prior Tatooine arcs' rooms — The Crooked Wheel's
+  # market district, The Dust-Sick's Jundland, The Sabotaged Run's speeder
+  # circuit, The Long Haul's freight-haul margins, or The Rigged Issue's civic
+  # compound. Where those worked the market, the wastes, the track, the haul
+  # roads, and the officialdom, this works the BAY FLOOR — the busy cargo docks
+  # where independent loading crews fill holds for whatever trader needs the
+  # work. A SHORT-WEIGHT / RIGGED-LOADER (cargo-metrology) racket: a loading
+  # contractor who holds the powered-loader pool serving the independent bays has
+  # DOCTORED the loaders' mass-sensors to log every load out light — a slice of
+  # each shipment the crews move comes up "short" at the far scale, the skimmed
+  # cargo pulled by hand out of salted ballast pods staged in a quiet bay and run
+  # offworld by the contractor's partner, and the shortfall written up as
+  # "shrinkage" and pinned on the honest independent co-ops who handled it, so the
+  # traders blame the crews, the crews lose their dock tickets, and the contractor
+  # keeps the only loaders certified to work the bays. A veteran loader's co-op is
+  # one complaint from being written off as thieves — beaten by STEVEDORE work:
+  # run a powered loader through the contractor's own calibration cycle and hold a
+  # true, known weight against the rigged sensor to prove the rig logs short on
+  # purpose (powersuit operation), break the seal on a salted ballast pod by hand
+  # and restack the dead weight that hides the skim to prove the shortfall theft
+  # and not shrinkage (lifting), stand off the contractor's collector who comes for
+  # the proof (combat), and get the loader trace and the salted pod's manifest to
+  # the spaceport port-authority desk. The NINETEENTH distinct skill spread
+  # (powersuit operation — Mechanical — + lifting — Strength), the FIRST accessible
+  # arc to reward the DOCK STEVEDORE / CARGO-LOADER (a powered loader-rig and the
+  # raw muscle behind it), mechanically distinct from every prior Mechanical arc,
+  # all of which pilot or service a VEHICLE — The Sabotaged Run (sensors +
+  # repulsorlift operation, a ground speeder racer), The Condemned Hull (space
+  # transport repair + astrogation, a starship engineer-navigator), The Long Haul
+  # (ground vehicle repair + operation, a wheelman-mechanic), and The Salted Lane
+  # (space transports + starship gunnery, a freighter pilot-gunner): a powersuit is
+  # a WORN powered rig, not a piloted craft. And distinct from the only prior
+  # Strength-skill arc, The Driven Herd (beast riding + swimming, a wrangler in open
+  # water): this is raw industrial LIFTING, a stevedore's back. The bored clone
+  # garrison and twice-a-week Republic liaison the Mos Eisley room descriptions
+  # already name stay distant background; a short-weight scam runs on a crooked
+  # contractor and his fence, not a war faction — the war stays offstage the way
+  # every prior accessible arc keeps it. Reuses the live questline engine
+  # (kind:questline + active_questline + existing event types + the four reward
+  # funnels) with NO new engine code, no new slot/event type, no schema migration,
+  # no new reward faucet, and NO map-coordinate or exit-graph change.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: mos_eisley_short_weight
+    chain_name: "The Short Weight"
+    description: >
+      On the spaceport freight-terminal face of Tatooine — the Mos Eisley docking
+      bays where independent loading crews fill holds for whatever trader needs the
+      work — an Aqualish veteran loader named Grett Bashan is about to watch six
+      honest crews written off as thieves. There is a contractor on the docks who
+      holds the powered-loader pool that serves the independent cargo bays, and the
+      board in the Notsub Shipping lobby says Bashan's co-op has been losing cargo:
+      "shrinkage," a slice off every load his crews move that comes up short at the
+      far scale, run after run, the same clean cut gone. The traders have started
+      taking their work to the contractor's crews and filing the complaints that
+      will pull Bashan's people's dock tickets and their names with them. Bashan's
+      crews are clean. What is not clean is the loaders themselves: the contractor
+      has DOCTORED the rigs' mass-sensors to log every load out light, the skimmed
+      weight pulled by hand out of salted ballast pods staged in a quiet bay and run
+      offworld by his partner, and the difference written up as the honest crews
+      stealing from the holds they fill. Bashan has put cargo on and off these bays
+      for twenty years, and he can feel a loader logging short in the drift of the
+      rig before a scale will admit it — but he is an unlicensed independent whose
+      word is worth nothing against a "certified" sealed scale, and he cannot run the
+      loader, break the salted pod, and stand off the contractor's man all in one
+      shift before the next complaint costs his crews their tickets. He needs a
+      neutral hand who can do the three things he cannot: take a powered loader
+      through the contractor's own calibration cycle and HOLD a true, known weight
+      against the rigged sensor, proving the rig logs short on purpose; break the
+      seal on a salted ballast pod by hand and restack the dead weight that hides the
+      skim, proving the shortfall theft and not shrinkage; and carry the proof to the
+      one desk on the field a rigged scale answers to — before the contractor's
+      collector can take it back, and before six clean crews are written off as
+      thieves for good. A freelance favor — open to anyone, no faction required.
+    archetype_label: "Freelance Loader's Favor"
+    faction_alignment: independent
+    starting_zone: tatooine_mos_eisley
+    starting_room: notsub_shipping_lobby
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["short_weight_cleared"]
+      drop_room: notsub_shipping_lobby
+      follow_up_hint: >
+        The loader's calibration trace and the salted pod's manifest reach the
+        spaceport port-authority desk and the racket comes apart with them: the
+        contractor's powered loaders are pulled off the independent bays and
+        re-certified, the salted ballast pods flagged for the skim compartments they
+        always carried, the run offworld traced and stopped, and a season of
+        "shrinkage" pulled off Grett Bashan's co-op record and re-filed as the
+        short-weight theft it always was. The contractor who lived by a scale the
+        port-authority would never read against finds the one thing the racket needed
+        buried — a loader trace that logged short under a weight a being could feel
+        was heavy, set beside the salted pod the skim was pulled from — read into the
+        record at the desk he was certain it could never reach. The collector who
+        meant to walk one more co-op away from that desk buys nothing but a pulled
+        scale. Word travels the bay floor the way it never travels a port-authority
+        desk: there is a hand who can run a loader and feel it logging short, break a
+        salted pod by hand when the rigs lock out, and stand in the way when the
+        collector comes — and the independent crews who have been losing a slice off
+        every load to a "certified" scale and getting blamed for the theft stop
+        believing that a sealed figure at the bottom of a manifest has to be the
+        weight they loaded.
+
+    steps:
+      - step: 1
+        title: "Short at the Scale"
+        location: notsub_shipping_lobby
+        npc: "Grett Bashan"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Grett Bashan at the Notsub Shipping lobby."
+        npc_intro: >
+          [A broad, heavy-shouldered Aqualish stands apart from the freight clerks
+          at the edge of the Notsub Shipping lobby, the tusked, four-eyed face of his
+          species fixed on a shrinkage report posted to the board, his scarred work
+          harness and the old settled strength in his huge hands marking twenty years
+          of putting cargo on and off the docks.] "You move cargo? Then you'll read
+          this better than the traders will. I'm Grett Bashan — I run a loading
+          co-op, six honest crews on the independent bays. That board says my people
+          are stealing: 'shrinkage,' a slice off every load we move that comes up
+          short at the far scale. My crews don't steal. They fill a hold to the
+          manifest and it weighs light at delivery, every run, the same cut gone.
+          `talk` to me. I've got a contractor's sealed scale calling my crews thieves
+          and complaints stacking up that'll pull their tickets, and I am telling you
+          that scale is rigged — and I cannot prove it and break the pod and stand
+          off his man, all at once."
+        completion:
+          type: talk_to_npc
+          npc: "Grett Bashan"
+        npc_complete: >
+          [He sets one huge hand flat on the shrinkage report, his four eyes steady
+          on the figure at the bottom of it.] "A loader is supposed to do one thing
+          honest — log the weight that's on the forks, true. The contractor who holds
+          the loader pool on these bays has doctored the mass-sensors to log every
+          load out light. The weight the rig never counts doesn't evaporate — it's
+          pulled, by hand, out of salted ballast pods staged in a quiet bay, and run
+          offworld by his partner while my crews get written up for stealing the
+          holds they loaded. I can feel a rig logging short in the drift of it under
+          a known weight, but a feeling does not pull a contractor's scale — a loader
+          trace does. Take one of his powered loaders through the calibration cycle.
+          Run it, and HOLD a true, known weight against the sensor — make the rig log
+          short while you can feel it heavy, and put on the trace what I cannot put on
+          a desk: that the scale logs short on purpose."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to Docking Bay 87 where the contractor's loaders work the merchant cargo, take a powered loader through the calibration cycle, and hold a true weight against the rigged sensor to make the rig log short — use your `powersuit operation` skill, then `chain attempt`."
+
+      - step: 2
+        title: "A True Weight"
+        location: docking_bay_87
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["powersuit operation"]
+        objective: "In Docking Bay 87, take a powered cargo-loader through the contractor's calibration cycle and hold a true, known weight against the rigged mass-sensor — a powersuit operation check."
+        npc_intro: >
+          [Docking Bay 87 is one of the busy ones, holds open and merchant cargo
+          stacked for the loaders, and one of the contractor's powered loader-rigs
+          stands racked and powered at the edge of the floor, harness open, the
+          calibration cycle queued the way the contractor's crews run it before a
+          shift.] A rigged loader only gives itself away to the being wearing it: the
+          mass-sensor logs whatever weight the cycle tells it to, clean and certified,
+          but the rig itself does not lie — couple a load to the forks and the drive
+          braces for the true mass against the figure the sensor swears, and the gap
+          is there in your arms and the rig's strain if you hold it long enough to
+          read. Don't run the cycle the contractor's way and trust the number. Set a
+          true, known weight on the forks and HOLD it against the sensor — make the
+          rig brace for what it really carries while the scale logs it light — and the
+          loader's own maintenance trace catches the gap between the weight you can
+          feel and the weight it logged. `powersuit operation`, a loader's hands in a
+          powered rig and a doctored sensor logging a lie under a true mass — `chain
+          attempt` when you can hold the weight and put the short on the trace.
+        completion:
+          type: skill_check_passed
+          skill: "powersuit operation"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You couple a known load to the forks and take the rig through the cycle,
+          and the rigged loader shows itself the moment it braces: the drive sets for
+          the true mass on the forks — you can feel the rig take the real weight — and
+          the mass-sensor logs it light, a clean slice short of what your arms and the
+          loader's own strain both swear is there, the calibration cycle dressing the
+          lie as a certified reading. You hold the true weight against it long enough
+          for the maintenance trace to catch the gap, and there is the proof Bashan
+          could feel and never show a desk: the loader does not weigh honest, it logs
+          short, the same slice off every load, on purpose. Holding the weight isn't
+          ending it — a short on a trace is a rigged scale; it is not yet the cargo
+          that was pulled. The weight the rig never logged went somewhere, into a
+          salted pod in a quiet bay, and that is where the proof finishes.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "You've proven the loader logs short — now prove the skim is theft. Go to Docking Bay 86 where the salted ballast pods stage, break the seal on one by hand (the loaders lock out the moment the trace is pulled), and restack the dead weight that hides the skim compartment — use your `lifting` skill, then `chain attempt`."
+
+      - step: 3
+        title: "Dead Weight"
+        location: docking_bay_86
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["lifting"]
+        objective: "In Docking Bay 86, break the seal on a salted ballast pod by hand and restack the dead weight hiding the skim compartment — a lifting check."
+        npc_intro: >
+          [Docking Bay 86 is the quiet one, a smaller pit off the main floor where the
+          contractor stages the ballast pods between runs — and the instant the loader
+          trace was pulled, every powered rig on the field locked out under the
+          contractor's certification, so the proof has to finish the way the docks
+          finished cargo before there were loaders: by hand.] A short on a trace is a
+          rigged scale; the cargo pulled out of it is the theft — and the skim rides
+          here, packed under honest dead-weight ballast inside a sealed pod so the pod
+          scales true while a compartment in its core carries the weight no loader ever
+          logged. No rig will lift the ballast for you now; the seal is a hand seal and
+          the dead weight is a back's work. Break the pod's seal, haul out the ballast
+          slabs stacked over the core, and restack them clear — get down to the skim
+          compartment and the cargo pulled from a season of "short" loads, and prove
+          the shortfall was never shrinkage. `lifting`, a stevedore's back against a
+          pod built to scale honest over a buried skim — `chain attempt` when you've
+          cleared the dead weight and opened the skim.
+        completion:
+          type: skill_check_passed
+          skill: "lifting"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You break the hand seal and start hauling, and the salted pod gives up the
+          racket slab by slab: honest ballast stacked over a core compartment, dead
+          weight set there so the pod scales true to its manifest while the slice
+          pulled from every short load rides hidden underneath. You clear the ballast
+          and restack it off the core by hand, and there is the skim — cargo lifted
+          out of holds that weighed light at the far scale, packed away to run
+          offworld, the weight the rigged loaders never logged sitting where no
+          shrinkage report could ever put it. There is the whole of it now: the loader
+          that logs short and the cargo pulled out of the short — the kind of proof
+          the contractor left because he never thought a co-op he'd written off as
+          thieves would run his loader, feel it logging short, and break a salted pod
+          by hand to find what the scale never counted. But a trace and a broken pod
+          on a bay floor are not a trace and a manifest on the port-authority desk,
+          and the contractor has a man on the docks whose whole job is making sure the
+          proof of a short-weight load never comes off the floor that carried it.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "You've logged the short and opened the skim — now get the proof to a desk. Carry the loader trace and the salted pod's manifest through the Dockside Cafe toward the spaceport port-authority desk, and stand off the contractor's collector when he comes for it — `attack`, `dodge`."
+
+      - step: 4
+        title: "The Collector"
+        location: dockside_cafe
+        npc: "Drozz Kael"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Carry the loader trace and the salted pod's manifest through the Dockside Cafe and stop Drozz Kael when the contractor's collector comes for it — `attack`, `dodge`."
+        npc_intro: >
+          [The dockside cafe is the easy, human end of the freight terminal — dim
+          light, cold drinks, spacers and loaders resting between runs — and the quiet
+          way from the bays toward the spaceport port-authority desk runs straight
+          through it. A heavy-browed Klatooinian rises from a back table as you come
+          through with the trace and the manifest under your arm, the leathery,
+          deep-creased hide of his face unreadable, a worn blaster riding his hip with
+          the ease of a being who collects more than he fights.] Drozz Kael — the man
+          the loading contractor keeps on the docks to make sure a short-weight load's
+          proof never comes off the bay floor, who walks a co-op away from the
+          port-authority desk with a quiet word and a worse threat and rarely has to
+          draw because a sealed scale and a shrinkage report do his arguing for him.
+          He has watched a loader he expected to lose its tickets quietly turn around
+          and pull the trace instead, and the easy menace of a man who collects from
+          the written-up and the run-off goes hard. "That trace belongs to the
+          contractor, friend — you ran his loader, you pulled his property. The
+          shortfall's a shrinkage matter; it doesn't go on any port-authority desk."
+          [He sets himself between you and the way to the desk.] "Hand it over and walk
+          back to the bays, or you don't walk to that desk. The contractor's a patient
+          man. I'm the part of him that came to collect."
+        completion:
+          type: combat_won
+          enemy_template: "short_weight_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Drozz Kael goes down between the cafe tables, the blaster spinning away
+          under a bench, and the spacers who have learned not to see a collection on
+          the docks find somewhere else to look. The way to the port-authority desk
+          stands clear. Take the proof with you — the loader trace that logged short
+          under a true weight beside the salted pod's manifest and the skim pulled out
+          of it — and there is nothing between here and the desk but the quiet cafe,
+          the racket filed, and a co-op of clean crews who can fill a hold without
+          losing a slice of it to a scale that calls them thieves.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The collector's down and the way to the desk is clear — get the loader trace and the salted pod's manifest filed at the spaceport port-authority desk, then go back to Grett Bashan at the Notsub Shipping lobby."
+
+      - step: 5
+        title: "An Honest Scale"
+        location: notsub_shipping_lobby
+        npc: "Grett Bashan"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Grett Bashan at the Notsub Shipping lobby with the short weight filed and the racket coming apart."
+        npc_intro: >
+          [Bashan is off the board when you come back through the lobby, standing
+          straighter than a man one complaint from losing his crews has any right to,
+          the shrinkage report gone from the board and a port-authority filing receipt
+          in his huge hand, the freight clerks behind him running an honest manifest.]
+          "Filed. The loader pulled and read against its own short trace, the salted
+          pods flagged, the run offworld stopped, the crew that pulled the skim taken
+          off the docks. They're pulling my co-op's 'shrinkage' off the record as we
+          speak — re-filing a season of it as the short-weight theft it always was."
+          [He looks at the receipt the way a loader looks at a scale that finally reads
+          true.] "A whole season that contractor sold the field a sealed scale and
+          called my clean crews thieves to cover it. `talk` to me and let me say it
+          plain, while there's finally a desk with a seal on it that has to hear it."
+        completion:
+          type: talk_to_npc
+          npc: "Grett Bashan"
+        npc_complete: >
+          "Here's your fee — and worth twice the credits to hand it to the hand who
+          ran a loader and felt it logging short, broke a salted pod by hand when the
+          rigs locked out, and stood in the cafe when the collector came for the
+          proof. A short on a trace proves a rigged scale; the cargo out of the pod
+          ends a racket. The loaders come off the bays and get re-certified, the
+          salted pods get flagged, the crews stop losing a slice of every load to a
+          'certified' scale, and my six get their tickets and their names back instead
+          of a shrinkage report that called them thieves. The bay floor is a small
+          world for all the cargo that moves across it, and a loading crew learns fast
+          who sold it an honest scale and who sold it a short one. When a co-op on
+          these docks is handed a manifest it can't trust, there's a name they'll send
+          for now. Carry mine with it — and weigh your own loads by what's on the
+          forks, not what the scale logs; I'd not have the hand that read this one
+          trust a figure it couldn't feel was true."
+        # graduation closes the arc; no extra on-completion side effects.
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The short weight is filed and the racket is coming apart: the contractor's
+          loaders die as a calibration trace names the short they logged and the
+          salted pod names the skim pulled out of it, a season of one co-op's
+          "shrinkage" becomes a short-weight theft on the port-authority record, and a
+          floor of independent crews who could only learn whether a scale was honest
+          from the man who certified it learns it never needed his loaders to fill a
+          hold true at all. A hand who can run a loader and feel it logging short,
+          break a salted pod by hand when the rigs lock out, and stand in the way when
+          the collector comes has a way of being sent for — the Mos Eisley docks carry
+          a name now, out where the cargo moves and an honest scale is the difference
+          between a clean crew and a name as thieves.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════

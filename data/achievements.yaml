@@ -728,3 +728,29 @@ achievements:
     icon: "🚀"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "kuat_salted_lane"}
+
+  # T3.24 generalized-questline arc (Jun 29 2026): "The Short Weight"
+  # (mos_eisley_short_weight) — the NINETEENTH accessible (non-t5, non-tutorial)
+  # kind:questline chain and the SIXTH set on Tatooine, on the SPACEPORT
+  # FREIGHT-TERMINAL face (the first chain ever set on the iconic Mos Eisley
+  # docking bays). A short-weight / rigged-loader racket: a loading contractor
+  # doctors the powered loaders' mass-sensors to log every load out light, skims
+  # the cargo into salted ballast pods, and frames the honest independent crews for
+  # "shrinkage" — run a loader through the calibration cycle and hold a true weight
+  # to prove the rig logs short on purpose (powersuit operation), break a salted
+  # pod by hand and restack the dead weight hiding the skim (lifting), stand off
+  # the contractor's collector (combat), and get the loader trace and the pod's
+  # manifest to the spaceport port-authority desk. The NINETEENTH distinct skill
+  # spread (powersuit operation + lifting — Mechanical + Strength — the first DOCK
+  # STEVEDORE / CARGO-LOADER build, a worn powered loader-rig and the raw muscle
+  # behind it, mechanically distinct from every prior Mechanical arc's piloted
+  # vehicle and the only prior Strength arc's open-water wrangler). Same lower-tier
+  # band as the prior eighteen accessible arcs (cp_reward 3 vs the t5 trainer
+  # chains' 5): open freelance side-content, not a rep-gated trial.
+  - key: short_weight_cleared
+    name: "The Short Weight"
+    description: "Broke a short-weight racket on the Mos Eisley spaceport docks — ran a powered cargo-loader through a loading contractor's own calibration cycle and held a true, known weight against the rigged mass-sensor, proving the rig logged every load out light on purpose (powersuit operation), broke the seal on a salted ballast pod by hand and restacked the dead weight that hid the skim compartment, proving a season of 'shrinkage' the short-weight theft it always was (lifting), and stood off the contractor's collector who came for the proof in the dockside cafe. A loader's hands in a powered rig and a stevedore's back on a buried skim pulled six honest crews off a shrinkage report that called them thieves and re-filed it as the theft it was — and turned a 'certified' scale that short-weighed independent cargo into a rigged-loader racket on the spaceport port-authority record."
+    category: profession
+    icon: "📦"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "mos_eisley_short_weight"}
