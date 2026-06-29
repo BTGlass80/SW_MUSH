@@ -668,3 +668,33 @@ achievements:
     icon: "🩺"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "nar_shaddaa_wasting_ward"}
+
+  # ── "The Rigged Issue" — seventeenth accessible questline (T3.24), fifth on
+  # Tatooine, on the CIVIC-COMPOUND face (tatooine_militia_hq /
+  # regional_government_offices / police_station_main / mos_eisley_government_quarter;
+  # reuses none of The Crooked Wheel's market, The Dust-Sick's Jundland, The
+  # Sabotaged Run's speeder circuit, or The Long Haul's freight margins — every
+  # room fresh to the corpus; the bored clone garrison + twice-a-week Republic
+  # liaison the room descriptions name stay distant background, a local arms-fraud
+  # racket running on a crooked outfitter not a war faction, the way every prior
+  # accessible arc keeps the Republic/CIS conflict offstage). Earned by breaking a
+  # COUNTERFEIT / SABOTAGED-ARMS racket — a licensed outfitter holding the militia's
+  # small-arms contract substitutes the genuine issue for counterfeits (blasters
+  # cut to jam, forged-marked pot-metal armor), skims the difference, and fences the
+  # real arms, killing a patrol rider whose blaster quit on him — by ARMORER work:
+  # strip a "certified" replacement blaster and prove it built to fail (blaster
+  # repair), prove the dead rider's "issue" plate a forged-marked counterfeit (armor
+  # repair), stand off the outfitter's enforcer (combat), and get the proof to the
+  # prefect's weapons-licensing desk. The SEVENTEENTH distinct skill spread (blaster
+  # repair + armor repair — both Technical — the first GUNSMITH / ARMORER build,
+  # mechanically distinct from The Condemned Hull's starship engineer-navigator and
+  # The Long Haul's wheelman-mechanic, both of which work machines not personal
+  # arms). Same lower-tier band as the prior sixteen accessible arcs (cp_reward 3 vs
+  # the t5 trainer chains' 5): open freelance side-content, not a rep-gated trial.
+  - key: rigged_issue_cleared
+    name: "The Rigged Issue"
+    description: "Broke a counterfeit-arms racket against the Mos Eisley militia line — stripped one of a licensed outfitter's 'certified' replacement blasters and proved it cut to a cheaper, hotter spec and built to foul and jam after a magazine, not worn to a fault (blaster repair), put a dead patrol rider's 'issue' breastplate under the light and proved the plate cast pot-metal under a forged proof-mark, never the battle plate it claimed (armor repair), and stood off the collector the outfitter sent to take the proof back in the open government-quarter lane. A gunsmith's strip on a gun built to quit and an armorer's eye on a forged plate pulled a contract that had been selling a frontier line its own dead and skimming the difference — and turned a season of guns that failed when they were leaned on into an arms-fraud on the weapons-licensing record."
+    category: profession
+    icon: "🔧"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "tatooine_rigged_issue"}

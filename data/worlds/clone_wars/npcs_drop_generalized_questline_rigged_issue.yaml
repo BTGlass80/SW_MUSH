@@ -1,0 +1,328 @@
+# Generalized Questline Drop — "The Rigged Issue" (T3.24 seventeenth slice, 2026-06-29)
+#
+# The SEVENTEENTH accessible (non-t5, non-tutorial) `kind: questline` chain, and
+# the FIFTH set on TATOOINE — after "The Crooked Wheel" (tatooine_crooked_wheel,
+# the market district), "The Dust-Sick" (tatooine_dust_sick, the Jundland
+# wastes), "The Sabotaged Run" (tatooine_sabotaged_run, the speeder circuit),
+# and "The Long Haul" (tatooine_long_haul, the Mos Eisley freight margins). It
+# reuses the SAME live questline engine (engine/tutorial_chains.py +
+# chain_events.py: the `kind: questline` type + `active_questline` slot, the
+# existing event types, the four reward funnels) with NO new engine code, no new
+# slot, no new event type, no schema migration, no new reward faucet, and NO
+# map-coordinate or exit-graph change — the sanctioned right-of-launch widening
+# per quest_expansion_postlaunch_path_v1.md (T3.24): author MORE questlines on
+# the proven pattern.
+#
+# Firsts for the accessible-questline arc:
+#   1. A SEVENTEENTH distinct skill spread — BLASTER REPAIR + ARMOR REPAIR (both
+#      TECHNICAL) — neither of which any prior accessible questline uses (vs
+#      search+streetwise / investigation+gambling / persuasion+sneak /
+#      security+bargain / first_aid+survival / value+con / forgery+bureaucracy /
+#      command+demolitions / pick-pocket+hide+computer-programming /
+#      sensors+repulsorlift-operation / alien-species+droid-programming /
+#      beast-riding+swimming / space-transport-repair+astrogation /
+#      ground-vehicle-repair+ground-vehicle-operation / languages+cultures /
+#      medicine+scholar). `blaster repair` and `armor repair` each resolve to
+#      TECHNICAL via the canonical perform_skill_check funnel; neither is aliased
+#      (each canonicalizes to itself). This is the FIRST accessible questline to
+#      reward the GUNSMITH / ARMORER (weaponsmith) build — the hand who strips a
+#      "certified" sidearm and reads the rigged action, then puts a plate of
+#      "issue" armor under the light and reads the counterfeit cast in it. It is
+#      mechanically DISTINCT from the two prior repair-skill arcs, both of which
+#      work MACHINES, not personal arms: The Condemned Hull rewards SPACE
+#      TRANSPORT REPAIR + ASTROGATION (a starship engineer-navigator in a sealed
+#      hyperdrive) and The Long Haul rewards GROUND VEHICLE REPAIR + GROUND
+#      VEHICLE OPERATION (a wheelman-mechanic under a freighter rig). This is the
+#      armorer's bench — a blaster and a breastplate in the hand, not a hull or a
+#      hauler — proving a soldier's own issued gear was made to fail.
+#   2. The FIFTH questline set on TATOOINE, and the first on the CIVIC-COMPOUND
+#      face: the dusty little knot of Mos Eisley's officialdom — the planetary
+#      militia's headquarters and weapons vault, the regional government's
+#      weapon-licensing offices, the under-staffed police station's property
+#      locker, and the quiet government-quarter street between them where the law
+#      patrols in pairs and stays out of everyone's way: tatooine_militia_hq /
+#      regional_government_offices / police_station_main /
+#      mos_eisley_government_quarter. It reuses NONE of The Crooked Wheel's
+#      market-district rooms, NONE of The Dust-Sick's Jundland rooms, NONE of The
+#      Sabotaged Run's speeder-circuit rooms, and NONE of The Long Haul's
+#      freight-margin rooms (power_station / dewback_stables_garage /
+#      outskirts_hermits_ridge / outskirts_eastern_gate) — every one of its four
+#      rooms is fresh to the chain corpus. The bored clone detachment and the
+#      twice-a-week Republic advisory liaison the militia_hq and police_station
+#      room descriptions already name stay DISTANT BACKGROUND — the garrison is
+#      here for the war, not for a settlement militia's bad guns, and a local
+#      arms-fraud racket runs on a crooked outfitter, not a war faction — the way
+#      every prior accessible arc keeps the Republic/CIS conflict offstage. It
+#      touches NO map coordinate or world exit graph — the rooms already exist and
+#      are loaded (planets/tatooine.yaml, zone tatooine_civic); only NPCs + a
+#      chains.yaml entry + an achievement are added.
+#
+# It is also a new STORY SHAPE: breaking a COUNTERFEIT / SABOTAGED-ARMS racket
+# (an arms-fraud supply scam) — not a smuggling-trace, a racket-bust-by-
+# investigation, a kidnap-rescue, an industrial-skim, a frontier medical rescue,
+# an art-fraud caper, a counter-forgery of DOCUMENTS, a safety-toll community-
+# defense, a finesse heist, a fixed race, a droid-reflash racket, a wildlife-
+# poaching racket, a ship-CONDEMNATION (The Condemned Hull falsely condemns a
+# GOOD ship to seize it; this floods a militia with BAD arms and skims the good),
+# a freight strand-and-salvage, a translation fraud, or a fake-plague extortion.
+# A licensed outfitter holding the Tatooine Planetary Militia's small-arms
+# contract has been quietly substituting the genuine issue for counterfeits —
+# blasters built to a cheaper, hotter spec that jam after a magazine's worth of
+# fire, and "ceramic-faced" armor plate that is pot-metal cast-off under a forged
+# proof-mark — pocketing the difference and fencing the real arms offworld, and a
+# patrol rider is already dead of a blaster that quit on him with a raider on his
+# back. Senni Vrook, the Chadra-Fan contract armorer who services the militia's
+# vault and has rebuilt half its guns with her own hands, KNOWS the failures are
+# not her maintenance — she can smell the wrong propellant in a fouled chamber
+# and hear a bad action the instant it cycles — but she is an offworld civilian
+# tech with no standing against a licensed supplier's stamped paperwork, and she
+# cannot strip the outfitter's "certified" replacement stock, prove the dead
+# rider's armor a counterfeit, and stand off the supplier's enforcer all at once
+# before the next raider season finds the militia carrying junk. She offers her
+# fee to any freelance hand who can put one of the "certified" replacement
+# blasters on the bench and prove it built to fail (blaster repair), put the dead
+# rider's recovered "issue" breastplate under the light and prove the plate a
+# forged-marked counterfeit (armor repair), stand off the enforcer the outfitter
+# sends when the proof starts to walk, and get it to the one authority on the
+# planet a licensed contract answers to.
+#
+# These NPCs back the `tatooine_rigged_issue` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Senni Vrook — the Chadra-Fan contract armorer who offers + closes the quest
+#                   (step-1 npc = the questline's start-NPC, per
+#                   get_questline_offer). Step-1 + step-5 NPC. FIRST Chadra-Fan
+#                   questline giver.
+#   * Vurr Magh   — the combat-step enforcer (ai_config.chain_enemy_template
+#                   rigged_issue_enforcer; the step-4 combat_won foil), the Gotal
+#                   collector the outfitter sends to take the proof back in the
+#                   government-quarter street. FIRST Gotal combat foil.
+# The licensed outfitter holding the militia contract, his offworld fence, the
+# substituted "certified" replacement stock, the forged proof-marks, the dead
+# patrol rider and his recovered kit, the militia quartermaster who signed off on
+# the bad issue, the bored clone garrison and the twice-a-week Republic liaison
+# (nodded to in the room text, not re-instantiated), and the regional prefect's
+# weapons-licensing desk are NARRATED ONLY — story beats carried in the prose,
+# NOT spawned NPC entities. Only the giver and the single combat foil are real
+# placed NPCs.
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures.
+# The racket is a local arms-fraud supply scam, never a war faction; the
+# Republic/CIS conflict stays offstage. Provenance: Chadra-Fan (the small,
+# bat-eared, hyper-curious tinkers of Chad — an era-clean, faction-neutral
+# fixture of the galaxy with acute senses and a reputation for taking any piece
+# of tech apart and reading it better than its maker — a natural fit for a
+# meticulous contract armorer; the FIRST Chadra-Fan questline giver) and Gotal
+# (the cone-headed beings of Antar 4 whose head-cones read the emotional and
+# electromagnetic weather of a room, era-clean and not war-faction coded, long
+# employed as unsettlingly perceptive muscle and trackers — the FIRST Gotal
+# combat foil) are both era-clean. Stats matched to the shipped accessible-
+# questline bands — the giver to the non-combat fixer band (Yelza Korrin / Dorae
+# Vint / Sashi Renko / Dav Nuro / Soree Bann / Hessa Veil / Cassa Brel / Vessa
+# Tial / Terva Dohl / Ria Tann / Nuva Sehl / Neyla Sur / Veelo Trinn / Numi Vesh
+# / Brama Hool / Ulil Maan), with the armorer's spread skewed to Technical to fit
+# a weaponsmith; the enforcer to the small-time-criminal antagonist band (Brakkis
+# Vone / Gorvahn Brusk / Skarn Vex / Suro Vant / Vohrek Sarn / Brask Yade / Varn
+# Tesk / Tarko Venn / Drevin Saar / Vossk Rhal / Korsa Drael / Bohrus Kang /
+# Gornt Reska / Hekka Vrool / Greel Vodo): a real fight, beatable by a fresh
+# post-chargen character, carrying the proven blaster_pistol of the ranged foils
+# (squarely in the proven beatable band, no balance flag needed; NOT the offset
+# melee weapon The Condemned Hull's foil carried).
+# WEG40120 PDF is local-only (gitignored) and absent in this tree; the bands are
+# cited against the in-repo reference NPCs, not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The armorer — Senni Vrook (questline GIVER + closer)
+  # Questline: tatooine_rigged_issue ("The Rigged Issue")
+  # Placement: Tatooine Militia Headquarters (tatooine_militia_hq, zone
+  #            tatooine_civic). Step-1 + step-5 NPC.
+  # NOTE: a Chadra-Fan contract armorer who keeps the militia's weapons vault —
+  # a small, sharp-sensed tinker who has stripped, cleaned, and rebuilt half the
+  # guns on that rack with her own hands, who can tell a fouled chamber's propellant
+  # by its smell and a bad action by the way it cycles, and who is, as an offworld
+  # civilian tech with no licensed standing, the one being on the compound who
+  # KNOWS the issue is failing on purpose and cannot make a stamped paper believe
+  # her.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Senni Vrook
+    room: "Tatooine Militia Headquarters"
+    species: Chadra-Fan
+    description: >-
+      A small, bat-eared Chadra-Fan perched on a stool at the militia armory
+      bench, barely waist-high to the troopers who bring her their guns, the
+      enormous dark eyes and trembling snout of her species fixed on the stripped
+      action of a blaster pistol laid out before her in a fan of clean parts. A
+      bandolier of micro-tools crosses her small frame, a loupe is pushed up onto
+      her brow, and the whole bench smells of solvent and scorched metal she could
+      name blindfolded. She is no soldier — she is the planetary militia's
+      contract armorer, the offworld civilian tech they pay by the season to keep
+      their small arms firing, and she has stripped, cleaned, and rebuilt most of
+      the guns on that rack with her own hands enough times to know each one by
+      the sound it makes cycling. This season the militia stopped buying her
+      rebuilds and took a licensed outfitter's "certified" replacement issue
+      instead — newer, cheaper, stamped and sealed — and ever since, the guns have
+      begun to fail. Not worn-out failures, not maintenance failures: a fresh
+      "certified" blaster that fires a magazine clean and then fouls and jams as
+      if it were built to, armor plate that a desert raider's slug-thrower punches
+      straight through as if it were tin. A patrol rider is dead of a blaster that
+      quit on him with a Tusken on his back, and the militia's own quartermaster —
+      who signed off on the cheap issue — has put it on her maintenance. But she
+      can smell the wrong propellant in that fouled chamber, and she knows pot-
+      metal under a ceramic facing by its weight in her small hands, and she is
+      certain to her bones the "certified" issue is a counterfeit built to fail so
+      the outfitter could pocket the difference and fence the real guns offworld.
+      She is only an offworld civilian with a tool bandolier and no licensed
+      standing a stamped contract answers to, and she cannot strip the outfitter's
+      sealed replacement stock, prove the dead rider's armor a fraud, and stand
+      off the man the outfitter sends all in one day. She is looking for a neutral
+      outside hand who can do the three things she cannot: put a "certified"
+      blaster on the bench and prove it built to jam, put the dead rider's plate
+      under the light and prove it a forged-marked counterfeit, and carry the
+      proof to the prefect's weapons-licensing desk before the next raider season
+      finds the line carrying junk.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 3D+1
+        strength: 1D+2
+        technical: 3D+2
+      skills:
+        blaster repair: 4D+1
+        armor repair: 4D
+        search: 3D+2
+        value: 3D
+        bargain: 2D+2
+      weapon: blaster_pistol
+      move: 8
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A quick, exact, sharp-sensed Chadra-Fan armorer worn raw by a season of
+        watching guns she would never have passed go out to the line under another
+        outfit's seal and come back failed — blunt, fast-talking, and out of any
+        patience for a stamped paper that calls her rebuilds the problem so a
+        licensed supplier can sell a militia counterfeits and fence its real arms.
+        She reads a weapon by its weight and its smell and the sound of its action,
+        not by the proof-mark stamped on it, and she can put a "certified" blaster
+        on the bench and tell you to the part where it was built to fail and lay a
+        plate of "issue" armor under the light and tell you it is cast pot-metal
+        wearing a forged mark — but she cannot do it as an offworld civilian with
+        no licensed standing, and she cannot strip the sealed stock, prove the dead
+        rider's plate, and stand off the outfitter's man all in one day. Brisk,
+        precise, and quietly furious that a fraud could turn the one thing an
+        armorer is for — sending a being out the gate with gear that will not quit
+        on them — into a dead rider on the quartermaster's ledger; she offers her
+        fee because the credits were always going to be spent either fixing the
+        issue or burying the riders who carry it, and a neutral hand who can be
+        heard at a licensing desk where she cannot is the only honest help the line
+        has left before the raiders come.
+      knowledge:
+        - "She is Senni Vrook, a Chadra-Fan contract armorer who keeps the Tatooine Planetary Militia's weapons vault — an offworld civilian tech who has stripped and rebuilt most of the guns on that rack by hand and knows each by the sound it makes cycling. She is small even for her people, sharp of nose and ear, and reads a weapon by weight and smell and action, not by the mark stamped on it."
+        - "This season the militia took a licensed outfitter's 'certified' replacement small arms over her rebuilds, and the issue began to fail: fresh blasters that fire a magazine clean and then foul and jam as if built to, armor plate a raider's slug punches straight through. A patrol rider is dead of a blaster that quit on him with a Tusken on his back, and the quartermaster who signed off on the cheap issue has blamed it on her maintenance."
+        - "She knows the issue is a counterfeit built to fail — she can smell the wrong, hotter propellant in the fouled chambers and knows pot-metal under a ceramic facing by its weight — sold to the militia so the outfitter could pocket the difference and fence the real guns offworld. But she is an offworld civilian with no licensed standing a stamped contract answers to. A neutral outside hand can do what she cannot: strip one of the 'certified' replacement blasters at the regional weapons-licensing offices, where the new stock is logged, and prove it built to jam (blaster repair); put the dead rider's 'issue' breastplate, held in the police station's property locker, under the light and prove the plate a forged-marked counterfeit (armor repair); and stand off the man the outfitter sends when the proof starts to walk (combat)."
+        - "Get the proof to the prefect's weapons-licensing desk — the one authority on the planet a licensed small-arms contract answers to — and the racket comes apart: the contract is pulled, the counterfeit issue is condemned and the real arms traced off the fence, the militia is re-armed with gear that fires before the raider season, and the outfitter who meant to sell a frontier line its own dead and skim the difference sells nothing. The bored clone garrison up the hall is here for the war, not for a militia's bad guns; this is the militia's own to set right."
+      faction: independent
+      dialogue_style: >-
+        Quick, blunt, precise — a tradesbeing's plain talk, sized up by weight and
+        smell and the sound of an action, names a part before a motive, and trusts
+        her hands and her nose over any stamp or any paper. Fast where the medic
+        was slow; she has guns to get back on the line and not much patience left
+        for the people who fouled them.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'They didn't raise the contract or steal the rack. They sold us a better-looking gun. Cheaper, hotter, stamped and sealed and certified — and it fires one magazine clean and then it jams like it was built to, because it was. I know the smell of the wrong propellant in a fouled chamber the way you know a friend's step. That is not my maintenance. That is a fraud with a proof-mark on it.'"
+        - "*Senni Vrook turns a stripped 'certified' blaster over in her small hands and clicks her trembling snout at the gas chamber, her enormous eyes flat with a tradesbeing's certainty.* 'Feel the weight of this. Too light, here, where it should be heavy — they cut the chamber thin to a cheaper spec and faced the armor in pot-metal under a stamp. A real gun fails when it wears out. This one was made to fail. There is a difference, and I can put it on a bench where a licensing desk has to see it.'"
+        - "'Strip one of their certified blasters at the licensing office and prove it built to jam. Put the dead rider's plate under the light and prove the mark on it forged. And mind the government-quarter street when the proof starts to walk — that is where the outfitter's man will come for it. Do that, and carry it to the prefect's desk, and my fee is yours, every credit. I would rather it bought this line good guns than bought one more box for a rider a junk blaster quit on.'"
+
+  # ── Questline antagonist: Vurr Magh (combat step 4) ─────────────────
+  # Single hostile instance in the quiet government-quarter street between the
+  # licensing offices and the prefect's desk. Matches the tatooine_rigged_issue
+  # step-4 combat_won enemy_template.
+  # Carries the proven blaster_pistol of the ranged foils (squarely in the proven
+  # beatable band) so a fresh post-chargen character has a real, winnable fight.
+
+  - name: Vurr Magh
+    room: "Mos Eisley Street - Government Quarter"
+    species: Gotal
+    description: >-
+      A broad, grey-furred Gotal in a dust-caked spacer's coat, the twin head-cones
+      of his species turning slow over the thin government-quarter crowd, reading
+      the street's mood the way another being reads its faces, a worn blaster pistol
+      holstered at his hip with the easy familiarity of a tool used more by standing
+      in a doorway than by firing. He is the collector the licensed outfitter keeps
+      on the planet to make sure the contract's quiet stays quiet — the hand who
+      leans on a clerk a payment behind and walks a witness back from a desk, and who
+      rarely has to draw because a stamped paper and a dead rider's "bad maintenance"
+      do his work for him. The whole racket runs on a fraud nobody licensed will
+      look at and a counterfeit issue nobody can prove without a bench; it does not
+      run on a neutral hand walking a rigged blaster and a forged-marked plate across
+      the government quarter toward the one desk that can pull the contract. The
+      bored, unhurried menace of a being who can feel the street tense before it
+      moves goes flat the instant a freelance hand comes up the lane with the proof
+      in a kit-bag and the prefect's licensing office ahead — the one thing the
+      outfitter was paid to make sure never reached a desk, walking the open street
+      in a stranger's hand while the law patrols past in pairs and stays, as it
+      always does here, out of everyone's way. The proof stays in the quarter, as far
+      as the outfitter is concerned; the failures are a maintenance matter, as far
+      as anyone the cones can read will hear him say; and whoever carried it up is
+      walking back down the lane without it, one way or the next.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        brawling: 3D+1
+        intimidation: 3D+2
+        search: 3D
+        streetwise: 3D
+      weapon: blaster_pistol
+      move: 9
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: rigged_issue_enforcer
+      personality: >-
+        An outfitter's collector genuinely unused to being made to fight for the
+        contract — bored and contemptuous while a stamped seal and a dead rider's
+        "bad maintenance" do his work, his head-cones half-asleep on a quiet street,
+        and immediately, heavily violent the moment a neutral hand comes up the lane
+        with a rigged blaster, a forged-marked plate, and a licensing desk ahead. He
+        works a blaster and a quiet word and the read of a room, not a bench:
+        dangerous and direct, he plants himself across the government quarter between
+        the courier and the prefect's office and would rather break a hand in the
+        open lane than chase proof he can no longer talk back into the quarter. His
+        pay and his standing with the outfitter ride on a fraud that stays a
+        maintenance matter and a counterfeit issue that never reaches a bench a
+        licensing desk has to read, so he'll draw on anyone carrying the proof up to
+        that desk. Combat foil for the questline's confrontation beat.
+      knowledge:
+        - "He is Vurr Magh, the Gotal collector the licensed outfitter keeps on Tatooine to keep the small-arms contract's quiet quiet — leaning on a clerk a payment behind, walking witnesses back from desks, and rarely having to draw because a stamped seal and a dead rider's 'bad maintenance' do his collecting for him. His head-cones read the weather of a street before it turns."
+        - "A neutral hand stripped one of the outfitter's 'certified' replacement blasters and proved it built to jam, put the dead patrol rider's 'issue' plate under the light and proved the proof-mark on it forged, and is carrying it up the government quarter toward the prefect's weapons-licensing desk; the racket runs on a fraud nobody licensed will look at, so he'll draw on whoever brings the proof up rather than let the one thing that pulls the contract reach a licensing desk."
+      faction: criminal
+      dialogue_style: >-
+        Flat, unhurried, contemptuous, and a half-beat ahead of the room — names
+        the read off his cones before the threat. States once that the proof stays
+        in the quarter and the failures are a maintenance matter, and after that
+        lets the blaster keep the lane the way a stamped seal kept the contract.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'That kit-bag stays in the quarter, friend. The failures are a maintenance matter — they don't go on any licensing desk up the lane. Hand it over and walk back down.'"
+        - "*Vurr Magh steps out of a shaded doorway into the lane, the twin cones on his head swiveling to fix on you, sets himself across the government quarter between the courier and the prefect's office, and lets his coat fall open enough to show the blaster he would rather not have to use.*"
+        - "'I can feel you've already decided. Bad read. Last time — hand it over and walk back down, or you don't walk up. The outfitter's a patient outfit. I'm the part of it that isn't.'"

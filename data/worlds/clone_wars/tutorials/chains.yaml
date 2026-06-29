@@ -6108,6 +6108,344 @@ chains:
           displaced wash up and the boards prey on them.
 
   # ═══════════════════════════════════════════════════════════════════════
+  # GENERALIZED QUESTLINE — "The Rigged Issue" (tatooine_rigged_issue)
+  # The SEVENTEENTH accessible (non-t5, non-tutorial) kind:questline chain, the
+  # FIFTH on Tatooine — on the CIVIC-COMPOUND face (the dusty knot of Mos Eisley
+  # officialdom: the planetary militia's HQ and weapons vault + the regional
+  # government's weapon-licensing offices + the under-staffed police station's
+  # property locker + the quiet government-quarter street between them:
+  # tatooine_militia_hq / regional_government_offices / police_station_main /
+  # mos_eisley_government_quarter), reusing NONE of The Crooked Wheel's market
+  # district, The Dust-Sick's Jundland, The Sabotaged Run's speeder circuit, or
+  # The Long Haul's freight margins. A COUNTERFEIT / SABOTAGED-ARMS racket — a
+  # licensed outfitter holding the militia's small-arms contract substitutes the
+  # genuine issue for counterfeits (blasters cut to a cheaper, hotter spec that
+  # jam after a magazine, "ceramic-faced" armor that is forged-marked pot-metal),
+  # pocketing the difference and fencing the real arms offworld, and a patrol
+  # rider is dead of a blaster that quit on him with a raider on his back — beaten
+  # by ARMORER work: strip one of the outfitter's "certified" replacement blasters
+  # and prove it built to jam (blaster repair), put the dead rider's recovered
+  # "issue" plate under the light and prove the proof-mark forged (armor repair),
+  # stand off the enforcer the outfitter sends when the proof starts to walk
+  # (combat), and get it to the prefect's weapons-licensing desk. The SEVENTEENTH
+  # distinct skill spread (blaster repair + armor repair — both Technical), the
+  # FIRST accessible arc to reward the GUNSMITH / ARMORER (weaponsmith) build,
+  # mechanically distinct from the two prior repair arcs that both work MACHINES:
+  # The Condemned Hull (space transport repair + astrogation, a starship
+  # engineer-navigator) and The Long Haul (ground vehicle repair + operation, a
+  # wheelman-mechanic). This is the bench — a blaster and a breastplate in the
+  # hand, not a hull or a hauler — proving a soldier's own issued gear was made to
+  # fail. The bored clone garrison and twice-a-week Republic liaison the room
+  # descriptions already name stay distant background; a local arms-fraud racket
+  # runs on a crooked outfitter, not a war faction — the war stays offstage the
+  # way every prior accessible arc keeps it. Reuses the live questline engine
+  # (kind:questline + active_questline + existing event types + the four reward
+  # funnels) with NO new engine code, no new slot/event type, no schema migration,
+  # no new reward faucet, and NO map-coordinate or exit-graph change.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: tatooine_rigged_issue
+    chain_name: "The Rigged Issue"
+    description: >
+      In the dusty civic knot of Mos Eisley — the planetary militia's
+      headquarters, the regional government's licensing offices, the
+      under-staffed police station, all huddled together where the law patrols
+      in pairs and stays out of everyone's way — a Chadra-Fan contract armorer
+      named Senni Vrook watches the guns she would never have passed go out to
+      the line and come back failed, and knows it for a fraud she cannot prove
+      alone. This season the militia stopped buying her rebuilds and took a
+      licensed outfitter's "certified" replacement issue instead — newer,
+      cheaper, stamped and sealed — and ever since, the guns have begun to fail:
+      fresh blasters that fire a magazine clean and then foul and jam as if they
+      were built to, armor plate that a raider's slug-thrower punches straight
+      through. A patrol rider is dead of a blaster that quit on him with a Tusken
+      on his back, and the quartermaster who signed off on the cheap issue has put
+      it on her maintenance. But Senni Vrook can smell the wrong, hotter propellant
+      in those fouled chambers, and she knows pot-metal under a ceramic facing by
+      its weight in her small hands, and she is certain to her bones the
+      "certified" issue is a counterfeit built to fail — sold to the militia so the
+      outfitter could pocket the difference and fence the real guns offworld. She
+      is only an offworld civilian with a tool bandolier and no licensed standing
+      a stamped contract answers to, and she needs a neutral outside hand who can
+      do the three things she cannot: strip one of the "certified" replacement
+      blasters and prove it built to jam, prove the dead rider's plate a
+      forged-marked counterfeit, and get the proof to the one desk on the planet a
+      licensed contract answers to — before the outfitter's man can take it back,
+      and before the next raider season finds the line carrying junk. A freelance
+      favor — open to anyone, no faction required.
+    archetype_label: "Freelance Armorer's Favor"
+    faction_alignment: independent
+    starting_zone: tatooine_civic
+    starting_room: tatooine_militia_hq
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["rigged_issue_cleared"]
+      drop_room: tatooine_militia_hq
+      follow_up_hint: >
+        The proof reaches the prefect's weapons-licensing desk and the racket
+        comes apart with it: the outfitter's small-arms contract is pulled, the
+        "certified" issue is condemned as the counterfeit it always was, the real
+        guns are traced off the offworld fence, and the militia is re-armed with
+        gear that fires before the raider season finds the line. The outfit that
+        lived by a fraud nobody licensed would look at — selling a frontier line
+        its own dead and skimming the difference — finds the one thing the racket
+        needed gone: a stamped seal that could not be questioned, now stripped to
+        the rigged action and the forged proof-mark on a bench a licensing desk had
+        to read. The fence who meant to buy a militia's real arms cheap in its own
+        riders' blood buys nothing. Word goes the line the way it never goes a
+        licensing desk: there is a hand who can put a "certified" gun on a bench and
+        tell you to the part where it was built to quit, and read a forged mark off
+        a plate cast in pot-metal — and the riders of the Mos Eisley line, who have
+        carried a season of guns that failed when they needed them, stop believing
+        that the seal on a thing has to be the truth of it.
+
+    steps:
+      - step: 1
+        title: "Bad Maintenance"
+        location: tatooine_militia_hq
+        npc: "Senni Vrook"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Senni Vrook at her bench in the Tatooine Militia Headquarters armory."
+        npc_intro: >
+          [A small, bat-eared Chadra-Fan is perched on a stool at the militia
+          armory bench, barely waist-high to the troopers around her, the stripped
+          action of a blaster pistol fanned out in clean parts before her and a
+          loupe pushed up onto her brow. The whole bench smells of solvent and
+          scorched metal. She does not look up from the part in her small hands.]
+          "Another one back failed. Fired one magazine and fouled solid — and the
+          quartermaster wrote 'maintenance' on it, on MY rack, like I don't know
+          the smell of the wrong propellant by now. I am Senni Vrook. I have rebuilt
+          most of the guns on this rack with my own hands, and these new 'certified'
+          ones are not failing. They are being made to. `talk` to me. A rider is
+          dead of one, and I can prove the fraud — but not with a stamp's word
+          against mine, and not alone."
+        completion:
+          type: talk_to_npc
+          npc: "Senni Vrook"
+        npc_complete: >
+          [She sets the fouled part down and turns the stripped action so you can
+          see where the gas chamber was cut thin.] "Look — too light, here, where it
+          should be heavy. They cut the chamber to a cheaper, hotter spec; it fires
+          a magazine and then it fouls and jams like clockwork, because that is the
+          clock they built into it. A real gun fails when it wears out. This was
+          made to. The militia took a licensed outfitter's 'certified' issue over my
+          rebuilds this season, cheap and stamped and sealed — and the outfitter
+          pocketed the difference and is fencing our real guns offworld while the
+          line carries counterfeits that quit on them. But I am an offworld civilian
+          with a tool bandolier and no licensed standing a stamped contract answers
+          to, and no word from me pulls that contract. You can be heard at a desk
+          where I cannot. The outfitter's replacement stock is logged for licensing
+          over at the regional government offices. Get in, put one of their
+          'certified' blasters on a bench, and prove to a licensing desk what I
+          cannot — that it was built to fail."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to the Regional Government Offices where the outfitter's 'certified' replacement stock is logged for licensing, strip one of the blasters, and prove it was built to jam — use your `blaster repair` skill, then `chain attempt`."
+
+      - step: 2
+        title: "Built to Jam"
+        location: regional_government_offices
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["blaster repair"]
+        objective: "At the Regional Government Offices, strip one of the outfitter's 'certified' replacement blasters and prove it was built to fail — a blaster repair check."
+        npc_intro: >
+          [Behind the clutter of datadisks and land deeds, the regional offices
+          keep a licensing dock where new small arms are logged and proof-stamped
+          before issue, and a crate of the outfitter's "certified" replacement
+          blasters sits sealed and signed, waiting on the militia's sign-off.] A
+          counterfeit built to fail hides in plain sight: the blaster looks newer
+          and cleaner than anything on Senni Vrook's rack, fires a magazine like a
+          dream, and only the INSIDE gives the lie away. Strip it to the gas
+          chamber and the action and read it against a gun built to last: a sound
+          weapon vents and seats to spec; this one is cut thin and hot where it
+          should be heavy, machined to foul and seize after a magazine's worth of
+          fire — built to a clock, not worn to a fault. Find the place the
+          "certified" issue was made to quit. `blaster repair`, a gunsmith's strip
+          and read of a sidearm dressed up as sound — `chain attempt` when you can
+          prove the fault was built in.
+        completion:
+          type: skill_check_passed
+          skill: "blaster repair"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You strip the "certified" blaster to the frame and the fraud comes clear
+          in your hands: the gas chamber is cut to a thinner, hotter spec than the
+          mark on the receiver certifies, the heat-seal is a cheaper compound that
+          carbons up fast, and the whole action is machined to foul and seize inside
+          a magazine of sustained fire — not a worn gun, not a maintenance failure,
+          a sound-looking sidearm built to a clock to quit when it is leaned on. The
+          stripped action on the licensing dock is proof a sound weapon and a
+          counterfeit do not fail the same way, the kind of proof the outfitter left
+          because it never meant a gunsmith to strip its sealed stock against the
+          mark stamped on it. Proving the blaster built to fail isn't ending it: one
+          rigged gun is a tradesbeing's word against a licensed seal, and the seal is
+          the one with a stamp. You have to prove the issue rotten clean through —
+          the armor too, not just the guns.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "You've proven the blaster built to fail — now the armor. The dead patrol rider's recovered 'issue' breastplate is held in the Police Station property locker; put it under the light and prove the plate a forged-marked counterfeit — use your `armor repair` skill, then `chain attempt`."
+
+      - step: 3
+        title: "Under the Light"
+        location: police_station_main
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["armor repair"]
+        objective: "At the Police Station, examine the dead rider's recovered 'issue' armor in the property locker and prove the plate a forged-marked counterfeit — an armor repair check."
+        npc_intro: >
+          [The under-staffed station's property locker holds the dead patrol
+          rider's recovered kit, logged and waiting on the militia's claim — a desk
+          clerk waves you through on the armorer's standing with barely a glance,
+          and the twice-a-week Republic liaison is, as ever, not here.] A
+          counterfeit plate read true is a counterfeit a licensing desk can act on;
+          a plate read wrong is one more grieving rumor. The "issue" breastplate
+          carries the proper proof-mark and the proper look — and a raider's
+          slug-thrower punched it like tin. Put it under the light and read the
+          plate behind the facing: ceramic-faced battle plate rings and resists; this
+          is cast pot-metal under a thin ceramic wash, dense and dead and brittle,
+          wearing a proof-mark struck to match the genuine die a hair off true.
+          Read the metal, weigh it, and match the forged stamp against the mark a
+          real plate carries — prove the armor a counterfeit and tie it to the same
+          rotten issue as the gun, in terms a weapons-licensing desk cannot wave off.
+          `armor repair`, the metallurgy and the maker's-mark eye to tell cast junk
+          from battle plate — `chain attempt` when you can prove the plate forged.
+        completion:
+          type: skill_check_passed
+          skill: "armor repair"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You put the dead rider's breastplate under the light and read it true:
+          the facing is a thin ceramic wash over a plate cast from cheap pot-metal
+          alloy — dense, dead, brittle, nothing like the bonded battle plate the
+          proof-mark on it certifies — and the mark itself is struck a hair off the
+          genuine die, a forgery good enough for a glance and not for a gunsmith's
+          loupe. It did not stop a slug because it was never made to; it was made to
+          look like it would and to cost a tenth of what it claimed. You have the
+          metal, the false facing, and the forged mark, set against the rigged
+          blaster from the licensing dock — the whole of the issue proven rotten
+          clean through, in terms a weapons-licensing desk cannot file as grief.
+          Proving it isn't pulling the contract: the outfitter has held this line by
+          being the licensed seal nobody could question, and the proof that ends that
+          has to get across the quarter to the prefect's desk. The outfitter is not
+          going to let it walk up the lane in your kit-bag.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "You've proven the armor a forged-marked counterfeit and tied it to the rigged issue — now get it to a desk. Carry the proof across the Government Quarter toward the prefect's licensing office, and stand off the outfitter's collector when he comes for it — `attack`, `dodge`."
+
+      - step: 4
+        title: "The Collector"
+        location: mos_eisley_government_quarter
+        npc: "Vurr Magh"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Carry the proof across the Government Quarter and stop Vurr Magh when the outfitter's collector comes for it — `attack`, `dodge`."
+        npc_intro: >
+          [The government quarter is a quieter stretch near the regional offices
+          and the station, the buildings a little better kept, the law patrolling
+          past in dusty pairs and staying, as it always does here, out of everyone's
+          way — the open lane toward the prefect's licensing desk — and a broad,
+          grey-furred Gotal in a spacer's coat steps out of a shaded doorway into
+          your path, the twin cones on his head swiveling to fix on you, a worn
+          blaster pistol on his hip and a quiet menace in how little he hurries.]
+          Vurr Magh — the collector the outfitter keeps on Tatooine to keep the
+          contract's quiet quiet, who leans on a clerk a payment behind and walks a
+          witness back from a desk, and who rarely has to draw because a stamped seal
+          and a dead rider's "bad maintenance" do his collecting for him. His cones
+          read the proof in your kit-bag and the easy contempt of a being who feels a
+          street before it moves goes flat. "That kit-bag stays in the quarter,
+          friend. The failures are a maintenance matter — they don't go on any
+          licensing desk up the lane." [He sets himself across the quarter between
+          you and the prefect's office.] "Hand it over and walk back down, or you
+          don't walk up. The outfitter's a patient outfit. I'm the part of it that
+          isn't."
+        completion:
+          type: combat_won
+          enemy_template: "rigged_issue_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Vurr Magh goes down in the open lane, the blaster spinning away across the
+          packed dust, and the thin government-quarter crowd that sees the law walk
+          past in pairs and learns nothing finds something else to look at. The way
+          up the quarter stands clear. Take the proof with you — the rigged blaster's
+          stripped action, the dead rider's forged-marked plate, the licensing-dock
+          log folded in beside them — and there is nothing between here and the
+          prefect's desk but the open lane, the fraud filed, and a militia line that
+          can be re-armed with guns that fire for the first time since the outfitter
+          won the contract.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The collector's down and the way up is clear — get the proof filed at the prefect's weapons-licensing desk, then go back to Senni Vrook at the Militia Headquarters."
+
+      - step: 5
+        title: "Good Guns"
+        location: tatooine_militia_hq
+        npc: "Senni Vrook"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Senni Vrook at the Tatooine Militia Headquarters with the fraud filed and the contract pulling."
+        npc_intro: >
+          [Senni Vrook is back at her bench when you come in, but the rack behind
+          her is different already — the sealed "certified" crates hauled off to one
+          side under a condemnation tag, the prefect's filed finding on a datapad in
+          her small hands, and a few of her own honest rebuilds going back up on the
+          line where the counterfeits came down.] "Filed. The issue named for what
+          it is. The contract pulling as we speak, the real guns traced off the
+          fence." [She clicks her snout at the condemned crates with a tradesbeing's
+          flat satisfaction.] "A whole season they sold this line counterfeits and
+          called the failures my maintenance, and put a rider in a box for it.
+          `talk` to me and let me say it plain, while there is finally a desk with a
+          stamp that has to hear it."
+        completion:
+          type: talk_to_npc
+          npc: "Senni Vrook"
+        npc_complete: >
+          "Here is your fee — and worth twice the credits to hand it to the hand who
+          stripped a 'certified' gun to the part it was built to quit on and read a
+          forged mark off a plate cast in pot-metal, and carried the proof up an open
+          lane to a desk that could act on it. A stripped action pulls a contract; a
+          forged mark ends a racket. The counterfeits come down, the line gets guns
+          that fire before the raiders come, the quartermaster's ledger carries the
+          fraud instead of my name, and the outfit that meant to sell this militia
+          its own dead and skim the difference sells nothing. Tatooine is a hard
+          planet and a long-memoried one, and a frontier line learns fast who sent it
+          out the gate with good gear and who sent it out with junk. When a line on
+          this rock is handed a gun it cannot trust, there is a name they will send
+          for now. Carry mine with it — and keep your own sidearm clean; I'd not have
+          the hand that proved this carrying a gun I didn't strip myself."
+        # graduation closes the arc; no extra on-completion side effects.
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The fraud is filed and the contract is pulling: the "certified" issue dies
+          as a stripped action names it built to fail and a forged mark names the
+          plate cast junk, a season of guns that quit becomes an arms-fraud on the
+          licensing record, and a militia line that could only learn whether its own
+          gear was sound from the outfit selling it learns it never needed the
+          outfit's seal to read a gun true at all. A hand who can put a "certified"
+          blaster on a bench and tell it to the part it was built to quit on, read a
+          forged mark off a counterfeit plate, and stand in the lane when the
+          collector comes has a way of being sent for — the Mos Eisley line carries a
+          name now, out where the raiders come and a gun that fires is the difference.
+
+  # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════
 # When the CW tutorial engine session lands:
