@@ -642,3 +642,29 @@ achievements:
     icon: "🗣️"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "coruscant_gilded_twisted_word"}
+
+  # ── "The Wasting Ward" — sixteenth accessible questline (T3.24), fourth on
+  # Nar Shaddaa, on the lower REFUGEE-AND-UNDERCITY face (refugee_sector /
+  # black_market_medcenter / spice_den / undercity_market; reuses none of The
+  # Ghost Shipment's, The Forged Notice's, or The Warrens Toll's rooms). Earned
+  # by breaking a FAKE-PLAGUE / QUARANTINE-EXTORTION (medical-fraud) racket — a
+  # Hutt-lieutenant's "sanitation board" declares a contagious "wasting fever" in
+  # the refugee sector, seals the level, sets a clearance toll, and sells the only
+  # "cure," so its backers can buy the emptied, condemned habs cheap as the
+  # families who can't pay sicken or flee — by PHYSICIAN work: read a board-
+  # "treated" patient and prove the wasting a poisoning, not a contagion, by how
+  # it travels (medicine), trace the cut to the droid junkyard it's scavenged up out of and
+  # name the agent in the board's own cure (scholar), stand off the board's
+  # collector at the undercity market (combat), and get the truth to the Moon's
+  # port-medical registry. The SIXTEENTH distinct skill spread (medicine + scholar
+  # — Technical + Knowledge — the first doctor / diagnostician-researcher build,
+  # distinct from The Dust-Sick's first_aid+survival field medic). Same lower-tier
+  # band as the prior fifteen accessible arcs (cp_reward 3 vs the t5 trainer
+  # chains' 5): open freelance side-content, not a rep-gated trial.
+  - key: wasting_ward_cleared
+    name: "The Wasting Ward"
+    description: "Broke a fake-plague racket in the refugee sector of Nar Shaddaa — proved the 'wasting fever' a sanitation board had sealed the level over was no contagion at all but a slow poisoning that tracked the board's own cure, dose by dose (medicine), traced the cut dosed into the tonic to the toxic industrial sludge scavenged up out of the droid junkyard and named the agent (scholar), and stood off the board's collector who came for the proof at the undercity market. A physician's eye on a sickness that spread the wrong way and a researcher's read on a by-product poison lifted a quarantine the dying had been paying to keep — and turned a season of sold deaths into a poisoning on the port-medical registry."
+    category: profession
+    icon: "🩺"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "nar_shaddaa_wasting_ward"}

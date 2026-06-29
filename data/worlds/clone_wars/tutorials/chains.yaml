@@ -5790,6 +5790,323 @@ chains:
           being sent for — the heritage halls of the Gilded Cage carry a name now,
           under the old charters the war leaves alone.
 
+  # GENERALIZED QUESTLINE — "The Wasting Ward" (nar_shaddaa_wasting_ward)
+  # The SIXTEENTH accessible (non-t5, non-tutorial) kind:questline chain, the
+  # FOURTH on Nar Shaddaa — on the lower REFUGEE-AND-UNDERCITY face (the
+  # displaced-persons quarter and the lawless market depths below it: the refugee
+  # sector aid post + the back-alley medcenter + the droid junkyard where the cut
+  # is scavenged + the undercity market chokepoint up out of the depths), reusing NONE
+  # of The Ghost Shipment's cantina/Undercity-Depths, The Forged Notice's
+  # upper-dock registry, or The Warrens Toll's Warrens rooms. A FAKE-PLAGUE /
+  # QUARANTINE-EXTORTION (medical-fraud) racket — a Hutt-lieutenant's self-styled
+  # "sanitation board" declares a contagious "wasting fever" loose in the refugee
+  # sector, seals the level under quarantine, sets a clearance toll, and sells the
+  # only "cure," so its backers can buy the emptied, condemned habs cheap as the
+  # families who can't pay sicken or flee — beaten by PHYSICIAN work: read a
+  # board-"treated" patient and prove the wasting a poisoning, not a contagion, by
+  # how it travels (medicine), trace the cut to the droid junkyard it's scavenged
+  # up out of and name the agent in the board's own cure (scholar), stand off the board's
+  # collector who comes for the proof at the undercity market (combat), and get the
+  # truth to the Moon's port-medical registry. The SIXTEENTH distinct skill spread
+  # (medicine + scholar — Technical + Knowledge), the FIRST accessible arc to
+  # reward the DOCTOR / DIAGNOSTICIAN-RESEARCHER build, mechanically distinct from
+  # The Dust-Sick (the only prior medical arc — first_aid + survival, a frontier
+  # FIELD MEDIC stabilizing a real patient in the wilderness): this is MEDICINE
+  # (clinical diagnosis) + SCHOLAR (research), a physician UNMASKING a manufactured
+  # epidemic in the city, not a medic SAVING a real one in the wastes. Reuses the
+  # live questline engine (kind:questline + active_questline + existing event types
+  # + the four reward funnels) with NO new engine code, no new slot/event type, no
+  # schema migration, no new reward faucet, and NO map-coordinate or exit-graph
+  # change.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: nar_shaddaa_wasting_ward
+    chain_name: "The Wasting Ward"
+    description: >
+      Down in the refugee sector of Nar Shaddaa — the crowded quarter where the
+      displaced of a dozen fallen Outer Rim worlds eke out survival on protein
+      packs and shared heating vents — an Ithorian volunteer medic named Ulil
+      Maan watches a sickness she cannot name kill the people she treats, and
+      knows it for a lie she cannot prove alone. A Hutt-lieutenant's self-styled
+      "sanitation board" has declared a contagious "wasting fever" loose in the
+      sector. It has sealed the level under quarantine, set a clearance toll on
+      anyone who wants out to work, and sells the only "cure" — and its backers
+      stand ready to buy the emptied, condemned habs cheap as the families who
+      cannot pay sicken or run. But Ulil Maan has watched patient after patient
+      come back from that cure worse, never better, and she knows in her hands'
+      memory that the wasting does not move the way a plague moves: it does not
+      jump from a shared vent or a shared cup; it falls hardest on the ones who
+      took the board's tonic and drank the board's cheap clearance-ration water.
+      It is no fever. It is a slow poison, sold back to the people it is killing.
+      She is only an unlicensed offworlder medic with no standing a Hutt board
+      answers to, and she needs a neutral outside hand who can do the three things
+      she cannot: read one of the board's "treated" patients and prove the wasting
+      a poisoning and not a contagion, trace the cut they dose the cure with to
+      its source and name the agent, and get the truth up out of the depths to the
+      one authority on the Moon a health-concession fears — before the board's
+      collector can bury it. A freelance favor — open to anyone, no faction
+      required.
+    archetype_label: "Freelance Physician's Favor"
+    faction_alignment: independent
+    starting_zone: nar_shaddaa_promenade
+    starting_room: refugee_sector
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["wasting_ward_cleared"]
+      drop_room: refugee_sector
+      follow_up_hint: >
+        The truth reaches the port-medical registry and the racket comes apart
+        with it: the "wasting fever" is logged a poisoning, the board's "cure" is
+        pulled as the very thing doing the killing, the quarantine is lifted, and
+        the clearance toll dies with the seal. The board that lived by a sickness
+        nobody could question — dosing the cure, charging the dying, and waiting
+        for the level to empty — finds the one thing the racket needed gone: a
+        sealed sector that could not be diagnosed, now holding a true readout and
+        a named poison nobody needs the board's leave to read. The backers who
+        meant to buy a condemned level cheap buy nothing. Word goes the depths the
+        way it never goes a licensing desk: there is a hand who can tell a poison
+        from a plague a Hutt board swore was a plague, and run the agent down to
+        the cut it came from — and the displaced of the refugee sector, who have
+        watched a season of their own deaths sold back to them, stop believing
+        that the only word on what is killing them has to be a board's.
+
+    steps:
+      - step: 1
+        title: "The Quarantine Line"
+        location: refugee_sector
+        npc: "Ulil Maan"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Ulil Maan at her aid post in the Nar Shaddaa Refugee Sector."
+        npc_intro: >
+          [A tall, stoop-shouldered Ithorian in a worn medic's smock stands at a
+          makeshift aid post among the refugee sector's shelters, a battered
+          diagnostic scanner in her long fingers, the curved T-shaped head of her
+          species bowed over a feverish child while a vocoder at her twin throats
+          turns her slow words into a dozen frightened tongues.] "You feel it on
+          the air at the seal — the level is closed. A board declared a wasting
+          fever, and now nobody works, nobody leaves, and everybody pays for a
+          cure. I am Ulil Maan. I have treated this sector since before the board
+          had a name for what it sells, and I am watching people die of a thing I
+          have never once seen catch. `talk` to me. I think a poison is being
+          sold to this level as a plague, and I cannot prove it with a scanner no
+          board will read."
+        completion:
+          type: talk_to_npc
+          npc: "Ulil Maan"
+        npc_complete: >
+          [She turns the scanner so you can see the readout — a slow wasting,
+          dose by dose, in a being who never shared a room with another sick
+          soul.] "A plague jumps from breath to breath. This jumps from the cure
+          to the one who paid for it. The ones who fall hardest are the ones who
+          took the board's tonic and drank the cheap clearance-ration water — not
+          the ones who shared a vent with the dying. That is not how a sickness
+          moves. That is how a poison is sold. But I am an offworlder with an
+          unlicensed scanner and no standing a Hutt board answers to, and no word
+          from my hand lifts that seal. You can be heard where I cannot. The board
+          runs its 'treated' cases through the back-alley medcenter down in the
+          undercity. Get in, read one of their patients, and prove to a registry
+          what I cannot — that this is a poisoning, not a plague."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go down to the Black Market Medcenter in the Nar Shaddaa undercity, examine one of the board's 'treated' patients, and prove the wasting is a slow poisoning and not a contagion — use your `medicine` skill, then `chain attempt`."
+
+      - step: 2
+        title: "Not a Fever"
+        location: black_market_medcenter
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["medicine"]
+        objective: "At the Black Market Medcenter, examine one of the board's 'treated' patients and prove the wasting is a poisoning, not a contagion — a medicine check."
+        npc_intro: >
+          [Behind a rust-streaked door the back-alley medcenter keeps a
+          surprisingly functional surgical bay, recycled bacta tanks half-full
+          along one wall, the board's overflow of "wasting" cases laid out on
+          stolen cots while its own no-questions doctor works the next room and
+          asks nothing about who reads them.] A manufactured plague hides in plain
+          sight: the patient is genuinely, terribly sick, and only the SHAPE of
+          the sickness gives the lie away. A contagion seeds from a contact and a
+          shared breath and climbs; a poisoning tracks the dose — it rises and
+          falls with how much of the board's tonic and ration-water went in, with
+          no contact to seed from and no one downwind of the patient catching it.
+          Read the wasting against the chart of who took the cure and who only
+          shared the air: the curve follows the dose, not the contact. Find the
+          place the "fever" behaves like nothing that ever spread. `medicine`,
+          a clinical read against a sickness dressed up as a plague — `chain
+          attempt` when you have the diagnosis.
+        completion:
+          type: skill_check_passed
+          skill: "medicine"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You work the patient's history against the board's own intake chart and
+          the shape comes clear: the wasting rises with every dose of the tonic
+          and every measure of the clearance-ration water, and falls in the ones
+          who could not afford either — and not one case seeds from a contact, not
+          one soul downwind of a "fever" patient has caught the "fever." It does
+          not spread. It is administered. The readout in your hand is a poisoning
+          dressed as a plague, dose-driven and one-directional, proof a board left
+          because it never meant a physician to read its own cases against its own
+          chart. Diagnosing it isn't ending it: a true readout that names no agent
+          is a healer's word against a Hutt board's notice, and the board's word
+          is the one with a license. You have to name what is doing it — and where
+          it comes from.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "You've proven it's a poisoning — now name the agent. The cut they dose the 'cure' with is a toxic industrial sludge scavenged up out of the Nar Shaddaa Droid Junkyard; trace it there and identify what's in the tonic — use your `scholar` skill, then `chain attempt`."
+
+      - step: 3
+        title: "What's in the Cure"
+        location: droid_junkyard
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["scholar"]
+        objective: "At the Droid Junkyard, trace the cut dosed into the board's 'cure' to its source and identify the agent — a scholar check."
+        npc_intro: >
+          [Mountains of droid parts climb into the hazy ceiling of the junkyard
+          while salvagers pick the wreckage over with magnetic tools and the
+          Ugnaught proprietor insists, to nobody who believes him, that everything
+          is honestly acquired — and somewhere in the drained power cores and the
+          slit coolant lines is the cheap toxic sludge the board's buyer hauls off
+          by the drum to dose its cure.] A poisoning named is a poisoning a
+          registry can act on; a poisoning unnamed is one more refugee-sector
+          rumor. Knowing the agent is knowing where it came from and what it does:
+          a slow cytotoxic by-product, near-worthless because it is the drained
+          dregs of scrapped machinery nobody else has a use for, hauled out of
+          yards like this one by anyone who wants a tonic to wear a body down
+          without looking like murder. Sample the sludge, match it against what you
+          read in the patient, and trace the drum back to the board's buyer — name
+          the thing in the cure and tie it to the supply, in terms a port-medical
+          desk can log. `scholar`, the research and xenobiology to put a name to an
+          industrial poison and where it's scavenged — `chain attempt` when you
+          can name the agent.
+        completion:
+          type: skill_check_passed
+          skill: "scholar"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You match the sludge against the wasting in the patient and the agent
+          resolves: a slow cytotoxic by-product, near-worthless and
+          near-untraceable, drained from the junkyard's scrap by the drum and dosed into
+          the board's tonic and its clearance-ration water at exactly the measure
+          that wears a body down over weeks and reads, to anyone who does not look,
+          like a wasting fever. You have its name, its make, and the buyer's
+          standing order tying the drums to the board's supply — the whole of it,
+          set against the medcenter's true readout, in terms a registry cannot
+          wave off as a rumor. Naming it isn't filing it: the board has held this
+          level by being the only voice on what the wasting is, and the proof that
+          ends that has to get up out of the depths to a desk that can pull a
+          license. The board is not going to let it walk up the market in your
+          hand.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "You've named the poison and tied it to the board's supply — now get it to a registry. Carry the proof up through the Nar Shaddaa Undercity Market toward the port-medical desk, and stand off the board's collector when he comes for it — `attack`, `dodge`."
+
+      - step: 4
+        title: "The Collector"
+        location: undercity_market
+        npc: "Greel Vodo"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Carry the proof up through the Undercity Market and stop Greel Vodo when the board's collector comes for it — `attack`, `dodge`."
+        npc_intro: >
+          [The undercity market sprawls under jury-rigged glowpanels and
+          bioluminescent fungi, the lawless press of scrap stalls and informants
+          where the law never comes — the way up out of the depths and toward the
+          port-medical registry — and a wiry, green-scaled Rodian in a collector's
+          flak-vest steps out of the crowd into the lane ahead, a worn blaster
+          pistol on his thigh and a quiet menace in how little he hurries.] Greel
+          Vodo — the collector who keeps the board's quarantine paying, who works
+          the toll at the seal and leans on the families behind on the cure, and
+          who has rarely had to draw because a sealed level and a sold fever do his
+          collecting for him. He reads the proof in your hand and the easy contempt
+          of a being whose threats keep themselves goes flat. "Those readings stay
+          in the depths, friend. The wasting's a quarantine matter — it doesn't go
+          on any registry up top." [He sets himself across the market between you
+          and the way up.] "Hand it over and walk back down, or you don't walk up.
+          The board's a patient outfit. I'm the part of it that isn't."
+        completion:
+          type: combat_won
+          enemy_template: "wasting_ward_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Greel Vodo goes down between the scrap stalls, the blaster spinning away
+          across the grimy decking, and the market crowd that pays for nothing and
+          sees less parts and pretends it saw nothing. The way up out of the depths
+          stands clear. Take the proof with you — the medcenter's true readout, the
+          named agent, the board's standing order for the cut folded in beside it —
+          and there is nothing between here and the registry but the climb, the
+          poisoning logged, and a sealed level that can be opened for the first time
+          since the board declared its fever.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The collector's down and the way up is clear — get the proof logged at the port-medical registry, then go back to Ulil Maan in the Refugee Sector."
+
+      - step: 5
+        title: "The Sealed Level"
+        location: refugee_sector
+        npc: "Ulil Maan"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Ulil Maan in the Nar Shaddaa Refugee Sector with the poisoning logged and the quarantine lifting."
+        npc_intro: >
+          [Ulil Maan is back at her aid post when you come in, the seal at the end
+          of the corridor already standing open for the first time in a season, the
+          registry's logged finding on the readout in her long hand, the murmur of
+          the sector's frightened tongues turning, slowly, to something else.]
+          "Logged. The wasting named for what it is. The cure pulled. The
+          quarantine lifting as we speak." [She bows the curved sweep of her head
+          over the open seal and the people already moving through it.] "A whole
+          season they sold this level its own dying and called it a plague nobody
+          could question. `talk` to me and let me say it plain, while there is
+          finally someone with a license to hear it."
+        completion:
+          type: talk_to_npc
+          npc: "Ulil Maan"
+        npc_complete: >
+          "Here is your fee — and worth twice the credits to hand it to the hand
+          who read a poison a board swore was a plague and carried the proof up out
+          of the depths to a desk that could act on it. A true readout lifts a
+          quarantine; a named agent ends a racket. The dosing stops, the real sick
+          can be treated for what is actually killing them, the toll dies with the
+          seal, and the backers who meant to buy this level cheap in its own
+          people's blood buy nothing. Nar Shaddaa is a deep, dark Moon, and a
+          long-memoried one. It will tell the difference between the board that
+          sold a sector its own deaths and the hand who told it the truth of what
+          it was dying of. When a level on this Moon is handed a sickness it cannot
+          trust, there is a name they will send for now. Heal well on the way out —
+          you have, already."
+        # graduation closes the arc; no extra on-completion side effects.
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The poisoning is logged and the quarantine is lifting: the "wasting
+          fever" dies as a true readout names it for the cut in the board's own
+          cure, a season of sold deaths becomes a poisoning on the registry, and a
+          sealed level that could only learn what was killing it from the board
+          that was killing it finds it never needed the board's leave to be
+          diagnosed at all. A hand who can tell a poison from a plague a Hutt board
+          swore was a plague, run the agent down to the scrap it's cut from, and
+          stand in the market when the collector comes has a way of being sent for — the
+          refugee levels of Nar Shaddaa carry a name now, down where the war's
+          displaced wash up and the boards prey on them.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════

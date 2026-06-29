@@ -1,0 +1,304 @@
+# Generalized Questline Drop — "The Wasting Ward" (T3.24 sixteenth slice, 2026-06-29)
+#
+# The SIXTEENTH accessible (non-t5, non-tutorial) `kind: questline` chain, and
+# the FOURTH set on NAR SHADDAA — after "The Ghost Shipment"
+# (nar_freight_ghost_shipment, the Burning Deck cantina + Undercity Depths), "The
+# Forged Notice" (nar_shaddaa_forged_notice, the upper docks + freight registry),
+# and "The Warrens Toll" (nar_shaddaa_warrens_toll, the deepest Warrens levels).
+# It reuses the SAME live questline engine (engine/tutorial_chains.py +
+# chain_events.py: the `kind: questline` type + `active_questline` slot, the
+# existing event types, the four reward funnels) with NO new engine code, no new
+# slot, no new event type, no schema migration, no new reward faucet, and NO
+# map-coordinate or exit-graph change — the sanctioned right-of-launch widening
+# per quest_expansion_postlaunch_path_v1.md (T3.24): author MORE questlines on
+# the proven pattern.
+#
+# Firsts for the accessible-questline arc:
+#   1. A SIXTEENTH distinct skill spread — MEDICINE + SCHOLAR — neither of which
+#      any prior accessible questline uses (vs search+streetwise /
+#      investigation+gambling / persuasion+sneak / security+bargain /
+#      first_aid+survival / value+con / forgery+bureaucracy / command+demolitions
+#      / pick-pocket+hide+computer-programming / sensors+repulsorlift-operation /
+#      alien-species+droid-programming / beast-riding+swimming / space-transport-
+#      repair+astrogation / ground-vehicle-repair+ground-vehicle-operation /
+#      languages+cultures). `medicine` resolves to TECHNICAL and `scholar` to
+#      KNOWLEDGE via the canonical perform_skill_check funnel; neither is aliased
+#      (each canonicalizes to itself). This is the FIRST accessible questline to
+#      reward the DOCTOR / DIAGNOSTICIAN-RESEARCHER (physician) build — the hand
+#      who can look at a ward full of the "sick" and tell a poisoning from a
+#      plague, then run the agent down to its source. It is mechanically DISTINCT
+#      from The Dust-Sick, the only prior medical arc, which rewards FIRST AID +
+#      SURVIVAL — a frontier FIELD MEDIC stabilizing a genuinely stricken patient
+#      in the wilderness. This rewards MEDICINE (the clinical diagnostic skill,
+#      not battlefield stabilization) + SCHOLAR (research / xenobiology, not
+#      desert survival): a physician UNMASKING a manufactured illness in the
+#      city, not a medic SAVING a real one in the wastes. The doctor is not the
+#      field medic.
+#   2. The FOURTH questline set on NAR SHADDAA, and the first on the lower
+#      REFUGEE-AND-UNDERCITY face: the displaced-persons quarter and the lawless
+#      market depths below it — the refugee sector aid post + the back-alley
+#      medcenter + the droid junkyard where the cut is scavenged + the undercity
+#      market chokepoint up out of the depths: refugee_sector /
+#      black_market_medcenter / droid_junkyard / undercity_market. It reuses NONE
+#      of The Ghost Shipment's
+#      cantina/Undercity-Depths rooms, NONE of The Forged Notice's upper-dock
+#      registry rooms (upper_dock_observation / westport_arrivals /
+#      smugglers_guild_hall / enforcer_alley), and NONE of The Warrens Toll's
+#      Warrens rooms (warrens_squat_block / warrens_scavenger_den /
+#      warrens_reactor_core / warrens_collapsed_plaza) — every one of its four
+#      rooms is fresh to the chain corpus. The Clone War the refugee_sector room
+#      description already names (the newest arrivals "from CIS-occupied worlds")
+#      stays distant background — the displaced are the racket's prey, not its
+#      cause — the way every prior accessible arc keeps the Republic/CIS conflict
+#      offstage: the whole arc runs on a Hutt-space health-concession racket, not
+#      a war faction. It touches NO map coordinate or world exit graph — the
+#      rooms already exist and are loaded (planets/nar_shaddaa.yaml); only NPCs +
+#      a chains.yaml entry + an achievement are added.
+#
+# It is also a new STORY SHAPE: breaking a FAKE-PLAGUE / QUARANTINE-EXTORTION
+# (medical-fraud) racket — not a smuggling-trace, a racket-bust-by-investigation,
+# a kidnap-rescue, an industrial-skim, a FRONTIER MEDICAL RESCUE (The Dust-Sick
+# saves a real patient; this UNMASKS a fake epidemic), an art-fraud caper, a
+# counter-forgery, a SAFETY-TOLL community-defense (The Warrens Toll rallies a
+# level against a wired charge; this diagnoses a poisoning, it does not rally or
+# defuse), a finesse heist, a fixed race, a droid-reflash racket, a wildlife-
+# poaching racket, a ship-condemnation, a freight strand-and-salvage, or a
+# translation fraud. A Hutt-lieutenant's self-appointed "sanitation board" has
+# declared a contagious "wasting fever" loose in the refugee sector, sealed the
+# level under quarantine, set a clearance toll on anyone who wants out to work,
+# and sells the only "cure" — while its backers stand ready to buy the emptied,
+# condemned habs cheap as the families who can't pay it sicken or flee. Ulil
+# Maan, the Ithorian volunteer medic who treats the sector for what little it can
+# pay, has watched patient after patient come back from the board's cure worse,
+# never better — and knows in her hands' memory that the "fever" does not behave
+# like any contagion she has ever treated. But she is an unlicensed offworlder
+# medic with no standing against a Hutt-backed board, and she cannot examine the
+# board's sealed cases, run the agent down to its source, and stand off the
+# board's collector all at once. She offers her fee to any freelance hand who can
+# look at a board-"treated" patient and tell the poisoning from the plague
+# (medicine), trace what is doing it to the cheap cut scavenged up out of the
+# droid junkyard and name the agent in the board's own cure (scholar), stand off the
+# collector who comes for the proof at the undercity market, and get the fraud to
+# the one authority on the Moon a Hutt board answers to.
+#
+# These NPCs back the `nar_shaddaa_wasting_ward` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Ulil Maan  — the Ithorian volunteer medic who offers + closes the quest
+#                  (step-1 npc = the questline's start-NPC, per
+#                  get_questline_offer). Step-1 + step-5 NPC.
+#   * Greel Vodo — the combat-step enforcer (ai_config.chain_enemy_template
+#                  wasting_ward_enforcer; the step-4 combat_won foil), the Rodian
+#                  collector who keeps the board's quarantine paying and comes for
+#                  the proof at the undercity market.
+# The Hutt lieutenant who backs the board, the "sanitation board" inspectors, the
+# board's "cure" and its clearance toll, the off-books buyers for the condemned
+# habs, the scrap-buyer in the droid junkyard, the board-"treated" patient examined at
+# the medcenter, the dying and fled refugees, and the medcenter's own ambient
+# back-alley doctor (the room's existing "asks no questions" operator, nodded to
+# but not re-instantiated) are NARRATED ONLY — story beats carried in the prose,
+# NOT spawned NPC entities. Only the giver and the single combat foil are real
+# placed NPCs.
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures.
+# The board is a Hutt-space health-concession racket, never a war faction; the
+# Republic/CIS conflict stays offstage. Provenance: Ithorian (the gentle, twin-
+# throated "Hammerhead" herbivores of Ithor, an era-clean, faction-neutral
+# fixture of the galaxy with a long reputation as healers and caretakers — a
+# natural fit for a volunteer medic who treats the displaced for what little they
+# can pay; the FIRST Ithorian questline giver) and Rodian (the green, snouted
+# Outer Rim species long stereotyped as bounty-and-collection muscle in Hutt
+# space, era-clean and not war-faction coded — the FIRST Rodian combat foil) are
+# both era-clean. Stats matched to the shipped accessible-questline bands — the
+# giver to the non-combat fixer band (Yelza Korrin / Dorae Vint / Sashi Renko /
+# Dav Nuro / Soree Bann / Hessa Veil / Cassa Brel / Vessa Tial / Terva Dohl /
+# Ria Tann / Nuva Sehl / Neyla Sur / Veelo Trinn / Numi Vesh / Brama Hool), with
+# the medic's spread skewed to Technical+Knowledge to fit a clinical physician-
+# researcher; the enforcer to the small-time-criminal antagonist band (Brakkis
+# Vone / Gorvahn Brusk / Skarn Vex / Suro Vant / Vohrek Sarn / Brask Yade / Varn
+# Tesk / Tarko Venn / Drevin Saar / Vossk Rhal / Korsa Drael / Bohrus Kang /
+# Gornt Reska / Hekka Vrool): a real fight, beatable by a fresh post-chargen
+# character, carrying the proven blaster_pistol of the ranged foils (squarely in
+# the proven beatable band, no balance flag needed; NOT the offset melee weapon
+# The Condemned Hull's foil carried).
+# WEG40120 PDF is local-only (gitignored) and absent in this tree; the bands are
+# cited against the in-repo reference NPCs, not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The medic — Ulil Maan (questline GIVER + closer)
+  # Questline: nar_shaddaa_wasting_ward ("The Wasting Ward")
+  # Placement: Nar Shaddaa Refugee Sector (refugee_sector, zone
+  #            nar_shaddaa_promenade). Step-1 + step-5 NPC.
+  # NOTE: an Ithorian volunteer physician working an aid post in the displaced-
+  # persons quarter, treating the sector for what little it can pay — a clinical
+  # healer who can tell a poisoning from a plague by how it spreads, who has
+  # watched the board's "cure" send patient after patient backward, and who is,
+  # as an unlicensed offworlder medic, the one being on the level with no standing
+  # to be heard against a Hutt-backed sanitation board.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Ulil Maan
+    room: "Nar Shaddaa - Refugee Sector"
+    species: Ithorian
+    description: >-
+      A tall, stoop-shouldered Ithorian in a worn medic's smock gone grey at the
+      cuffs, the curved T-shaped head of her species bowed in the patient,
+      listening posture of a being who has spent a lifetime bent over the sick,
+      a battered diagnostic scanner slung at her hip and a vocoder at her twin
+      throats so the sector's hundred peoples can understand her in their own
+      panic. She is no concession doctor — she keeps a volunteer aid post among
+      the makeshift shelters of the refugee sector, treats the newest arrivals
+      from a dozen fallen Outer Rim worlds for whatever coin or labor they can
+      spare or for nothing at all, and has set more displaced bones and broken
+      more displaced fevers than the licensed boards of the Moon have ever
+      bothered to count. This season a Hutt-lieutenant's self-styled sanitation
+      board has declared a contagious wasting fever loose in the sector, sealed
+      the level under quarantine, put a clearance toll on anyone who wants out to
+      work, and sells the only cure — and its backers stand ready to buy the
+      emptied, condemned habs cheap as the families who cannot pay sicken or run.
+      She has watched patient after patient come back from that cure worse, never
+      better, and she knows in the memory of her hands that the wasting does not
+      move the way a plague moves: it does not jump from a shared vent or a shared
+      cup, it falls hardest on the ones who took the board's tonic and drank the
+      board's cheap clearance-ration water. But she is an offworlder with an
+      unlicensed scanner and no standing a Hutt board answers to, and she cannot
+      walk into the board's sealed cases, run the agent to its source, and stand
+      off the collector all in one day. She is looking for a neutral outside hand
+      who can do the three things she cannot all at once: read a board-treated
+      patient and prove the wasting a poisoning, name the agent in the board's own
+      cure, and get the truth to the one authority on the Moon a board fears.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 3D
+        mechanical: 2D
+        perception: 2D+1
+        strength: 2D
+        technical: 3D+1
+      skills:
+        medicine: 4D+1
+        scholar: 4D
+        first aid: 3D+2
+        willpower: 3D
+        value: 2D+2
+      weapon: blaster_pistol
+      move: 7
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A patient, exact Ithorian physician worn down by a season of watching a
+        manufactured sickness sold back to the people it is poisoning — gentle,
+        unhurried, and out of any patience left for a board that calls a slow
+        poison a plague so it can charge the dying for the right to keep dying.
+        She reads an illness by how it travels, not by what a notice declares it
+        to be, and she can run an agent down to the cut it came from and name it
+        in a tonic by the way the bodies fall — but she cannot do it as an
+        unlicensed offworlder with no standing, and she cannot examine the sealed
+        cases, trace the source, and stand off the board's muscle all in one day.
+        Slow-spoken, grave, and quietly furious at a racket that turns a healer's
+        whole art — telling the sick what is wrong with them — into the one thing
+        a Hutt board cannot allow; she offers her fee because the credits were
+        always going to be spent either lifting the quarantine or burying the
+        people under it, and a neutral stranger who can be heard where she cannot
+        is the only honest help the sealed level has left.
+      knowledge:
+        - "She is Ulil Maan, an Ithorian volunteer physician who keeps an aid post in Nar Shaddaa's refugee sector, treating the displaced — the newest from CIS-fallen Outer Rim worlds — for whatever they can pay or for nothing; she has set more refugee bones and broken more refugee fevers than the Moon's licensed boards ever counted."
+        - "A Hutt-lieutenant's self-styled 'sanitation board' has declared a contagious 'wasting fever' loose in the sector, sealed the level under quarantine, set a clearance toll on anyone who wants out to work, and sells the only 'cure'; its backers stand ready to buy the emptied, condemned habs cheap as the families who can't pay sicken or flee."
+        - "She knows the wasting is no plague — it does not jump from a shared vent or cup; it falls hardest on the ones who took the board's tonic and drank the cheap clearance-ration water. But she is an offworlder with an unlicensed scanner and no standing a Hutt board answers to. A neutral outside hand can do what she cannot: read a board-treated patient at the back-alley medcenter and prove the wasting a poisoning, not a contagion (medicine); trace the cut to the droid junkyard it's scavenged up out of and name the agent in the board's own cure (scholar); and stand off the board's collector who comes for the proof at the undercity market."
+        - "Get the truth to the Moon's port-medical registry — the one authority a Hutt health-concession answers to — and the racket comes apart: the quarantine is lifted, the dosing stops, the real sick are treated, the clearance toll dies, and the backers who meant to buy a sealed level cheap in its own people's blood buy nothing."
+      faction: independent
+      dialogue_style: >-
+        Slow, careful, a clinician's plain talk through a vocoder — names a
+        symptom before a suspicion, weighs a sickness by how it travels and a
+        fraud by who profits, speaks the way she diagnoses: nothing assumed,
+        everything traced back to the body in front of her.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'They have not raised the rent or stolen the berths. They have declared a fever. One word — quarantine — and the level is sealed, the toll is set, the cure is sold, and a board that answers to a Hutt buys the empty habs cheap as the people who can't pay it die in them. And it is not a fever at all.'"
+        - "*Ulil Maan sets her battered scanner over a refugee's arm and watches the readout with the long stillness of a healer reading a thing she already fears she knows, the twin throats below her curved head silent.* 'A plague jumps from breath to breath. This jumps from the cure to the one who paid for it. That is not how a sickness moves. That is how a poison is sold.'"
+        - "'Read one of their treated patients and prove the wasting a poisoning, not a plague. Trace the cut they dose it with up out of the droid junkyard and put a name to the agent in their own tonic. And mind the way up out of the depths — that is where their collector comes for proof. Do that, and carry it to the port-medical registry, and my fee is yours, every credit. I would rather it bought this quarantine lifted than bought one more grave for a thing nobody ever caught.'"
+
+  # ── Questline antagonist: Greel Vodo (combat step 4) ────────────────
+  # Single hostile instance at the undercity market chokepoint up out of the
+  # depths toward the Moon's port-medical registry. Matches the
+  # nar_shaddaa_wasting_ward step-4 combat_won enemy_template.
+  # Carries the proven blaster_pistol of the ranged foils (squarely in the proven
+  # beatable band) so a fresh post-chargen character has a real, winnable fight.
+
+  - name: Greel Vodo
+    room: "Nar Shaddaa - Undercity Market"
+    species: Rodian
+    description: >-
+      A wiry, green-scaled Rodian in a collector's patched flak-vest, the
+      multifaceted black eyes and tapering snout of his species turning slow over
+      the market crowd, a worn blaster pistol holstered at his thigh with the easy
+      familiarity of a tool used more by showing than by firing. He is the
+      collector who keeps the sanitation board's quarantine paying — the hand who
+      works the clearance toll at the seal, leans on the families a day behind on
+      the cure, and rarely has to draw because a sealed level and a sold fever do
+      his collecting for him. The whole racket runs on a sickness nobody can
+      question and a board nobody can answer; it does not run on a neutral hand
+      walking a board-treated patient's true readout and a named poison up out of
+      the depths toward the one registry a Hutt concession fears. The bored,
+      unhurried menace of a being whose threats keep themselves goes flat the
+      instant a freelance hand comes up off the undercity stair with the proof in
+      hand and the port-medical registry above — the one thing the board was paid
+      to make sure never reached a licensing desk, coming up the market in a
+      stranger's grip. The readings stay in the depths, as far as the board is
+      concerned; the wasting is a quarantine matter, as far as anyone at the
+      stalls can hear him say; and whoever carried the proof up is going back down
+      without it, one way or the next.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D+1
+        perception: 3D
+        strength: 2D+2
+        technical: 2D+1
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        brawling: 3D+1
+        intimidation: 3D+1
+        search: 3D
+        streetwise: 2D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: wasting_ward_enforcer
+      personality: >-
+        A board's collector genuinely unused to being made to fight for the
+        racket — bored and contemptuous while a sealed level and a sold fever do
+        his work, immediately and heavily violent the moment a neutral hand comes
+        up off the undercity stair with a true readout, a named poison, and a
+        port-medical registry above. He works a blaster and a quiet word, not a
+        clinic: dangerous and direct, he plants himself across the market between
+        the courier and the way up and would rather break a hand at the chokepoint
+        than chase proof he can no longer stop. His pay and his standing with the
+        board ride on a wasting that stays a quarantine and readings that stay in
+        the depths, so he'll draw on anyone carrying the truth up to a licensing
+        desk. Combat foil for the questline's confrontation beat.
+      knowledge:
+        - "He is Greel Vodo, the Rodian collector who keeps the sanitation board's quarantine paying — working the clearance toll at the seal, leaning on the families behind on the cure, and rarely having to draw because a sealed level and a sold fever do his collecting for him."
+        - "A neutral hand read a board-treated patient and proved the wasting a poisoning the board counted on no one diagnosing, named the agent the board doses its own cure with, and is carrying the proof up the undercity market toward the Moon's port-medical registry; the racket runs on a sickness nobody can question, so he'll draw on whoever brings the proof up rather than let the one thing that ends the quarantine reach a licensing desk."
+      faction: criminal
+      dialogue_style: >-
+        Flat, unhurried, contemptuous. States once that the readings stay in the
+        depths and the wasting is a quarantine matter, and after that lets the
+        blaster keep the market the way the sealed level kept the sector.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'Those readings stay in the depths, friend. The wasting's a quarantine matter — it doesn't go on any registry up top. Hand it over and walk back down.'"
+        - "*Greel Vodo steps out of the press of the undercity stalls into the lane, sets himself across the market between the courier and the way up, and lets his vest fall open enough to show the blaster he would rather not have to use.*"
+        - "'Last time — hand it over and walk back down, or you don't walk up. The board's a patient outfit. I'm the part of it that isn't.'"
