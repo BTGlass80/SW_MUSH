@@ -1,0 +1,314 @@
+# Generalized Questline Drop — "The Buried Block" (T3.24 twenty-third slice, 2026-06-30)
+#
+# The TWENTY-THIRD accessible (non-t5, non-tutorial) `kind: questline` chain, and the
+# FOURTH set on CORUSCANT — on a FRESH face, the SOUTHERN UNDERGROUND / undercity (the
+# southern_underground zone: the deep lower-city levels under the towers — a tenement
+# stack, a descent shaft down into the dark, the deepest sealed level, and the lower-city
+# black market: underground_tenement_block / lower_descent / southern_underground /
+# lower_market). It reuses NONE of the three prior Coruscant arcs' rooms — The False
+# Provenance works the Monumental District, The Sealed Ledger the Commercial District, and
+# The Twisted Word the Entertainment District (the Gilded Cage); every one of this arc's
+# four rooms is fresh to the chain corpus, and the southern undercity has never carried an
+# ACCESSIBLE questline before (only the t5 separatist_agent trainer touches the zone, on
+# different rooms). It reuses the SAME live questline engine (engine/tutorial_chains.py +
+# chain_events.py: the `kind: questline` type + `active_questline` slot, the existing event
+# types, the four reward funnels) with NO new engine code, no new slot, no new event type,
+# no schema migration, no new reward faucet, and NO map-coordinate or exit-graph change —
+# the sanctioned right-of-launch widening per quest_expansion_postlaunch_path_v1.md
+# (T3.24): author MORE questlines on the proven pattern.
+#
+# Firsts for the accessible-questline arc:
+#   1. A TWENTY-THIRD distinct skill spread — CLIMBING/JUMPING (Strength) + STAMINA
+#      (Strength) — neither of which any prior accessible questline uses (vs
+#      search+streetwise / investigation+gambling / persuasion+sneak / security+bargain /
+#      first_aid+survival / value+con / forgery+bureaucracy / command+demolitions /
+#      pick-pocket+hide+computer-programming / sensors+repulsorlift-operation /
+#      alien-species+droid-programming / beast-riding+swimming /
+#      space-transport-repair+astrogation / ground-vehicle-repair+ground-vehicle-operation
+#      / languages+cultures / medicine+scholar / blaster-repair+armor-repair /
+#      space-transports+starship-gunnery / powersuit-operation+lifting /
+#      communications+planetary-systems / business+intimidation / law-enforcement+tactics).
+#      This is the FIRST both-STRENGTH spread of the whole accessible corpus (the prior
+#      both-attribute spreads were both-Knowledge — languages+cultures, business+
+#      intimidation, law-enforcement+tactics — both-Mechanical — space-transports+
+#      starship-gunnery — and both-Technical — blaster-repair+armor-repair), and neither
+#      skill is aliased (each canonicalizes to itself) via the canonical perform_skill_check
+#      funnel. It is the FIRST accessible questline to reward the DEEP-DESCENT / ENDURANCE-
+#      RESCUE / FREE-CLIMBER build — a being who can go down the broken, sealed shafts a
+#      salvage crew left for impassable and endure the deep level's foul air and heat long
+#      enough to reach a sealed-in block of people and bring them back up. No prior arc is a
+#      PHYSICAL rescue: The Lost Courier (the only prior rescue) is a kidnap-trace worked by
+#      investigation, a single person ransomed; this is a MASS entrapment broken by going
+#      down after the trapped with one's own hands and lungs, the rescue itself the proof.
+#   2. The FOURTH questline set on CORUSCANT, and the FIRST on the SOUTHERN UNDERGROUND /
+#      undercity face (the southern_underground zone) — the deep lower-city under the
+#      towers. It reuses NONE of The False Provenance's Monumental-District rooms, The
+#      Sealed Ledger's Commercial-District rooms, or The Twisted Word's Entertainment-
+#      District (Gilded Cage) rooms; every one of its four rooms (underground_tenement_block
+#      / lower_descent / southern_underground / lower_market) is fresh to the entire chain
+#      corpus, and the undercity has never carried an accessible questline before. The
+#      planet's larger powers — the Senate, the Jedi, the Republic war effort overhead —
+#      have no reach this far down and never appear; the racket is run afoul of in the end
+#      by the lower-city's own municipal authority, a Coruscant Works reclamation board that
+#      will not have a salvage outfit fake a level derelict and seal its residents in to
+#      enforce the lie, the way every prior accessible arc keeps the larger powers offstage.
+#      It touches NO map coordinate or world exit graph — the rooms already exist and are
+#      loaded (planets/coruscant.yaml); only NPCs + a chains.yaml entry + an achievement are
+#      added.
+#
+# It is also a new STORY SHAPE: breaking a FALSE-DERELICTION / ENTRAPMENT-FOR-SALVAGE racket
+# — not a smuggling-trace, a racket-bust-by-investigation, a kidnap-rescue, a single-part
+# theft-and-frame, a frontier medical rescue, an art-fraud caper, a counter-forgery of
+# documents, a safety-toll community-defense, a finesse heist, a fixed race, a droid-reflash
+# racket, a wildlife-poaching racket, a ship-condemnation, a freight strand-and-salvage, a
+# translation fraud, a fake-plague extortion, a counterfeit-arms supply scam, a clearance-
+# fraud/staged-hijack, a short-weight racket, a false-beacon wreck-luring, a debt-bondage
+# padded-advance, or a staged-protection fake-enforcement racket. The Condemned Hull falsely
+# declares a SOUND ship a derelict to scrap it cheap; this falsely declares an INHABITED
+# level a derelict to seize and strip it — and where The Condemned Hull is worked by a
+# shipwright-navigator reading a hull's repair history and plotting the void, this is worked
+# by going down the dark after the people the lie buried. A deep-level salvage-and-
+# redevelopment outfit — "Sennat Reclamation" — filed a dereliction survey with the Lower
+# City Reclamation Board declaring an inhabited deep tenement pocket (the Warren-Nine block)
+# structurally abandoned and uninhabited, winning a salvage-and-redevelopment claim on it,
+# then collapsed and welded the block's only serviceable access shaft to enforce the lie —
+# sealing the residents in below so no one can surface to contest the survey — while its
+# strip crew works the level for salvage and the people sealed under it run short of air and
+# water. Tomar Hess, an old deep-level conduit climber who has kept a room in the tenement
+# stack above the sealed block for forty years and knows the dark shaft network the salvage
+# crew never bothered to map, has neighbors and kin sealed in below and a back route down
+# through the old utility conduits the crew left for impassable — but a conduit climber
+# gone grey in the knees cannot make that descent, endure the deep, clear a route, and stand
+# off the crew's enforcer all at once, and his word against a filed survey is the word of one
+# more lower-city squatter the board has already written off. He offers his fee to any
+# neutral hand who can go down the sealed access by the broken conduit shafts the crew thinks
+# impassable (climbing/jumping), endure the deep level's foul air and heat to reach the
+# Warren-Nine pocket and clear and hold a route to bring the trapped residents up (stamina),
+# stand off the crew's enforcer posted at the lower-city black market when the freed and the
+# proof start to surface (combat), and get the freed residents and the proof of habitation
+# to the Lower City Reclamation Board before the survey's claim is final.
+#
+# These NPCs back the `coruscant_buried_block` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Tomar Hess   — the old deep-level conduit climber who offers + closes the quest
+#                    (step-1 npc = the questline's start-NPC, per get_questline_offer).
+#                    Step-1 + step-5 NPC.
+#   * Brunt Kosh   — the combat-step crew enforcer (ai_config.chain_enemy_template
+#                    buried_block_enforcer; the step-4 combat_won foil), the salvage outfit's
+#                    muscle posted at the lower-city black market to make sure nobody and
+#                    nothing surfaces from the sealed block.
+# The salvage outfit's boss (Vergo Sennat), the offworld redeveloper buying the cleared
+# level, the falsified dereliction survey and the welded shaft seal, the strip crew working
+# the deep level, the residents sealed in the Warren-Nine pocket, the lower-city dwellers of
+# the tenement stack and the black-market traders, and the Lower City Reclamation Board and
+# its claims desk are NARRATED ONLY — story beats carried in the prose, NOT spawned NPC
+# entities. Only the giver and the single combat foil are real placed NPCs.
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures. The racket is
+# a private salvage-and-redevelopment fraud and its hired muscle, never a war faction; the
+# Coruscant undercity is far below the Senate, the Jedi, and the Republic war effort, which
+# have no reach this deep and never appear, and the municipal authority that ends the outfit
+# is the lower-city's own Coruscant Works reclamation board protecting its own claims record,
+# nodded to and never instantiated. Provenance: Humans (a forty-year lower-city conduit
+# climber and squatter — era-clean and faction-neutral, the most natural fit for an old
+# undercity utility worker who knows the dark shafts) and Aqualish (the tusked, fringe-common
+# beings of Ando — era-clean and not war-faction coded, long working as guards, dockhands,
+# and hired muscle across the lower-city and the fringe, a natural fit for a salvage outfit's
+# posted enforcer) are both era-clean. Stats matched to the shipped accessible-questline
+# bands — the giver to the non-combat fixer band (Yelza Korrin / Dorae Vint / Sashi Renko /
+# Dav Nuro / Soree Bann / Hessa Veil / Cassa Brel / Vessa Tial / Terva Dohl / Ria Tann /
+# Nuva Sehl / Neyla Sur / Veelo Trinn / Numi Vesh / Brama Hool / Ulil Maan / Senni Vrook /
+# Jando Vekk / Grett Bashan / Corwin Hale / Nabo Threll / Oren Vask), with the climber's
+# spread skewed to Strength to fit a being who went down shafts and held a load for a living;
+# the enforcer to the small-time-criminal antagonist band (Brakkis Vone / Gorvahn Brusk /
+# Skarn Vex / Suro Vant / Vohrek Sarn / Brask Yade / Varn Tesk / Tarko Venn / Drevin Saar /
+# Vossk Rhal / Korsa Drael / Bohrus Kang / Gornt Reska / Hekka Vrool / Greel Vodo / Vurr Magh
+# / Draygo Sull / Drozz Kael / Hask Vorran / Garvo Naak / Dussek Rao): a real fight, beatable
+# by a fresh post-chargen character, carrying the proven blaster_pistol of the ranged foils
+# on the same in-band guarded stat line as The Salted Lane's, The Short Weight's, The
+# Wreckers' Light's, The Bonded Crew's, and The Kept Watch's foils (squarely in the proven
+# beatable band, no balance flag needed). WEG40120 PDF is local-only (gitignored) and absent
+# in this tree; the bands are cited against the in-repo reference NPCs, not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The conduit climber — Tomar Hess (questline GIVER + closer)
+  # Questline: coruscant_buried_block ("The Buried Block")
+  # Placement: Coruscant - Southern Underground - Tenement Block
+  #            (underground_tenement_block, zone southern_underground).
+  #            Step-1 + step-5 NPC.
+  # NOTE: a forty-year lower-city conduit climber and squatter who knows the dark shaft
+  # network the salvage crew never mapped and has a back route down through the old utility
+  # conduits the crew left for impassable — a being who once went down shafts and held a
+  # load for a living and can read a sealed access for the lie it is, and who, gone grey in
+  # the knees and worth nothing against a filed survey, is the one being on the stack who
+  # KNOWS the block is inhabited and cannot make the descent, endure the deep, clear the
+  # route, and stand off the crew's enforcer all at once.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Tomar Hess
+    room: "Coruscant - Southern Underground - Tenement Block"
+    species: Human
+    description: >-
+      A wiry, grey-cropped human in a patched climber's harness gone soft with age, sitting
+      on the lip of a dead service hatch in the tenement stack with a coil of old conduit
+      line across his knees and his hands moving on it out of forty years of habit. He has
+      lived in this stack since the levels under it still had power, and he went down its
+      shafts for a living — a conduit climber, the being the lower city sent into the dark
+      when a power main failed or a water line burst three levels below where anyone else
+      would go. He knows the shaft network the way the salvage crews never bother to: the
+      broken runs, the dead drops, the old utility conduits that still go down where the
+      mapped access is collapsed. A season ago Sennat Reclamation filed a survey with the
+      Lower City Reclamation Board calling the Warren-Nine block below — a deep tenement
+      pocket with forty-odd people still living in it, his neighbors and his sister's family
+      among them — structurally abandoned and uninhabited, and won a salvage-and-
+      redevelopment claim on it. Then the crew collapsed and welded the block's only good
+      access shaft, sealing the people in below so none of them could surface to call the
+      survey a lie, and put a strip crew to work the level while the sealed run short of air
+      and water. Hess knew it for what it was the day the shaft went down — a survey does
+      not abandon a level that has lights in its windows; you seal it and call it empty after.
+      He has a back route down, through the old conduits the crew left for impassable. But a
+      climber gone grey in the knees cannot make that descent, endure the deep long enough to
+      clear a route and bring forty people up, and stand off the crew's posted enforcer all in
+      one go — and a forty-year squatter's word against a filed dereliction survey is the word
+      of one more lower-city nobody the board has already crossed off. He is looking for a
+      neutral hand who can do the three things he cannot: go down the sealed access by the
+      broken conduit shafts the crew thinks impassable; reach the Warren-Nine pocket through
+      the deep's foul air and bring the trapped up; and get the freed and the proof to the
+      Reclamation Board before the claim goes final and the block is gone for good.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D
+        technical: 2D+1
+      skills:
+        climbing/jumping: 4D+1
+        stamina: 3D+2
+        streetwise: 3D+1
+        search: 3D
+        hide: 2D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A wiry old conduit climber worn into a stack-bound squatter's patience — slow to
+        talk, quick to read a shaft, and out of any faith in a Reclamation Board that takes a
+        salvage outfit's filed survey over the lights still burning in a level's windows. He
+        reads a sealed access for the lie it is — a level is not abandoned and then sealed;
+        it is sealed and then called abandoned — and he can feel a bad descent the way he can
+        feel a load about to slip, but he cannot make the climb, endure the deep, clear a
+        route for forty people, and stand off the crew's enforcer all in one go on knees gone
+        grey. Calm and certain that a salvage outfit that seals a level's people in to call it
+        empty is not reclaiming a derelict but burying the living; he offers his fee — what a
+        stack-bound old climber has saved against a dark day — because the credits are no good
+        to him if his sister's family runs out of air in a block the board has crossed off, and
+        a neutral hand who can go down where he no longer can is the only help the sealed have
+        before the claim goes final.
+      knowledge:
+        - "He is Tomar Hess, a forty-year lower-city conduit climber who has kept a room in the tenement stack above the Warren-Nine block since the deep levels still had power, and who went down the stack's shafts for a living — the being the lower city sent into the dark when a main failed three levels below where anyone else would go. He knows the broken shaft network the salvage crews never bother to map: the dead drops, the collapsed runs, the old utility conduits that still go down where the good access is sealed."
+        - "Sennat Reclamation, a deep-level salvage-and-redevelopment outfit, filed a dereliction survey with the Lower City Reclamation Board calling the Warren-Nine block below — an inhabited deep tenement pocket with forty-odd people still living in it — structurally abandoned and uninhabited, and won a salvage-and-redevelopment claim on it. Then it collapsed and welded the block's only serviceable access shaft to enforce the lie, sealing the residents in below so none could surface to contest the survey, and put a strip crew to work the level while the sealed run short of air and water. The outfit's boss, Vergo Sennat, runs it; an offworld redeveloper is buying the cleared level once the claim goes final."
+        - "Hess has a back route down through the old conduits the crew left for impassable, but a climber gone grey in the knees cannot make the descent and the rescue and the fight all at once, and his word against a filed survey is one more squatter's word. A neutral outside hand can do what he cannot: go down the sealed access by the broken conduit shafts the crew thinks impassable (climbing/jumping); endure the deep level's foul air and heat to reach the Warren-Nine pocket and clear and hold a route to bring the trapped residents up (stamina); and stand off the crew's enforcer posted at the lower-city black market who comes for the freed and the proof when they start to surface (combat)."
+        - "Get the freed residents and the proof of habitation to the Lower City Reclamation Board — and it comes apart: forty living people are the survey's lie made flesh, the dereliction claim is voided, Sennat Reclamation's salvage-and-redevelopment rights are pulled, the sealing of an inhabited level is laid at the outfit's own door, and the offworld redeveloper's purchase of the cleared block falls through. The board has no love for the deep levels and less for the work of surveying them — but a salvage outfit that fakes a level derelict and seals its people in to enforce the lie has made the board's own claims record a fraud, and that the board will not have; this is the lower city's own to set right, and the Senate and the Jedi and the war overhead never need look down at a reclamation fraud forty levels under the towers."
+      faction: independent
+      dialogue_style: >-
+        Spare, plain, a climber's economy of words — names what a shaft will do and what a
+        sealed access means before he names a grievance, and trusts the lights in a level's
+        windows over any filed survey. Calm and certain; he went down enough dark shafts to
+        know a sealed level from an empty one, and he has kin in the dark he will not leave
+        sealed.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'You can go down? Then you'll do what I can't, and the board won't. Forty years I went down these shafts when the lower city needed a main fixed three levels under anywhere anyone else would go. The Warren-Nine block had lights in its windows a season ago — forty people, my sister's family among them. Then Sennat filed a survey that says abandoned, and the day the survey went in they dropped the access shaft and welded it. You don't abandon a level and then seal it. You seal it and call it empty after, with the people still inside.'"
+        - "*Tomar Hess lays the coil of old conduit line out across the dead hatch and traces a run of it down with one finger, the way a man traces a shaft he climbed in the dark.* 'The good access is collapsed and welded — the crew made sure. But there's an old utility conduit they left for impassable because they never went down it, and I did, a hundred times. It still goes down. A climber could take it. I can't, not on these knees, not down and back up with forty people and a fight at the top of it. But it's there, and the people sealed under it are running out of air.'"
+        - "'Take the conduit down to the Warren-Nine pocket — climbing's the only way in now they've sealed the shaft — and the deep's bad: foul air, no power, heat off the recyclers three levels under. You'll have to last in it long enough to clear a route and bring them up, and that's the hard part, not the climb. Mind the lower market on the way out; that's where Sennat keeps a man to make sure nothing surfaces from a level he's already sold. Get the people up and the proof of them to the Reclamation Board before the claim's final, and my fee is yours — what a stack-bound old climber's saved against a dark day. I'd sooner it bought forty people back into the light than bought me one.'"
+
+  # ── Questline antagonist: Brunt Kosh (combat step 4) ─────────────────
+  # Single hostile instance at the lower-city black market between the sealed block's
+  # surfacing route and the Lower City Reclamation Board. Matches the coruscant_buried_block
+  # step-4 combat_won enemy_template.
+  # Carries the proven blaster_pistol of the ranged foils on the same in-band guarded stat
+  # line as The Salted Lane's, The Short Weight's, The Wreckers' Light's, The Bonded Crew's,
+  # and The Kept Watch's foils (squarely in the proven beatable band) so a fresh post-chargen
+  # character has a real, winnable fight.
+
+  - name: Brunt Kosh
+    room: "Coruscant - Lower City Black Market"
+    species: Aqualish
+    description: >-
+      A heavy, tusked Aqualish standing the choke of the lower-city black market with the
+      flat patience of a being who is paid to make sure nothing comes up a stairwell it
+      shouldn't, a worn blaster pistol holstered under a salvage crew's grimed jacket and a
+      Sennat Reclamation tag clipped at the collar. He is the enforcer Vergo Sennat posts on
+      the surfacing routes off the Warren-Nine block — the hand who walks a curious lower-city
+      dweller back the way they came with a tusked grunt and a shove, who stands the market
+      choke where the deep levels come up so that nothing from a block the outfit has sold
+      ever reaches the levels that could contest it, and who rarely has to draw because the
+      lower city has long since learned not to go asking where a salvage crew has put a seal.
+      The whole racket runs on a sealed block that surfaces nothing — no resident, no witness,
+      no proof the survey lied; it does not run on a neutral hand coming up the old conduit
+      with forty freed people behind them and the proof of a buried block in hand, headed for
+      the one desk that can void the claim. He has watched an outsider go down a conduit the
+      crew swore was impassable and come back up it the wrong way, with the sealed level's
+      people in tow and a reclamation board ahead, and the easy menace of a man who keeps a
+      market choke goes hard the instant the thing he is posted to bury comes up the stairs
+      breathing. The freed go back down and the block stays sold, as far as Kosh is concerned;
+      the level was abandoned and the people were never there, as far as anyone in the market
+      will hear him say; and whoever brought them up is going back down without them, one way
+      or the next.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        brawling: 3D+1
+        intimidation: 3D+2
+        streetwise: 3D
+        search: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: buried_block_enforcer
+      personality: >-
+        A salvage outfit's posted enforcer genuinely unused to being made to fight for the
+        seal — bored and contemptuous while a welded shaft and a market choke do his work,
+        and immediately, heavily violent the moment a neutral hand comes up the old conduit
+        with the sealed level's people behind them and the Lower City Reclamation Board ahead.
+        He works a blaster and a tusked shove and a worse threat, not a survey: dangerous and
+        direct, he plants himself across the market choke between the surfacing and the way to
+        the board and would rather break a hand on the stairs than chase a proof he can no
+        longer bury. His pay and his standing with the outfit ride on a block that surfaces
+        nothing, so he'll draw on anyone bringing the freed and the proof up. Combat foil for
+        the questline's confrontation beat.
+      knowledge:
+        - "He is Brunt Kosh, the Aqualish enforcer Vergo Sennat posts on the surfacing routes off the sealed Warren-Nine block to make sure nothing from a level the outfit has sold ever comes up where it could contest the claim — walking curious lower-city dwellers back the way they came, standing the black-market choke where the deep levels surface, and rarely having to draw because the lower city long since learned not to ask where a salvage crew has put a seal."
+        - "A neutral hand went down the old utility conduit the crew left for impassable, reached the Warren-Nine pocket through the deep's foul air, and is bringing the sealed block's forty residents and the proof of their habitation up toward the Lower City Reclamation Board; the racket runs on a sealed block that surfaces nothing — no resident, no witness, no proof the survey lied — so he'll draw on whoever brings the freed up rather than let the one thing that voids the claim reach the board's desk."
+      faction: criminal
+      dialogue_style: >-
+        Flat, unhurried, contemptuous — names the seal before the threat. States once that
+        the level was abandoned and the people were never there, and after that lets the
+        blaster keep the choke the way a welded shaft kept the block.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'That's a sealed level you're bringing up, friend — Sennat's claim, Sennat's salvage. The block's abandoned; there's nobody down there and there never was, the way the survey reads. It doesn't go up to any board. Take them back down and walk out.'"
+        - "*Brunt Kosh shoulders off the market choke as you come up the old conduit with the Warren-Nine block's people behind you and the proof of them under your arm, sets himself across the way to the Reclamation Board, and lets his grimed jacket fall open enough to show the blaster he would rather not have to use.*"
+        - "'I had money on that conduit being impassable. The crew swore it. Bad bet. Last time — take them back down and walk out, or you don't walk to that desk. Sennat's a patient outfit. I'm the part of it that keeps a level sold.'"

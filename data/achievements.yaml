@@ -827,3 +827,11 @@ achievements:
     icon: "🛡️"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "tatooine_market_kept_watch"}
+
+  - key: buried_block_cleared
+    name: "The Buried Block"
+    description: "Broke a false-dereliction entrapment racket in the Coruscant undercity — went down the broken utility conduit a deep-level salvage outfit left for impassable to reach a tenement pocket it had filed abandoned and welded shut with forty people still sealed inside (climbing/jumping), endured the deep level's foul air and recycler heat to clear and hold a route up the conduit and bring the trapped residents to the surface a body at a time (stamina), and stood off the outfit's enforcer posted at the lower-city black market who came to drive the freed back down. Forty living people up a welded shaft voided the dereliction survey that swore the block was empty — the Lower City Reclamation Board pulled Sennat Reclamation's salvage claim, laid the sealing of an inhabited level at the outfit's own door, and turned a reclamation survey into a fraud on the board's own claims record while a block of folk buried in the dark were counted for the living they always were."
+    category: profession
+    icon: "🛡️"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "coruscant_buried_block"}

@@ -8199,6 +8199,328 @@ chains:
           for — the Mos Eisley shop row carries a name now, out where the storefronts stand
           and an honest scene is the difference between a watch and a robbery with a license.
 
+  # ─────────────────────────────────────────────────────────────────────
+  # GENERALIZED QUESTLINE — "The Buried Block" (coruscant_buried_block)
+  # The TWENTY-THIRD accessible (non-t5, non-tutorial) kind:questline chain, the FOURTH set
+  # on CORUSCANT — and the FIRST on the SOUTHERN UNDERGROUND / undercity face (the
+  # southern_underground zone): the deep lower-city under the towers — a tenement stack, a
+  # descent shaft down into the dark, the deepest sealed level, and the lower-city black
+  # market (underground_tenement_block / lower_descent / southern_underground / lower_market),
+  # reusing NONE of The False Provenance's Monumental-District rooms, The Sealed Ledger's
+  # Commercial-District rooms, or The Twisted Word's Entertainment-District rooms — every room
+  # fresh to the corpus, and the undercity has never carried an accessible questline before.
+  # Where those worked the monuments, the works district, and the Gilded Cage, this works the
+  # DEEP — the dark levels under the city's floor. A FALSE-DERELICTION / ENTRAPMENT-FOR-SALVAGE
+  # racket: a deep-level salvage-and-redevelopment outfit, Sennat Reclamation, filed a
+  # dereliction survey with the Lower City Reclamation Board declaring an inhabited deep
+  # tenement pocket (the Warren-Nine block) structurally abandoned and uninhabited, won a
+  # salvage-and-redevelopment claim on it, then collapsed and welded the block's only
+  # serviceable access shaft to enforce the lie — sealing the residents in below so none could
+  # surface to contest the survey — while its strip crew works the level and the sealed run
+  # short of air and water. A forty-year lower-city conduit climber who knows the dark shaft
+  # network and has kin sealed in below is too old to make the descent and unheard against a
+  # filed survey — so the racket is broken by DEEP-DESCENT / ENDURANCE-RESCUE work: go down
+  # the sealed access by the broken conduit shafts the crew thinks impassable (climbing/
+  # jumping), endure the deep level's foul air and heat to reach the Warren-Nine pocket and
+  # clear and hold a route to bring the trapped residents up (stamina), stand off the crew's
+  # enforcer posted at the lower-city black market who comes for the freed and the proof
+  # (combat), and get the freed residents and the proof of habitation to the Lower City
+  # Reclamation Board. The TWENTY-THIRD distinct skill spread (climbing/jumping + stamina —
+  # both Strength, the FIRST both-Strength spread of the corpus), the FIRST accessible arc to
+  # reward the DEEP-DESCENT / ENDURANCE-RESCUE / FREE-CLIMBER build (the broken shaft and the
+  # held route), and the FIRST physical rescue — mechanically and thematically distinct from
+  # the only prior rescue, The Lost Courier (a kidnap-trace worked by investigation, a single
+  # person ransomed), and from the only prior false-status-seizure, The Condemned Hull (space
+  # transport repair + astrogation, a shipwright-navigator who falsely declares a SOUND ship a
+  # derelict to scrap it). This declares an INHABITED level a derelict to seize and strip it,
+  # and is worked by going down the dark after the people the lie buried. The Senate, the
+  # Jedi, and the Republic war effort overhead have no reach this deep and never appear, and
+  # the outfit is run afoul of in the end by the lower-city's own Coruscant Works reclamation
+  # board, which will not have a salvage outfit fake a level derelict and seal its residents
+  # in — the way every prior accessible arc keeps the larger powers offstage. Reuses the live
+  # questline engine (kind:questline + active_questline + existing event types + the four
+  # reward funnels) with NO new engine code, no new slot/event type, no schema migration, no
+  # new reward faucet, and NO map-coordinate or exit-graph change.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: coruscant_buried_block
+    chain_name: "The Buried Block"
+    description: >
+      In the Coruscant southern underground — the deep lower-city levels under the towers, a
+      tenement stack over a descent shaft, the dark sealed level below, and the lower-city
+      black market where the deep comes up — an old conduit climber named Tomar Hess knows a
+      block of people has been sealed in below and cannot prove it. There is a deep-level
+      salvage-and-redevelopment outfit, Sennat Reclamation, and it filed a dereliction survey
+      with the Lower City Reclamation Board declaring the Warren-Nine block — an inhabited
+      tenement pocket with forty-odd people still living in it — structurally abandoned and
+      uninhabited, and won a salvage-and-redevelopment claim on it; then, the day the survey
+      went in, the crew collapsed and welded the block's only serviceable access shaft to
+      enforce the lie, sealing the residents in below so none could surface to call the survey
+      false, and put a strip crew to work the level while the sealed run short of air and
+      water. Hess has kept a room in the stack above for forty years and went down its shafts
+      for a living, and he knows the dark conduit network the crew never bothered to map and
+      a back route down through the old utility conduits they left for impassable. But a
+      climber gone grey in the knees cannot make that descent, endure the deep, clear and hold
+      a route for forty people, and stand off the crew's posted enforcer all in one go, and a
+      squatter's word against a filed survey is the word of one more lower-city nobody. He
+      needs a neutral hand who can do the three things he cannot: go down the sealed access by
+      the broken conduit shafts the crew thinks impassable; reach the Warren-Nine pocket
+      through the deep's foul air and bring the trapped residents up; and carry the freed and
+      the proof of their habitation to the one desk that can void the claim — before the survey
+      goes final and the block is gone for good. A freelance favor — open to anyone, no faction
+      required.
+    archetype_label: "Freelance Climber's Favor"
+    faction_alignment: independent
+    starting_zone: southern_underground
+    starting_room: underground_tenement_block
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["buried_block_cleared"]
+      drop_room: underground_tenement_block
+      follow_up_hint: >
+        The freed residents and the proof of habitation reach the Lower City Reclamation Board
+        and the racket comes apart with them: forty living people are the survey's lie made
+        flesh, the dereliction claim is voided, Sennat Reclamation's salvage-and-redevelopment
+        rights are pulled, the sealing of an inhabited level is laid at the outfit's own door,
+        and the offworld redeveloper's purchase of the cleared block falls through. The outfit
+        that lived by a sealed block that surfaced nothing — no resident, no witness, no proof
+        the survey lied — finds the one thing the racket needed buried come up the stairs
+        breathing: forty people the survey swore were never there, set down at the desk it was
+        certain they could never reach. The enforcer who meant to keep one more level sold
+        collects nothing but a pulled claim. Word travels the lower city the way it never
+        travels a board's claims record: there is a hand who will go down a sealed shaft after
+        the people a survey buried, last in the deep long enough to bring them up, and stand
+        the choke when the crew comes — and the lower-city dwellers who have learned not to ask
+        where a salvage outfit puts a seal stop believing a level is empty just because the
+        survey is filed in order.
+
+    steps:
+      - step: 1
+        title: "The Level With Lights in Its Windows"
+        location: underground_tenement_block
+        npc: "Tomar Hess"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Tomar Hess on the lip of a dead service hatch in the Southern Underground tenement stack."
+        npc_intro: >
+          [A wiry, grey-cropped human sits on the lip of a dead service hatch with a coil of
+          old conduit line across his knees, his hands moving on it out of forty years of
+          habit, and he reads you the way a man reads a shaft before he trusts it.] "You can
+          go down? Then you'll do what I can't, and the board won't. I'm Tomar Hess — forty
+          years I went down these shafts when the lower city needed a main fixed three levels
+          under anywhere anyone else would go. `talk` to me. The Warren-Nine block below had
+          lights in its windows a season ago — forty people, my sister's family among them.
+          Then Sennat Reclamation filed a survey that calls it abandoned, and the day the
+          survey went in they dropped the access shaft and welded it. You don't abandon a
+          level and then seal it. You seal it and call it empty after, with the people still
+          inside — and a filed survey beats a squatter's word every day of the week."
+        completion:
+          type: talk_to_npc
+          npc: "Tomar Hess"
+        npc_complete: >
+          [He lays the coil of conduit line out across the dead hatch and traces a run of it
+          down with one finger, the way a man traces a shaft he climbed in the dark.] "The
+          good access is collapsed and welded — the crew made sure. But there's an old utility
+          conduit they left for impassable because they never went down it, and I did, a
+          hundred times. It still goes down. A climber could take it — I can't, not on these
+          knees, not down and back up with forty people and a fight at the top. Go down it.
+          Reach the block. Bring them up where Sennat swears there's nobody to bring. Forty
+          living people the survey says were never there — that's the one thing that voids his
+          claim, and it's sealed under our feet running out of air."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to the Lower City Descent, where the Warren-Nine block's access shaft was collapsed and welded, and take the old utility conduit down — the broken shaft route the salvage crew left for impassable. Use your `climbing/jumping` skill, then `chain attempt`."
+
+      - step: 2
+        title: "The Conduit They Left for Impassable"
+        location: lower_descent
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["climbing/jumping"]
+        objective: "At the Lower City Descent, take the old utility conduit down past the collapsed and welded access shaft to reach the sealed Warren-Nine block — a climbing/jumping check."
+        npc_intro: >
+          [The Lower City Descent is where the Warren-Nine block's access shaft used to run,
+          and the crew did its work here: the shaft dropped and welded over, a slab of fused
+          spoil where a stairway was, and a Sennat Reclamation seal-tag stamped across it that
+          calls the level below condemned and closed. The good way down is gone on purpose.]
+          But the stack is older than the survey, and an old conduit climber knew runs no
+          salvage crew ever maps — a utility conduit beside the dead shaft, half-collapsed,
+          its ladder rungs sheared, the kind of broken drop a crew writes off as impassable
+          because they never went down it and would not. It still goes down. Take it: find the
+          rungs that hold and the runs that don't, swing the dead gaps where the ladder is
+          gone, and work the broken conduit down past the welded shaft into the dark of the
+          sealed level. `climbing/jumping`, a conduit climber's nerve on a drop everyone else
+          calls closed — `chain attempt` when you've taken the conduit down to the block.
+        completion:
+          type: skill_check_passed
+          skill: "climbing/jumping"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You take the broken conduit the way Hess swore it could be taken — the rungs that
+          hold, the dead gaps swung, the half-collapsed runs ridden down past the welded slab
+          where the crew was sure no one would follow — and the conduit lets you out into the
+          dark of the Warren-Nine block, below the seal, where the survey says there is nothing
+          and no one. There is everything and everyone: a deep tenement pocket with its power
+          cut and its access dropped, forty-odd people sealed in it a season, their water
+          rationed to nothing and the air gone thick and foul, waiting in the dark under a
+          level a salvage crew has already sold. The descent the crew called impassable is the
+          one way in and the one way out, and it is a long, foul climb back up with people
+          who have not eaten in days — but the lie is broken the instant you stand in the
+          block: it is not abandoned, and it never was. Now they have to be brought up through
+          the deep, and that is the part that breaks a strong back, not the climb.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "You've reached the sealed block — now bring its people out. In the deep of the Southern Underground, endure the block's foul air and heat and clear and hold a route up the conduit to bring the trapped residents to the surface — use your `stamina` skill, then `chain attempt`."
+
+      - step: 3
+        title: "The Long Way Up"
+        location: southern_underground
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["stamina"]
+        objective: "In the deep of the Southern Underground, endure the sealed block's foul air and heat and clear and hold a route up the conduit to bring the trapped Warren-Nine residents to the surface — a stamina check."
+        npc_intro: >
+          [The deep of the Southern Underground is a hard place to last in: the Warren-Nine
+          block's air is gone foul with a season of forty people and no circulation, the heat
+          off the recycler stacks three levels under sits on everything, and the only way out
+          is the broken conduit you came down — a long, vertical, hand-over-hand haul with the
+          weak and the old and the children of a sealed level who cannot make it on their own.]
+          This is not a climb you win with nerve; it is one you win by not stopping — clearing
+          the choked runs and the collapsed gaps in the conduit a body at a time, taking the
+          load of the ones who cannot climb, and going up and back down and up again through
+          the foul air and the heat until the whole block is above the seal. It is the part
+          Hess could not do, grey in the knees, and it is the part the crew counted on no one
+          doing: lasting in the deep long enough to bring forty people up a broken shaft.
+          `stamina`, the lungs and the back to keep going up the dark when stopping is easier
+          — `chain attempt` when you've held the route and brought the block up.
+        completion:
+          type: skill_check_passed
+          skill: "stamina"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You last in the deep the way the crew was sure no one would — clearing the choked
+          runs a body at a time, shouldering the load of the ones who cannot climb, going up
+          and back down and up again through the foul air and the recycler heat until your
+          lungs burn and your arms are dead and the whole Warren-Nine block stands above the
+          seal, blinking in the dim of the levels the survey swore they had left forever. Forty
+          living people, up out of a level a salvage crew sold as empty, every one of them the
+          lie made flesh: the survey said abandoned and uninhabited, and here is the block,
+          breathing, brought up a shaft the crew welded shut. The proof cannot be argued past
+          now — it is people, not paper. But there is the surface yet to cross to the
+          Reclamation Board, and Sennat keeps a man on the routes where the deep comes up, to
+          make sure a block he has already sold never surfaces anything but salvage.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "You've brought the block up — now get it to a desk. Bring the freed residents and the proof of their habitation through the Lower City Black Market toward the Lower City Reclamation Board, and stand off the salvage outfit's enforcer when he comes to drive them back down — `attack`, `dodge`."
+
+      - step: 4
+        title: "The Choke at the Market"
+        location: lower_market
+        npc: "Brunt Kosh"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Bring the freed Warren-Nine residents through the Lower City Black Market and stop Brunt Kosh when the salvage outfit's enforcer comes to drive them back down — `attack`, `dodge`."
+        npc_intro: >
+          [The Lower City Black Market is a low, crowded choke of stalls and salvage where the
+          deep levels surface, and the way from the conduit toward the Lower City Reclamation
+          Board comes up through it. A heavy, tusked Aqualish shoulders off a stall post as you
+          come up with the Warren-Nine block's people behind you and the proof of them in hand,
+          a worn blaster under a salvage crew's grimed jacket and a Sennat Reclamation tag at
+          his collar, the flat patience of a being paid to make sure nothing comes up a
+          stairwell it shouldn't.] Brunt Kosh — the enforcer Sennat posts where the deep comes
+          up, to walk the curious back down and keep a sold level surfacing nothing. He has
+          watched an outsider come up a conduit the crew swore was impassable, the wrong way,
+          with the sealed level breathing behind them, and the easy menace of a man who keeps a
+          choke goes hard. "That's a sealed level you're bringing up, friend — Sennat's claim,
+          Sennat's salvage. The block's abandoned; there's nobody down there and there never
+          was, the way the survey reads. It doesn't go up to any board." [He sets himself
+          across the choke between you and the way out.] "Take them back down and walk out, or
+          you don't walk to that desk. Sennat's a patient outfit. I'm the part of it that keeps
+          a level sold."
+        completion:
+          type: combat_won
+          enemy_template: "buried_block_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Brunt Kosh goes down in the press of the market, the blaster knocked spinning under
+          a salvage stall, and the lower-city traders who have long since learned not to watch
+          where a crew puts a seal find somewhere else to look. The way up toward the
+          Reclamation Board stands clear, and the Warren-Nine block stands behind you,
+          breathing, on the surface. Take them on — forty people up out of a level a survey
+          swore was empty — and there is nothing between here and the board's desk but the
+          stairs, the claim broken, and a block the lower city can have its people back in.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The enforcer's down and the way up is clear — get the freed residents and the proof of their habitation to the Lower City Reclamation Board, then go back to Tomar Hess in the tenement stack."
+
+      - step: 5
+        title: "The Block Back in the Light"
+        location: underground_tenement_block
+        npc: "Tomar Hess"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Tomar Hess in the Southern Underground tenement stack with the Warren-Nine block freed and the dereliction claim coming apart."
+        npc_intro: >
+          [Hess is on his feet when you come back, the coil of conduit line hung up on its peg
+          and a Reclamation Board notice in his hand, watching the stack's foot traffic move
+          again past the rooms that were dark a season — and there is his sister's family among
+          it, up out of the deep.] "Up. All of them. The board read forty living people off a
+          level its own survey called empty, voided the claim, pulled Sennat's salvage rights,
+          laid the sealing of an inhabited block at the outfit's own door — and the offworld
+          buyer's purchase of the cleared level fell through the moment the level wouldn't stay
+          cleared. The board's no friend of the deep — but a salvage outfit that fakes a level
+          derelict and seals its people in to enforce the lie has made the board's own claims
+          record a fraud, and that the board would not have." [He turns the notice over the way
+          a climber checks a knot one last time.] "A season they sealed a block of people in
+          the dark and called it empty, and the survey was all in order, so it was honest.
+          `talk` to me and let me say it plain, now there's a desk that has to hear it."
+        completion:
+          type: talk_to_npc
+          npc: "Tomar Hess"
+        npc_complete: >
+          "Here's your fee — what a stack-bound old climber's saved against a dark day, and
+          worth twice the credits to hand it to the hand that went down a shaft I can't take
+          anymore and brought my sister's family back up into the light. A survey can call a
+          level empty; forty people up a welded shaft says it lied. The claim's pulled, the
+          block gets its people back, the next survey that calls a deep level abandoned gets
+          read against the lights in its windows, and a season of folk sealed in the dark to
+          make a salvage claim true get counted for the living they always were. The lower
+          city's a deep place and word goes down it slow, but it goes — a shop, a stack, a
+          level learns fast who'll go down a sealed shaft after the buried and who'll weld it
+          shut and call it empty. When a block in this underground gets a dereliction notice
+          and a crew with a welding torch, there's a name they'll send for now. Carry mine with
+          it — and read a level by the lights in its windows, not by how clean the survey reads;
+          I'd not have the hand that brought this block up take a sealed shaft on faith."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The Warren-Nine block is up out of the dark and the racket is coming apart: Sennat
+          Reclamation's claim dies as forty living people void the dereliction survey and the
+          sealing of an inhabited level becomes a reclamation fraud on the board's own claims
+          record, a season of folk buried under a sold level are counted for the living they
+          were, and a lower city that had learned not to ask where a salvage crew puts a seal
+          learns to read a level by the lights in its windows. A hand who will go down a sealed
+          shaft after the people a survey buried, last in the deep long enough to bring them
+          up, and stand the choke when the crew comes has a way of being sent for — the
+          Coruscant underground carries a name now, down where the deep levels run under the
+          city's floor and an honest survey is the difference between a derelict and a grave.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════
