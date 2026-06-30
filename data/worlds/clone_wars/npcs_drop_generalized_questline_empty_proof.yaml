@@ -1,0 +1,338 @@
+# Generalized Questline Drop — "The Empty Proof" (T3.24 twenty-seventh slice, 2026-06-30)
+#
+# The TWENTY-SEVENTH accessible (non-t5, non-tutorial) `kind: questline` chain, set on
+# TATOOINE — on the Mos Eisley wastes-road / Jundland frontier (the tatooine_outskirts +
+# tatooine_jundland zones), on a FRESH FOUR-ROOM CLUSTER no chain has touched: the desert
+# trail junction where the wastes-road caravans muster, the Jundland canyon mouth whose
+# sandstone walls make a live-fire backstop range, the Republic checkpoint whose clone
+# troopers stand neutral witness to a sanctioned proof, and the lawless Tusken-camp overlook
+# ridge where the enforcer can take a thing back unseen (outskirts_trail_junction /
+# jundland_canyon_mouth / outskirts_checkpoint / jundland_tusken_overlook). Every one of
+# these four rooms is FRESH to the entire chain corpus, reusing NONE of the prior Tatooine
+# arcs' rooms — The Crooked Wheel's market district, The Dust-Sick's scavenger market and
+# Beggar's Canyon, The Sabotaged Run's speeder circuit, The Long Haul's haul road and power
+# station, The Rigged Issue's civic compound, The Short Weight's spaceport docking bays, The
+# Kept Watch's market shop row, or The Cut Coil's repair-shop street.
+# HONEST DISCIPLINE NOTE: The Dust-Sick already set an arc out on the Tatooine wastes (the
+# City Outskirts scavenger market + the Jundland Wastes' Beggar's Canyon), so this is the
+# SECOND arc on the Tatooine wastes / Jundland frontier, NOT a fresh face, and the EIGHTH
+# Tatooine arc overall; what is fresh is the four-room CLUSTER. At twenty-seven arcs across
+# six planets and a finite set of combat-capable (non-SECURED) rooms, no untouched zone with
+# four contested rooms remains — so the discipline this slice keeps is the honest one still
+# available: a fresh ROOM CLUSTER, not a fresh face. (Only the step-4 combat room must be
+# combat-capable: jundland_tusken_overlook is lawless. The giver/return room and the two proof
+# rooms host no fight — the firearms proof is a backstop range and the thrown proof a witnessed
+# test on the checkpoint's cleared ground, neither a brawl; the clone troopers there are
+# ambient witnesses, not combatants.)
+# It reuses the SAME live questline engine (engine/tutorial_chains.py + chain_events.py: the
+# `kind: questline` type + `active_questline` slot, the existing event types, the four reward
+# funnels) with NO new engine code, no new slot, no new event type, no schema migration, no
+# new reward faucet, and NO map-coordinate or exit-graph change — the sanctioned right-of-launch
+# widening per quest_expansion_postlaunch_path_v1.md (T3.24): author MORE questlines on the
+# proven pattern.
+#
+# Firsts for the accessible-questline arc:
+#   1. A TWENTY-SEVENTH distinct skill spread — FIREARMS (Dexterity) + THROWN WEAPONS
+#      (Dexterity) — neither of which any prior accessible questline uses (vs search+streetwise
+#      / investigation+gambling / persuasion+sneak / security+bargain / first_aid+survival /
+#      value+con / forgery+bureaucracy / command+demolitions /
+#      pick-pocket+hide+computer-programming / sensors+repulsorlift-operation /
+#      alien-species+droid-programming / beast-riding+swimming /
+#      space-transport-repair+astrogation / ground-vehicle-repair+ground-vehicle-operation /
+#      languages+cultures / medicine+scholar / blaster-repair+armor-repair /
+#      space-transports+starship-gunnery / powersuit-operation+lifting /
+#      communications+planetary-systems / business+intimidation / law-enforcement+tactics /
+#      climbing-jumping+stamina / repulsorlift-repair+droid-repair /
+#      walker-operation+hover-vehicle-operation / brawling+willpower). It is the FIRST accessible
+#      questline to reward the MARKSMAN / RANGE-MASTER build — the eye that puts a round on its
+#      mark and the hand that sends a thrown iron true — the FIRST to use FIREARMS, the FIRST to
+#      use THROWN WEAPONS, and the FIRST arc whose spread is drawn entirely from the DEXTERITY
+#      weapon-skill pool (the first weapon-skill arc of the corpus, now that Strength, Knowledge,
+#      and Perception are all exhausted and the remaining open skills concentrate in Dexterity's
+#      weapons, the Mechanical swoop/capital-ship/starfighter cluster, and a thin Technical tail).
+#      A wholly distinct PAIR and a wholly distinct build: not a tradesman, an operator, an
+#      investigator, a clerk, a medic, or a fighter who closes with his fists, but a shooter who
+#      reads a lot true on the range where a licensed stamp lied.
+#   2. Set on TATOOINE, on the Mos Eisley wastes-road / Jundland frontier — but, honestly, NOT a
+#      fresh face: The Dust-Sick already worked the Tatooine wastes. What is fresh is the
+#      four-room CLUSTER (outskirts_trail_junction / jundland_canyon_mouth / outskirts_checkpoint
+#      / jundland_tusken_overlook, every one new to the entire chain corpus). Tatooine is
+#      Hutt-fringe with no Republic civic authority to keep offstage at all; the clone troopers at
+#      the checkpoint are ambient, here for the war and standing neutral witness to a sanctioned
+#      proof, not the racket's undoing, and the proof-house is run afoul of in the end by the
+#      town's own Mos Eisley arms-licensing prefect — the way every prior accessible arc keeps the
+#      larger powers offstage. It touches NO map coordinate or world exit graph — the rooms already
+#      exist and are loaded (planets/tatooine.yaml); only NPCs + a chains.yaml entry + an
+#      achievement are added.
+#
+# It is also a new STORY SHAPE: breaking an INDEPENDENT WEAPONS-PROOF-HOUSE CERTIFICATION FRAUD —
+# the FIRST accessible arc whose racket is a corrupt third-party CERTIFIER rather than a crooked
+# buyer, seller, or service. Not a smuggling-trace, a racket-bust-by-investigation, a
+# kidnap-rescue, a single-part theft-and-frame, a frontier medical rescue, an art-fraud caper, a
+# counter-forgery of documents, a safety-toll community-defense, a finesse heist, a fixed RACE, a
+# droid-reflash racket, a wildlife-poaching racket, a ship-condemnation, a freight strand-and-
+# salvage, a translation fraud, a fake-plague extortion, a counterfeit-arms supply scam, a
+# clearance-fraud/staged-hijack, a short-weight racket, a false-beacon wreck-luring, a debt-bondage
+# padded-advance, a staged-protection fake-enforcement racket, a false-dereliction entrapment, a
+# sabotage-for-impound product-tampering, an illegal-dumping cover-up, or a fixed-prizefight betting
+# racket. It is pointedly DISTINCT from The Rigged Issue, the only prior arms-fraud arc: there a
+# crooked SELLER holding a militia arms-supply contract SUBSTITUTES the genuine issue with
+# counterfeits (blasters cut to a hotter, cheaper spec that jam, "ceramic-faced" armor that is
+# forged-marked pot-metal) and is busted by an ARMORER who STRIPS the substituted goods on the
+# bench (blaster repair + armor repair). Here the corrupt actor is the INDEPENDENT PROOF-HOUSE —
+# the third-party certifier paid to test-fire and range-check a lot before it can be sold, a wholly
+# different actor from the seller — selling a CERTIFICATION that was never earned on REAL but
+# UN-PROOFED goods, busted by a MARKSMAN who RE-RUNS the proof the bench skipped (firearms +
+# thrown weapons). Different actor (certifier, not seller), different fraud (false certification,
+# not goods-substitution), different skills (marksman, not armorer), different victims (the
+# frontier collectives and caravan outfits the proof protects, not the planetary militia). A
+# licensed Mos Eisley arms proof-house (Tannor Proof & Assay, run by the proof-master Veth Tannor)
+# takes a cut to skip the proof entirely — stamping cheap frontier defense lots (slugthrower
+# carbines and balanced throwing irons) "range-proofed to standard" without ever firing or throwing
+# a piece of them — so un-tested, out-of-spec arms reach the moisture-farm collectives and
+# caravan-guard outfits of the wastes road behind a clean independent mark the buyers trust over any
+# seller's word. When a caravan is hit and the carbines jam in the heat and the irons fly wide,
+# guards die, and the bench points to its own stamp and calls it user abuse — the proof certifies
+# the lot sound, so the failure must be the fool who carried it — voiding recourse and even billing
+# the survivors. Sela Marrenn, a caravan-guard captain who buried two of her guards behind a stamped
+# lot that failed and is being held liable on the strength of the proof-house's mark, has the failed
+# lot but a guard captain's word against a licensed independent proof is nothing — so she offers her
+# fee to a neutral hand who can shoot and throw well enough to do what she cannot: take a carbine
+# from the failed lot to the canyon backstop and prove it cannot hold the group its stamp certifies
+# (firearms); run the throwing irons' proof on the checkpoint's cleared ground in plain view of the
+# clone troopers as neutral witnesses so a "range-checked balanced" stamp on a piece that flies
+# untrue cannot be waved off as one captain's grievance (thrown weapons); stand off the proof-house's
+# enforcer who tracks the failed lot onto the lawless overlook ridge (combat); and get the matched
+# failed lot and the proof-house's own log of lots stamped unfired to the Mos Eisley arms-licensing
+# prefect — and a bench that lives on a stamp the buyers trust comes apart the moment the prefect
+# reads a proof that was never run.
+#
+# These NPCs back the `tatooine_empty_proof` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Sela Marrenn — the Iridonian Zabrak caravan-guard captain whose guards died behind a stamped
+#                    lot that failed; she offers + closes the quest (step-1 npc = the questline's
+#                    start-NPC, per get_questline_offer). Step-1 + step-5 NPC.
+#   * Sesko Vahr   — the combat-step proof-house enforcer (ai_config.chain_enemy_template
+#                    empty_proof_enforcer; the step-4 combat_won foil), the muscle the proof-master
+#                    sends onto the lawless ridge to keep a failed lot and the skipped-proof log from
+#                    reaching the arms-licensing prefect.
+# The proof-master who skips the proof and stamps the lots (Veth Tannor) and his off-world arms-broker
+# partner who supplies the cheap un-proofed stock, the slugthrower carbines and balanced throwing irons
+# of the failed lot and the proof-house's crate-log of lots signed proofed without a round fired, the
+# moisture-farm collectives and caravan-guard outfits that arm behind the bench's stamp, Sela's two
+# dead guards and the raid that killed them, the two ambient clone troopers checking IDs at the
+# checkpoint who stand neutral witness to the thrown-weapons proof, the rival proof-house that actually
+# fires what it stamps, and the Mos Eisley arms-licensing prefect who pulls the license are NARRATED
+# ONLY — story beats carried in the prose, NOT spawned NPC entities. Only the giver and the single
+# combat foil are real placed NPCs.
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures. The racket is a private
+# proof-house's certification fraud and its hired muscle, never a war faction; the Senate / Jedi /
+# Republic war overhead never reach Hutt-fringe Tatooine, the clone troopers at the checkpoint are
+# ambient and never drive the plot, and the "authority" that ends the proof-house is the marks
+# themselves and the town's arms-licensing prefect — nodded to and never instantiated.
+# Provenance: Zabrak (the horned Iridonians, a martial, disciplined Outer Rim humanoid species,
+# fringe-common and not war-faction coded, a natural fit for a hard-handed frontier caravan-guard
+# captain) and Trandoshan (the reptilian hunters and mercenaries of Trandosha, blaster-carrying
+# fringe-common toughs, era-clean and not war-faction coded, a natural fit for a proof-house's hired
+# muscle who keeps a road and is no marksman) are both era-clean.
+# Stats matched to the shipped accessible-questline bands — the giver to the non-combat fixer band
+# (Yelza Korrin / Dorae Vint / Sashi Renko / Dav Nuro / Soree Bann / Hessa Veil / Cassa Brel / Vessa
+# Tial / Terva Dohl / Ria Tann / Nuva Sehl / Neyla Sur / Veelo Trinn / Numi Vesh / Brama Hool / Ulil
+# Maan / Senni Vrook / Jando Vekk / Grett Bashan / Corwin Hale / Nabo Threll / Oren Vask / Tomar Hess
+# / Nilo Sabb / Burlo Vethic / Garn Holvo), with the captain's spread skewed to the firearms-and-thrown
+# of a wastes-road guard to embody the two skills the quest sends a hand to use; the enforcer to the
+# small-time-criminal antagonist band (Brakkis Vone / Gorvahn Brusk / Skarn Vex / Suro Vant / Vohrek
+# Sarn / Brask Yade / Varn Tesk / Tarko Venn / Drevin Saar / Vossk Rhal / Korsa Drael / Bohrus Kang /
+# Gornt Reska / Hekka Vrool / Greel Vodo / Vurr Magh / Draygo Sull / Drozz Kael / Hask Vorran / Garvo
+# Naak / Dussek Rao / Brunt Kosh / Vagh Sarko / Draz Kullo / Neevo Karr): a real fight, beatable by a
+# fresh post-chargen character, carrying the proven blaster_pistol of the ranged foils on the same
+# in-band guarded stat line as The Salted Lane's, The Short Weight's, The Wreckers' Light's, The
+# Bonded Crew's, The Kept Watch's, The Buried Block's, The Cut Coil's, The Fouled Sump's, and The
+# Fixed Bout's foils (squarely in the proven beatable band, no balance flag needed — and pointedly
+# NOT the melee/heavy-weapon line of The Condemned Hull's out-of-band Houk foil Bohrus Kang; the
+# enforcer is the bench's muscle, who settles things with a blaster off the road, not a marksman who
+# settles them on it). WEG40120 PDF is local-only (gitignored) and absent in this tree; the bands are
+# cited against the in-repo reference NPCs, not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The captain — Sela Marrenn (questline GIVER + closer)
+  # Questline: tatooine_empty_proof ("The Empty Proof")
+  # Placement: City Outskirts - Desert Trail Junction
+  #            (outskirts_trail_junction, zone tatooine_outskirts).
+  #            Step-1 + step-5 NPC.
+  # NOTE: a hard-handed Iridonian Zabrak who has run guns and guards on the wastes road east of
+  # Mos Eisley for forty caravans, who buried two of her guards to a raid when the carbines her
+  # outfit was issued — stamped "range-proofed to standard" by a licensed Mos Eisley proof-house —
+  # jammed in the heat the first magazine through, and who is now being held liable for the deaths
+  # on the strength of the proof-house's own clean mark. She knows the lot was never proofed because
+  # she has seen what a proofed lot does and what this one did, but a guard captain's word against a
+  # licensed independent proof is nothing — and the only thing that empties a proof is a hand who can
+  # shoot a stamped carbine false on a backstop and throw a stamped iron false in front of neutral
+  # witnesses, which her own grief and her stake in the claim keep her from doing herself.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Sela Marrenn
+    room: "City Outskirts - Desert Trail Junction"
+    species: Zabrak
+    description: >-
+      A hard-handed Iridonian Zabrak in sun-bleached caravan leathers, the brow-horns scarred where a
+      strap or a rifle stock has caught them across forty caravans, standing at the desert trail fork
+      where the wastes-road outfits muster their pack-speeders before the run east. She has run guns
+      and guards on the road to the moisture-farming settlements for longer than most of her captains
+      have been alive, and she knows arms the way a guard captain has to: not how to build one, but
+      what a good one does in the heat and the dust and what a bad one does at the worst possible
+      moment. Three weeks back it did the worst: a raid hit her caravan on the open road, and the
+      carbines her outfit had been issued — stamped "range-proofed to standard" by Tannor's bench, the
+      licensed Mos Eisley proof-house everyone out here trusts to fire-test a lot before it is sold —
+      jammed in the heat the first magazine through, and two of her guards died behind arms a bench had
+      sworn were sound. She knows the lot was never proofed, because she has carried proofed lots for
+      forty caravans and seen what they do, and this one did nothing a proofed carbine would; but the
+      proof-house points to its own clean mark and calls the failure user abuse, the proof says the
+      arms were sound so the fault must lie with the fool who carried them, and a captain's word against
+      a licensed independent proof is nothing. They have voided her recourse and billed her for the lot,
+      and her two dead are being called careless for dying behind it. She is looking for a neutral hand
+      who can shoot and throw well enough to put the proof back behind the stamp — fire the stamped
+      carbine false on a backstop and throw the stamped iron false in front of witnesses the bench
+      cannot buy — and carry an empty proof to a prefect who can pull a license.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D+2
+        technical: 2D
+      skills:
+        firearms: 4D+1
+        thrown weapons: 4D
+        blaster: 3D+1
+        dodge: 3D
+        survival: 3D
+        command: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A forty-caravan wastes-road guard captain worn into a flat, watchful steadiness — sparing of
+        words, quick to read how a being carries a weapon or a crowd carries itself, and out of any
+        faith that a licensed bench on a Hutt-fringe rock will police its own stamp. She reads a failed
+        lot for what it is — a proofed carbine does not jam the first magazine through, a balanced iron
+        does not fly wide to a clean throw — and she can call a bad lot the way she can feel a raid
+        coming off a quiet stretch of road, but a captain with two guards in the ground and a liability
+        claim against her name cannot fire the stamped carbine false on a range, throw the stamped iron
+        false in front of witnesses, refuse the bench's enforcer on the road, and carry the empty proof
+        to the prefect herself — her grief and her stake in the claim are in the way. Calm and certain
+        that a proof-house that stamps lots it never fires to pocket the proofing fee is not the rough
+        honest arms trade of a hard frontier but a thief selling a clean mark over dead guards; she
+        offers her fee — what a captain puts by against a bad season — because the credits are no good
+        to her while the stamp runs empty and the next captain handed a "proofed" lot off Tannor's bench
+        dies the same way, and a neutral marksman who can read a lot true where a licensed stamp lied is
+        the only thing that empties a proof.
+      knowledge:
+        - "She is Sela Marrenn, an Iridonian Zabrak caravan-guard captain who has run guns and guards on the Mos Eisley wastes road for forty caravans, and who buried two of her guards to a raid when the carbines her outfit was issued — stamped 'range-proofed to standard' by Tannor's licensed bench — jammed in the heat the first magazine through. She knows the lot was never proofed, but a captain's word against a licensed independent proof is nothing."
+        - "The racket is an independent weapons-proof-house certification fraud: a licensed Mos Eisley arms proof-house (Tannor Proof & Assay, run by the proof-master Veth Tannor) — the independent bench paid to test-fire and range-check every defense lot before it can be sold — takes a cut to skip the proof entirely, stamping cheap frontier defense lots (slugthrower carbines and balanced throwing irons) 'range-proofed to standard' without ever firing or throwing a piece of them, so un-tested, out-of-spec arms reach the moisture-farm collectives and caravan outfits of the wastes road behind a clean independent mark the buyers trust over any seller's word. When a lot fails in the field and guards die, the bench points to its own stamp and calls it user abuse, voiding recourse and billing the survivors. Sela's guards died behind one of Tannor's stamped lots."
+        - "Sela can prove none of it on the strength of her word, but a neutral hand who can shoot and throw can do what she cannot: take a carbine from the failed lot to the Jundland canyon mouth and proof-fire it against the backstop to show it cannot hold the group its stamp certifies — a fault no shooter can shoot out of a gun that was never proofed (firearms); run the throwing irons' proof on the cleared ground at the Republic checkpoint, in plain view of the clone troopers as neutral witnesses, to show the 'range-checked balanced' irons fly untrue — never balanced, never checked, behind a stamp that swears both (thrown weapons); and stand off the proof-house's enforcer (Sesko Vahr) who tracks the failed lot onto the lawless overlook ridge (combat)."
+        - "Get the matched failed lot and the proof-house's own crate-log of lots stamped proofed without a round fired to the Mos Eisley arms-licensing prefect, and a stamp shown empty cannot be un-shown: a defense lot that fails the very proof its mark certifies, beside a bench log signing it passed a test it never ran, is fraud no clean stamp papers over. The prefect pulls Tannor Proof & Assay's license; the collectives and caravan outfits stop buying any lot the bench touched; a rival proof-house that actually fires what it stamps takes up the trade; and the off-world broker who fed Tannor the cheap unproofed stock loses the one thing that moved it — a clean independent mark the buyers believed. No clone patrol made the case; the marks did, the only law a frontier proof answers to, once they could see the stamp was empty. Sela's dead stop being called careless, and the Republic never needs notice a captain set a proof-house straight."
+      faction: independent
+      dialogue_style: >-
+        Spare, plain, a guard captain's economy of words — names what a carbine does in the heat and
+        what a balanced iron does to a clean throw before she names a grievance, and trusts the lot in
+        her own hands over any mark on the crate. Calm and certain; she has carried enough proofed lots
+        to know a sound one from an empty stamp, and she has two guards in the ground to prove what the
+        bench's mark is worth.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'You shoot? Shoot and throw, both — well enough to prove a point on a range, not just win a bar bet? Then you can do what I can't, and the prefect won't take from me. I'm Sela Marrenn — I run guns and guards on the road east, and three weeks back I buried two of mine to a raid because the carbines we'd been issued jammed in the heat the first magazine through. Those carbines came stamped range-proofed by Tannor's bench, the licensed house everyone out here trusts to fire-test a lot before it's sold. Only Tannor never fired them. He takes a cut to skip the proof and stamp the lot anyway — and when my people died behind his clean mark, his bench called it user abuse and billed me for the lot. My word's nothing against a licensed proof.'"
+        - "*Sela Marrenn pulls a battered carbine and a roll of throwing irons from the failed lot off a pack-speeder and sets them in your hands, the proof-house's stamp bright on the crate-tag against the wear on the steel.* 'A stamp's only worth the proof behind it, and there's no proof behind this one — so go put it behind it. Take this carbine out to the canyon mouth where the walls catch a round, and fire it true. It won't hold the group its mark swears it passed; the barrel's worn off-true and the lot's mismatched, and no hand on the trigger can fix that.'"
+        - "'Then the irons. Bring them up to the checkpoint and throw them on the cleared ground where the troopers can see — a range-checked balanced iron that flies wide in front of neutral eyes is a stamp nobody can wave off as my grievance. Do both, and you've shown the proof's empty. Then mind the road back — Tannor keeps a hand, Sesko Vahr, to see no failed lot walks to the prefect. Get the lot and the bench's own crate-log to the arms-licensing desk, and a proof shown empty pulls a license the way my word never could. My fee's yours then — what a captain puts by against a bad season. I'd sooner it bought the next caravan a house that fires what it stamps than bought me a quiet claim I'll lose.'"
+
+  # ── Questline antagonist: Sesko Vahr (combat step 4) ─────────────────
+  # Single hostile instance on the lawless Tusken-camp overlook ridge between the witnessed proof and
+  # the road down to the prefect. Matches the tatooine_empty_proof step-4 combat_won enemy_template.
+  # Carries the proven blaster_pistol of the ranged foils on the same in-band guarded stat line as The
+  # Salted Lane's, The Short Weight's, The Wreckers' Light's, The Bonded Crew's, The Kept Watch's, The
+  # Buried Block's, The Cut Coil's, The Fouled Sump's, and The Fixed Bout's foils (squarely in the
+  # proven beatable band) so a fresh post-chargen character has a real, winnable fight — and pointedly
+  # NOT the melee line of The Condemned Hull's out-of-band Houk foil. The enforcer is the bench's
+  # muscle, not a marksman: he settles things with a blaster off the road.
+
+  - name: Sesko Vahr
+    room: "Jundland Wastes - Tusken Camp Overlook"
+    species: Trandoshan
+    description: >-
+      A heavy, dust-scaled Trandoshan with the still, slit-eyed patience of a being paid to make sure
+      nothing walks off the wastes road that the bench cannot afford to have walk, planted behind a
+      screen of boulders on the overlook ridge above a Tusken camp, a worn blaster pistol loose in his
+      clawed hand and a proof-house chit on a cord at his throat. He is Veth Tannor's hand — not a
+      shooter and not a thrower, never either, but the muscle a proof-house keeps for the lots that come
+      back asking questions: the one sent to walk a captain who talks too loud back off the road with a
+      flat word, to collect the failed lots the bench wants back before anyone fires them again, and to
+      keep the lawless ridge between the witnessed line and the road down so that nothing the proof-house
+      needs buried ever reaches the prefect's desk. He rarely has to draw, because a certification fraud
+      on a Hutt-fringe rock runs on buyers who trust the mark over the gun in their hands and a bench that
+      can wave any failure off as user abuse. The whole racket lives on a stamp the buyers believe and a
+      proof nobody checks; it does not live on a neutral hand coming off a backstop and a witnessed line
+      with a carbine fired false, an iron thrown false, and the bench's own crate-log of lots stamped
+      unfired, headed for the arms-licensing desk. He has heard a stranger shot the favorite lot false at
+      the canyon and threw it false in front of the checkpoint, and the easy menace of a man who keeps a
+      road goes hard the instant the one thing the stamp cannot survive starts walking toward the people
+      who can pull it. The lot is Tannor's property and the proof on it is clean, as far as anyone on the
+      ridge will hear him say it; and whoever is carrying it is handing it back or going down on the ridge
+      stone with it, where a fiercely territorial camp too far below pays a brief, quiet thing no mind.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        brawling: 3D+1
+        intimidation: 3D+2
+        streetwise: 3D
+        search: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: empty_proof_enforcer
+      personality: >-
+        A proof-house enforcer genuinely unused to being made to fight for the stamp — bored and
+        contemptuous while buyers who trust the mark and a bench that can call any failure user abuse do
+        his work, and immediately, heavily violent the moment a neutral hand comes off a backstop and a
+        witnessed line with a lot fired false and the bench's own log of lots stamped unfired headed for
+        the prefect. He works a blaster and a flat threat and a chit, not his hands: dangerous and direct,
+        he plants himself on the lawless ridge between the line and the road down and would rather break a
+        hand on the ridge stone than let a failed lot reach a desk that can pull a license. His pay and
+        his standing with Tannor ride on a stamp the buyers keep trusting and a proof nobody checks, so
+        he'll draw on anyone carrying the proof that the proof was never run. Combat foil for the
+        questline's confrontation beat — the bench's muscle, not a marksman; he settles it with a blaster,
+        off the road.
+      knowledge:
+        - "He is Sesko Vahr, the Trandoshan enforcer Veth Tannor keeps for the lots that come back asking questions — walking loud captains off the road, collecting the failed lots the bench wants back before anyone fires them again, and keeping the lawless overlook ridge between the witnessed line and the road down to the prefect, rarely having to draw because a certification fraud runs on buyers who trust the mark and a bench that waves failures off as user abuse. He is muscle, not a marksman."
+        - "A neutral hand fired one of Tannor's stamped carbines false against the canyon backstop and threw its stamped throwing irons false on the cleared ground in front of the checkpoint's clone troopers, and is carrying the matched failed lot and the proof-house's own crate-log of lots stamped proofed without a round fired down toward the Mos Eisley arms-licensing prefect; the racket lives on a stamp the buyers trust and a proof nobody checks, so he'll draw on whoever carries the proof the proof was never run rather than let the one thing the stamp cannot survive reach the desk that can pull the bench's license."
+      faction: criminal
+      dialogue_style: >-
+        Flat, unhurried, contemptuous — names the lot as Tannor's property and the proof on it as clean
+        before the threat. States once that the lot is a stamped recall and the proof is sound, and after
+        that lets the blaster keep the ridge the way a clean stamp keeps the buyers.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'That lot in your hands is Veth Tannor's property, friend — a recall, stamped sold and stamped returned, the bench's to collect. The proof on it's clean; whatever you think you showed at the canyon and the line, it doesn't reach any licensing desk. Hand it back and walk off the wastes.'"
+        - "*Sesko Vahr steps out from behind the screen of boulders as you come up the ridge carrying the failed lot, sets himself across the overlook between you and the road down, and lets his hand fall loose to the worn blaster at his hip he would rather not have to draw, the Tusken camp in the valley below too far down to mark a brief, quiet thing on the rocks.*"
+        - "'Every lot Tannor's bench stamps gets fired. So says the proof. So do I. And that lot's a clean recall, sold sound and come back sound — bad luck it failed on you, the way the heat falls out here. Bad day for you to think otherwise. Last time — hand back the lot and the bench's papers and walk off the wastes, or you don't walk down to that prefect. The bench fires what it stamps. I'm the part of it that keeps the ones it didn't from saying so.'"

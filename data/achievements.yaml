@@ -877,3 +877,11 @@ achievements:
     icon: "🛡️"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "nar_shaddaa_fixed_bout"}
+
+  - key: empty_proof_cleared
+    name: "The Empty Proof"
+    description: "Emptied an independent weapons-proof-house's certification fraud on the Mos Eisley wastes road — a licensed bench that took a cut to stamp frontier defense lots 'range-proofed' without ever firing a carbine or throwing an iron, so untested arms reached the moisture-farm collectives and caravan outfits behind a clean independent mark, and a caravan-guard captain's guards died behind a stamped lot that jammed in the heat. Took a carbine from the failed lot out to the Jundland canyon mouth and fired it true against the backstop, group after group, to show it could not hold the group its stamp certified — a worn, mismatched lot no hand on the trigger could shoot straight (firearms); ran the throwing irons' proof on the cleared ground at the Republic checkpoint in plain view of the clone troopers as neutral witnesses, where the 'range-checked balanced' irons tumbled and flew wide of every mark to a clean throw — never balanced, never checked (thrown weapons); and stood off the proof-house's enforcer who tracked the failed lot onto the lawless overlook ridge to take it back before it reached the prefect. A defense lot that failed the very proof its mark certified, beside the bench's own log of lots signed proofed without a round fired, was fraud no clean stamp could paper over — and on a Hutt-fringe rock with no Republic court to try it, the marks pulled the bench: the Mos Eisley arms-licensing prefect pulled the proof-house's license, the collectives and caravan outfits stopped buying any lot it had touched, a rival house that fires what it stamps took up the trade, and a frontier that had learned to trust a mark over the gun in its own hands learned to read a lot true on the range."
+    category: profession
+    icon: "🛡️"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "tatooine_empty_proof"}
