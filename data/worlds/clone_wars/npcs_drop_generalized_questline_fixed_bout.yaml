@@ -1,0 +1,337 @@
+# Generalized Questline Drop — "The Fixed Bout" (T3.24 twenty-sixth slice, 2026-06-30)
+#
+# The TWENTY-SIXTH accessible (non-t5, non-tutorial) `kind: questline` chain, set on
+# NAR SHADDAA — on the Corellian Sector Promenade face (the nar_shaddaa_promenade zone),
+# on a FRESH FOUR-ROOM CLUSTER no chain has touched: the rough Bounty Hunters' Quarter
+# where the feeder bouts and the book run, the Burning Deck's back-room fight pit, the Hutt
+# Emissary Tower's audience chamber where the title bouts and the offers are held, and the
+# circuit's Weapons Cache where the enforcer keeps the muscle's arms (bounty_hunters_quarter
+# / burning_deck_back_room / hutt_emissary_tower_audience / weapons_cache). The promenade is
+# a USED face — four prior arcs already set work there (The Ghost Shipment, The Forged Notice,
+# The Wasting Ward, The Wreckers' Light) — so this is honestly the FIFTH arc on the Corellian
+# Sector Promenade, NOT a fresh face; what is fresh is the four-room CLUSTER. Every one of
+# these four rooms is FRESH to the entire chain corpus, reusing NONE of the prior promenade
+# arcs' rooms (The Ghost Shipment's burning_deck_cantina / floating_market, The Forged
+# Notice's enforcer_alley / smugglers_guild_hall / upper_dock_observation, The Wasting Ward's
+# refugee_sector, or The Wreckers' Light's old_corellian_quarter / promenade_corporate_tower /
+# the_grid / vertical_bazaar). NOTE the honest near-collision: this arc's giver room
+# `burning_deck_back_room` is a DISTINCT room slug from The Ghost Shipment's
+# `burning_deck_cantina` — the same dockside venue's back room versus its cantina floor, two
+# different loaded rooms (the freshness invariant is on room SLUGS, and these do not overlap).
+# At twenty-six arcs across six planets and a finite set of combat-capable (non-SECURED)
+# rooms, no untouched zone with four contested rooms remains — so the discipline this slice
+# keeps is the honest one still available: a fresh ROOM CLUSTER, not a fresh face.
+# It reuses the SAME live questline engine (engine/tutorial_chains.py + chain_events.py:
+# the `kind: questline` type + `active_questline` slot, the existing event types, the four
+# reward funnels) with NO new engine code, no new slot, no new event type, no schema
+# migration, no new reward faucet, and NO map-coordinate or exit-graph change — the
+# sanctioned right-of-launch widening per quest_expansion_postlaunch_path_v1.md (T3.24):
+# author MORE questlines on the proven pattern.
+#
+# Firsts for the accessible-questline arc:
+#   1. A TWENTY-SIXTH distinct skill spread — BRAWLING (Strength) + WILLPOWER (Knowledge) —
+#      neither of which any prior accessible questline uses (vs search+streetwise /
+#      investigation+gambling / persuasion+sneak / security+bargain / first_aid+survival /
+#      value+con / forgery+bureaucracy / command+demolitions /
+#      pick-pocket+hide+computer-programming / sensors+repulsorlift-operation /
+#      alien-species+droid-programming / beast-riding+swimming /
+#      space-transport-repair+astrogation / ground-vehicle-repair+ground-vehicle-operation /
+#      languages+cultures / medicine+scholar / blaster-repair+armor-repair /
+#      space-transports+starship-gunnery / powersuit-operation+lifting /
+#      communications+planetary-systems / business+intimidation / law-enforcement+tactics /
+#      climbing-jumping+stamina / repulsorlift-repair+droid-repair /
+#      walker-operation+hover-vehicle-operation). It is the FIRST accessible questline to
+#      reward the PRIZEFIGHTER / NERVE-AND-FISTS build — the hands that go a clean round in a
+#      fixed pit and the nerve that will not be bought, dosed, or threatened into throwing one.
+#      It is the FIRST accessible questline to use BRAWLING and the FIRST to use WILLPOWER —
+#      and, because BRAWLING is the LAST unused STRENGTH skill (climbing/jumping, stamina,
+#      lifting, and swimming are all spent) and WILLPOWER is the LAST unused KNOWLEDGE skill
+#      (all thirteen other Knowledge skills spent), it is the FIRST arc to CLOSE OUT TWO whole
+#      attribute skill pools at once: after this slice STRENGTH and KNOWLEDGE join PERCEPTION
+#      as exhausted attributes — no unused skill remains under any of the three. It is also the
+#      FIRST cross-attribute STRENGTH + KNOWLEDGE spread (the prior Strength arcs paired with
+#      Strength itself — climbing/jumping + stamina — or with Mechanical — powersuit operation
+#      + lifting; the prior Knowledge arcs paired with Knowledge or with Mechanical), a wholly
+#      distinct PAIR and a wholly distinct build: not a tradesman, an operator, an investigator,
+#      a clerk, or a medic, but a fighter who wins clean and a will that cannot be turned.
+#   2. Set on NAR SHADDAA, on the Corellian Sector Promenade face — but, honestly, NOT a fresh
+#      face: four prior arcs already worked the promenade. What is fresh is the four-room
+#      CLUSTER (bounty_hunters_quarter / burning_deck_back_room / hutt_emissary_tower_audience /
+#      weapons_cache, every one new to the entire chain corpus). The promenade is the lawless
+#      Smugglers' Moon's commerce-and-conspiracy face, where the Hutts do not care who fights
+#      whom so long as the book pays — so the Senate, the Jedi, and the Republic war effort have
+#      no reach and never appear, and the racket is run afoul of not by any law (there is none
+#      here) but by the marks themselves and the very Hutt backer whose book the fix was bleeding
+#      — the way every prior accessible arc keeps the larger powers offstage. It touches NO map
+#      coordinate or world exit graph — the rooms already exist and are loaded
+#      (planets/nar_shaddaa.yaml); only NPCs + a chains.yaml entry + an achievement are added.
+#
+# It is also a new STORY SHAPE: breaking a FIXED-PRIZEFIGHT / COERCED-THROW betting racket —
+# the FIRST accessible arc whose racket is a rigged BLOOD SPORT, the harm carried in crippled
+# fighters and a fleeced betting crowd rather than in a single mark's purse or a poisoned draw.
+# Not a smuggling-trace, a racket-bust-by-investigation, a kidnap-rescue, a single-part theft-
+# and-frame, a frontier medical rescue, an art-fraud caper, a counter-forgery of documents, a
+# safety-toll community-defense, a finesse heist, a fixed RACE, a droid-reflash racket, a
+# wildlife-poaching racket, a ship-condemnation, a freight strand-and-salvage, a translation
+# fraud, a fake-plague extortion, a counterfeit-arms supply scam, a clearance-fraud/staged-
+# hijack, a short-weight racket, a false-beacon wreck-luring, a debt-bondage padded-advance, a
+# staged-protection fake-enforcement racket, a false-dereliction entrapment, a sabotage-for-
+# impound product-tampering, or an illegal-dumping cover-up. It is pointedly DISTINCT from the
+# two prior "rigged contest" arcs: The Crooked Wheel rigs a GAME OF CHANCE the house controls
+# (a casino wheel, busted by investigation + gambling — you out-read the rigged game); The
+# Sabotaged Run rigs a RACE by sabotaging a machine (busted by sensors + repulsorlift operation
+# — you read the tampered speeder in the cockpit). This rigs a CONTEST OF SKILL by coercing the
+# contestants — the harm falls on the FIGHTERS, dosed and threatened and crippled into throwing
+# bouts, and it is broken not by reading a game or a machine but by FIGHTING one honest round
+# the book cannot survive and HOLDING A NERVE the racket cannot buy. An unsanctioned prizefight
+# circuit runs the promenade — feeder bouts in the Burning Deck's back-room pit, high-stakes
+# title bouts in the Hutt emissary's tower, the whole thing backed by a Hutt kajidic that takes
+# its cut of the book. The matchmaker fixes the outcomes: favored fighters are quietly told to
+# throw, and the ones who will not are "softened" — slow-dosed before the late rounds or leaned
+# on through whatever they love — so the house book always lands where the kajidic wants it,
+# and the betting crowd and the fighters both pay for a contest that was never honest. Garn
+# Holvo, a battered old Nikto cornerman who has worked fight corners on this moon for forty
+# years, had a fighter crippled — not beaten, dosed and then thrown to a man who should have
+# lost — for refusing to take a fall, and a cornerman's word against a Hutt-backed book is
+# nothing on a moon with no law to tell it to. He offers his fee to any neutral fighting hand
+# who can do what he cannot: step into the Burning Deck's pit and beat the house's untouchable
+# "favorite" CLEAN, the win that proves the favorites only ever win fixed (brawling); take the
+# audience the win earns up in the Hutt emissary's tower and refuse the purse, the "steadying"
+# cup, and the flat threat the majordomo makes every fighter take to throw the next bout —
+# holding nerve enough to walk out with the kajidic's own marker of which bouts were bought
+# (willpower); stand off the circuit's enforcer when he comes for the marker at the weapons
+# cache (combat); and get the marker of the fixed book back where the bettors and the fighters
+# and a rival promoter will read it — and a circuit that lives on a book the marks trust comes
+# apart the moment they cannot.
+#
+# These NPCs back the `nar_shaddaa_fixed_bout` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Garn Holvo  — the forty-year Nikto fight-circuit cornerman whose crippled fighter set him
+#                   against the fixed book; he offers + closes the quest (step-1 npc = the
+#                   questline's start-NPC, per get_questline_offer). Step-1 + step-5 NPC.
+#   * Neevo Karr  — the combat-step circuit enforcer (ai_config.chain_enemy_template
+#                   fixed_bout_enforcer; the step-4 combat_won foil), the muscle the matchmaker
+#                   sends to the weapons cache to make sure no marker of the fixed book walks
+#                   off the circuit toward a betting crowd.
+# The matchmaker who fixes the bouts (Tovan Dree), the Hutt emissary kajidic that backs the book
+# and the Hutt's majordomo who makes the offers (Pazda the Hutt — an original, narrated-only
+# figure, never a canon Hutt), the crippled fighter and the dosed and coerced fighters of the
+# circuit, the betting crowd of hunters and crews and dock-hands, the "steadying" cup and the
+# bought purses and the kajidic's marker of the fixed book, the rival promoter the proof reaches,
+# and the Burning Deck pit's referee and stallkeepers are NARRATED ONLY — story beats carried in
+# the prose, NOT spawned NPC entities. Only the giver and the single combat foil are real placed
+# NPCs.
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures (the narrated Hutt
+# backer is an original character, never a canon Hutt). The racket is a private prizefight
+# circuit's fraud and its hired muscle, never a war faction; the Senate / Jedi / Republic war
+# overhead never reach the lawless promenade, and the "authority" that ends the circuit is the
+# marks themselves and the Hutt backer protecting a book no one will bet — nodded to and never
+# instantiated.
+# Provenance: Nikto (the Kintan species long bound to the Hutts as enforcers, laborers, and
+# podracers, fringe-common and not war-faction coded, the most natural fit for a forty-year
+# Hutt-moon fight-circuit cornerman — a fresh giver species for this lane) and Rodian (the
+# green-scaled hunters of Rodia, blaster-carrying fringe-common toughs and bounty men, era-clean
+# and not war-faction coded, the most natural fit for a circuit's blaster-carrying enforcer who
+# is muscle and not a fighter) are both era-clean.
+# Stats matched to the shipped accessible-questline bands — the giver to the non-combat fixer
+# band (Yelza Korrin / Dorae Vint / Sashi Renko / Dav Nuro / Soree Bann / Hessa Veil / Cassa
+# Brel / Vessa Tial / Terva Dohl / Ria Tann / Nuva Sehl / Neyla Sur / Veelo Trinn / Numi Vesh /
+# Brama Hool / Ulil Maan / Senni Vrook / Jando Vekk / Grett Bashan / Corwin Hale / Nabo Threll /
+# Oren Vask / Tomar Hess / Nilo Sabb / Burlo Vethic), with the cornerman's spread skewed to the
+# brawling-and-nerve of a fight-corner veteran to embody the two skills the quest sends a hand to
+# use; the enforcer to the small-time-criminal antagonist band (Brakkis Vone / Gorvahn Brusk /
+# Skarn Vex / Suro Vant / Vohrek Sarn / Brask Yade / Varn Tesk / Tarko Venn / Drevin Saar /
+# Vossk Rhal / Korsa Drael / Bohrus Kang / Gornt Reska / Hekka Vrool / Greel Vodo / Vurr Magh /
+# Draygo Sull / Drozz Kael / Hask Vorran / Garvo Naak / Dussek Rao / Brunt Kosh / Vagh Sarko /
+# Draz Kullo): a real fight, beatable by a fresh post-chargen character, carrying the proven
+# blaster_pistol of the ranged foils on the same in-band guarded stat line as The Salted Lane's,
+# The Short Weight's, The Wreckers' Light's, The Bonded Crew's, The Kept Watch's, The Buried
+# Block's, The Cut Coil's, and The Fouled Sump's foils (squarely in the proven beatable band, no
+# balance flag needed — and pointedly NOT the melee/heavy-weapon line of The Condemned Hull's
+# out-of-band Houk foil Bohrus Kang; the enforcer is the book's muscle, who settles things with a
+# blaster off the canvas, not a fighter who settles them on it). WEG40120 PDF is local-only
+# (gitignored) and absent in this tree; the bands are cited against the in-repo reference NPCs,
+# not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The cornerman — Garn Holvo (questline GIVER + closer)
+  # Questline: nar_shaddaa_fixed_bout ("The Fixed Bout")
+  # Placement: Nar Shaddaa - Bounty Hunters' Quarter
+  #            (bounty_hunters_quarter, zone nar_shaddaa_promenade).
+  #            Step-1 + step-5 NPC.
+  # NOTE: a forty-year Nikto cornerman who has worked fight corners on the Smugglers' Moon since
+  # before the war, who had a fighter crippled — dosed and then thrown to a man he should have
+  # put down — for refusing to take a fall, and whose word as a corner hand means nothing against
+  # a Hutt-backed book on a moon with no law to tell it anything. He knows the circuit is fixed
+  # because he has cut tape on the dosed and seen the favorites who never lose, but the only
+  # thing that breaks a fixed book is a hand who can win clean in the pit and a nerve the offer
+  # cannot turn — and his knees and his standing are forty years gone past either.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Garn Holvo
+    room: "Nar Shaddaa - Bounty Hunters' Quarter"
+    species: Nikto
+    description: >-
+      A leather-hided old Kajain'sa'Nikto gone grey at the horn-ridges, his knuckles swollen flat
+      from forty years of taping other men's hands, sitting on an overturned crate at the edge of
+      the Bounty Hunters' Quarter where the off-duty hunters and crews drink and bet on the night's
+      bouts. He has worked fight corners on the Smugglers' Moon since before the war was a rumor —
+      cutman, cornerman, the steady voice between rounds — and he knows the promenade's prizefight
+      circuit the way only a man who has stood in its corners can: the feeder bouts run in the
+      Burning Deck's back-room pit, the high-stakes title bouts up in the Hutt emissary's tower,
+      and the whole of it backed by a kajidic that takes its cut of the book. He knows, too, what
+      no fight crowd is supposed to: the matchmaker fixes it. Favored fighters are told to throw,
+      quietly, and the ones who will not are softened — slow-dosed before the late rounds so the
+      legs go in the eighth, or leaned on through whatever they love — and the house book lands
+      where the kajidic wants it every time, and the bettors and the fighters both pay for a
+      contest that was never honest. He stopped being able to call it bad luck the night they
+      crippled his fighter — a good young hand who would not take a fall, dosed so his guard
+      dropped and then thrown to a man who should have lost, and carried out of the pit on a board.
+      A cornerman's word against a Hutt-backed book is nothing on a moon with no law to tell it to,
+      and the only thing that breaks a fixed book is the one thing the matchmaker cannot fix: a
+      clean win the favorites cannot survive, and a fighter the offer cannot buy. His knees are
+      forty years gone past stepping into a pit, and the circuit knows his face. He is looking for
+      a neutral fighting hand who can win one honest round in the Burning Deck and walk out of the
+      Hutt's tower with what he was offered to throw it.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D
+        technical: 2D
+      skills:
+        brawling: 4D+1
+        willpower: 4D
+        stamina: 3D+1
+        intimidation: 3D
+        streetwise: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A forty-year fight-corner Nikto worn into a flat, patient steadiness — sparing of words,
+        quick to read a fighter's legs or a crowd's money, and out of any faith that a Hutt-backed
+        circuit on a lawless moon will ever police its own book. He reads a fixed bout for what it
+        is — a clean fighter does not lose his legs in the eighth round, a favorite does not go
+        undefeated against the whole card on merit — and he can tape a hand and call a corner the
+        way he can feel a dose coming on in a man between rounds, but a cornerman with bad knees
+        and a known face cannot step into the pit, take the audience the win earns, refuse the
+        offer it carries, and stand off the enforcer who comes for the marker. Calm and certain
+        that a circuit that doses and threatens fighters into throwing bouts to land a Hutt's book
+        is not the rough honest blood-sport of a hard moon but a thief crippling fighters to bleed
+        a betting crowd; he offers his fee — what a corner hand has put by in forty years — because
+        the credits are no good to him while the book runs fixed and the fighters who will not
+        throw get carried out, and a neutral hand who can win clean where his knees no longer let
+        him and hold a nerve the offer cannot turn is the only thing that breaks a fixed book.
+      knowledge:
+        - "He is Garn Holvo, a forty-year Nikto fight-circuit cornerman on the Corellian Sector Promenade — cutman and corner hand since before the war — who had a fighter crippled (dosed so his guard dropped, then thrown to a man who should have lost) for refusing to take a fall. He knows the promenade's prizefight circuit is fixed, but a corner hand's word against a Hutt-backed book means nothing on a moon with no law."
+        - "The racket is a fixed prizefight circuit: an unsanctioned promenade fight circuit runs feeder bouts in the Burning Deck's back-room pit and high-stakes title bouts up in the Hutt emissary's tower, backed by a Hutt kajidic that takes its cut of the betting book. The matchmaker (Tovan Dree) fixes the outcomes — favored fighters are told to throw, and the ones who refuse are softened (slow-dosed before the late rounds, or leaned on through whatever they love) — so the house book always lands where the kajidic (Pazda the Hutt's emissary) wants it, and the betting crowd and the fighters both pay for a contest that was never honest. Holvo's fighter was crippled for refusing to throw."
+        - "Holvo can prove none of it on a lawless moon, and his knees and his known face keep him out of the pit, but a neutral fighting hand can do what he cannot: step into the Burning Deck's back-room pit and beat the house's untouchable 'favorite' clean — the one win the matchmaker cannot fix, proving the favorites only ever win fixed (brawling); take the audience the win earns up in the Hutt emissary's tower and refuse the purse, the 'steadying' cup (the dose), and the flat threat the majordomo makes every fighter take to throw the next bout — holding nerve enough to walk out with the kajidic's own marker of which bouts were bought and thrown (willpower); and stand off the circuit's enforcer (Neevo Karr) who comes for the marker at the weapons cache (combat)."
+        - "Get the kajidic's marker of the fixed book back to where the bettors and the fighters and a rival promoter will read it — and a circuit that lives on a book the marks trust comes apart: a marker in the matchmaker's own hand naming which bouts were bought and thrown is proof no rough honest blood-sport survives. The betting crowd stops paying into a book shown fixed, the fighters who were dosed and threatened walk, a rival promoter takes the clean card, and even the Hutt backer — who cares for nothing but a book that pays — cuts Tovan Dree loose rather than wear a circuit no one will bet. There is no law on the promenade to pull a license; the marks are the law a fixed book answers to, and once they read the marker the circuit either runs clean or it does not run. Holvo's crippled fighter gets what care credits can buy, and the Hutts never need notice a corner hand set their book straight for them."
+      faction: independent
+      dialogue_style: >-
+        Spare, plain, a corner hand's economy of words — names what a fighter's legs show and what
+        a favorite who never loses means before he names a grievance, and trusts the dose he has
+        cut tape on over any card the matchmaker calls clean. Calm and certain; he has worked
+        enough corners to know a thrown bout from an honest one, and he has a crippled fighter to
+        prove what the circuit does to the ones who will not throw.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'You can fight? Clean — not pretty, clean? Then you'll do what I can't, and nobody on this moon will. Forty years I've taped hands and called corners in this circuit, and I know an honest bout from a bought one. A fighter doesn't lose his legs in the eighth round. A favorite doesn't go undefeated against the whole card on his own. The matchmaker — Tovan Dree — tells the favored to throw, and the ones who won't, he softens. Slow-doses them before the late rounds so the legs go, or leans on whatever they love. And the Hutt that backs the book takes its cut, every time, off a contest that was never once honest. They crippled a good young fighter of mine for saying no. Dosed him so his guard dropped and threw him to a man he'd have put down clean. Carried him out on a board.'"
+        - "*Garn Holvo flexes his swollen, flattened knuckles and looks at his own forty-year-gone knees the way a man looks at a tool worn past use.* 'My word's nothing. A corner hand against a Hutt-backed book, on a moon with no law to tell it anything — they'd laugh me off the promenade. But a fixed book has one thing it can't fix: a clean win it didn't call. Step into the Burning Deck's pit — they'll feed you their untouchable favorite, the one the card swears can't be beat. Beat him clean. No dose, no fall, no deal — just put him down honest, in front of the crowd that's bet on him a hundred times. That throws the book, and it gets you noticed. Then I'll tell you the harder part. Win first.'"
+        - "'The harder part's the offer. Win clean and the win earns you an audience — Dree takes you up to the Hutt emissary's tower, and the majordomo makes you the offer every fighter on this circuit's taken or been carried out for refusing: a fat purse, a steadying cup before the title bout — that's the dose, friend, drink it and your legs are theirs — and a flat word about what happens to whoever's in your corner if you don't throw it. Take none of it. Hold your nerve, turn the purse and the cup and the threat all three down, and keep your wits enough to walk out with the marker the majordomo's careless enough to let you see — the kajidic's own book of which bouts were bought. They keep it; a Hutt backer wants its fixers' work written down. Then mind the weapons cache on your way out — Dree keeps a man, Neevo Karr, to see no marker walks off this circuit. Get it back to me, and a book the marks can't trust anymore breaks itself. My fee's yours then — what a corner hand's put by in forty years. I'd sooner it bought my fighter a hand that works again than bought me a quiet end.'"
+
+  # ── Questline antagonist: Neevo Karr (combat step 4) ─────────────────
+  # Single hostile instance at the circuit's Weapons Cache between the Hutt emissary's tower and
+  # the betting crowd. Matches the nar_shaddaa_fixed_bout step-4 combat_won enemy_template.
+  # Carries the proven blaster_pistol of the ranged foils on the same in-band guarded stat line
+  # as The Salted Lane's, The Short Weight's, The Wreckers' Light's, The Bonded Crew's, The Kept
+  # Watch's, The Buried Block's, The Cut Coil's, and The Fouled Sump's foils (squarely in the
+  # proven beatable band) so a fresh post-chargen character has a real, winnable fight — and
+  # pointedly NOT the melee line of The Condemned Hull's out-of-band Houk foil. The enforcer is
+  # the book's muscle, not a fighter: he settles things with a blaster off the canvas.
+
+  - name: Neevo Karr
+    room: "Nar Shaddaa - Weapons Cache"
+    species: Rodian
+    description: >-
+      A green-scaled Rodian with the still, multifaceted patience of a being paid to make sure
+      nothing walks off the circuit that shouldn't, planted in the circuit's weapons cache among
+      the racked stun batons and the muscle's blasters, a worn blaster pistol holstered loose at
+      his hip and a matchmaker's chit on a cord at his throat. He is Tovan Dree's enforcer — not a
+      fighter, never a fighter, but the hand the matchmaker sends when a problem needs settling off
+      the canvas: the man who walks a fighter who talks too much back to his corner with a flat
+      word, who collects the markers the kajidic wants collected, and who keeps the weapons cache
+      between the Hutt emissary's tower and the betting floor so that nothing the circuit needs
+      buried ever reaches a crowd that bets on the card. He rarely has to draw, because a fixed
+      circuit on a lawless moon runs on fighters who learned what refusing costs and a betting
+      crowd that never sees the book. The whole racket lives on bouts that land where the kajidic
+      wants and a book the marks trust enough to keep paying into; it does not live on a neutral
+      hand coming off an audience in the Hutt's tower with the kajidic's own marker of the fixed
+      book in his fist, headed for the floor. He has watched an outsider walk into the Burning Deck
+      and put down the favorite clean — clean, in front of the crowd, a thing the card swore could
+      not be done — and then walk out of the tower having taken none of the offer, and the easy
+      menace of a man who keeps a cache goes hard the instant the one thing the book cannot survive
+      starts walking toward the people who bet on it. The favorite lost fair and the marker is
+      Dree's private business, as far as anyone at the cache will hear him say; and whoever is
+      carrying that marker is handing it back or going down on the cache floor with it.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        brawling: 3D+1
+        intimidation: 3D+2
+        streetwise: 3D
+        search: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: fixed_bout_enforcer
+      personality: >-
+        A fixed-circuit enforcer genuinely unused to being made to fight for the book — bored and
+        contemptuous while fighters who learned the cost and a crowd that never sees the card do his
+        work, and immediately, heavily violent the moment a neutral hand comes off an audience in
+        the Hutt's tower with the kajidic's own marker of the fixed bouts headed for the betting
+        floor. He works a blaster and a flat threat and a chit, not his fists: dangerous and direct,
+        he plants himself in the weapons cache between the tower and the floor and would rather break
+        a hand on the cache plates than let a marker reach a crowd he can no longer call the book
+        clean to. His pay and his standing with Dree ride on bouts that land where the kajidic wants
+        and a book the marks keep trusting, so he'll draw on anyone carrying the proof that they
+        shouldn't. Combat foil for the questline's confrontation beat — the book's muscle, not a
+        fighter; he settles it with a blaster, off the canvas.
+      knowledge:
+        - "He is Neevo Karr, the Rodian enforcer Tovan Dree keeps on the prizefight circuit to make sure nothing walks off it that shouldn't — walking talkative fighters back to their corners, collecting the markers the kajidic wants collected, and keeping the weapons cache between the Hutt emissary's tower and the betting floor, rarely having to draw because a fixed circuit on a lawless moon runs on fighters who learned the cost and a crowd that never sees the book. He is muscle, not a fighter."
+        - "A neutral hand walked into the Burning Deck's pit and put down the circuit's untouchable favorite clean in front of the crowd, took the audience the win earned up in the Hutt emissary's tower and refused the purse and the steadying cup and the threat, and is carrying the kajidic's own marker of which bouts were bought and thrown down toward the betting floor; the racket lives on bouts that land where the kajidic wants and a book the marks trust, so he'll draw on whoever carries the proof the bouts were fixed rather than let the one thing the book cannot survive reach the people who bet on it."
+      faction: criminal
+      dialogue_style: >-
+        Flat, unhurried, contemptuous — names the favorite's fair loss and Dree's private business
+        before the threat. States once that the favorite lost clean and the marker is the
+        matchmaker's own, and after that lets the blaster keep the cache the way a fixed book keeps
+        the crowd.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'That marker in your fist is Tovan Dree's private business, friend — the matchmaker's book, the matchmaker's to keep. And the favorite you put down tonight lost clean, fair as the card reads; a good night for you, nothing more. Whatever you think it proves, it doesn't go down to any betting floor. Hand it back and walk off the circuit.'"
+        - "*Neevo Karr comes off the rack of stun batons as you carry the kajidic's marker in off the tower stairs toward the betting floor, sets himself across the weapons cache between you and the crowd, and lets his hand fall loose to the blaster at his hip he would rather not have to draw.*"
+        - "'Whole circuit swore those bouts ran clean. So does the book. So do I. And the favorite lost fair tonight — bad luck, the way it falls. Bad day for you to think otherwise. Last time — hand back Dree's marker and walk off the circuit, or you don't walk to that floor. The matchmaker runs a clean card. I'm the part of it that keeps it that way.'"

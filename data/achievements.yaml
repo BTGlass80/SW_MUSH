@@ -869,3 +869,11 @@ achievements:
     icon: "🛡️"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "coruscant_fouled_sump"}
+
+  - key: fixed_bout_cleared
+    name: "The Fixed Bout"
+    description: "Broke a fixed-prizefight racket on the Nar Shaddaa promenade — stepped into the Burning Deck's back-room pit and beat the circuit's untouchable favorite clean in front of the crowd that had bet on him a hundred nights, the one win the matchmaker could not fix and the proof the favorites only ever won fixed (brawling), took the audience the win earned up in the Hutt emissary's tower and sat in the chair every bought fighter sat in and refused all of it — the purse, the steadying cup that was the dose, and the flat threat against the cornerman in your corner — holding nerve enough to walk out with the kajidic's own marker of which bouts were bought and thrown (willpower), and stood off the matchmaker's enforcer who came to the weapons cache to keep the marker off the betting floor. A book in the matchmaker's own hand naming its bought bouts was fraud no clean card could paper over — and on a moon with no law to pull a license the marks themselves pulled the circuit: the betting crowd stopped paying into a book shown fixed, the dosed and threatened fighters walked, a rival promoter took up the clean card, and even the Hutt backer cut the matchmaker loose rather than wear a circuit no one would bet, while a fight crowd that had learned to bet a book it half knew was crooked learned to read a fighter by his legs in the eighth round."
+    category: profession
+    icon: "🛡️"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "nar_shaddaa_fixed_bout"}
