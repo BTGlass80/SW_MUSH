@@ -1,0 +1,322 @@
+# Generalized Questline Drop — "The Cut Lane" (T3.24 twenty-eighth slice, 2026-06-30)
+#
+# The TWENTY-EIGHTH accessible (non-t5, non-tutorial) `kind: questline` chain, set on
+# CORUSCANT — on the Monumental District's skylanes (the monumental_district zone), on a
+# FRESH FOUR-ROOM CLUSTER no chain has touched: the broker stalls of Column Commons where
+# the small freight outfits hire their lane-time, the open skylane gap over the Western Sea
+# where a courier run can be shadowed at speed, the airspace above the Skydome Botanical
+# Gardens where the staged "raid" breaks and a raider swoop can be forced down onto the
+# terraces, and the service skylane and impound dock behind the Kallarak Amphitheater where
+# the lane-boss recovers the swoops the company would rather no one read (column_commons /
+# western_sea / skydome_gardens / kallarak_amphitheater). Every one of these four rooms is
+# FRESH to the entire chain corpus, reusing NONE of the prior Coruscant arcs' rooms — The
+# Lost Courier's southern-underground rooms, The False Provenance's OTHER Monumental-District
+# rooms, The Sealed Ledger's Commercial-District rooms, The Twisted Word's Entertainment-
+# District rooms, The Buried Block's undercity rooms, or The Fouled Sump's Coruscant-Works
+# rooms.
+# HONEST DISCIPLINE NOTE: The False Provenance already set an arc in the monumental_district
+# zone, so this is the SECOND arc on the Monumental District face, NOT a fresh face, and the
+# SEVENTH Coruscant arc overall; what is fresh is the four-room CLUSTER. At twenty-eight arcs
+# across six planets and a finite set of combat-capable (non-SECURED) rooms, no untouched zone
+# with four contested rooms remains — so the discipline this slice keeps is the honest one
+# still available: a fresh ROOM CLUSTER, not a fresh face. (Only the step-4 combat room must be
+# combat-capable: kallarak_amphitheater is contested. The giver/return room and the two skill
+# rooms host no fight — the swoop-riding shadow over the Western Sea and the saddle-gun shot
+# over the gardens are riding and gunnery feats in open airspace, not a brawl; the district's
+# genteel foot traffic is ambient, not the racket's undoing.)
+# It reuses the SAME live questline engine (engine/tutorial_chains.py + chain_events.py: the
+# `kind: questline` type + `active_questline` slot, the existing event types, the four reward
+# funnels) with NO new engine code, no new slot, no new event type, no schema migration, no
+# new reward faucet, and NO map-coordinate or exit-graph change — the sanctioned right-of-launch
+# widening per quest_expansion_postlaunch_path_v1.md (T3.24): author MORE questlines on the
+# proven pattern.
+#
+# Firsts for the accessible-questline arc:
+#   1. A TWENTY-EIGHTH distinct skill spread — SWOOP OPERATION (Mechanical) + VEHICLE BLASTERS
+#      (Dexterity) — neither of which any prior accessible questline uses (vs search+streetwise
+#      / investigation+gambling / persuasion+sneak / security+bargain / first_aid+survival /
+#      value+con / forgery+bureaucracy / command+demolitions /
+#      pick-pocket+hide+computer-programming / sensors+repulsorlift-operation /
+#      alien-species+droid-programming / beast-riding+swimming /
+#      space-transport-repair+astrogation / ground-vehicle-repair+ground-vehicle-operation /
+#      languages+cultures / medicine+scholar / blaster-repair+armor-repair /
+#      space-transports+starship-gunnery / powersuit-operation+lifting /
+#      communications+planetary-systems / business+intimidation / law-enforcement+tactics /
+#      climbing-jumping+stamina / repulsorlift-repair+droid-repair /
+#      walker-operation+hover-vehicle-operation / brawling+willpower / firearms+thrown-weapons).
+#      It is the FIRST accessible questline to reward the SADDLE-GUNNER / SWOOP-OUTRIDER build —
+#      the rider who keeps a swoop on the lane at speed and the hand that fires the swoop's own
+#      mounted gun true off the saddle — the FIRST to use SWOOP OPERATION, the FIRST to use
+#      VEHICLE BLASTERS, and only the SECOND cross-attribute spread of the whole corpus (after
+#      The Fixed Bout's brawling + willpower, a Strength + Knowledge pair) and the FIRST to
+#      cross MECHANICAL + DEXTERITY. A wholly distinct PAIR and a wholly distinct build: not a
+#      tradesman, an investigator, a clerk, a medic, a heavy-rig operator who drives a seated
+#      ground/hover/walker rig and never fires a shot, a prizefighter, or the marksman who stood
+#      on a backstop and shot small arms on foot — but an OUTRIDER who rides a mount down a
+#      skylane and shoots a mounted gun from it. (Honest note: this is NOT the first vehicle arc
+#      — The Long Haul, The Sabotaged Run, and The Fouled Sump rewarded ground/repulsorlift/
+#      walker/hover OPERATION before it — and NOT the first weapon arc — The Empty Proof's
+#      marksman came first. What is genuinely first is the SWOOP and the VEHICLE-BLASTERS skills,
+#      the RIDE-AND-SHOOT-FROM-A-MOUNT pairing of the two, and the Mechanical+Dexterity cross.)
+#   2. Set on CORUSCANT, on the Monumental District's skylanes — but, honestly, NOT a fresh
+#      face: The False Provenance already worked the Monumental District. What is fresh is the
+#      four-room CLUSTER (column_commons / western_sea / skydome_gardens / kallarak_amphitheater,
+#      every one new to the entire chain corpus). It touches NO map coordinate or world exit
+#      graph — the rooms already exist and are loaded (planets/coruscant.yaml); only NPCs + a
+#      chains.yaml entry + an achievement are added.
+#
+# It is also a new STORY SHAPE: breaking a STAGED-RAID FREIGHT-LOSS / COURIER-SKIM INSURANCE
+# FRAUD. A licensed skycourier outfit that moves small high-value consignments along the
+# Monumental District's freight skylanes (Helevin Skycourier, run by the lane-master Pell Helevin)
+# runs its own outriders, masked and flying unmarked, as the "skylane raiders" that supposedly
+# plague the run: in the quiet transit gaps over the Western Sea and the gardens the outriders
+# cut a marked high-value parcel off the courier swoop, the company files it raider-lost, and it
+# collects the shipper's declared-value indemnity AND keeps the goods — then sells the same
+# bled shippers ever-costlier "armed escort" upgrades against a raider crew that is the company
+# itself. The genteel district is too respectable to look hard at freight crime in its skylanes,
+# so the phantom raiders are never questioned and the lane runs on. Pointedly DISTINCT from the
+# two prior staged-loss / salvage arcs: The Wreckers' Light lures honest ships to DESTRUCTION on
+# a false beacon to salvage the wrecks (a wreck-luring, busted by space-transport piloting and
+# sensors), and The Salted Lane stages a contraband plant to seize a clean hauler's run (a
+# planted-cargo frame, busted by a relief pilot and a gunner). Here nothing is wrecked and
+# nothing is planted: the company stages RAIDS ON ITS OWN COURIER RUNS to convert insured
+# consignments into "raider losses" it pockets, and is busted not by a slicer, an investigator,
+# or a relief pilot but by a neutral OUTRIDER who rides the lane to catch the skim run in the act
+# and guns the staged raider down intact off the saddle so its company swoop and the "raided"
+# parcel still aboard can be read. It carries a real combat climax (step 4), with a single placed
+# antagonist NPC and a chain_enemy_template.
+#
+# These NPCs back the `coruscant_cut_lane` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Resa Halix  — the Duros freight-broker and ex-lane-outrider whose small consignments keep
+#                   coming up "raider-lost"; she offers + closes the quest (step-1 npc = the
+#                   questline's start-NPC, per get_questline_offer). Step-1 + step-5 NPC.
+#   * Drovan Pell — the combat-step lane-boss enforcer (ai_config.chain_enemy_template
+#                   cut_lane_enforcer; the step-4 combat_won foil), the muscle the lane-master
+#                   sends to recover a downed swoop and keep a marked parcel and a flight-log off
+#                   a registry desk.
+# The lane-master who runs the skim and files the false losses (Pell Helevin) and the off-world
+# fence who moves the skimmed consignments, the masked company outriders who fly the "raids," the
+# marked high-value parcel cut off the courier run and the company swoop's flight-log and
+# transponder that tie the "raider" to the lane-house, the small shippers bled by the indemnity
+# clawbacks and the escort upcharges, the genteel Monumental-District foot traffic and the
+# skylane registry whose desk pulls the licence, are NARRATED ONLY — story beats carried in the
+# prose, NOT spawned NPC entities. Only the giver and the single combat foil are real placed NPCs.
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures. The racket is a
+# private skycourier company's insurance fraud and its hired muscle, never a war faction; the
+# Senate / Jedi / Republic war overhead never reach down to a freight-lane skim over the
+# Monumental District, the district's foot traffic is ambient and never drives the plot, and the
+# "authority" that ends the lane is the bled shippers themselves and the skylane registry that
+# pulls the courier licence — nodded to and never instantiated.
+# Provenance: Duros (the blue-skinned spacer species of Duro, the galaxy's oldest pilots and
+# navigators, fringe-common and not war-faction coded, a natural fit for a freight-broker who
+# once rode the lanes herself) and Devaronian (the horned, red-and-grey wanderers of Devaron,
+# their males inveterate rovers and free-lance toughs, era-clean and not war-faction coded, a
+# natural fit for a courier company's road-hardened lane-boss) are both era-clean.
+# Stats matched to the shipped accessible-questline bands — the giver to the non-combat fixer band
+# (Yelza Korrin / Dorae Vint / Sashi Renko / Dav Nuro / Soree Bann / Hessa Veil / Cassa Brel /
+# Vessa Tial / Terva Dohl / Ria Tann / Nuva Sehl / Neyla Sur / Veelo Trinn / Numi Vesh / Brama
+# Hool / Ulil Maan / Senni Vrook / Jando Vekk / Grett Bashan / Corwin Hale / Nabo Threll / Oren
+# Vask / Tomar Hess / Nilo Sabb / Burlo Vethic / Garn Holvo / Sela Marrenn), with the broker's
+# spread skewed to the swoop-and-saddle-gun of a lane outrider to embody the two skills the quest
+# sends a hand to use; the enforcer to the small-time-criminal antagonist band (Brakkis Vone /
+# Gorvahn Brusk / Skarn Vex / Suro Vant / Vohrek Sarn / Brask Yade / Varn Tesk / Tarko Venn /
+# Drevin Saar / Vossk Rhal / Korsa Drael / Bohrus Kang / Gornt Reska / Hekka Vrool / Greel Vodo /
+# Vurr Magh / Draygo Sull / Drozz Kael / Hask Vorran / Garvo Naak / Dussek Rao / Brunt Kosh /
+# Vagh Sarko / Draz Kullo / Neevo Karr / Sesko Vahr): a real fight, beatable by a fresh
+# post-chargen character, carrying the proven blaster_pistol of the ranged foils on the same
+# in-band guarded stat line as The Salted Lane's, The Short Weight's, The Wreckers' Light's, The
+# Bonded Crew's, The Kept Watch's, The Buried Block's, The Cut Coil's, The Fouled Sump's, The
+# Fixed Bout's, and The Empty Proof's foils (squarely in the proven beatable band, no balance
+# flag needed — and pointedly NOT the melee/heavy-weapon line of The Condemned Hull's out-of-band
+# Houk foil Bohrus Kang; the lane-boss is the company's muscle, who settles things with a blaster
+# off a service dock, not on the lane). WEG40120 PDF is local-only (gitignored) and absent in
+# this tree; the bands are cited against the in-repo reference NPCs, not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The broker — Resa Halix (questline GIVER + closer)
+  # Questline: coruscant_cut_lane ("The Cut Lane")
+  # Placement: Coruscant - Column Commons District
+  #            (column_commons, zone monumental_district).
+  #            Step-1 + step-5 NPC.
+  # NOTE: a Duros freight-broker who rode the Monumental-District skylanes as a courier outrider
+  # for twenty years before her hands and her lane-time priced her into a broker's stall, who now
+  # hires lane-time and runs small high-value consignments for shippers too small to fly their
+  # own — and whose runs keep coming up "raider-lost" on the open gaps over the Western Sea, each
+  # loss clawed back out of her bond and answered with a costlier "armed escort" upcharge until
+  # the next bad month finishes her. She knows the raiders are no outside crew because she knows
+  # how a real lane-raider flies and how a company outrider flies, and these fly company — but a
+  # broker with a claim against the loss is the last being a registry will believe, and a marked
+  # hand she rode with would be made the moment she put him on the lane.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Resa Halix
+    room: "Coruscant - Column Commons District"
+    species: Duros
+    description: >-
+      A lean, blue-skinned Duros in a courier's worn flight-leathers gone soft at the elbows, the
+      large red eyes steady over a broker's slate at a hire-stall in Column Commons, where the
+      small freight outfits buy their lane-time by the run and watch the skylanes thread away over
+      the Monumental District. She rode those lanes for twenty years as a courier outrider — kept a
+      swoop on the gap at full lane-speed with a parcel slung and her free hand on the saddle gun —
+      before her hands stiffened and the lane-time priced her down into a stall, brokering small
+      high-value consignments for shippers too small to fly their own. For three months her runs
+      have been coming up raider-lost: a marked parcel cut clean off the courier swoop out over the
+      open gap above the Western Sea, the courier shaken but whole, the loss filed and the
+      declared-value clawed straight back out of her bond — and then the same outfit that lost it,
+      Helevin Skycourier, selling her a costlier "armed escort" upgrade against the very raiders
+      that took it. She has watched the gun-camera flights the company files with the loss reports,
+      and the raiders in them do not fly like any outside crew working a lane for a living: they
+      come off the company's own lane-house heading, cut to a courier's exact slack moment, and
+      break back the same way — they fly company, because they ARE company, the lane-master's own
+      outriders masked and unmarked, skimming the parcels the company then keeps and insures. But a
+      broker with a loss claim against the company is the last word a skylane registry will take,
+      and any outrider she ever rode with would be marked the moment he hit the lane. She needs a
+      neutral hand who can ride and shoot — shadow a marked run, catch the skim in the act, and put
+      a staged raider down intact on the gardens where its company swoop and the parcel still
+      aboard can be read — and carry that to a registry that can pull a courier licence.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D+2
+        perception: 2D+2
+        strength: 2D
+        technical: 2D
+      skills:
+        swoop operation: 4D+1
+        vehicle blasters: 4D
+        repulsorlift operation: 3D+1
+        blaster: 3D
+        dodge: 3D
+        streetwise: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A twenty-year lane outrider worn down into a broker's stall but not out of a rider's eye —
+        sparing, watchful, reads a flight the way she once read a gap at lane-speed, and out of any
+        faith that a genteel district will look hard at freight crime in its own skylanes. She knows
+        a real lane-raider from a company outrider the way she knows a true gun from a worn one — the
+        raid that comes off the lane-house heading and cuts to a courier's exact slack moment is no
+        outside crew, it is the company taking what it then insures — but a broker with a loss claim
+        cannot ride her own lane (any outrider she rode with would be made the instant he flew it),
+        catch the skim, gun a staged raider down intact, and carry it to a registry herself; her
+        marked face and her stake in the claim are in the way. Calm and certain that a courier house
+        that stages the raids it insures against and bleeds its own small shippers is not the rough
+        honest freight trade of a hard lane but a thief flying both ends of its own loss; she offers
+        her fee — what a broker keeps back against a bad month — because the credits are no good to
+        her while the lane keeps cutting her runs and the next small shipper handed Helevin's escort
+        contract is bled the same way, and a neutral rider who can ride the gap and shoot off the
+        saddle is the only thing that catches a raid the company flies itself.
+      knowledge:
+        - "She is Resa Halix, a Duros freight-broker who rode the Monumental-District courier skylanes as an outrider for twenty years before her hands and her lane-time priced her down into a hire-stall in Column Commons, brokering small high-value consignments for shippers too small to fly their own. For three months her runs have come up raider-lost on the open gap over the Western Sea, the loss clawed back out of her bond and answered with a costlier 'armed escort' upcharge from the very outfit that lost it."
+        - "The racket is a staged-raid freight-loss insurance fraud: a licensed skycourier outfit (Helevin Skycourier, run by the lane-master Pell Helevin) flies its own outriders, masked and unmarked, as the 'skylane raiders' that supposedly plague the run. In the quiet transit gap over the Western Sea and the gardens they cut a marked high-value parcel off the courier swoop, the company files it raider-lost, collects the shipper's declared-value indemnity and keeps the goods — then sells the same bled shippers a costlier 'armed escort' upgrade against the raider crew that is the company itself. The genteel district is too respectable to look hard at freight crime in its skylanes, so the phantom raiders are never questioned. Resa's runs are being cut by Helevin's own lane."
+        - "Resa can prove none of it on a broker's loss claim, but a neutral hand who can ride and shoot can do what she cannot: take a hired swoop out onto the open gap over the Western Sea and shadow a marked Helevin run at lane-speed to catch the skim in the act, proving the 'raiders' come off the company's own lane-house heading and break back to it — no outside crew flies a lane that way (swoop operation); when the staged raider cuts the parcel and runs, gun it down intact off the saddle over the Skydome Gardens — crippling its repulsor, not the rider — so its unmarked company swoop, its flight-log, and the cut parcel still aboard come down where they can be read (vehicle blasters); and stand off the lane-boss (Drovan Pell) who comes to the impound dock behind the Kallarak Amphitheater to recover the downed swoop before it is read (combat)."
+        - "Get the downed company swoop, its flight-log routing the 'raid' off Helevin's lane-house, and the cut parcel still aboard to the skylane freight registry, and a staged loss cannot be un-staged: a 'raider' swoop that flies company and a flight-log that ends every raid at the company lane-house, beside the parcel the company swore was raider-lost, is fraud no loss report papers over. The registry pulls Helevin Skycourier's lane licence; the bled shippers stop buying the escort upcharge and the courier contract both; a rival house that does not raid its own runs takes up the lane; and the off-world fence who moved the skimmed consignments loses the one thing that fed him. No Senate office and no Jedi looked twice at a freight skim; the shippers made the case, the only authority a courier lane truly answers to, once they could see the raiders flew company. Resa's losses stop being her own carelessness, and the Republic never needs notice a broker set a courier lane straight."
+      faction: independent
+      dialogue_style: >-
+        Spare, plain, a rider's economy of words — names how a flight moves before she names a
+        grievance, and trusts what she saw in a gun-camera over any loss report the company files.
+        Calm and certain; she rode enough lanes to know a raider's flight from a company outrider's,
+        and she has three months of clawed-back bond to prove what the company's 'raiders' are.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'You ride? Ride and shoot — keep a swoop on a gap at lane-speed and put a mounted gun where you want it off the saddle? Then you can do what I can't anymore, and a registry won't wave you off the way it waves me. I'm Resa Halix — I rode courier lanes over this district for twenty years before my hands sent me to a stall, and now I broker small runs for outfits too small to fly their own. Three months, my runs keep coming up raider-lost out over the Western Sea — a parcel cut clean off the courier, the loss clawed back out of my bond, and then Helevin Skycourier, the outfit that lost it, selling me a costlier escort against the raiders that took it.'"
+        - "*Resa Halix turns her slate to you — a gun-camera flight off a loss report, a masked swoop cutting in on a courier over the open gap.* 'Watch how it flies. That's no outside crew working a lane for a living. It comes off Helevin's own lane-house heading, cuts to the courier's exact slack moment, and breaks back the same way — it flies company, because it IS company. The lane-master rides his own outriders masked, skims the parcels, files them raider-lost, and keeps and insures the lot. I know how a real raider flies and how a company hand flies, and these fly company. But my word's a loss claim against the loss — the last thing a registry takes.'"
+        - "'So ride it for me. Hire a swoop off the Commons stalls and take the open gap over the Western Sea — shadow the next marked run at lane-speed and let them cut it where you can see the raid come off the lane-house and break back to it. Then when the raider runs for the gardens, put it down — gun the repulsor, not the rider, off the saddle, and bring it down on the Skydome terraces with its swoop and the parcel still aboard. Then mind the impound dock behind the amphitheater — Helevin keeps a lane-boss, Drovan Pell, to pull a downed swoop back before anyone reads it. Get the swoop, its flight-log, and the cut parcel to the freight registry, and a staged loss pulls a licence the way my claim never could. My fee's yours then — what a broker keeps back against a bad month. I'd sooner it bought the next small shipper a lane that doesn't cut its own runs than bought me one more month of a bond they'll just claw back.'"
+
+  # ── Questline antagonist: Drovan Pell (combat step 4) ────────────────
+  # Single hostile instance on the service skylane and impound dock behind the Kallarak
+  # Amphitheater, between the downed-raider gardens and the registry desk. Matches the
+  # coruscant_cut_lane step-4 combat_won enemy_template. Carries the proven blaster_pistol of the
+  # ranged foils on the same in-band guarded stat line as The Salted Lane's, The Short Weight's,
+  # The Wreckers' Light's, The Bonded Crew's, The Kept Watch's, The Buried Block's, The Cut Coil's,
+  # The Fouled Sump's, The Fixed Bout's, and The Empty Proof's foils (squarely in the proven
+  # beatable band) so a fresh post-chargen character has a real, winnable fight — and pointedly NOT
+  # the melee line of The Condemned Hull's out-of-band Houk foil. The lane-boss is the company's
+  # muscle: he settles things with a blaster off a service dock, not a marksman or a duelist.
+
+  - name: Drovan Pell
+    room: "Coruscant - Kallarak Amphitheater"
+    species: Devaronian
+    description: >-
+      A horned, grey-and-red Devaronian with the flat, unhurried patience of a being paid to make
+      sure nothing comes off the lane that the company cannot afford to have read, planted at the
+      mouth of the service skylane and impound dock that runs behind the Kallarak Amphitheater, a
+      worn blaster pistol loose at his hip and a courier-house chit clipped at his collar. He is
+      Pell Helevin's lane-boss — not the rider who flies the skim and not the fence who moves it,
+      but the muscle the lane-master keeps for the runs that come down wrong: the one sent to pull a
+      downed swoop off a public terrace before a registry inspector can walk it, to recover the
+      marked parcels the company wants back before anyone opens them, and to keep the impound dock
+      between a downed raider and the registry desk so that nothing the company needs unread ever
+      reaches it. He rarely has to draw, because a staged-raid fraud over a genteel district runs on
+      a district too respectable to look hard at freight crime and loss reports no one audits. The
+      whole racket lives on phantom raiders no one questions and a company gun-camera the registry
+      takes at its word; it does not live on a neutral outrider coming off the gardens with a company
+      swoop intact, its flight-log routing the raid off the lane-house, and the cut parcel still
+      aboard, headed for the registry desk. He has heard a stranger shadowed the marked run and put
+      one of the company's "raiders" down whole on the Skydome terraces, and the easy menace of a
+      man who keeps a dock goes hard the instant the one thing the lane cannot survive starts moving
+      toward the people who can pull it. The swoop is a company recovery and the loss on it is filed,
+      as far as anyone on the dock will hear him say it; and whoever is walking it in is handing it
+      back or going down on the dock plating with it, where the amphitheater's genteel crowd a level
+      up pays a brief, quiet thing at the service mouth no mind.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        brawling: 3D+1
+        intimidation: 3D+2
+        swoop operation: 3D
+        streetwise: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: cut_lane_enforcer
+      personality: >-
+        A courier-house lane-boss genuinely unused to being made to fight for the lane — bored and
+        contemptuous while a genteel district that will not look hard at its own skylanes and loss
+        reports no one audits do his work, and immediately, heavily violent the moment a neutral
+        outrider comes off the gardens with a company swoop intact, its flight-log, and a parcel the
+        company swore was raider-lost, headed for the registry desk. He works a blaster and a flat
+        threat and a chit, not his hands: dangerous and direct, he plants himself at the mouth of the
+        impound dock between the downed raider and the registry and would rather break a hand on the
+        dock plating than let a read swoop reach a desk that can pull a licence. His pay and his
+        standing with Helevin ride on phantom raiders no one questions and a company gun-camera the
+        registry takes on faith, so he'll draw on anyone walking in the proof the raiders fly company.
+        Combat foil for the questline's confrontation beat — the company's muscle, not a rider or a
+        duelist; he settles it with a blaster, off the dock.
+      knowledge:
+        - "He is Drovan Pell, the Devaronian lane-boss Pell Helevin keeps for the runs that come down wrong — pulling downed swoops off public terraces before an inspector can walk them, recovering the marked parcels the company wants back before anyone opens them, and keeping the impound dock behind the Kallarak Amphitheater between a downed raider and the registry desk, rarely having to draw because a staged-raid fraud runs on a genteel district that will not look hard at its skylanes and loss reports no one audits. He is muscle, not a rider or a duelist."
+        - "A neutral outrider shadowed a marked Helevin run over the Western Sea, caught the skim coming off the company's own lane-house heading, and gunned one of the 'raiders' down intact on the Skydome terraces — repulsor crippled, rider whole — and is walking the unmarked company swoop, its flight-log routing the raid off the lane-house, and the cut parcel still aboard toward the skylane freight registry; the racket lives on phantom raiders no one questions and a company gun-camera the registry takes on faith, so he'll draw on whoever carries the proof the raiders fly company rather than let the one thing the lane cannot survive reach the desk that can pull Helevin's licence."
+      faction: criminal
+      dialogue_style: >-
+        Flat, unhurried, contemptuous — names the swoop as a company recovery and the loss on it as
+        filed before the threat. States once that the swoop is a logged recovery and the loss is
+        clean, and after that lets the blaster keep the dock the way a phantom raider keeps the lane.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'That swoop you're walking in is a Helevin recovery, friend — logged downed, logged pulled, the company's to collect. The loss on it's filed clean; whatever you think you saw come off our lane over the sea, it doesn't reach any registry desk. Set it down and walk off the dock.'"
+        - "*Drovan Pell steps out at the mouth of the impound dock as you bring the downed raider in off the terraces, sets himself across the service skylane between you and the registry, and lets his hand fall loose to the worn blaster he would rather not have to draw, the amphitheater's genteel crowd a level up too far off to mark a brief, quiet thing at the service mouth.*"
+        - "'Every loss our lane files is raider work. So says the report. So do I. And that swoop's a clean recovery, downed in a raid and pulled in sound — bad luck for you it came down where you could grab it. Bad day for you to walk it toward a registry. Last time — set the swoop and the parcel and the company's papers down and walk off the dock, or you don't walk that proof to any desk. The lane loses what the raiders take. I'm the part of it that keeps the ones that didn't from saying so.'"
