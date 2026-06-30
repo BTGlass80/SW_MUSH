@@ -1,0 +1,344 @@
+# Generalized Questline Drop — "The Fouled Sump" (T3.24 twenty-fifth slice, 2026-06-30)
+#
+# The TWENTY-FIFTH accessible (non-t5, non-tutorial) `kind: questline` chain, and the
+# SIXTH set on CORUSCANT — on the COMMERCIAL DISTRICT / "Coruscant Works" face (the
+# commercial_district zone), on a FRESH FOUR-ROOM CLUSTER no chain has touched: the
+# Engineering Corps habitation block whose recyclers draw the poisoned level, the Central
+# Power Grid Station over the dead coolant sump, the gartro-choked structural void where the
+# waste is dumped, and the Mid-Level Market Street between the void and the inspectorate
+# (commercial_district_hab / commercial_district_power_grid / gartro_rookery /
+# mid_market_street). At twenty-five arcs across six planets and a finite set of combat-
+# capable (non-SECURED) rooms, no untouched zone with four contested rooms remains — so the
+# discipline this slice keeps is the honest one still available: every one of these four
+# rooms is FRESH to the entire chain corpus, reusing NONE of the prior Coruscant arcs' rooms
+# (The Lost Courier's southern-underground rooms, The False Provenance's Monumental-District
+# rooms, The Sealed Ledger's OTHER Commercial-District rooms, The Twisted Word's
+# Entertainment-District rooms, or The Buried Block's undercity rooms). The Sealed Ledger
+# already set an arc on the commercial_district face — so this is honestly the SECOND arc on
+# that face, NOT a fresh face; what is fresh is the four-room CLUSTER (The Sealed Ledger used
+# commercial_district_atmospheric / commercial_district_main / dexters_diner /
+# mid_transit_hub — every one of THIS arc's rooms is different).
+# It reuses the SAME live questline engine (engine/tutorial_chains.py + chain_events.py:
+# the `kind: questline` type + `active_questline` slot, the existing event types, the four
+# reward funnels) with NO new engine code, no new slot, no new event type, no schema
+# migration, no new reward faucet, and NO map-coordinate or exit-graph change — the
+# sanctioned right-of-launch widening per quest_expansion_postlaunch_path_v1.md (T3.24):
+# author MORE questlines on the proven pattern.
+#
+# Firsts for the accessible-questline arc:
+#   1. A TWENTY-FIFTH distinct skill spread — WALKER OPERATION (Mechanical) + HOVER VEHICLE
+#      OPERATION (Mechanical) — neither of which any prior accessible questline uses (vs
+#      search+streetwise / investigation+gambling / persuasion+sneak / security+bargain /
+#      first_aid+survival / value+con / forgery+bureaucracy / command+demolitions /
+#      pick-pocket+hide+computer-programming / sensors+repulsorlift-operation /
+#      alien-species+droid-programming / beast-riding+swimming /
+#      space-transport-repair+astrogation / ground-vehicle-repair+ground-vehicle-operation /
+#      languages+cultures / medicine+scholar / blaster-repair+armor-repair /
+#      space-transports+starship-gunnery / powersuit-operation+lifting /
+#      communications+planetary-systems / business+intimidation / law-enforcement+tactics /
+#      climbing-jumping+stamina / repulsorlift-repair+droid-repair). It is the FIRST
+#      accessible questline to reward the HEAVY-EQUIPMENT / INDUSTRIAL-VEHICLE OPERATOR build
+#      — the hands that take a legged cargo-walker down a flooded sump floor no wheel or lift
+#      can cross, and that fly a hover cargo-rig down into a structural void threading the
+#      updrafts and the nests. It is the FIRST accessible questline to use WALKER OPERATION
+#      and the FIRST to use HOVER VEHICLE OPERATION, and the FIRST DUAL-VEHICLE-OPERATION
+#      spread (two distinct operation skills for two distinct machine classes — a legged
+#      walker and a hover rig). It is the THIRD both-Mechanical spread (after The Sabotaged
+#      Run's sensors + repulsorlift OPERATION, the racer in the cockpit, and The Salted
+#      Line's space transports + starship gunnery, the freighter pilot-gunner), but a wholly
+#      distinct PAIR and a wholly distinct WORK, mechanically distinct from every prior
+#      vehicle arc: The Long Haul (ground vehicle repair + OPERATION, a wheelman who DRIVES
+#      and FIXES a single ground hauler), The Sabotaged Run (sensors + repulsorlift OPERATION,
+#      a speeder racer reading telemetry in the COCKPIT). Both skills are spec-free Mechanical
+#      operation skills that canonicalize to themselves through the perform_skill_check funnel,
+#      and the build is the industrial-yard operator's — the heavy rigs of a works district,
+#      not a cockpit and not a wheelman's cab.
+#   2. The SIXTH questline set on CORUSCANT, on the Commercial District / "Coruscant Works"
+#      face — but, honestly, no longer a FRESH face (The Sealed Ledger already set an arc in
+#      the commercial_district zone). What is fresh is the four-room CLUSTER: every one of
+#      commercial_district_hab / commercial_district_power_grid / gartro_rookery /
+#      mid_market_street is new to the entire chain corpus. The Senate, the Jedi, and the
+#      Republic war effort overhead have no reach down in a mid-level works district and never
+#      appear — the racket is a private waste-disposal contractor's fraud and its hired muscle,
+#      never a war faction — and the outfit is run afoul of in the end by the district's own
+#      Coruscant Works environmental inspectorate, which will not have a licensed disposal
+#      contractor dump the hazardous waste it was paid to haul to reclamation into the void
+#      the hab block's recyclers draw from, the way every prior accessible arc keeps the
+#      larger powers offstage. It touches NO map coordinate or world exit graph — the rooms
+#      already exist and are loaded (planets/coruscant.yaml); only NPCs + a chains.yaml entry
+#      + an achievement are added.
+#
+# It is also a new STORY SHAPE: breaking an ILLEGAL-DUMPING / DISPOSAL-FRAUD cover-up — the
+# FIRST accessible arc in which the racket is an environmental / contamination cover-up, the
+# harm carried in the air and water of a hab block rather than in a single mark's purse. Not
+# a smuggling-trace, a racket-bust-by-investigation, a kidnap-rescue, a single-part theft-and-
+# frame, a frontier medical rescue, an art-fraud caper, a counter-forgery of documents, a
+# safety-toll community-defense, a finesse heist, a fixed race, a droid-reflash racket, a
+# wildlife-poaching racket, a ship-condemnation, a freight strand-and-salvage, a translation
+# fraud, a fake-plague extortion, a counterfeit-arms supply scam, a clearance-fraud/staged-
+# hijack, a short-weight racket, a false-beacon wreck-luring, a debt-bondage padded-advance, a
+# staged-protection fake-enforcement racket, a false-dereliction entrapment, or a sabotage-for-
+# impound product-tampering. The Wasting Ward fakes a plague that is not there to extort the
+# well; this hides a poison that IS there to protect a fee. A Coruscant Works hazardous-waste
+# disposal contractor — "Drell Reclamation," holding the commercial district's licensed
+# disposal contract — is paid to haul the works district's industrial waste (spent coolant,
+# heavy-metal sludge, reactor-cell tailings) out to the proper offworld reclamation yards, and
+# instead walks its rigs down into a dead service void under the district and dumps the drums
+# there for free, pocketing the haul-and-process fees and filing clean reclamation manifests
+# for runs that never left the level. The void it dumps into — the abandoned coolant sump
+# beneath the Central Power Grid Station and the gartro-choked structural shaft below it — is
+# exactly the level the Engineering Corps habitation block's air-and-water recyclers draw from,
+# and a season of dumped heavy-metal sludge has begun to surface in the block: the recycled
+# water gone metallic, the children of the works families sickening, the hab's own plumbing
+# corroding from the inside, all of it written off as "old infrastructure." Burlo Vethic, a
+# Besalisk who has run the works district's heavy cargo-walkers and hover-rigs for thirty
+# years and now keeps the hab block's maintenance, traced the corrosion and the metallic draw
+# down his own rig routes to the sump and read the dumped drums for what they were — Drell
+# Reclamation tags on tailings drums that the manifests swore were three systems away at a
+# reclamation yard — but a works maintenance hand's word against a licensed contractor's clean
+# disposal manifests is one more complaint the inspectorate has a stack of, and Drell's crew
+# would run him off the grid station the moment he took a rig down after a drum. He offers his
+# fee to any neutral hand who can take the works' own cargo-walker down the flooded sump floor
+# under the power grid station and recover a dumped drum where no wheel or lift can go (walker
+# operation), fly a hover cargo-rig down into the gartro-choked void below to recover the
+# outfit's abandoned hover-sled and its routing log, the record that ends every "reclamation"
+# run in the void instead of the yard (hover vehicle operation), stand off the disposal
+# outfit's enforcer when he comes for the drum and the log on the Mid-Level Market Street
+# (combat), and get the contaminated drum and the routing log to the Coruscant Works
+# environmental inspectorate before the next season of sludge goes down the recyclers' draw.
+#
+# These NPCs back the `coruscant_fouled_sump` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Burlo Vethic — the thirty-year Besalisk works heavy-rig operator turned hab-block
+#                    maintenance steward who offers + closes the quest (step-1 npc = the
+#                    questline's start-NPC, per get_questline_offer). Step-1 + step-5 NPC.
+#   * Draz Kullo   — the combat-step disposal-crew enforcer (ai_config.chain_enemy_template
+#                    fouled_sump_enforcer; the step-4 combat_won foil), the muscle the outfit
+#                    sends out onto the Mid-Level Market Street to make sure no dumped drum and
+#                    no routing log walks up off the level toward an inspectorate desk.
+# The disposal outfit's boss (Vass Drell), the offworld broker who undercut the honest haulers
+# to win the contract, the dumped tailings drums and the abandoned hover-sled and the falsified
+# reclamation manifests, the rig crew that walks the waste down into the void, the works
+# families of the hab block sickening on the metallic draw, the gartro flocks and the lower-
+# level scavengers of the void, the market-street vendors and foot traffic, and the Coruscant
+# Works environmental inspectorate and its claims desk are NARRATED ONLY — story beats carried
+# in the prose, NOT spawned NPC entities. Only the giver and the single combat foil are real
+# placed NPCs.
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures. The racket is a
+# private waste-disposal contractor's fraud and its hired muscle, never a war faction; the
+# Senate / Jedi / Republic war overhead never reach down into a mid-level works district, and
+# the authority that ends the outfit is the district's own Coruscant Works environmental
+# inspectorate protecting the level its hab block draws from, nodded to and never instantiated.
+# Provenance: Besalisk (the four-armed, bulk-shouldered beings of Ojom, fringe-common heavy
+# laborers and cooks and machine-hands, not war-faction coded, the most natural fit for a
+# thirty-year heavy cargo-walker-and-hover-rig operator — a fresh giver species for this lane,
+# not used by any prior accessible-questline giver) and Klatooinian (the leather-hided beings
+# of Klatooine, long bound to the Hutts as laborers and enforcers, era-clean and not war-
+# faction coded, the most natural fit for a disposal outfit's hired muscle) are both era-clean.
+# Stats matched to the shipped accessible-questline bands — the giver to the non-combat fixer
+# band (Yelza Korrin / Dorae Vint / Sashi Renko / Dav Nuro / Soree Bann / Hessa Veil / Cassa
+# Brel / Vessa Tial / Terva Dohl / Ria Tann / Nuva Sehl / Neyla Sur / Veelo Trinn / Numi Vesh /
+# Brama Hool / Ulil Maan / Senni Vrook / Jando Vekk / Grett Bashan / Corwin Hale / Nabo Threll /
+# Oren Vask / Tomar Hess / Nilo Sabb), with the operator's spread skewed to Mechanical to fit a
+# being who has spent thirty years on the works district's heavy rigs; the enforcer to the
+# small-time-criminal antagonist band (Brakkis Vone / Gorvahn Brusk / Skarn Vex / Suro Vant /
+# Vohrek Sarn / Brask Yade / Varn Tesk / Tarko Venn / Drevin Saar / Vossk Rhal / Korsa Drael /
+# Bohrus Kang / Gornt Reska / Hekka Vrool / Greel Vodo / Vurr Magh / Draygo Sull / Drozz Kael /
+# Hask Vorran / Garvo Naak / Dussek Rao / Brunt Kosh / Vagh Sarko): a real fight, beatable by a
+# fresh post-chargen character, carrying the proven blaster_pistol of the ranged foils on the
+# same in-band guarded stat line as The Salted Lane's, The Short Weight's, The Wreckers'
+# Light's, The Bonded Crew's, The Kept Watch's, The Buried Block's, and The Cut Coil's foils
+# (squarely in the proven beatable band, no balance flag needed — and pointedly NOT the
+# melee/heavy-weapon line of The Condemned Hull's out-of-band Houk foil Bohrus Kang). WEG40120
+# PDF is local-only (gitignored) and absent in this tree; the bands are cited against the
+# in-repo reference NPCs, not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The works operator — Burlo Vethic (questline GIVER + closer)
+  # Questline: coruscant_fouled_sump ("The Fouled Sump")
+  # Placement: Coruscant Works - Engineering Corps Habitation Block
+  #            (commercial_district_hab, zone commercial_district).
+  #            Step-1 + step-5 NPC.
+  # NOTE: a thirty-year Besalisk who has run the commercial district's heavy cargo-walkers and
+  # hover-rigs and now keeps the Engineering Corps hab block's maintenance, the being who
+  # traced the metallic draw and the corroding plumbing down his own rig routes to the dead
+  # sump and read the dumped tailings drums for what they were — Drell Reclamation tags on
+  # waste the manifests swore was three systems away — but whose word as a works maintenance
+  # hand means nothing against a licensed contractor's clean disposal manifests, and who the
+  # disposal crew would run off the grid station the moment he took a rig down after a drum.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Burlo Vethic
+    room: "Coruscant Works - Engineering Corps Habitation Block"
+    species: Besalisk
+    description: >-
+      A bulk-shouldered, four-armed old Besalisk in a works-yard harness gone grey with sump
+      silt, his crest scarred from thirty years of ducking heavy-rig gantries, standing in the
+      maintenance bay of the Engineering Corps habitation block with a cracked recycler filter
+      cradled in his lower hands and a tailings drum's torn tag pinched in his upper. He has
+      driven this commercial district's heavy cargo-walkers and flown its hover cargo-rigs since
+      before the war was a rumor — the operator the works sent down a flooded sub-tier or up a
+      grid-station gantry when no wheel or lift could make the ground — and when his joints
+      slowed he took on the hab block's maintenance, the families of the works crews his
+      neighbors. For a season the block has been sickening: the recycled water gone metallic and
+      flat, the youngest of the hab coughing, the plumbing corroding from the inside out, all of
+      it written off by the district as old infrastructure finally giving way. He did not believe
+      it. He has read enough recycler filters to know the difference between thirty years of wear
+      and a heavy-metal load that should never have been in the draw, and a maintenance hand who
+      has run every rig route on the level knows where the block's recyclers pull from: the dead
+      coolant sump under the Central Power Grid Station and the gartro-choked void below it. He
+      took a walker down the sump floor himself, once, before they posted a man on the grid
+      station — and found the drums: Drell Reclamation tailings drums, heavy-metal sludge and
+      spent reactor cells, stacked in a void the contractor's clean reclamation manifests swore
+      were processed three systems away. He has known it for a season: Drell holds the district's
+      licensed disposal contract, is paid to haul the works' hazardous waste out to the proper
+      yards, and instead walks its rigs down into the void and dumps the drums for free, pocketing
+      the haul-and-process fees and filing reclamation runs that never left the level — and the
+      void it dumps into is the level his hab block drinks from. But a works maintenance hand's
+      word against a licensed contractor's spotless manifests is one more complaint the
+      inspectorate has a stack of, and Drell's crew posts the grid station now; they would run a
+      slow old operator off the moment he took a rig down after a drum. He is looking for a
+      neutral hand who can do what his joints and his standing no longer can: take the works' own
+      cargo-walker down the sump floor and bring up a dumped drum; fly a hover-rig down into the
+      void and recover the outfit's own routing log; and get the drum and the log to the
+      environmental inspectorate before another season of sludge goes down the draw.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 2D
+        mechanical: 3D+1
+        perception: 2D+1
+        strength: 2D+2
+        technical: 2D+1
+      skills:
+        walker operation: 4D+1
+        hover vehicle operation: 4D
+        ground vehicle operation: 3D+1
+        repulsorlift operation: 3D
+        search: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A thirty-year works heavy-rig operator worn into a slow, stubborn steadiness — sparing of
+        words, quick to read a recycler filter or a sump floor, and out of any faith in an
+        inspectorate that takes a contractor's clean manifests over the metallic draw poisoning
+        the families he keeps the block for. He reads a fouled draw for the dumping it is — old
+        infrastructure wears out evenly and slow; a heavy-metal load comes on in a season and only
+        from somewhere it was put — and he can feel a rig route and a sump floor the way he can
+        feel a hover-rig load gone off true, but a slow old operator cannot take a walker down the
+        sump under a posted grid station, fly the void after the outfit's own log, and stand off
+        its enforcer on knees gone bad. Calm and certain that a contractor paid to haul the works'
+        poison out to the yards and dumping it instead in the level the hab block drinks from is
+        not an old district's bad infrastructure but a thief poisoning children to save a haul fee;
+        he offers his fee — what a works pensioner has put by — because the credits are no good to
+        him if the block keeps drawing sludge and calling it age, and a neutral hand who can take
+        the rigs down where his joints no longer let him is the only help the hab has before the
+        next season goes down the draw.
+      knowledge:
+        - "He is Burlo Vethic, a thirty-year Besalisk operator of the commercial district's heavy cargo-walkers and hover cargo-rigs, now keeping the maintenance of the Engineering Corps habitation block — the being the works sent down a flooded sub-tier or up a grid-station gantry when no wheel or lift could make the ground. The hab block has sickened for a season: the recycled water gone metallic, the children coughing, the plumbing corroding from inside, all written off as old infrastructure."
+        - "The racket is illegal dumping under a clean manifest: Drell Reclamation holds the commercial district's licensed hazardous-waste disposal contract — paid to haul the works' spent coolant and heavy-metal sludge and reactor-cell tailings out to the proper offworld reclamation yards — and instead walks its rigs down into a dead service void under the district (the abandoned coolant sump beneath the Central Power Grid Station and the gartro-choked structural shaft below it) and dumps the drums there for free, pocketing the haul-and-process fees and filing clean reclamation manifests for runs that never left the level. Vass Drell runs the outfit; an offworld broker undercut the honest haulers to win the contract; the void it dumps into is exactly the level the hab block's air-and-water recyclers draw from, so a season of dumped sludge has surfaced in the block's draw."
+        - "Vethic traced the metallic draw and the corroding plumbing down his own rig routes to the sump and took a walker down once and found the drums — Drell Reclamation tailings drums in a void the manifests swore were processed three systems away — and has known the racket for a season, but a works maintenance hand's word against a licensed contractor's spotless manifests is one more complaint, and Drell posts the grid station now and would run a slow old operator off the moment he took a rig down. A neutral outside hand can do what he cannot: take the works' own cargo-walker down the flooded sump floor under the grid station and bring up a dumped drum where no wheel or lift can go (walker operation); fly a hover cargo-rig down into the gartro-choked void below to recover the outfit's abandoned hover-sled and its routing log (hover vehicle operation); and stand off the disposal crew's enforcer who comes for the drum and the log on the Mid-Level Market Street (combat)."
+        - "Get the contaminated drum and the recovery hover-sled's routing log to the Coruscant Works environmental inspectorate — and the outfit comes apart: a Drell tailings drum pulled from the void the hab block draws from, and the outfit's own routing log ending every 'reclamation' run in that void instead of at a yard, is dumping no clean manifest can paper over. Drell Reclamation's disposal contract and license are pulled, the void is sealed and remediated and the hab block's draw cleaned, the haul-and-process fees billed for runs that never left the level are clawed back against the harm, and the offworld broker's cheap-disposal pipeline dries up. The inspectorate has no love for adjudicating one more works-district complaint — but a licensed contractor that dumps the hazardous waste it was paid to haul to reclamation into the level a hab block drinks from has poisoned the district's own draw, and that the inspectorate will not have; this is the district's own to set right, and the war overhead never needs look down at a crooked waste hauler."
+      faction: independent
+      dialogue_style: >-
+        Spare, plain, an operator's economy of words — names what a recycler filter shows and what
+        a tailings drum in the wrong void means before he names a grievance, and trusts the load in
+        the draw over any manifest. Calm and certain; he has read enough rig routes and sump floors
+        to know dumped waste from worn infrastructure, and he has a hab block of works families
+        drinking it.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'You can run a heavy rig? Then you'll do what I can't, and the inspectorate won't. Thirty years I've taken the works' walkers and hover-rigs down where no wheel goes, and I know what old infrastructure wears like. This—' *he holds up a cracked recycler filter, its mesh stained metallic grey* '—isn't age. That's a heavy-metal load in the block's draw, come on in a season, and it only comes from somewhere it was put. Drell Reclamation's paid to haul the works' poison out to the yards. Instead they walk it down into the dead sump the hab draws from and dump it, and file the haul like it shipped. The water goes metallic, the children cough, the pipes rot from inside — and the district calls it an old block giving way. It's not. It's a drum of tailings in a void it was sworn to be three systems from.'"
+        - "*Burlo Vethic sets the torn tailings-drum tag on the maintenance bench between you and lays a blunt finger on the Drell Reclamation mark.* 'I took a walker down the sump under the Central Power Grid Station myself, once, before they posted a man on it, and found their drums stacked in a void their manifests swore were processed offworld. But I'm a maintenance hand, and my word against their clean manifests is one more complaint the inspectorate's filed and forgotten. And I can't take a rig down there now — Drell's crew posts the grid station, and they'd run a slow old operator off before he reached the sump floor. You can. Take the works' cargo-walker down — the floor's flooded and broken, no wheel or lift crosses it, only a walker's legs. Bring up one of their drums. Then I'll tell you the harder part.'"
+        - "'The harder part's their hover-sled. They fly the bulk of it down into the gartro void below the sump — a structural shaft choked with nests and updrafts no rig route ever logged — and the sled that hauls it carries the routing log: every run, every drop, every void coordinate where a 'reclamation' haul actually ended. They left a sled down there after the last drop, fouled and abandoned, and a hover-rig flown careful can reach it. Bring its log up; it ends every run in the void, not at a yard. Then mind the Mid-Level Market Street on the way to the inspectorate — Drell keeps a man to make sure no drum and no log ever walks up off this level toward a desk. Get the drum and the log to the environmental inspectorate and my fee's yours, what a works pensioner's put by. I'd sooner it cleaned the block's draw than bought me a quiet end.'"
+
+  # ── Questline antagonist: Draz Kullo (combat step 4) ─────────────────
+  # Single hostile instance on the Mid-Level Market Street between the gartro void / grid station
+  # and the Coruscant Works environmental inspectorate. Matches the coruscant_fouled_sump step-4
+  # combat_won enemy_template.
+  # Carries the proven blaster_pistol of the ranged foils on the same in-band guarded stat line
+  # as The Salted Lane's, The Short Weight's, The Wreckers' Light's, The Bonded Crew's, The Kept
+  # Watch's, The Buried Block's, and The Cut Coil's foils (squarely in the proven beatable band)
+  # so a fresh post-chargen character has a real, winnable fight — and pointedly NOT the melee
+  # line of The Condemned Hull's out-of-band Houk foil.
+
+  - name: Draz Kullo
+    room: "Coruscant - Mid-Level Market Street"
+    species: Klatooinian
+    description: >-
+      A leather-hided, heavy-jawed Klatooinian planted at the inspectorate end of the Mid-Level
+      Market Street with the flat patience of a being paid to make sure nothing comes up off the
+      level that shouldn't, a worn blaster pistol holstered under a grimed works coverall and a
+      Drell Reclamation contractor's patch sewn at the shoulder. He is the disposal crew's enforcer
+      — the hand who rides the rigs down into the void on a drop, who walks a too-curious works
+      hand back from the grid-station sump with a shove and a flat word, and who stands the market
+      street where the level's lifts let out so that no dumped drum and no routing log the outfit
+      buried ever reaches the environmental desk that could read it. He rarely has to draw, because
+      a mid-level works district has long since learned not to go poking at where a licensed hauler
+      walks its rigs. The whole racket runs on waste that goes down quiet and manifests that read
+      clean; it does not run on a neutral hand coming up off the level with a tailings drum in one
+      hand and the recovery sled's routing log in the other, headed for the inspectorate. He has
+      watched an outsider take a walker down the sump floor the crew thought no one would bother
+      with, pull a drum the manifests swore was offworld, and fly the void after a sled that was
+      meant to stay lost, and the easy menace of a man who keeps a level goes hard the instant the
+      thing he is paid to bury starts walking toward a desk. The drum came off a clean reclamation
+      run and the sled never logged a thing, as far as anyone on the market street will hear him
+      say; and whoever's carrying that drum is handing it back or going down on the deck-plates
+      with it.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        brawling: 3D+1
+        intimidation: 3D+2
+        streetwise: 3D
+        search: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: fouled_sump_enforcer
+      personality: >-
+        A disposal contractor's crew enforcer genuinely unused to being made to fight for the level
+        — bored and contemptuous while waste that goes down quiet and manifests that read clean do
+        his work, and immediately, heavily violent the moment a neutral hand comes up off the level
+        with a tailings drum and the recovery sled's routing log headed for the environmental
+        inspectorate. He works a blaster and a shove and a worse threat, not a manifest: dangerous
+        and direct, he plants himself across the Mid-Level Market Street between the level's lifts
+        and the way to the inspectorate's desk and would rather break a hand on the deck-plates than
+        chase a drum he can no longer file as processed offworld. His pay and his standing with the
+        outfit ride on waste that stays down and runs that read clean, so he'll draw on anyone
+        carrying the proof that they didn't. Combat foil for the questline's confrontation beat.
+      knowledge:
+        - "He is Draz Kullo, the Klatooinian enforcer Vass Drell keeps on the disposal crew to make sure nothing comes up off the level that shouldn't — riding the rigs down into the void on a drop, walking too-curious works hands back from the grid-station sump, and standing the Mid-Level Market Street where the level's lifts let out, rarely having to draw because a works district long since learned not to poke at where a licensed hauler runs its rigs."
+        - "A neutral hand took a cargo-walker down the flooded sump floor under the Central Power Grid Station and brought up a Drell tailings drum the manifests swore was processed offworld, flew a hover-rig down into the gartro void to recover the crew's abandoned hover-sled and its routing log, and is carrying the drum and the log up the Mid-Level Market Street toward the Coruscant Works environmental inspectorate; the racket runs on waste that goes down quiet and reclamation runs that read clean, so he'll draw on whoever carries the proof that the runs ended in the void rather than let the one thing that pulls the contract reach the inspectorate's desk."
+      faction: criminal
+      dialogue_style: >-
+        Flat, unhurried, contemptuous — names the clean reclamation run before the threat. States
+        once that the drum shipped and the sled never logged a thing, and after that lets the
+        blaster keep the street the way quiet waste kept the level.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'That drum you're carrying came off a clean reclamation run, friend — Drell's contract, Drell's haul, processed offworld and logged. Whatever you think you pulled out of that sump shipped out three systems ago, clean as the manifest reads. It doesn't go up to any inspectorate. Hand it back and walk off the street.'"
+        - "*Draz Kullo shoulders off a market stall as you come up the Mid-Level Market Street with the tailings drum cradled in one arm and the recovered hover-sled's log in your hand, sets himself across the way to the environmental inspectorate, and lets his grimed coverall fall open enough to show the blaster he would rather not have to use.*"
+        - "'Whole outfit swore that haul shipped to the yards. So did I. And that sled never logged a thing — we left it for fouled. Bad day for both of those. Last time — hand back the drum and ditch that log and walk off the street, or you don't walk to that desk. Drell runs a quiet contract. I'm the part of it that keeps the level clean.'"

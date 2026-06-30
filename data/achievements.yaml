@@ -861,3 +861,11 @@ achievements:
     icon: "🛡️"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "mos_eisley_cut_coil"}
+
+  - key: fouled_sump_cleared
+    name: "The Fouled Sump"
+    description: "Broke an illegal-dumping cover-up in the Coruscant works levels — took the works' heavy cargo-walker down the flooded coolant sump beneath the Central Power Grid Station and recovered a Drell Reclamation tailings drum where no wheel or lift could go, proving the hazardous waste the contractor was paid to haul to reclamation was dumped in the very level the hab block draws from (walker operation), flew a hover cargo-rig down into the gartro-choked structural void below to recover the outfit's abandoned hover-sled and its routing log, the record ending every 'reclamation' run in the void instead of at a yard under the outfit's own contract numbers (hover vehicle operation), and stood off the disposal crew's enforcer who came up the Mid-Level Market Street to take the proof back. A tailings drum pulled from the void the recyclers draw from and the outfit's own log of where every haul truly ended was dumping no clean manifest could paper over — the Coruscant Works environmental inspectorate pulled Drell Reclamation's disposal contract and license, sealed and remediated the void, cleaned the hab block's poisoned draw, clawed back the haul-and-process fees billed for runs that never left the level, and turned a licensed contractor's spotless reclamation record into a dumping fraud while a works level that had learned to drink the metallic draw and call it age learned to read a draw by the load in the water."
+    category: profession
+    icon: "🛡️"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "coruscant_fouled_sump"}
