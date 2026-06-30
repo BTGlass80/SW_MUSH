@@ -835,3 +835,29 @@ achievements:
     icon: "🛡️"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "coruscant_buried_block"}
+
+  # T3.24 generalized-questline arc (Jun 30 2026): "The Cut Coil"
+  # (mos_eisley_cut_coil) — the TWENTY-FOURTH accessible kind:questline chain and the
+  # SEVENTH set on Tatooine, on a fresh Mos Eisley street ROOM CLUSTER (at 24 arcs no
+  # untouched four-contested-room zone remains, so the discipline kept is a fresh cluster,
+  # not a fresh face). Breaking a sabotage-for-impound / product-tampering consumer-fraud
+  # racket — the first accessible arc in which the racket damages the very thing it is paid
+  # to fix: a repair garage nicks a repulsor coil on the bench so the speeder it tuned fails
+  # a week on, tows it in, and strips the ones the owners must sign over. Read a towed-in
+  # speeder's lift drive for the deliberate cut (repulsorlift repair), rebuild the garage's
+  # gutted recovery droid until it gives up the tow log (droid repair), stand off the yard's
+  # enforcer (combat), and get the cut coil and the log to the Mos Eisley vehicle-licensing
+  # prefect. The TWENTY-FOURTH distinct skill spread (repulsorlift repair + droid repair —
+  # both Technical — the first GARAGE-MECHANIC / vehicle-and-droid REPAIR build, the second
+  # both-Technical spread after The Rigged Issue's armorer's bench but a wholly distinct pair
+  # and work, and distinct from the prior droid work which re-flashes BEHAVIOR where this
+  # REPAIRS a gutted droid to restore a witness). Same lower-tier band as the prior
+  # twenty-three accessible arcs (cp_reward 3 vs the t5 trainer chains' 5): open freelance
+  # side-content, not a rep-gated trial.
+  - key: cut_coil_cleared
+    name: "The Cut Coil"
+    description: "Broke a sabotage-for-impound racket on the Mos Eisley strip — got into the garage's wreckage-corner scrap lot and read a towed-in speeder's lift drive to find the file-line cut clean across its repulsor coil winding, proving the breakdown was built into a speeder the garage tuned rather than worn-out bad luck (repulsorlift repair), rebuilt the recovery droid the racket had gutted after its last tow until it gave up the tow-and-job log tying every rigged speeder to the garage's own job numbers (droid repair), and stood off the garage's recovery-crew enforcer who came up Spaceport Row to take the proof back. A coil cut to fail and the garage's own droid logging the tow of the speeder it cut was fraud no clean service record could paper over — the Mos Eisley vehicle-licensing prefect pulled Hax Vortassa's repair license, sent the signed-over speeders back to the working folk robbed of them, laid the impound-and-strip at the garage's own door, and turned a licensed repair shop's spotless service record into a tampering fraud while a quarter that had learned to eat the bad luck learned to read a drive by the cut in the metal."
+    category: profession
+    icon: "🛡️"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "mos_eisley_cut_coil"}

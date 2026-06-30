@@ -8521,6 +8521,340 @@ chains:
           Coruscant underground carries a name now, down where the deep levels run under the
           city's floor and an honest survey is the difference between a derelict and a grave.
 
+  # GENERALIZED QUESTLINE — "The Cut Coil" (mos_eisley_cut_coil)
+  # The TWENTY-FOURTH accessible (non-t5, non-tutorial) kind:questline chain, the SEVENTH set
+  # on TATOOINE — on the Mos Eisley STREET face (the tatooine_mos_eisley zone), on a FRESH
+  # FOUR-ROOM CLUSTER no chain has touched: the quiet South End repair-shop row, the Dowager
+  # Queen wreckage scrap corner, the industrial North End garage district, and the busy
+  # Spaceport Row (mos_eisley_south_end / dowager_queen_corner / mos_eisley_north_end /
+  # mos_eisley_spaceport_row), reusing NONE of the prior Tatooine arcs' rooms (The Crooked
+  # Wheel's market district, The Dust-Sick's Jundland, The Sabotaged Run's speeder circuit, The
+  # Long Haul's haul-road and power station, The Rigged Issue's civic compound, The Short
+  # Weight's spaceport docking bays, or The Kept Watch's market shop row) — every room fresh to
+  # the corpus. At twenty-four arcs and a finite set of combat-capable (non-SECURED) rooms no
+  # untouched zone with four contested rooms remains, so the discipline this slice keeps is the
+  # honest one still available: a fresh ROOM CLUSTER, not a fresh face. A SABOTAGE-FOR-IMPOUND /
+  # PRODUCT-TAMPERING consumer-fraud racket — the FIRST accessible arc in which the racket
+  # DAMAGES the very thing it is paid to fix: a Mos Eisley repulsorlift repair garage, Hax
+  # Vortassa's lift & tune, books in working folks' speeders and, on the owners it judges a tow
+  # and a fee away from going under, nicks a repulsor coil on the bench — a file-line cut into
+  # the winding too fine to see, set to hold a week and then drop the lift drive dead in the
+  # lanes — then tows the stranded speeder in with its own recovery droid, books a ruinous
+  # repair against the fault it built, and strips the speeders the owners must sign over, gutting
+  # the recovery droid's tow log after every rigged job so nothing ties the breakdowns to the
+  # bench. A fifty-year Sullustan mechanic who read the cut coil for what it is is a beaten rival
+  # whose word means nothing against a licensed garage's clean records and who the yard would
+  # walk off the lot — so the racket is broken by GARAGE-MECHANIC work: get into the scrap corner
+  # and read a towed-in speeder's lift drive for the deliberate cut (repulsorlift repair),
+  # rebuild the garage's gutted recovery droid in its North End yard until it gives up the tow-
+  # and-job log the racket erased (droid repair), stand off the yard's enforcer who comes for the
+  # droid and the proof on Spaceport Row (combat), and get the cut coil and the droid's log to
+  # the Mos Eisley vehicle-licensing prefect. The TWENTY-FOURTH distinct skill spread
+  # (repulsorlift repair + droid repair — both Technical, the SECOND both-Technical spread after
+  # The Rigged Issue's armorer's bench but a wholly distinct pair and work), the FIRST accessible
+  # arc to reward the GARAGE-MECHANIC / vehicle-and-droid REPAIR build — mechanically distinct
+  # from every prior repair/operation arc: The Rigged Issue (blaster + armor repair, PERSONAL
+  # ARMS on the bench), The Condemned Hull (space transport repair + astrogation, a STARSHIP
+  # engineer-navigator), The Long Haul (ground vehicle repair + operation, a wheelman who DRIVES
+  # what he fixes), The Sabotaged Run (sensors + repulsorlift OPERATION, a racer in the COCKPIT);
+  # and where the only prior droid work re-FLASHES a droid's behavior (software), this REPAIRS a
+  # droid the racket physically GUTTED (hardware) to restore a wiped witness. Tatooine is
+  # Hutt-fringe with no Republic presence to keep offstage at all, and the garage is run afoul
+  # of in the end by the town's own Mos Eisley vehicle-licensing prefect, which will not have a
+  # licensed repair shop condemn the speeders it was paid to mend and impound them on a
+  # manufactured fault — the way every prior accessible arc keeps the larger powers offstage.
+  # Reuses the live questline engine (kind:questline + active_questline + existing event types +
+  # the four reward funnels) with NO new engine code, no new slot/event type, no schema
+  # migration, no new reward faucet, and NO map-coordinate or exit-graph change.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: mos_eisley_cut_coil
+    chain_name: "The Cut Coil"
+    description: >
+      In the streets of Mos Eisley — a one-bench repair shop in the quiet South End, the old
+      colony-ship wreckage corner where towed speeders are scrapped, the industrial North End
+      where the garage keeps its yard, and the busy Spaceport Row between the lot and the
+      licensing desk — an old Sullustan mechanic named Nilo Sabb knows the new garage on the
+      strip is wrecking the speeders it is paid to fix, and cannot prove it. Hax Vortassa's lift
+      & tune underprices every honest bench in the quarter, then, on the working-folk owners it
+      judges a tow and a fee away from going under, nicks a repulsor coil on the bench — a
+      file-line cut into the winding, fine as a hair and dead straight, set to hold a week of
+      running and then drop the lift drive dead in the lanes. When the speeder strands, the
+      garage's own recovery droid tows it to the wreckage-corner scrap lot, the garage books a
+      repair worth more than the speeder against the fault it built, and the owners who cannot
+      pay sign it over to be stripped and resold — the recovery droid's tow log gutted after
+      every rigged job, its memory module yanked and crushed, so nothing ties the breakdowns to
+      the bench. Sabb has fixed this quarter's speeders and droids for fifty years and opened a
+      neighbor's towed-in lifter and found the cut coil for what it was, but a beaten rival's
+      word against a licensed garage's clean service records is one more sore loser's grudge,
+      and the yard would walk him off the property before he reached a bench. He needs a neutral
+      hand who can do the three things he cannot: get into the scrap corner and read a towed-in
+      speeder's lift drive for the deliberate cut; rebuild the garage's gutted recovery droid
+      until it gives up the tow log the racket erased; and carry the cut coil and the droid's
+      log to the one desk that can pull the garage's license — before the next signed-over
+      speeders are stripped for good. A freelance favor — open to anyone, no faction required.
+    archetype_label: "Freelance Mechanic's Favor"
+    faction_alignment: independent
+    starting_zone: tatooine_mos_eisley
+    starting_room: mos_eisley_south_end
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["cut_coil_cleared"]
+      drop_room: mos_eisley_south_end
+      follow_up_hint: >
+        The cut coil and the recovery droid's tow log reach the Mos Eisley vehicle-licensing
+        prefect and the garage comes apart with them: a coil cut to fail in a speeder the garage
+        tuned, and the garage's own droid logging the tow of the speeder it rigged, is fraud no
+        clean service record can paper over. Hax Vortassa's repair license is pulled, the
+        signed-over speeders the prefect can show were rigged go back to their owners or are
+        bought back at the fraud's cost, the impound-and-strip is laid at Vortassa's own door,
+        and the offworld fence's pipeline of cheap stripped speeders dries up. The garage that
+        lived on speeders that stranded on their own bad luck and droids that remembered nothing
+        finds the one thing the racket needed buried come up the Row: a coil with a file-line in
+        it and a droid that remembers exactly what it was towing when they pulled its memory.
+        The enforcer who meant to keep the lot clean collects nothing but a pulled license. Word
+        travels the quarter the way it never travels a licensing record: there is a hand who
+        will walk a crooked garage's lot, read the cut a clean tune hides, bring a gutted droid
+        back to make it talk, and stand the Row when the recovery crew comes — and the working
+        folk of the South End who had learned to take the cheap service and eat the bad luck
+        stop believing a tuned speeder dies in a week on its own.
+
+    steps:
+      - step: 1
+        title: "The File-Line in the Winding"
+        location: mos_eisley_south_end
+        npc: "Nilo Sabb"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Nilo Sabb in the doorway of his one-bench repair shop in the Mos Eisley South End."
+        npc_intro: >
+          [A round-eyed old Sullustan in a grease-blacked apron sits on a coil-crate in the
+          doorway of a one-bench shop, a sectioned repulsor coil turning slow in his blunt
+          fingers, and he reads you the way a man reads a coil before he trusts it.] "You know
+          your way around a lift drive? Then you'll do what I can't, and the prefect won't. I'm
+          Nilo Sabb — fifty years I've fixed this quarter's speeders and droids, and I know what
+          wear looks like in a coil. `talk` to me. This—" [he turns the sectioned coil so the
+          lane-light catches the winding] "—isn't wear. That's a file-line, fine as a hair and
+          dead straight, cut to hold a week and then drop the drive. Hax Vortassa's garage tunes
+          a neighbor's lifter clean, it strands in the lanes seven days on, the garage's droid
+          tows it in, and the bill's more than the speeder — so they sign it over. That's not
+          bad luck. That's a coil cut to fail, and a rival's word against their clean records is
+          one more grudge the prefect's heard a hundred times."
+        completion:
+          type: talk_to_npc
+          npc: "Nilo Sabb"
+        npc_complete: >
+          [He sets the cut coil on the crate between you and lays a blunt finger along the
+          file-line.] "I opened a neighbor's towed-in lifter for a second opinion and found this,
+          and I've watched it happen up and down the South End since — a clean tune, a dead drive
+          a week on, a tow, a ruinous bill, a speeder signed away. But I'm the rival they
+          underpriced, and I can't walk that lot; the yard would have me off the property before
+          I reached a bench. You can. They scrap the speeders they tow at the old wreckage corner
+          — the Dowager Queen, where the Jawas pick over droids. Get to one of the towed-in
+          speeders there and read its lift drive. The cut's in the coil if you know to look.
+          Prove a tuned drive was cut to die, and you've got the first half of what pulls a
+          license."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to the Dowager Queen wreckage corner, where the garage scraps the speeders its recovery droid tows in, get into one of the towed-in speeders, and read its lift drive for the deliberate cut in the repulsor coil. Use your `repulsorlift repair` skill, then `chain attempt`."
+
+      - step: 2
+        title: "Read the Drive"
+        location: dowager_queen_corner
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["repulsorlift repair"]
+        objective: "At the Dowager Queen wreckage corner, get into one of the garage's towed-in speeders and read its lift drive to find the deliberate cut filed into the repulsor coil — a repulsorlift repair check."
+        npc_intro: >
+          [The Dowager Queen corner is where Mos Eisley scraps what it tows: the old colony-ship
+          wreckage with blockhouses built around it, Jawas picking over droids, and, off to one
+          side behind a chain run, the garage's scrap lot — a row of working-folk speeders towed
+          in "broken down," waiting to be stripped, a Hax Vortassa lift & tune tag wired to each
+          one. The garage swears every one of them simply wore out.] Get in under one before the
+          Jawas or the yard crew take notice, pull the lift-drive cowling, and read the repulsor
+          coil the way Sabb read his. Wear spreads — a worn coil pits and dulls all along the
+          winding. Sabotage is local and deliberate: a single clean file-line cut across the
+          winding, fine as a hair and dead straight, set to carry the load a week and then arc
+          out and drop the drive. Find the cut and you've proven the breakdown was built into a
+          speeder the garage tuned, not bad luck the owner brought on. `repulsorlift repair`, a
+          mechanic's eye for the difference between a worn coil and a cut one — `chain attempt`
+          when you've read the drive and found the file-line.
+        completion:
+          type: skill_check_passed
+          skill: "repulsorlift repair"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You pull the cowling on a towed-in lifter and read its drive the way Sabb swore it
+          could be read — and there it is, in the second coil: a single file-line laid clean
+          across the winding, dead straight, no pitting around it, no wear anywhere near it, a
+          cut a hand made on a bench with a fine file and a steady eye. A worn coil dies all over
+          at once; this one was murdered in one place, set to hold exactly long enough for the
+          owner to drive off trusting the tune and then to arc and drop the drive a week down the
+          road, far from the garage and any blame. You work the cut coil free and pocket it — the
+          proof in the metal, the file-line no service record can explain. But a coil is only
+          half of it: the coil says a speeder was cut to fail, and the garage will say it never
+          touched this one. What ties the cut speeders to the bench is the garage's own recovery
+          droid, that towed every one of them in and logged every tow — which is exactly why
+          they gut it after each job.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "You've got the cut coil — now make the droid talk. In the garage's North End yard, find the recovery droid the racket gutted after its last tow and rebuild it until it gives up the tow-and-job log tying the cut speeders to the bench — use your `droid repair` skill, then `chain attempt`."
+
+      - step: 3
+        title: "The Droid That Remembers"
+        location: mos_eisley_north_end
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["droid repair"]
+        objective: "In the garage's industrial North End yard, find the recovery droid the racket gutted and rebuild it until it gives up the tow-and-job log that ties the cut speeders to the bench — a droid repair check."
+        npc_intro: >
+          [The North End is Mos Eisley's industrial face — warehouses, shipping offices, factory
+          compounds — and Hax Vortassa's garage keeps its recovery yard here, the tow rigs parked
+          under a sun shade and, slumped against the back wall where they left it after the last
+          job, the recovery droid: a squat, treaded hauler-droid with its access panel hanging
+          open and its logic-and-memory module half torn out and crushed, gutted so it can never
+          say what it towed.] The racket runs on this droid remembering nothing — but a gutted
+          droid can be rebuilt, and a rebuilt droid remembers what it was carrying when its
+          memory was pulled. Reseat what's left of the module, splice past the crushed cells,
+          rebuild its logic enough to bring it back online, and walk it back through the damage
+          to the tow-and-job log under the wipe: every rigged speeder it towed, every job number,
+          every signed-over plate. `droid repair`, the hands to bring a deliberately gutted droid
+          back to life and the patience to recover what it was meant to forget — `chain attempt`
+          when the droid's back up and the tow log's yours.
+        completion:
+          type: skill_check_passed
+          skill: "droid repair"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You work the gutted droid the way the garage was sure no one would bother to — reseat
+          the half-crushed module, splice past the dead cells, rebuild the logic a board at a
+          time until the treads twitch and the optic flickers up and the droid comes back online,
+          confused and faithful, with the last thing it was doing still queued under the wipe.
+          And it remembers: the tow-and-job log surfaces a job at a time — every rigged speeder
+          it hauled in off the lanes, every job number the garage booked the ruinous repair
+          against, every plate signed over to the scrap corner — the garage's own droid logging,
+          in the garage's own job numbers, the tow of every speeder the bench cut to fail. The
+          coil says a speeder was cut; the log says this garage cut these speeders and towed them
+          in to strip. Put the two together and there is no clean service record left to hide
+          behind. But the droid rolling at your heel and the coil in your hand are exactly what
+          the garage cannot let walk off its lot, and Spaceport Row runs between here and the
+          prefect — and Vortassa keeps a man on the Row for just this.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "You've got the coil and the droid's log — now get them to a desk. Carry the cut coil and the rebuilt recovery droid up Spaceport Row toward the Mos Eisley vehicle-licensing prefect, and stand off the garage's enforcer when he comes to take the proof back — `attack`, `dodge`."
+
+      - step: 4
+        title: "The Man on the Row"
+        location: mos_eisley_spaceport_row
+        npc: "Vagh Sarko"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Carry the cut coil and the rebuilt recovery droid up Spaceport Row and stop Vagh Sarko when the garage's enforcer comes to take the proof back — `attack`, `dodge`."
+        npc_intro: >
+          [Spaceport Row is the busy strip between the garage's North End lot and the town's
+          licensing offices, all freight pylons and foot traffic and idling speeders. A
+          leather-skinned, braid-locked Weequay shoulders off a pylon as you come up with the cut
+          coil in one hand and the rebuilt recovery droid rolling at your heel, a worn blaster
+          under a grimed coverall and a Hax Vortassa lift & tune patch at his shoulder, the flat
+          patience of a being paid to make sure nothing leaves the garage's lot it shouldn't.]
+          Vagh Sarko — the recovery crew's enforcer, the hand who rides the tow rig and keeps the
+          lot clean. He has watched an outsider read a drive the garage swore was worn out and
+          bring its gutted droid back up the way it was never meant to come, and the easy menace
+          of a man who keeps a lot goes hard. "That coil came off a worn-out speeder, friend —
+          Vortassa's lot, Vortassa's salvage. Drive was finished; owner couldn't pay; it's ours,
+          clean as the service record reads. And that droid never logged a thing — we made sure.
+          It doesn't go up to any prefect." [He sets himself across the Row between you and the
+          licensing desk.] "Hand it back and shut the droid down and walk off the Row, or you
+          don't walk to that desk. Vortassa runs a patient shop. I'm the part of it that keeps
+          the lot clean."
+        completion:
+          type: combat_won
+          enemy_template: "cut_coil_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Vagh Sarko goes down in the dust of Spaceport Row, the blaster knocked spinning under
+          an idling freight skiff, and the foot traffic that has long since learned not to watch
+          where a garage keeps its lot finds somewhere else to look. The way up the Row toward
+          the licensing prefect stands clear, the cut coil still in your hand and the recovery
+          droid still rolling faithfully at your heel with its tow log intact. Take them on — a
+          coil with a file-line in it and a droid that remembers exactly what it towed — and
+          there is nothing between here and the prefect's desk but the strip, the racket's lie
+          coming apart in your hands.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The enforcer's down and the Row is clear — get the cut coil and the recovery droid's tow log to the Mos Eisley vehicle-licensing prefect, then go back to Nilo Sabb at his South End shop."
+
+      - step: 5
+        title: "The Lot Cleaned Out"
+        location: mos_eisley_south_end
+        npc: "Nilo Sabb"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Nilo Sabb at his South End shop with the cut coil and the droid's log delivered and the garage's license coming apart."
+        npc_intro: >
+          [Sabb is on his feet when you come back, the sectioned coil hung up on its board and a
+          licensing notice in his blunt hand, watching the South End's foot traffic move past the
+          neighbors' doors — and there's a recovered lifter up on a neighbor's stand again,
+          running.] "Done. The prefect read a file-line cut into a coil off a speeder Vortassa
+          tuned, and the garage's own droid logging, in the garage's own job numbers, the tow of
+          every speeder it cut — and pulled the license that morning. The signed-over speeders
+          the log proves were rigged go back to their owners or get bought back at the fraud's
+          cost, the impound-and-strip's laid at Vortassa's own door, and the offworld buyer's
+          pipeline of cheap stripped speeders dried up the day the lot went quiet. The prefect's
+          no friend of adjudicating one more garage grudge — but a licensed shop that condemns
+          the speeders it was paid to mend and tows them off to strip has made the town's own
+          licensing record a fraud, and that the prefect would not have." [He turns the notice
+          over the way a mechanic checks a coil one last time.] "A season they wrecked the
+          speeders they were paid to fix and called it bad luck, and the service records were all
+          clean, so it was honest. `talk` to me and let me say it plain, now there's a desk that
+          had to hear it."
+        completion:
+          type: talk_to_npc
+          npc: "Nilo Sabb"
+        npc_complete: >
+          "Here's your fee — what a one-bench mechanic's put by, and worth twice the credits to
+          hand it to the hand that walked the lot I couldn't and read the cut a clean tune hid. A
+          service record can call a speeder worn out; a file-line cut clean across the winding
+          says it was murdered on the bench. The license is pulled, the neighbors get their
+          speeders back, the next garage that tunes a lifter clean and watches it die in a week
+          gets read against the file-line in the coil, and a season of working folk who signed
+          their only speeder over for bad luck get it back for the fraud it was. Word goes slow up
+          a quarter and fast down a strip — a shop, a corner, a row learns quick who'll walk a
+          crooked lot after the cut a garage hides and who'll tow your speeder off and call it
+          worn out. When a garage in this town starts losing its customers' speeders to a week of
+          bad luck, there's a name they'll send for now. Carry mine with it — and read a drive by
+          the cut in the metal, not by how clean the service record reads; I'd not have the hand
+          that cleaned out that lot take a tuned speeder on faith."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The garage is shut and the racket is coming apart: Hax Vortassa's license dies as a cut
+          coil and the garage's own tow log prove the breakdowns were built on the bench, the
+          signed-over speeders go back to the working folk who were robbed of them, the impound-
+          and-strip becomes a fraud on the town's own licensing record, and a quarter that had
+          learned to take the cheap service and eat the bad luck learns to read a drive by the
+          cut in the coil. A hand who will walk a crooked garage's lot, read the file-line a
+          clean tune hides, bring a gutted droid back to make it talk, and stand the Row when the
+          recovery crew comes has a way of being sent for — Mos Eisley carries a name now, down
+          on the strip where an honest tune is the difference between a speeder fixed and a
+          speeder cut to fail.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════
