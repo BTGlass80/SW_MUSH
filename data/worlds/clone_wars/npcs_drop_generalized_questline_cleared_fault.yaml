@@ -1,0 +1,376 @@
+# Generalized Questline Drop — "The Cleared Fault" (T3.24 thirty-fifth slice, 2026-07-01)
+#
+# The THIRTY-FIFTH accessible (non-t5, non-tutorial) `kind: questline` chain, set on CORUSCANT —
+# on a FRESH FOUR-ROOM SINGLE-ZONE CLUSTER (all commercial_district) no chain has touched: the
+# Outlander Club in the lower entertainment strip where a blackballed weapons-safety range-master
+# who walked off a crooked recall bench takes a corner and names the racket (outlander_club), the
+# Invisible Sector main street where the crooked arms retailer keeps its shop and back-range and a
+# rack of "recall-cleared" production blasters that still carry the buried fault (invisec_main_street),
+# the covered scrap-lot range against the sector wall at the Invisible Sector border where a
+# "recall-cleared" bowcaster can be spanned to full draw against the ferrocrete backstop and shown
+# to fracture (invisec_border), and the mid-level residential megablock where the retailer's enforcer
+# corners the live proof before it can reach the arms-standards board (mid_residential_block)
+# (outlander_club / invisec_main_street / invisec_border / mid_residential_block). Every one of
+# these four rooms is FRESH to the entire chain corpus.
+#
+# HONEST DISCIPLINE NOTE: this is the FIFTH Coruscant arc (after The Twisted Word, The False
+# Provenance, The Sealed Ledger, The Buried Block, The Paper Death, The Cut Lane, The Blank Ticket —
+# actually the count of Coruscant arcs is higher; this is another Coruscant arc, NOT a fresh planet)
+# and the THIRD on the commercial_district face (The Sealed Ledger and The Blank Ticket worked it
+# before — dexters_diner / mid_transit_hub / commercial_district_main / commercial_district_atmospheric
+# and the Coco Town + Outlander Cantina cluster), so this is NOT a fresh face; what is fresh is the
+# four-room CLUSTER, precedented by every prior second-and-later-on-a-face arc. Three of the four
+# rooms are SECURED (outlander_club, invisec_main_street, invisec_border), which is fine: only the
+# step-4 combat room must be combat-capable, and mid_residential_block carries no explicit
+# security_level (defaults to CONTESTED — combat-capable), while the giver/return room and the two
+# firing-proof rooms host no fight, so their SECURED level is immaterial (a skill check is never
+# gated by room security — only NPC combat is, per _check_security_gate). It touches NO map
+# coordinate or world exit graph — the rooms already exist and are loaded (planets/coruscant.yaml);
+# only NPCs + a chains.yaml entry + an achievement are added.
+#
+# THE DEXTERITY-WEAPON-POOL PATH, TAKEN HONESTLY: the standing memory flag was that after the 34th
+# arc the MECHANICAL and TECHNICAL pools are EXHAUSTED (the big-ship operations trio spent by The
+# Blank Ticket, the big-ship repair pair by The Papered Refit, the small-ship systems by The Hollow
+# Fit), and the only clean UNUSED skills left are the two remaining DEXTERITY personal-weapon skills
+# — BLASTER and BOWCASTER — plus reactive parries/dodge and the Jedi/era lightsaber. A full corpus
+# skill sweep this slice confirmed it: neither blaster nor bowcaster has EVER gated a questline
+# skill_check_passed step (blaster and dodge are the FOILS' combat stats across the corpus, but
+# neither is used as a CHAIN skill — a distinction the memory had previously mis-filed). So
+# blaster + bowcaster is a clean fresh both-Dexterity personal-weapon pair, precedented as a shape
+# by The Empty Proof (firearms + thrown), The Paper Death (running + melee combat), and The Cold
+# Charge (grenade + missile weapons) — three prior all-Dexterity-weapon-pool spreads. Unlike the
+# big-ship pools it needs NO special venue (no berth, no drydock, no simulator rig): two personal
+# weapons are fired on two ordinary ranges, and the arc CAN take the standard combat step (a
+# personal-weapon arc is not the no-combat capital-ship shape). It keeps the racket squarely
+# civilian and sidesteps every venue problem the ship pools hit.
+#
+# It reuses the SAME live questline engine (engine/tutorial_chains.py + chain_events.py: the
+# `kind: questline` type + `active_questline` slot, the existing event types, the four reward
+# funnels) with NO new engine code, no new slot, no new event type, no schema migration, no new
+# reward faucet, and NO map-coordinate or exit-graph change — the sanctioned right-of-launch
+# widening per quest_expansion_postlaunch_path_v1.md (T3.24): author MORE questlines on the proven
+# pattern.
+#
+# Firsts for the accessible-questline arc:
+#   1. A THIRTY-FIFTH distinct skill spread — BLASTER (Dexterity) + BOWCASTER (Dexterity) — neither
+#      of which any prior accessible questline uses. It is the FIRST accessible questline to reward
+#      the PERSONAL-WEAPONS RANGE-MASTER / GUNSMITH-PROOF build — the hand that runs a suspect
+#      blaster hot on the range to trip a hidden chamber/actuator fault and the hand that spans a
+#      suspect bowcaster to full draw to show its riser/limb fracture — the FIRST to use BLASTER and
+#      the FIRST to use BOWCASTER as a chain skill. (Honest notes: this is NOT a cross-attribute
+#      spread — blaster and bowcaster are BOTH Dexterity — so it is the FOURTH all-Dexterity-weapon-
+#      pool spread, after The Empty Proof's firearms + thrown weapons, The Paper Death's running +
+#      melee combat, and The Cold Charge's grenade + missile weapons, and it is NOT the first weapon
+#      arc. What is genuinely first is the two DEXTERITY personal-firearm skills BLASTER and
+#      BOWCASTER, and the PROVE-THE-FAULT-IS-LIVE pairing on personal weapons: one hand runs a
+#      "recall-cleared" production blaster hot on the range to trip the chamber/actuator fault the
+#      recall swears was fixed, the other spans a "recall-cleared" bowcaster to full draw to show
+#      the riser/limb fault the recall swears was fixed still fractures. Pointedly distinct from The
+#      Empty Proof's marksman, which RE-RUNS a proof a proof-house SKIPPED on un-tested third-party
+#      arms — here the marksman TRIPS a specific KNOWN defect the seller's own forged recall swears
+#      it re-worked out, on the seller's own goods.)
+#   2. Set on CORUSCANT, in the commercial_district zone — but, honestly, NOT a fresh face (The
+#      Sealed Ledger and The Blank Ticket worked the commercial district) NOR a cross-zone cluster:
+#      it is a SINGLE-ZONE assembly of four rooms (outlander_club / invisec_main_street /
+#      invisec_border / mid_residential_block), every one new to the entire chain corpus. It touches
+#      NO map coordinate or world exit graph — the rooms already exist and are loaded
+#      (planets/coruscant.yaml); only NPCs + a chains.yaml entry + an achievement are added.
+#
+# It is also a new STORY SHAPE: breaking a SUPPRESSED-DEFECT / FAKED-RECALL product-safety cover-up
+# on personal weapons — the first accessible arc whose racket is knowingly selling a lethal
+# manufacturing defect, forging the recall-compliance record that swears the defect was re-worked
+# out, and burying the buyers' injury reports. A civilian arms retailer and importer (Riftline Arms
+# & Import, run by the proprietor Ostra Vell) sells personal blasters and bowcasters to the
+# dockworkers, sector guards, caravan hands, and hunters who need a sidearm in a rough quarter, and
+# a whole production lot of them carries a known lethal defect: a blaster gas-chamber and actuating-
+# block fault that over-pressures and bursts in the shooter's hand under sustained fire, and a
+# bowcaster riser-and-limb lamination fault that fractures under a full-power quarrel. When the
+# malfunction reports and the injuries started coming back, Riftline did not pull the lot: it forged
+# a recall-compliance certificate swearing every unit in the lot had been re-worked to clear the
+# fault, kept selling the untouched defective stock as "recall-cleared," and buried the buyers'
+# injury and malfunction reports so the arms-standards board never saw a pattern — collecting the
+# margin on live-defective weapons while the guards and hunters who carry them lose a hand or their
+# life the moment they need the weapon most. Pointedly DISTINCT from the prior arcs it might be
+# mistaken for: The Empty Proof's INDEPENDENT PROOF-HOUSE certifies THIRD-PARTY arms lots
+# "range-proofed" WITHOUT test-firing them — a certifier's SKIPPED test on others' goods of unknown
+# quality, an omission — where here the SELLER KNOWS the exact defect (the injury reports prove it),
+# forges a RECALL-COMPLIANCE record claiming it re-worked every unit to FIX the known defect, and
+# actively BURIES the victims — a seller's active concealment and fabricated remediation of a KNOWN
+# lethal defect, not a skipped proof. The Rigged Issue SUBSTITUTES counterfeits into an arms-supply
+# contract — here the weapons are genuine brand stock with a real manufacturing defect, nothing
+# substituted. The Cold Charge fakes the DESTRUCTION of ordnance and re-sells the live lots — here
+# nothing is destroyed or diverted, the defective weapons are sold openly as recall-cleared. The
+# Hollow Fit GUTS a ship's installed defenses and fences the real cores — here nothing on any ship,
+# personal weapons with a suppressed defect. The Fouled Sump hides a REAL environmental poison — a
+# contamination cover-up — where here the hidden hazard is a defective CONSUMER PRODUCT and its
+# faked recall. The racket is broken not by a slicer, an inspector, or a medic but by a PERSONAL-
+# WEAPONS RANGE-MASTER who does the two things a faked recall cannot survive: takes a "recall-
+# cleared" production blaster off Riftline's own shop rack and runs it hot on the back-range until
+# the chamber and actuating blocks the recall swears were replaced over-pressure and burst — a
+# recall-cleared weapon that still carries the exact fault the recall was supposed to clear
+# (blaster) — then spans a "recall-cleared" bowcaster to full draw on the covered scrap-lot range
+# against the sector wall and reads the riser and limb the recall swears were replaced fracture on
+# the first full-power quarrel (bowcaster), and puts the two live-defective "recall-cleared" weapons,
+# beside Riftline's forged recall-compliance certificate and the buried injury reports, on the
+# arms-standards board that can void the compliance certification and pull the retailer's arms
+# license. It carries a real combat climax (step 4), with a single placed antagonist NPC and a
+# chain_enemy_template.
+#
+# These NPCs back the `coruscant_cleared_fault` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Kesh Ordan   — the Zabrak master range-safety armorer who ran the recall bench for Riftline
+#                    Arms & Import until he saw the recall was never performed and the injury reports
+#                    buried; he offers + closes the quest (step-1 npc = the questline's start-NPC,
+#                    per get_questline_offer). Step-1 + step-5 NPC.
+#   * Draven Kohl  — the combat-step enforcer (ai_config.chain_enemy_template cleared_fault_enforcer;
+#                    the step-4 combat_won foil), the muscle Riftline keeps to see that a live-
+#                    defective weapon the recall swears was cleared never reaches the arms-standards
+#                    board that could void the certificate and pull the retailer's license.
+# The proprietor who forges the recall certificates and buries the injury reports (Ostra Vell), the
+# shop clerks who sell the "recall-cleared" stock, the manufacturer whose defective production lot
+# Riftline moves, the dockworkers, sector guards, caravan hands, and hunters who buy the weapons and
+# take the recall on faith, the maimed and the dead the weapons have already claimed, and the
+# arms-standards board whose desk licenses the retailer are NARRATED ONLY — story beats carried in
+# the prose, NOT spawned NPC entities. Only the giver and the single combat foil are real placed
+# NPCs. (The room-flavor figures the loaded rooms already imply — the Outlander's crime-kingpin
+# owner and its sports-book droids, the Alien Combine cells and the occasional clone patrol on the
+# Invisible Sector main street, the clone checkpoint at the sector border, the refugee families in
+# the residential block — are ambient and never instantiated by this drop, and the racket ties to
+# none of them.)
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures. The racket is a
+# private civilian arms retailer's suppressed-defect / faked-recall fraud and its hired muscle,
+# never a war faction; the Senate, the Jedi, and the Republic war effort have no reach at a civilian
+# arms retailer and never appear, Coruscant's ambient clone patrols and the sector's own politics
+# are the loaded rooms' own ambient flavor and never drive the plot, and the "authority" that ends
+# the racket is the civilian arms-standards board that voids the compliance certification and pulls
+# the retailer's arms license once a live-defective "recall-cleared" weapon is put on its desk —
+# nodded to and never instantiated.
+# Provenance: Zabrak (the horned, tattoo-marked near-Humans of Iridonia, spread across the galaxy
+# as a hardy, self-reliant people common in trades and the martial professions — era-clean and not
+# war-faction coded in ~20 BBY, here a weapons-safety range-master whose people's practical, martial
+# reputation grounds the build) and Weequay (the leathery, weathered people of Sriluur, common as
+# Outer-Rim and Hutt-space muscle and dock labor, era-clean and not war-faction coded) are both
+# era-clean.
+# Stats matched to the shipped accessible-questline bands — the giver to the non-combat fixer band
+# (Yelza Korrin / Dorae Vint / Sashi Renko / Dav Nuro / Soree Bann / Hessa Veil / Cassa Brel /
+# Vessa Tial / Terva Dohl / Ria Tann / Nuva Sehl / Neyla Sur / Veelo Trinn / Numi Vesh / Brama Hool /
+# Ulil Maan / Senni Vrook / Jando Vekk / Grett Bashan / Corwin Hale / Nabo Threll / Oren Vask /
+# Tomar Hess / Nilo Sabb / Burlo Vethic / Garn Holvo / Sela Marrenn / Resa Halix / Sabra Ollun /
+# Nima Tarr / Dessa Molvar / Nyla Sabo / Ormo Delth / Jenra Voll), with the range-master's spread
+# skewed to the personal-weapons proof-work of a range-safety armorer to embody the two skills the
+# quest sends a hand to use; the enforcer to the small-time-criminal antagonist band (Brakkis Vone /
+# Gorvahn Brusk / Skarn Vex / Suro Vant / Vohrek Sarn / Brask Yade / Varn Tesk / Tarko Venn / Drevin
+# Saar / Vossk Rhal / Korsa Drael / Bohrus Kang / Gornt Reska / Hekka Vrool / Greel Vodo / Vurr Magh /
+# Draygo Sull / Drozz Kael / Hask Vorran / Garvo Naak / Dussek Rao / Brunt Kosh / Vagh Sarko / Draz
+# Kullo / Neevo Karr / Sesko Vahr / Drovan Pell / Grull Vantok / Tovek Grahl / Hurss Kadag / Draxo
+# Venn / Vodran Sekk): a real fight, beatable by a fresh post-chargen character, carrying the proven
+# blaster_pistol of the ranged foils on the same in-band guarded stat line as The Salted Lane's, The
+# Short Weight's, The Wreckers' Light's, The Bonded Crew's, The Kept Watch's, The Buried Block's, The
+# Cut Coil's, The Fouled Sump's, The Fixed Bout's, The Empty Proof's, The Cut Lane's, The Rolled
+# Log's, The Paper Death's, The Cold Charge's, The Hollow Fit's, and The Papered Refit's foils
+# (squarely in the proven beatable band, no balance flag needed — and pointedly NOT the melee/heavy-
+# weapon line of The Condemned Hull's out-of-band Houk foil Bohrus Kang; the retailer's enforcer is
+# muscle who settles things with a blaster in a residential corridor, not an axe). WEG40120 PDF is
+# local-only (gitignored) and absent in this tree; the bands are cited against the in-repo reference
+# NPCs, not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The range-master — Kesh Ordan (questline GIVER + closer)
+  # Questline: coruscant_cleared_fault ("The Cleared Fault")
+  # Placement: Coruscant - The Outlander Club (outlander_club, zone
+  #            commercial_district). Step-1 + step-5 NPC.
+  # NOTE: a Zabrak master range-safety armorer who ran the recall bench for Riftline Arms & Import,
+  # the Invisible Sector arms retailer and importer the sector's dockworkers, guards, caravan hands,
+  # and hunters buy their sidearms from. He proofed and re-worked weapons on Riftline's bench honest
+  # for years, until a production lot of blasters and bowcasters started coming back to the counter
+  # having burst and fractured in their owners' hands — a chamber-and-actuator fault in the blasters
+  # and a riser-and-limb fault in the bowcasters — and he watched Ostra Vell forge the recall-
+  # compliance certificate swearing the whole lot re-worked, keep selling the untouched defective
+  # stock as "recall-cleared," and bury the injury reports so the arms-standards board never saw the
+  # pattern. He refused to sign the recall he never performed and walked off the bench; but an
+  # armorer who quit the shop is "a disgruntled hand" to a standards board that takes a bonded
+  # recall-compliance certificate at its word. A range-master reads a live-defective weapon from a
+  # re-worked one cold — but a quit armorer's word is not a burst chamber on the board's desk.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Kesh Ordan
+    room: "Coruscant - The Outlander Club"
+    species: Zabrak
+    description: >-
+      A lean, weathered Zabrak man with the vestigial crown of horns and the faint facial tattoos of
+      his Iridonian people, taken a corner booth in the Outlander Club where an out-of-work hand can
+      nurse one drink, watch the room, and be found, a range-master's calloused hands turning a spent
+      blaster gas-chamber over and over on the table and a recall-compliance slate face-down beside
+      it. He is a master range-safety armorer by trade and a proof-bench hand by his last job — the
+      one who ran the recall bench for Riftline Arms & Import, the Invisible Sector retailer and
+      importer the sector's dockworkers, guards, caravan hands, and hunters buy their sidearms from
+      because a rough quarter that the Republic pretends doesn't exist needs a weapon that works when
+      it's drawn. He proofed and re-worked the shop's stock and signed it honest for years, until a
+      whole production lot of blasters and bowcasters began coming back to the counter having let go
+      in their owners' hands — blasters whose gas chambers and actuating blocks over-pressured and
+      burst under sustained fire, bowcasters whose laminated risers and limbs fractured on a full-
+      power quarrel — a hand lost here, an eye there, a caravan guard who drew on a raider and had
+      his weapon burst instead of fire. A defect that bad is a recall: pull the lot, re-work every
+      unit, replace the chambers and the risers. Instead he watched the proprietor Ostra Vell forge
+      a recall-compliance certificate swearing the entire lot re-worked and cleared, keep the
+      untouched defective stock on the rack sold as "recall-cleared," and bury the malfunction and
+      injury reports in a drawer so the arms-standards board that licenses the shop never saw the
+      pattern. He refused to sign the recall he never did and walked off the bench the day Vell told
+      him to sign it anyway. Now a rack of live-defective "recall-cleared" weapons is still going out
+      the counter to people who will stake a hand or a life on them, and he knows to the serial where
+      the fault is and what the recall was supposed to fix and never did. A range-master reads a
+      live-defective weapon from a re-worked one the way another being reads a face; but an armorer
+      who quit the shop is "a disgruntled hand" to a standards board that takes a bonded recall-
+      compliance certificate at its word. He needs a neutral hand who can do the two things he can —
+      run a "recall-cleared" blaster hot on the range until its buried fault bursts, and span a
+      "recall-cleared" bowcaster to full draw until its buried fault fractures — and put a live-
+      defective weapon the certificate swore was cleared on the arms-standards board where they
+      cannot look away.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D+1
+        perception: 2D+2
+        strength: 2D
+        technical: 2D+2
+      skills:
+        blaster: 4D+1
+        bowcaster: 4D
+        firearms: 3D+2
+        blaster repair: 3D+2
+        search: 3D+1
+        dodge: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A range-safety armorer with a proof-bench hand's flat, exact care and no give left for a shop
+        that takes a sector's credits for a weapon it knows will burst in the owner's hand — he trusts
+        what a weapon does on the range over any recall a proprietor stamps. He knows a live-defective
+        lot the way he knows a cracked actuating block: the blaster that over-pressures and bursts, the
+        bowcaster whose riser fractures on a full draw, the recall logged done that pulled and re-worked
+        not one unit, the guard who drew on a raider and lost a hand to his own weapon. That is not a
+        recall; it is a shop collecting the margin on weapons it knows are lethal-defective and burying
+        the people they maim. But an armorer who quit the shop walking a standards board a claim that a
+        bonded recall-compliance certificate is a lie is "a disgruntled hand," and the shop's recall is
+        a bonded document a desk takes at its word. Level and certain that a fault this bad sold as
+        recall-cleared is not the hard honest gun-trade a rough quarter needs but a shop arming the
+        people who trust it with weapons that will fail them the moment they need them; he offers his
+        fee — what an out-of-work armorer keeps back between benches — because the credits are no good
+        to him while Riftline sells a burst chamber as cleared and the next hand who buys one loses more
+        than credits. A neutral hand who can run a "recall-cleared" blaster to its buried burst and span
+        a "recall-cleared" bowcaster to its buried fracture is the only thing that stands a live defect
+        against a forged recall.
+      knowledge:
+        - "He is Kesh Ordan, a Zabrak master range-safety armorer who ran the recall bench for Riftline Arms & Import, the Invisible Sector arms retailer and importer the sector's dockworkers, guards, caravan hands, and hunters buy their sidearms from. He proofed and re-worked the shop's stock honest for years, until a production lot of blasters and bowcasters started coming back having burst and fractured in their owners' hands — a gas-chamber-and-actuator fault in the blasters, a riser-and-limb lamination fault in the bowcasters — and he watched the proprietor Ostra Vell forge a recall-compliance certificate swearing the whole lot re-worked, keep selling the untouched defective stock as 'recall-cleared,' and bury the injury reports so the arms-standards board never saw the pattern. He refused to sign the recall he never did and walked off the bench; an armorer's word that a bonded recall is a lie is 'a disgruntled hand' to a standards board that takes a certificate at its word."
+        - "The racket is a suppressed-defect / faked-recall fraud: a civilian arms retailer and importer named Riftline Arms & Import, run by the proprietor Ostra Vell, sells personal blasters and bowcasters, a whole production lot of which carries a known lethal manufacturing defect — a blaster gas-chamber and actuating-block fault that over-pressures and bursts under sustained fire, and a bowcaster riser-and-limb lamination fault that fractures on a full-power quarrel. When the malfunctions and injuries started coming back, Riftline did not pull the lot: it forged a recall-compliance certificate swearing every unit re-worked and cleared, kept selling the untouched defective stock as 'recall-cleared,' and buried the buyers' injury and malfunction reports so the arms-standards board never saw a pattern. Nothing is substituted or diverted or destroyed; the weapons are genuine brand stock with a real defect, sold openly as recall-cleared, and the recall was never performed. The guards and hunters who carry them lose a hand or a life the moment they need the weapon, and a standards board that fires no weapon never checks whether a bonded recall was actually done."
+        - "Kesh can prove none of it from a fired hand's word, but a neutral hand who can run personal weapons can do what he cannot: take a 'recall-cleared' production blaster off Riftline's own shop rack on the Invisible Sector main street and RUN IT HOT on the back-range — a full firing string to the sustained pressure the recall was supposed to fix — until the gas chamber and actuating blocks the certificate swears were replaced over-pressure and burst, because a recall-cleared blaster that still carries the fault the recall was supposed to clear is a recall that was never done (blaster); then take a 'recall-cleared' bowcaster to the covered scrap-lot range against the sector wall at the Invisible Sector border and SPAN IT to full draw against the ferrocrete backstop, and read the laminated riser and limb the certificate swears were replaced fracture on the first full-power quarrel, because a recall-cleared bowcaster that fractures on a full draw is a recall that was never done (bowcaster); and stand off Riftline's enforcer (Draven Kohl) who corners the live-defective proof in the mid-level residential block before it reaches the arms-standards board (combat)."
+        - "Put a live-defective weapon the certificate swore was cleared on the arms-standards board — a 'recall-cleared' blaster that burst on the range and a 'recall-cleared' bowcaster that fractured on a full draw, beside the recall-compliance certificate that swears both re-worked and the buried injury reports — and a faked recall cannot hold: a weapon that still carries the exact fault its recall swore cleared, beside a bonded compliance certificate, is a fraud no certificate papers over. The board voids Riftline's recall-compliance certification and pulls its arms license; the sector stops buying its 'recall-cleared' stock on faith; a dealer that actually pulls and re-works a defective lot takes up the trade; and the weapons that would have burst in a guard's or a hunter's hand are pulled off the rack before they maim anyone else. No Senate office and no Jedi looked twice at a civilian arms shop in the Invisible Sector — the civilian arms-standards board did, the only authority a Coruscant arms license answers to, once a live-defective 'recall-cleared' weapon sat on its desk. Kesh's word stops being a disgruntled hand's, and the Republic never needs notice a range-master kept a rough quarter's guards from being maimed by the weapons they paid to be safe."
+      faction: independent
+      dialogue_style: >-
+        Level, plain, a range-master's economy of words — names what a weapon does on the range before
+        he names a grievance, and trusts a burst chamber over any recall a proprietor stamps. Level and
+        certain; he has proofed enough personal weapons to read a live-defective one from a re-worked
+        one, and he has a rack of "recall-cleared" blasters that burst and bowcasters that fracture to
+        prove what Riftline's clean recall is worth.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'You run personal weapons? Take a blaster hot on a range and read whether it's safe to fire, span a bowcaster to full draw and read whether the riser will hold? Then you can do what I can't carry alone, and a standards board won't wave you off the way it waves a quit armorer they call disgruntled. I'm Kesh Ordan — I ran the recall bench for Riftline Arms & Import, the shop this sector buys its sidearms from. I proofed their stock honest for years, until a whole lot of blasters and bowcasters started coming back having burst and fractured in their owners' hands. A defect that bad is a recall — pull the lot, re-work every unit. Vell forged the recall paper instead and kept selling the burst chambers as cleared.'"
+        - "*Kesh Ordan sets a spent blaster gas-chamber on the table, its actuating blocks split and scorched where the pressure let go, and lays a recall-compliance certificate beside it logging that exact serial re-worked and cleared.* 'See it? Certified recall-cleared, chamber and blocks replaced — and here's the chamber, never touched, burst in a caravan guard's hand when he drew on a raider. Nobody on a standards board fires a shop's stock to check what a recall actually did; that's the whole trick. The certificate squares the license, the board renews it, and the rack keeps going out the counter live-defective. I know a re-worked weapon from a lethal one; that's my bench. But my word's a fired hand's, and Vell's recall is bonded. A desk takes the certificate every time.'"
+        - "'So carry it for me. There's a rack of 'recall-cleared' production blasters on Riftline's shop rack on the Invisible Sector main street right now — take one to the back-range and run it hot, a full string to the pressure the recall was supposed to fix, and read the chamber and actuating blocks the certificate swears replaced over-pressure and burst, because a recall-cleared blaster that still carries the fault is a recall that was never done. Then take a 'recall-cleared' bowcaster out to the covered scrap-lot range against the sector wall at the border, span it to full draw against the ferrocrete, and read the riser and limb the certificate swears replaced fracture on the first full-power quarrel. Then mind the residential block — Vell keeps an enforcer, Draven Kohl, to see a live-defective weapon the recall swore cleared never reaches the arms-standards board. Put a burst blaster and a fractured bowcaster on that board, both stamped recall-cleared, and a faked recall voids the certification and pulls the license the way my word never could. My fee's yours then — what an out-of-work armorer keeps back between benches. I'd sooner it kept the next hand who buys one from losing more than credits than kept me nursing a drink here while Vell sells a burst chamber as cleared.'"
+
+  # ── Questline antagonist: Draven Kohl (combat step 4) ─────────────────
+  # Single hostile instance in the mid-level residential block, where Riftline lodges the hands it
+  # keeps for its quiet and the chokepoint between a live-defective proof carried up out of the sector
+  # and the arms-standards board that licenses the shop. Matches the coruscant_cleared_fault step-4
+  # combat_won enemy_template. Carries the proven blaster_pistol of the ranged foils on the same
+  # in-band guarded stat line as The Salted Lane's ... The Papered Refit's foils (squarely in the
+  # proven beatable band) so a fresh post-chargen character has a real, winnable fight — and pointedly
+  # NOT the melee line of The Condemned Hull's out-of-band Houk foil. Riftline's enforcer is muscle:
+  # he settles things with a blaster in a residential corridor, not a blade or a bench.
+
+  - name: Draven Kohl
+    room: "Coruscant - Mid-Level Residential Block"
+    species: Weequay
+    description: >-
+      A leathery, weather-creased Weequay with the flat, unhurried patience of a being paid to see
+      that nothing leaves the sector that Riftline cannot afford to have fired, planted at the end of
+      a mid-level residential corridor where the shop lodges the hands it keeps for its quiet and the
+      working families coming off shift learn not to look twice. A worn blaster pistol rides loose at
+      his hip and a shop chit is clipped at his collar. He is Ostra Vell's enforcer — not the
+      proprietor who forges the recall certificates and pockets the margin and not the clerks who sell
+      the "recall-cleared" stock, but the muscle the shop keeps for the weapons that come back burst:
+      the one sent to talk a maimed guard out of filing, to buy a nosy armorer's silence or run him
+      off, and to keep the residential corridor between a live-defective weapon and the arms-standards
+      board that could pull the license. He rarely has to draw, because a faked-recall fraud runs on a
+      weapon no one fires, a compliance certificate too bonded to question, and a buyer too poor or too
+      pressed to take a burst weapon to a board. The whole racket lives on defects certified cleared
+      that no one runs the weapon to disprove; it does not live on a neutral hand walking up out of the
+      sector with a "recall-cleared" blaster that burst on the range and a "recall-cleared" bowcaster
+      that fractured on a full draw. He has heard a stranger was on the shop's back-range running a
+      production blaster hot and out at the border scrap-lot spanning a bowcaster to full draw, and the
+      easy menace of a man who keeps a residential corridor goes hard the instant the one thing the
+      shop cannot survive — a live-defective weapon the recall swore was cleared — starts moving toward
+      the board that licenses it. The recall's certified and the stock is cleared, as far as anyone in
+      the corridor will hear him say it; and whoever is walking that burst weapon to the arms-standards
+      board is setting it down or going down on the corridor plating, where the working families filing
+      past their doors know better than to mark a brief, quiet thing.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        brawling: 3D+1
+        intimidation: 3D+2
+        streetwise: 3D
+        search: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: cleared_fault_enforcer
+      personality: >-
+        An arms shop's enforcer genuinely unused to being made to fight for a recall certificate —
+        bored and contemptuous while a weapon no one fires, a bonded recall, and a buyer too pressed to
+        take a burst gun to a board do his work, and immediately, heavily violent the moment a neutral
+        hand walks into the residential corridor with a "recall-cleared" blaster that just burst on the
+        range and word that a "recall-cleared" bowcaster just fractured at the border lot. He works a
+        blaster and a flat threat and a chit, not his hands: dangerous and direct, he plants himself in
+        the corridor between the live-defective proof and the arms-standards board and would rather
+        break a hand on the corridor plating than let a weapon the recall called cleared reach a desk
+        that can pull the license. His pay and his standing with Vell ride on defects certified cleared
+        no one fires the weapon to disprove, so he'll draw on anyone walking in the live proof the
+        recall was faked. Combat foil for the questline's confrontation beat — the shop's muscle, not an
+        armorer or a proprietor; he settles it with a blaster, in a residential corridor.
+      knowledge:
+        - "He is Draven Kohl, the Weequay enforcer Ostra Vell keeps for the weapons that come back burst — talking maimed guards out of filing, buying or running off nosy armorers, and keeping the mid-level residential corridor between a live-defective weapon and the arms-standards board that could pull the shop's license, rarely having to draw because a faked-recall fraud runs on a weapon no one fires, a bonded compliance certificate, and a buyer too pressed to take a burst gun to a board. He is muscle, not a proprietor or a clerk."
+        - "A neutral hand was on Riftline's back-range running a 'recall-cleared' production blaster hot and out at the border scrap-lot spanning a 'recall-cleared' bowcaster to full draw — ran a recall-cleared blaster until its chamber burst and a recall-cleared bowcaster until its riser fractured — and is walking the live-defective proof toward the arms-standards board that licenses the shop; the racket lives on defects certified cleared no one fires the weapon to disprove, so he'll draw on whoever carries the live proof the recall was faked rather than let the one thing the shop cannot survive — a live-defective weapon the recall swore was cleared — reach the desk that can void the certificate and pull the arms license."
+      faction: criminal
+      dialogue_style: >-
+        Flat, unhurried, contemptuous — names the recall as certified and the stock as cleared before
+        the threat. States once that the recall holds and the certificate stands, and after that lets
+        the blaster keep the corridor the way a bonded certificate keeps the license.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'That lot's recall-cleared, friend — certificate stamped, every unit re-worked, the shop's word on it. Whatever you think you're carrying up out of the sector, it doesn't reach any board. Set it down and walk off.'"
+        - "*Draven Kohl comes off the corridor wall as you come up from the sector with the burst blaster and the fractured bowcaster, sets himself between you and the lift, and lets his hand fall loose to the worn blaster he would rather not have to draw, the working families filing past their doors gone conveniently blind.*"
+        - "'Every weapon on Vell's rack holds the way the recall says. So says the paper. So do I. And that lot's cleared and certified — bad luck for you somebody's carrying one that burst. Bad day for you to walk it toward a standards desk. Last time — set it down and walk off, or you don't walk that proof to any board. The shop clears what it recalls. I'm the part of it that keeps the guns nobody fired from getting up and going to a standards desk.'"

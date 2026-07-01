@@ -12159,6 +12159,329 @@ chains:
           fraud it is — and honest crews and the lines that need them have a way of
           finding the hand that can tell a master from a blank ticket.
 
+  - chain_id: coruscant_cleared_fault
+    chain_name: "The Cleared Fault"
+    description: >
+      In Coruscant's Invisible Sector — the Outlander Club in the lower entertainment strip where a
+      blackballed weapons-safety range-master takes a corner, the alien-quarter main street where a
+      crooked arms retailer keeps its shop and back-range and a rack of "recall-cleared" blasters
+      that still carry the buried fault, the covered scrap-lot range against the sector wall at the
+      border where a "recall-cleared" bowcaster can be spanned to full draw, and the mid-level
+      residential block where the retailer's enforcer corners the live proof before it reaches the
+      arms-standards board — a Zabrak master range-safety armorer named Kesh Ordan, who ran the
+      recall bench for the shop Riftline Arms & Import, is trying to stop a racket that takes a rough
+      quarter's credits for weapons it knows will burst in the owner's hand. Riftline sells personal
+      blasters and bowcasters to the sector's dockworkers, guards, caravan hands, and hunters, and a
+      whole production lot of them carries a known lethal defect — a blaster gas-chamber and
+      actuating-block fault that over-pressures and bursts under sustained fire, and a bowcaster
+      riser-and-limb lamination fault that fractures on a full-power quarrel. When the malfunctions
+      and injuries came back, the proprietor Ostra Vell did not pull the lot: she forged a recall-
+      compliance certificate swearing every unit re-worked and cleared, kept selling the untouched
+      defective stock as "recall-cleared," and buried the buyers' injury reports so the arms-standards
+      board never saw the pattern. So a caravan guard who paid for a safe sidearm draws on a raider
+      and has his weapon burst instead of fire — sold out by the shop that certified it cleared. Kesh
+      proofed the shop's stock honest for years until he watched Vell forge the recall he never
+      performed and bury the maimed; he refused to sign it and walked off the bench, but a fired
+      armorer's word that a bonded recall is a lie is "a disgruntled hand" to a standards board that
+      takes a stamped certificate at its word. So Kesh needs a neutral hand who can run personal
+      weapons: take a "recall-cleared" blaster off the shop rack and run it hot on the range until its
+      buried chamber fault bursts, because a recall-cleared blaster that still carries the fault the
+      recall was supposed to clear is a recall that was never done; span a "recall-cleared" bowcaster
+      to full draw at the border scrap-lot until its buried riser fault fractures, because a recall-
+      cleared bowcaster that fractures on a full draw is a recall that was never done; and put the
+      burst blaster and the fractured bowcaster, beside the recall-compliance certificate that swears
+      both re-worked and the buried injury reports, on the arms-standards board, where a live defect
+      beside a bonded certificate voids a license a fired hand's word never could. A freelance favor —
+      open to anyone, no faction required.
+    archetype_label: "Freelance Operator's Favor"
+    faction_alignment: independent
+    starting_zone: commercial_district
+    starting_room: outlander_club
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["cleared_fault_cleared"]
+      drop_room: outlander_club
+      follow_up_hint: >
+        The "recall-cleared" blaster run hot on Riftline's back-range until its chamber burst, and
+        the "recall-cleared" bowcaster spanned to full draw at the border scrap-lot until its riser
+        fractured, reach the arms-standards board beside the recall-compliance certificate that swears
+        both were re-worked and cleared — and a faked recall cannot hold: a weapon that still carries
+        the exact fault its recall swore cleared, beside a bonded compliance certificate and the
+        buried injury reports, is a fraud no certificate papers over. The board voids Riftline Arms &
+        Import's recall-compliance certification and pulls its arms license before another burst
+        weapon goes out the counter; the sector's dockworkers, guards, caravan hands, and hunters stop
+        buying its "recall-cleared" stock on faith; a dealer that actually pulls and re-works a
+        defective lot takes up the trade; and the weapons that would have burst in a guard's or a
+        hunter's hand are pulled off the rack before they maim anyone else. No Senate office and no
+        Jedi looked twice at a civilian arms shop in the Invisible Sector — the civilian arms-standards
+        board did, the only authority a Coruscant arms license ever answers to, once a live-defective
+        "recall-cleared" weapon sat on its desk. The enforcer who meant to keep it off that board keeps
+        nothing but a shop chit gone worthless. Word travels the sector the way it never travels a
+        stamped recall: there is a hand who will run a "recall-cleared" blaster to its burst and span a
+        "recall-cleared" bowcaster to its fracture and stand a live defect against its own recall — and
+        a quarter that had learned to be grateful its weapons were certified cleared stops taking a
+        shop's word that they were re-worked, and Kesh Ordan's word stops being a disgruntled hand's
+        and starts being the thing that voided a license and put a live-defective lot off the rack
+        before it maimed the next hand that trusted it.
+
+    steps:
+      - step: 1
+        title: "The Recall That Was Never Done"
+        location: outlander_club
+        npc: "Kesh Ordan"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Kesh Ordan at the Outlander Club, where the blackballed range-safety armorer who ran Riftline's recall bench has found the weapons he warned about bursting in their owners' hands."
+        npc_intro: >
+          [A lean, weathered Zabrak man with the vestigial crown of horns and faint facial tattoos of
+          his Iridonian people has a corner booth in the Outlander Club, where an out-of-work hand can
+          nurse one drink and be found, a spent blaster gas-chamber turning over in his calloused
+          range-master's hands and a recall-compliance slate face-down beside it.] "You run personal
+          weapons? Take a blaster hot on a range and read whether it's safe to fire, span a bowcaster
+          to full draw and read whether the riser will hold? Then you can do what I can't carry alone,
+          and a standards board won't wave you off the way it waves a quit armorer they call
+          disgruntled. `talk` to me. I'm Kesh Ordan — I ran the recall bench for Riftline Arms &
+          Import, the shop this sector buys its sidearms from. I proofed their stock honest for years,
+          until a whole lot of blasters and bowcasters started coming back having burst and fractured
+          in their owners' hands. A defect that bad is a recall — pull the lot, re-work every unit.
+          Vell forged the recall paper instead, kept selling the burst chambers as cleared, and buried
+          the injuries so the board never saw them."
+        completion:
+          type: talk_to_npc
+          npc: "Kesh Ordan"
+        npc_complete: >
+          [He sets the spent gas-chamber on the table, its actuating blocks split and scorched where
+          the pressure let go, and lays a recall-compliance certificate beside it logging that exact
+          serial re-worked and cleared, then puts a shop rack-tag in your hand.] "See it? Certified
+          recall-cleared, chamber and blocks replaced — and here's the chamber, never touched, burst
+          in a caravan guard's hand when he drew on a raider. Nobody on a standards board fires a
+          shop's stock to check what a recall actually did; that's the whole trick. There's a rack of
+          'recall-cleared' production blasters on Riftline's rack on the Invisible Sector main street
+          right now. Take one to the back-range and run it hot — a full string to the pressure the
+          recall was supposed to fix — and read the chamber and actuating blocks the certificate swears
+          replaced over-pressure and burst, because a recall-cleared blaster that still carries the
+          fault is a recall that was never done. Do that and you've got the first half of a lie in your
+          hand."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Get into the Invisible Sector, take a 'recall-cleared' production blaster off Riftline's shop rack, and run it hot on the back-range until its buried chamber fault bursts. Use your `blaster` skill, then `chain attempt`."
+
+      - step: 2
+        title: "A Blaster That Was Never Fixed"
+        location: invisec_main_street
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["blaster"]
+        objective: "On the Invisible Sector main street, take a 'recall-cleared' production blaster off Riftline's rack, run it hot on the back-range, and trip the buried chamber fault the recall swears was fixed — a blaster check."
+        npc_intro: >
+          [The Invisible Sector's main street is alive with the commerce the Republic pretends doesn't
+          exist, and Riftline Arms & Import keeps its shop and a back-range off the traffic where a
+          rough quarter's dockworkers, guards, caravan hands, and hunters buy the sidearms a walled-off
+          sector needs. A rack of production blasters stands tagged "recall-cleared," a compliance
+          certificate lodged against the lot swearing every unit's gas chamber and actuating blocks
+          re-worked and the burst fault cleared — the same lot that has been coming back to the counter
+          having let go in its owners' hands. A blaster is an honest thing to read on a range: a
+          re-worked weapon runs a full firing string hot and holds its chamber pressure clean, and a
+          faked-recall one — a unit never opened — climbs past its pressure on the sustained string and
+          over-pressures and bursts at the chamber, and the only way to tell a "cleared" blaster from a
+          live-defective one is to take it hot on the range and run it to the pressure the recall was
+          supposed to fix.] Take a "recall-cleared" blaster off the rack to the back-range and run it
+          hot: put a full string through it to the sustained pressure the recall swears it re-worked,
+          and read the gas chamber and actuating blocks the certificate swears replaced over-pressure
+          and burst — a recall-cleared blaster that still carries the fault the recall was supposed to
+          clear is a recall that was never done, and that is the recall's first lie in your hand.
+          `blaster`, the range-master's hand to run a suspect weapon hot and read a re-worked one from
+          a lethal one — `chain attempt` when a "recall-cleared" blaster has burst on the range.
+        completion:
+          type: skill_check_passed
+          skill: "blaster"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You run the "recall-cleared" blaster hot the way a shop's stock is never run by the board
+          that licenses it — a full string, unhurried, no give for the counter's watchers — and the
+          truth comes at the chamber: the gas chamber and actuating blocks the certificate swears
+          replaced are the original units, and they climb past their pressure on the sustained string
+          and let go, the chamber splitting and venting exactly where a caravan guard would lose a
+          hand. A production blaster tagged recall-cleared and certified re-worked that carries the
+          exact burst fault the recall was paid to cut out — a weapon that will maim the next hand that
+          draws it in earnest. You have the first half of the lie: a blaster certified cleared that was
+          never touched, the recall stamped and no unit re-worked. Now the recall's other swear — that
+          the bowcaster lot went out re-worked and its risers cleared — wants a full-draw span to
+          disprove, and the covered scrap-lot range against the sector wall at the border is where a
+          bowcaster can be spanned hard against the ferrocrete backstop.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "You've got a 'recall-cleared' blaster proved live-defective — now the bowcasters. Take a 'recall-cleared' bowcaster to the covered scrap-lot range at the Invisible Sector border and span it to full draw until its riser fractures. Use your `bowcaster` skill, then `chain attempt`."
+
+      - step: 3
+        title: "A Riser That Never Held"
+        location: invisec_border
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["bowcaster"]
+        objective: "At the covered scrap-lot range against the sector wall at the Invisible Sector border, span a 'recall-cleared' bowcaster to full draw and read the buried riser-and-limb fault fracture — a bowcaster check."
+        npc_intro: >
+          [At the Invisible Sector border the ferrocrete wall the Republic has only recently begun
+          throwing up makes a hard backstop, and on the sector side of it, out of the clone checkpoint's
+          sightline, a covered scrap-lot serves the quarter as a range where a bowcaster can be spanned
+          to full draw and loosed against the wall. A "recall-cleared" bowcaster from Riftline's lot
+          rides here now, its compliance certificate swearing its laminated riser and limbs re-worked
+          and the fracture fault cleared — the same lot whose bows have been splitting in their owners'
+          hands. A bowcaster is an honest thing to read at full draw: a re-worked riser takes the full
+          span and the full-power quarrel and holds, and a faked-recall one — a riser never re-laminated
+          — takes the full draw and fractures at the riser and the limb, dead where it should throw a
+          bolt, and the only way to tell a "cleared" bow from a live-defective one is to span it to full
+          draw and loose a full-power quarrel against the backstop.] Span the "recall-cleared" bowcaster
+          to full draw against the ferrocrete and loose it: put a full-power quarrel through it the way
+          a guard would when he needs it most, and read the laminated riser and limbs the certificate
+          swears replaced fracture and split — a recall-cleared bowcaster that fractures on a full draw
+          is a recall that was never done, and that is the whole second half of the lie in one snapped
+          riser. `bowcaster`, the range-master's hand to span a suspect bow to full draw and read
+          re-worked from lethal — `chain attempt` when a "recall-cleared" bowcaster has fractured on
+          the range.
+        completion:
+          type: skill_check_passed
+          skill: "bowcaster"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You span the "recall-cleared" bowcaster to full draw against the ferrocrete — where a
+          re-worked riser would take the span and throw the quarrel clean — and it goes the way no
+          re-worked bow does: the laminated riser and the limbs the certificate swears replaced take
+          the full draw and fracture, the riser splitting and the limb snapping loose, the bow dead in
+          your hands exactly as it would snap in a hunter's the moment he loosed on the thing that meant
+          to kill him. A bowcaster tagged recall-cleared and certified re-worked that a sector paid for
+          and staked its safety on, never re-laminated and never touched. You have both halves of the
+          lie now — a blaster certified cleared that burst on the range and a bowcaster certified
+          cleared that fractured on a full draw — and a recall that leaves the chamber live and the
+          riser cracked is a recall that never happened. All that stands between the proof and the
+          arms-standards board is Riftline's enforcer, and Vell keeps him up in the mid-level
+          residential block where the shop lodges the hands who keep its quiet.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "You've got the burst blaster and the fractured bowcaster — now get the proof to the arms-standards board. Carry it up to the mid-level residential block, and stand off Riftline's enforcer when he comes for it — `attack`, `dodge`."
+
+      - step: 4
+        title: "The Corridor Off the Sector"
+        location: mid_residential_block
+        npc: "Draven Kohl"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "In the mid-level residential block, stop Draven Kohl when Riftline's enforcer comes to keep the burst blaster and the fractured bowcaster from reaching the arms-standards board — `attack`, `dodge`."
+        npc_intro: >
+          [The mid-level residential megablock is a self-contained community of working families and
+          the refugees the war has deposited in it, and Riftline lodges the hands it keeps for its quiet
+          in a corridor at the end where the people coming off shift learn not to look twice — the last
+          stop between a live-defective weapon carried up out of the sector and the arms-standards board
+          that licenses the shop. A leathery, weather-creased Weequay comes off the corridor wall as you
+          come up from the sector with the burst blaster and the fractured bowcaster, a worn blaster
+          loose at his hip and a shop chit clipped at his collar, with the flat patience of a being paid
+          to see that nothing leaves the sector the shop cannot afford to have fired.] Draven Kohl —
+          Ostra Vell's enforcer, not the proprietor who forges the recall certificates and pockets the
+          margin and not the clerks who sell the stock, but the muscle the shop keeps for the weapons
+          that come back burst, the one sent to talk a maimed guard out of filing and to run a nosy
+          armorer off. He has heard a stranger was on the shop's back-range running a production blaster
+          hot and out at the border scrap-lot spanning a bowcaster to full draw, and the easy menace of
+          a man who keeps a residential corridor goes hard. "That lot's recall-cleared, friend —
+          certificate stamped, every unit re-worked, the shop's word on it. Whatever you think you're
+          carrying up out of the sector, it doesn't reach any board." [He sets himself between you and
+          the lift, the working families filing past their doors gone conveniently blind.] "Set it down
+          and walk off, or you don't walk that proof to anyone. The shop clears what it recalls. I'm the
+          part of it that keeps the guns nobody fired from getting up and going to a standards desk."
+        completion:
+          type: combat_won
+          enemy_template: "cleared_fault_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Draven Kohl goes down on the corridor plating, the blaster knocked loose across the decking,
+          and the burst blaster and the fractured bowcaster stay in your hands. The way to the lift
+          stands clear, and the working families filing past their doors never look up from a thing too
+          brief and too quiet to mark. Carry it on out — a blaster certified recall-cleared that burst
+          on the range, a bowcaster certified recall-cleared that fractured on a full draw, and the
+          compliance certificate that swears both re-worked — and there is nothing between the corridor
+          and the arms-standards board now but an open lift, Riftline's faked recall coming apart in
+          your hands.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The enforcer is down and the way's clear — get the burst blaster, the fractured bowcaster, and the recall-compliance certificate to the arms-standards board, then go back to Kesh Ordan at the Outlander Club."
+
+      - step: 5
+        title: "A Fault That Wasn't Cleared"
+        location: outlander_club
+        npc: "Kesh Ordan"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Kesh Ordan at the Outlander Club with the recall-compliance certification voided and Riftline's lot coming off the rack."
+        npc_intro: >
+          [Kesh is back at the corner booth when you return, a comm-slate of standards-board notices
+          scrolling in his hand and Riftline's recall-compliance certification marked VOID under the
+          board's seal now, watching the sector reckon which counters it dares buy a sidearm from after
+          this.] "Done — and the board read it the way no word of mine ever could. A blaster that burst
+          on the range and a bowcaster that fractured on a full draw, beside the certificate that swore
+          both re-worked and cleared — there's no bonded certificate papers over that. Their desk voided
+          Riftline's recall-compliance cert and pulled its arms license before another burst weapon went
+          out the counter. The sector stopped buying Vell's 'recall-cleared' stock on faith, a dealer
+          that actually pulls and re-works a defective lot is taking up the trade, and the weapons that
+          would have burst in a guard's or a hunter's hand are coming off the rack for real. No Senate
+          office and no Jedi looked twice at an arms shop in the Invisible Sector — the civilian
+          arms-standards board did, the only authority a Coruscant arms license ever answers to, once a
+          live-defective 'recall-cleared' weapon sat on its desk." [He sets the burst gas-chamber down
+          beside the slate.] "`talk` to me and let me say it plain, now there's a board's VOID where a
+          clean recall used to be."
+        completion:
+          type: talk_to_npc
+          npc: "Kesh Ordan"
+        npc_complete: >
+          "Here's your fee — what an out-of-work armorer keeps back between benches, and worth twice the
+          credits to hand it to the hand that ran a 'recall-cleared' blaster to its burst and spanned a
+          'recall-cleared' bowcaster to its fracture. A shop's only as honest as the weapon it never
+          lets a buyer fire hard; you ran the string and spanned the draw and read the lie the recall
+          hid, and a shop that collects a sector's credits for weapons it knows will burst is finished
+          the moment a board stands one live-defective weapon against one stamped recall. That caravan
+          guard already lost a hand to a blaster Vell swore was cleared, and the next hand who bought
+          one was going the same way — they'll not, now, and the weapons the sector wanted safe are safe
+          or off the rack, or the buyers will know before they draw. Word goes slow up a standards desk
+          and fast across the sector — a street, a quarter, a rough trade learns quick who'll run a
+          'recall-cleared' blaster to its burst and span a 'recall-cleared' bowcaster to its fracture
+          and stand a live defect against its own recall. When a shop down here starts certifying
+          recalls it never does again, there's a name they'll send for now. Carry mine with it — and
+          trust a weapon on the range over any recall a shop stamps; I'll not have the hand that cracked
+          Riftline's faked recall take a stamped certificate on faith."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The lot is finished and the racket is coming apart: the "recall-cleared" blaster run to its
+          burst on the range, the "recall-cleared" bowcaster spanned to its fracture at the border lot,
+          and the recall-compliance certificate that swore both re-worked reach the arms-standards
+          board, and a faked recall cannot hold — a weapon that still carries the exact fault its recall
+          swore cleared, beside a bonded compliance certificate and the buried injury reports, is a
+          fraud no certificate papers over. The board voids Riftline Arms & Import's recall-compliance
+          certification and pulls its arms license, the sector stops buying its "recall-cleared" stock
+          on faith, a dealer that actually pulls and re-works a defective lot takes up the trade, and
+          the weapons that would have burst in a guard's or a hunter's hand are pulled off the rack
+          before they maim anyone else — no court tried the fraud, the civilian arms-standards board
+          did, the only authority a Coruscant arms license answers to. A hand who will run a
+          "recall-cleared" blaster to its burst, span a "recall-cleared" bowcaster to its fracture, and
+          stand a live defect against its own recall has a way of being sent for — the sector carries a
+          name now, out where a dealer that actually re-works what it recalls is the difference between
+          a guard home off a raider lane and a guard maimed by the weapon he paid to be safe.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════
