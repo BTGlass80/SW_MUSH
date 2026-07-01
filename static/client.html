@@ -1839,6 +1839,17 @@ a { color: inherit; text-decoration: none; }
 /* UX Drop 1: the caller's own bounty target standing in the room. Reuses the
    hostile-glow warn vocabulary so the win condition reads at a glance. */
 .here-entry.bounty-target { box-shadow: inset 2px 0 0 var(--warn); }
+/* G5: live NPC wound badge in the HERE panel. Only rendered when wound_level>0
+   (a live combatant taking damage); severity buckets escalate the colour so a
+   nearly-down mob is obvious mid-fight. */
+.here-wound {
+  flex-shrink: 0; font-size: 9px; text-transform: uppercase;
+  letter-spacing: 0.3px; padding: 1px 4px; border-radius: 3px;
+  border: 1px solid currentColor; opacity: 0.9;
+}
+.here-wound-stun { color: var(--pad-amber); }
+.here-wound-hurt { color: var(--warn); }
+.here-wound-crit { color: var(--warn); font-weight: bold; opacity: 1; }
 .here-entry.bounty-target .here-name { color: var(--warn); }
 .here-actions { display: flex; gap: 3px; flex-wrap: wrap; }
 .here-btn {
@@ -9405,6 +9416,20 @@ function renderHerePanel(data) {
 
       // UX Drop 1: highlight the caller's own bounty target standing here.
       if (window.M3Affordances) M3Affordances.decorateBountyRow(row, npc);
+
+      // G5: live wound badge. Server stamps wound_level (0-6) + wound_name on
+      // each NPC from room_contents; 0/Healthy shows nothing (the combat feed
+      // still narrates the fight). Severity buckets colour the badge so a
+      // nearly-down mob reads at a glance in a multi-enemy fight.
+      if (npc.wound_level && npc.wound_level > 0) {
+        var woundEl = document.createElement('span');
+        var wsev = npc.wound_level >= 4 ? 'crit'
+                 : (npc.wound_level >= 2 ? 'hurt' : 'stun');
+        woundEl.className = 'here-wound here-wound-' + wsev;
+        woundEl.textContent = npc.wound_name || 'wounded';
+        woundEl.title = npc.name + ' is ' + (npc.wound_name || 'wounded');
+        row.appendChild(woundEl);
+      }
 
       // Action buttons — server sends the valid verb list
       var actions = npc.actions || ['look', 'talk'];

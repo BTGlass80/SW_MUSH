@@ -73,6 +73,34 @@ def _wound_name(level: int) -> str:
     return _WOUND_NAMES.get(level, "healthy")
 
 
+def _npc_wound_map(combat) -> dict:
+    """Map each live NPC combatant's id → its wound_level.value (G5).
+
+    NPC wounds live ONLY on the live combat object — outside a fight an NPC
+    row is always Healthy (damage is not persisted to the DB row), so the
+    HERE panel's at-a-glance "which mob is nearly down" readout must read
+    the in-memory combat instance the HUD already fetches for ``in_combat``.
+    This is a READ-ONLY marshalling helper: it never mutates combat state
+    (no combat.py write), mirroring how ``_hud_room_contents`` already reads
+    ``_active_combats`` for the flee affordance.
+
+    Keyed by ``combatant.id`` which is ``char.id`` (``add_combatant`` stores
+    ``combatants[char.id]``) == the NPC's DB row id, so the caller can look
+    up ``db.get_npcs_in_room`` rows directly. Non-NPC combatants and any
+    combat-internals hiccup are skipped (the NPC then defaults to Healthy).
+    """
+    out: dict = {}
+    if combat is None:
+        return out
+    try:
+        for c in combat.combatants.values():
+            if getattr(c, "is_npc", False) and getattr(c, "char", None) is not None:
+                out[int(c.id)] = int(c.char.wound_level.value)
+    except Exception:
+        log.debug("_npc_wound_map read failed", exc_info=True)
+    return out
+
+
 # ── NPC role classification (Ground UX Drop 1) ──
 
 def _classify_npc_role(npc_row: dict) -> str:
@@ -1312,6 +1340,8 @@ class Session:
         # room_id lookup would miss/collide on wilderness tiles. Read it through
         # that helper so the key matches how combats are actually registered.
         in_combat = False
+        combat = None  # G5: bound before the try so the wound-map read below
+                       # is safe even if the combat-registry import/key raises.
         try:
             from parser.combat_commands import (
                 _active_combats, _combat_key_for, _combat_finished,
@@ -1326,6 +1356,14 @@ class Session:
             in_combat = combat is not None and not _combat_finished(combat)
         except Exception as e:
             log.debug("_hud_room_contents: combat check failed: %s", e)
+
+        # G5 (T3.17/T3.18): live NPC wound state for the HERE panel. Reads the
+        # SAME `combat` instance fetched above (read-only) so a player can see,
+        # at a glance, which hostile is nearly down in a multi-mob fight — the
+        # combat feed narrates blow-by-blow, this is the persistent readout.
+        # Empty {} when no combat / no live NPC combatants → every NPC defaults
+        # to Healthy below (absent damage is not persisted to the DB row).
+        wound_by_npc = _npc_wound_map(combat)
 
         # Bounty cross-check (UX Drop 1): is any NPC in this room the caller's
         # OWN claimed bounty target standing here? The board is the in-memory
@@ -1370,6 +1408,11 @@ class Session:
                 # operates on the caller's single active contract).
                 actions = actions + ["claim"]
 
+            # G5: live wound state (0 = Healthy when the NPC isn't a live
+            # combatant). wound_name reuses the HUD's canonical label map so
+            # the badge text matches the player's own wound readout.
+            _wl = wound_by_npc.get(int(n["id"]), 0)
+
             npc_entries.append({
                 "id": n["id"],
                 "name": n["name"],
@@ -1377,6 +1420,8 @@ class Session:
                 "hostile": is_hostile,
                 "actions": actions,
                 "is_bounty_target": is_bounty_target,
+                "wound_level": _wl,
+                "wound_name": _wound_name(_wl),
             })
 
         # UX Drop 1: surface combat state to the client so the qa-row can inject
