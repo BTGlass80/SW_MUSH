@@ -100,6 +100,21 @@ CLUSTER_SPREAD_MAX = 4         # pips; shipped max spread is 2
 
 ALLOWED_SIDEARMS = {"blaster_pistol", "heavy_blaster_pistol"}
 
+# MELEE foils (BAL.condemned_hull_melee_foil_band, resolved 2026-07-01 — Brian:
+# "accept the vibroaxe + widen the band"). A melee foil is winnable for a fresh
+# character via the RANGED ADVANTAGE: the character has a blaster and can shoot,
+# kite, and dodge while the foil must close to melee range. So a melee foil is
+# judged on its MELEE to-hit (not its — deliberately low — blaster), and the
+# same to-hit CEILING guarantees the character gets dodge windows when the foil
+# closes. The heavier melee damage on a landed hit is the accepted cost of that
+# ranged advantage (do NOT gate melee foils on a no-one-shot damage bound — that
+# would reject the vibroaxe the design call explicitly accepts).
+ALLOWED_MELEE = {"vibroaxe", "vibrosword", "vibroblade", "vibrodagger",
+                 "vibro_knife", "knife", "combat_knife", "stun_baton",
+                 "force_pike", "gaderffii", "gaderffii_stick"}
+MELEE_WEAPONS = ALLOWED_MELEE  # weapon-type classifier for the effective to-hit
+ALLOWED_FOIL_WEAPONS = ALLOWED_SIDEARMS | ALLOWED_MELEE
+
 
 def _load_foils():
     """Every freelance-questline foil: the NPCs carrying a chain_enemy_template.
@@ -135,6 +150,17 @@ class _Corpus(unittest.TestCase):
     def _skill(cs, key):
         return (cs.get("skills") or {}).get(key)
 
+    @classmethod
+    def _primary_to_hit(cls, cs):
+        """The foil's ACTUAL attack-skill code: a melee-weapon foil fights with
+        `melee_combat` (its blaster is deliberately low and irrelevant); every
+        other foil fights with `blaster`. Returns (skill_name, code) — code may
+        be None if the foil lacks that skill."""
+        weapon = cs.get("weapon")
+        if weapon in MELEE_WEAPONS:
+            return "melee_combat", cls._skill(cs, "melee_combat")
+        return "blaster", cls._skill(cs, "blaster")
+
 
 class TestCorpusIsReal(_Corpus):
 
@@ -160,21 +186,26 @@ class TestWinnabilityCeilings(_Corpus):
     """Absolute 'a fresh character can win this' ceilings — the real guard."""
 
     def test_to_hit_under_ceiling_and_non_vacuous(self):
+        # Judge each foil on its ACTUAL attack skill: melee foils on
+        # melee_combat, ranged foils on blaster (BAL.condemned_hull_melee_foil_band
+        # — a melee foil's blaster is deliberately low and must not be read as
+        # its to-hit).
         for arc, name, cs, _ai in self.foils:
-            blaster = self._skill(cs, "blaster")
+            skill_name, code = self._primary_to_hit(cs)
             self.assertIsNotNone(
-                blaster, f"{arc}: foil {name!r} has no blaster skill")
-            p = _pips(blaster)
+                code, f"{arc}: foil {name!r} has no {skill_name} skill "
+                f"for its weapon {cs.get('weapon')!r}")
+            p = _pips(code)
             self.assertLessEqual(
                 p, TO_HIT_CEIL,
-                f"{arc}: foil {name!r} blaster {blaster} ({_code(p)}) exceeds "
+                f"{arc}: foil {name!r} {skill_name} {code} ({_code(p)}) exceeds "
                 f"the winnable to-hit ceiling {_code(TO_HIT_CEIL)} — a fresh "
                 "character would be hit nearly every round (unwinnable). If "
                 "this is a deliberate galaxy-wide difficulty rebalance, raise "
                 "TO_HIT_CEIL consciously.")
             self.assertGreaterEqual(
                 p, TO_HIT_FLOOR,
-                f"{arc}: foil {name!r} blaster {blaster} ({_code(p)}) is below "
+                f"{arc}: foil {name!r} {skill_name} {code} ({_code(p)}) is below "
                 f"the anti-vacuous floor {_code(TO_HIT_FLOOR)} — the combat "
                 "beat would be a pushover, not a real fight")
 
@@ -214,13 +245,18 @@ class TestWinnabilityCeilings(_Corpus):
                 "could barely register a wound on it")
 
     def test_weapon_is_a_winnable_sidearm(self):
+        # Ranged sidearms OR accepted melee weapons (a melee foil is winnable
+        # via the character's ranged advantage — see ALLOWED_MELEE). A heavy
+        # RANGED weapon or rifle is still barred (it one-shots at range with no
+        # closing time to kite).
         for arc, name, cs, _ai in self.foils:
             weapon = cs.get("weapon")
             self.assertIn(
-                weapon, ALLOWED_SIDEARMS,
+                weapon, ALLOWED_FOIL_WEAPONS,
                 f"{arc}: foil {name!r} carries {weapon!r}, outside the winnable "
-                f"sidearm set {sorted(ALLOWED_SIDEARMS)} — a heavy weapon or "
-                "rifle can one-shot a fresh character (unwinnable confrontation)")
+                f"weapon set (sidearms {sorted(ALLOWED_SIDEARMS)} or accepted "
+                f"melee {sorted(ALLOWED_MELEE)}) — a heavy ranged weapon or "
+                "rifle can one-shot a fresh character with no time to close")
 
 
 class TestClusterConsistency(_Corpus):
@@ -235,10 +271,13 @@ class TestClusterConsistency(_Corpus):
         return (min(vals), max(vals)) if vals else (0, 0)
 
     def test_to_hit_cluster_is_tight(self):
-        lo, hi = self._spread(lambda cs: self._skill(cs, "blaster"))
+        # Cluster the EFFECTIVE to-hit (melee_combat for melee foils, blaster
+        # for ranged) — a melee foil's low blaster is not an outlier, it's just
+        # the wrong skill to read.
+        lo, hi = self._spread(lambda cs: self._primary_to_hit(cs)[1])
         self.assertLessEqual(
             hi - lo, CLUSTER_SPREAD_MAX,
-            f"foil blaster spread {_code(lo)}..{_code(hi)} exceeds "
+            f"foil to-hit spread {_code(lo)}..{_code(hi)} exceeds "
             f"{CLUSTER_SPREAD_MAX} pips — one foil is an outlier from the band")
 
     def test_strength_cluster_is_tight(self):
