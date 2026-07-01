@@ -10926,6 +10926,355 @@ chains:
           instead of signing them dead is the difference between a debtor found and a debtor filed
           under a stone that was never hers.
 
+  # ─────────────────────────────────────────────────────────────────────
+  # GENERALIZED QUESTLINE (T3.24 thirty-first slice) — "The Cold Charge"
+  # The THIRTY-FIRST accessible (non-t5, non-tutorial) kind:questline chain and the TENTH set on
+  # TATOOINE, in the tatooine_mos_eisley zone, on a FRESH FOUR-ROOM CLUSTER no chain has touched:
+  # the cheap Mos Eisley Inn where a demil-bench ordnance-hand who walked off the disposal yard
+  # names the racket + the disused cargo holds off the grand staircase of the grounded-starship
+  # Lucky Despot hotel where the outfit crates the ordnance it has logged destroyed + the open
+  # ground past the abandoned Dim-U greenhouse-monastery at the edge of town where a "demilitarized"
+  # seismic round can be range-fired into the empty wastes to prove it is live + the Lucky Despot's
+  # Star Chamber Cafe, the disposal outfit's genteel public face, where the yard's enforcer corners
+  # the live proof before it reaches the settlers' supply board (mos_eisley_inn /
+  # lucky_despot_staircase / dimu_monastery_gate / lucky_despot_star_chamber). HONEST DISCIPLINE
+  # NOTE: the tatooine_mos_eisley zone is a HEAVILY worked face — The Crooked Wheel, The Sabotaged
+  # Run, The Long Haul, The Short Weight, and The Cut Coil all set arcs in it — so this is the SIXTH
+  # arc on the Mos Eisley street face, NOT a fresh face; what is fresh is the four-room CLUSTER,
+  # every room of it new to the corpus. At 31 arcs and a finite set of combat-capable non-SECURED
+  # rooms, no untouched zone with four contested rooms remains but the war-coded (Geonosis/Kamino),
+  # Jedi Temple, and war-risky Senate faces the accessible-arc discipline keeps off, and only the
+  # step-4 combat room must be combat-capable: lucky_despot_star_chamber defaults to contested,
+  # while the giver/return room and the two skill rooms host no fight.
+  # A THIRTY-FIRST distinct skill spread — GRENADE + MISSILE WEAPONS — as the FIRST accessible
+  # questline to reward the HEAVY-ORDNANCE / EXPLOSIVE-ORDNANCE (EOD) build, the FIRST to use
+  # GRENADE, and the FIRST to use MISSILE WEAPONS. HONESTLY BOTH are Dexterity, so this is NOT a
+  # cross-attribute spread but the THIRD all-Dexterity-weapon-pool spread (after The Empty Proof's
+  # firearms + thrown weapons and The Paper Death's running + melee combat), and NOT the first
+  # weapon arc (The Empty Proof's marksman came first); what is genuinely first is the grenade and
+  # missile-weapons skills and the HEAVY-ORDNANCE / PROVE-THE-ROUND-IS-LIVE pairing — one hand safes
+  # a "destroyed" grenade to show it never burned, the other runs a "demilitarized" launcher-round to
+  # show it still fires. New STORY SHAPE: breaking a DEMILITARIZATION-DIVERSION / FALSIFIED-
+  # DESTRUCTION fraud, the FIRST accessible arc whose racket is faking the DESTRUCTION of dangerous
+  # goods. Pointedly DISTINCT from the prior arcs it might be mistaken for: The Fouled Sump illegally
+  # DUMPS hazardous WASTE to hide a poison (nothing of value taken) — here the "destroyed" goods are
+  # live munitions DIVERTED and SOLD, not dumped; The Empty Proof SKIPS a proof it was paid to run —
+  # here the outfit fakes the DESTRUCTION of goods it was paid to destroy; The Rigged Issue
+  # SUBSTITUTES counterfeits — here the diverted munitions are genuine, only their destruction is a
+  # lie; The Rolled Log rolls back a CRAFT's history — here it is the DESTRUCTION RECORD of live
+  # ordnance that is fabricated; The Cut Coil DAMAGES a sound speeder — here nothing is damaged, live
+  # goods logged destroyed are kept and sold. A licensed disposal outfit (Sarlacc Reclamation &
+  # Disposal, run by the yard-master Vorm Dessek) paid by the fringe settlers to safely demilitarize
+  # and destroy their surplus ordnance instead logs the live lots "cold" (destroyed) on forged
+  # manifests, keeps the munitions, re-crates them in the Lucky Despot's disused holds, and sells them
+  # to the fringe raiders and underworld — collecting the disposal fee AND the resale while the same
+  # ordnance the settlers paid to burn comes back at them in raider hands. Busted not by a slicer, an
+  # investigator, or a medic but by a HEAVY-ORDNANCE HAND / DISPOSAL TECH who does the two things a
+  # faked destruction cannot survive: pulls a "destroyed" grenade out of the crated demil lot and
+  # SAFES it live (a round that arms never burned), then range-fires a "demilitarized" seismic round
+  # into the empty wastes (a destroyed round is ash, not flight). The Senate, the Jedi, and the
+  # Republic war effort have no reach at a fringe demil yard and never appear — Mos Eisley's ambient
+  # traffic never drives the plot — and the racket is run afoul of in the end by the settlers' own
+  # supply board, which will not pay a destruction fee on ordnance that comes back live, the way every
+  # prior accessible arc keeps the larger powers offstage. Reuses the live questline engine
+  # (kind:questline + active_questline + existing event types + the four reward funnels) with NO new
+  # engine code, no new slot/event type, no schema migration, no new reward faucet, and NO
+  # map-coordinate or exit-graph change.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: mos_eisley_cold_charge
+    chain_name: "The Cold Charge"
+    description: >
+      In Mos Eisley — the cheap Inn where an out-of-work ordnance-hand takes her drink, the disused
+      cargo holds off the grand staircase of the grounded-starship Lucky Despot hotel where an outfit
+      crates the ordnance it has logged destroyed, the open ground past the abandoned Dim-U
+      greenhouse-monastery at the edge of town, and the Lucky Despot's Star Chamber Cafe where the
+      outfit keeps its genteel public face — a human caravan-defense armorer named Dessa Molvar, who
+      ran the destruction bench for the disposal yard Sarlacc Reclamation & Disposal, is trying to
+      stop a racket that takes a farm's credits to destroy the ordnance that then kills the farm.
+      Sarlacc is paid by the outlying moisture-farm collectives, mining claims, and caravan pools to
+      safely demilitarize and burn their time-expired and surplus ordnance — but the yard-master Vorm
+      Dessek logs the live lots "cold" (destroyed) on forged manifests, keeps the munitions, re-crates
+      them in the Lucky Despot's holds, and sells the fringe raiders the same seismic charges and
+      defense grenades the settlers paid to have gone. Dessa fed the furnace honest until she saw the
+      lots she logged destroyed coming back off the yard crated and heard them turning up in raider
+      hands on the caravan roads; she walked off the bench, but a fired hand's word that "destroyed"
+      ordnance is live is "sour grapes" to a supply board that takes a bonded manifest at its word. So
+      Dessa needs a neutral hand who can work ordnance: get into the Lucky Despot's holds and pull a
+      grenade the manifest swears was destroyed off the crated demil lot and SAFE it live, because a
+      round that arms is a round that never burned; haul one of its seismic mates out past the old
+      monastery and range-fire it into the empty wastes, where it flies and cracks exactly as a
+      slagged round cannot; and put the live round the manifest swore was destroyed on the settlers'
+      supply board, where a live crate beside a bonded destruction-manifest voids a contract a fired
+      hand's word never could. A freelance favor — open to anyone, no faction required.
+    archetype_label: "Freelance Operator's Favor"
+    faction_alignment: independent
+    starting_zone: tatooine_mos_eisley
+    starting_room: mos_eisley_inn
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["cold_charge_cleared"]
+      drop_room: mos_eisley_inn
+      follow_up_hint: >
+        The live grenade the manifest swore was slagged, safed clean off Sarlacc's crated lot, and
+        the seismic round that flew over the dunes where a destroyed one is ash reach the settlers'
+        supply board, and a faked destruction cannot hold: a round that arms and a charge that flies,
+        beside a manifest that certifies them both burned, is a fraud no bonded document papers over.
+        The supply board voids Sarlacc Reclamation's disposal contract and blacklists the outfit
+        before the caravan season turns; the farm collectives and mining claims and caravan pools stop
+        taking its destruction-manifests on faith; a disposal yard that actually burns what it is paid
+        to burn takes up the trade; and the fringe raiders who bought their ordnance off the back of
+        the yard lose the supply that armed them. No Senate office and no Jedi looked twice at a fringe
+        demil yard — the settlers' own supply board did, the only authority a Tatooine disposal
+        contract ever answers to, once a live round the manifest called ash sat on its desk. The
+        enforcer who meant to keep the round off that board keeps nothing but a yard chit gone
+        worthless. Word travels the caravan roads the way it never travels a stamped manifest: there
+        is a hand who will safe a "destroyed" round live off a smuggler's crate, put a "demilitarized"
+        charge downrange to prove it flies, and stand a live lot against its own destruction-manifest —
+        and a fringe that had learned to be grateful its surplus was gone stops taking a yard's word
+        that it burned, and Dessa Molvar's word stops being sour grapes and starts being the thing
+        that voided a contract and cut a raider band off its ordnance.
+
+    steps:
+      - step: 1
+        title: "The Ordnance That Came Back"
+        location: mos_eisley_inn
+        npc: "Dessa Molvar"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Dessa Molvar at the Mos Eisley Inn, where the out-of-work ordnance-hand who ran the disposal yard's destruction bench has found the lots she logged destroyed coming back live in raider hands."
+        npc_intro: >
+          [A wiry, powder-scarred human woman sits with her back to the wall of the run-down Mos
+          Eisley Inn, a cheap drink untouched and a spent grenade-safing tool turning over in her
+          burn-marked fingers.] "You work ordnance? Safe a live round down clean off a crate, and put
+          a launcher-charge downrange to prove it still flies? Then you can do what I can't carry
+          alone, and a supply board won't wave you off the way it waves a fired bench-hand crying
+          sour grapes. `talk` to me. I'm Dessa Molvar — I ran the destruction bench for Sarlacc
+          Reclamation & Disposal, the outfit this fringe pays to burn its surplus ordnance safe. I fed
+          the furnace honest for a year, until I saw the lots I logged destroyed coming back off the
+          yard crated, and heard the seismic charges I was supposed to have slagged turning up in
+          raider hands out on the caravan roads. The settlers are being killed with the ordnance they
+          paid Sarlacc to destroy. Vorm Dessek collects the disposal fee and sells the live lot to the
+          fringe."
+        completion:
+          type: talk_to_npc
+          npc: "Dessa Molvar"
+        npc_complete: >
+          [She turns a scorched destruction manifest face-up on the table and taps a lot-number
+          stamped BURNED beside a Lucky Despot crate-tag carrying the same number, then sets a spent
+          grenade-safing tool in your hand.] "See it? Logged slagged, crated whole in the hotel's
+          cargo levels the same week — nobody thaws a disposal furnace to check what actually went in,
+          that's the whole trick. There's a crated demil lot in the Lucky Despot's disused holds right
+          now, re-manifested for the fringe. Get in and pull a grenade the manifest swears was
+          destroyed, and safe it live — arm it down clean and back the fuse off, because a round that
+          arms is a round that never burned. Do that and you've got the first half of a lie in your
+          hand."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Get into the disused cargo holds off the Lucky Despot's grand staircase, pull a grenade the manifest swears was destroyed off the crated demil lot, and safe it live. Use your `grenade` skill, then `chain attempt`."
+
+      - step: 2
+        title: "A Round That Never Burned"
+        location: lucky_despot_staircase
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["grenade"]
+        objective: "In the Lucky Despot's disused cargo holds, pull a grenade the destruction manifest swears was slagged off the crated demil lot and safe it live — a grenade check."
+        npc_intro: >
+          [The grand staircase of the Lucky Despot winds down into the belly of a decommissioned
+          starship turned hotel, and off its lower landings the old cargo holds sit disused and dim,
+          stacked now with crates that do not belong to a hotel: Sarlacc Reclamation's "demil" lots,
+          logged destroyed on the yard's manifests and sitting here whole, re-tagged and re-manifested
+          for the fringe. One crate stands open on an intake bench, packed with defense grenades a
+          disposal manifest three levels up in the yard office swears were slagged to ash a week ago.
+          A grenade is a simple, unforgiving thing: a live one is death fumbled, a slagged one is a
+          harmless lump of fused casing, and the only honest way to tell a "destroyed" round from a
+          live one is to take it in hand and work it — arm it down clean and back the fuse off — where
+          a slagged round does nothing and a live one comes up hot under your thumb.] Take a grenade
+          off the crated lot and SAFE it live: arm it down controlled on the intake bench, feel the
+          fuse come up hot where a slagged round is dead, and back it off clean — a round that arms is
+          a round that never burned, and that is the manifest's first lie in your hand. `grenade`, the
+          ordnance-hand's touch to arm and safe a live round without fumbling death — `chain attempt`
+          when you have a "destroyed" grenade proved live and safed in your hand.
+        completion:
+          type: skill_check_passed
+          skill: "grenade"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You take a grenade off the open crate the way Dessa said to — controlled, unhurried, no
+          give for a fumble — and the moment you arm it down the truth is under your thumb: the fuse
+          comes up hot and live, the striker sound and the filler packed, a round in perfect working
+          order that a manifest three levels up swears was slagged to ash a week ago. You back it off
+          clean and safe, and stand there with the first half of the lie in your hand — a live defense
+          grenade off a lot logged destroyed, one of a crate of them, re-tagged for the fringe. A
+          round that arms is a round that never burned. Now the manifest's other swear — that the
+          seismic launcher-rounds went the same way — wants a wider ground and a launcher to disprove,
+          and there is open wastes past the old monastery at the edge of town.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "You've got a 'destroyed' grenade proved live — now the seismic rounds. Haul a 'demilitarized' launcher-round out to the open ground past the Dim-U monastery gate at the edge of town and range-fire it into the empty wastes. Use your `missile weapons` skill, then `chain attempt`."
+
+      - step: 3
+        title: "The Charge That Still Flies"
+        location: dimu_monastery_gate
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["missile weapons"]
+        objective: "On the open ground past the abandoned Dim-U monastery at the edge of town, range-fire a 'demilitarized' seismic launcher-round into the empty wastes to prove it is live — a missile weapons check."
+        npc_intro: >
+          [Past the main gate of the Dim-U Monastery — an abandoned greenhouse the old Krayt-dragon
+          monks converted and then left, out where Mos Eisley thins into open dune and there is
+          nothing downrange for a klick but empty wastes — is the one place near town a seismic
+          launcher-round can be put up safely and read. You have hauled one of Sarlacc's
+          "demilitarized" rounds out here on a shoulder launcher: a mining/defense seismic charge the
+          yard's manifest swears was rendered inert and destroyed, its motor spent and its warhead
+          drawn. A destroyed round does nothing — a dead tube-weight, a dud that will not so much as
+          light its motor. A live one flies. The only honest way to disprove a "demilitarized" round
+          is to load it, run it through the launcher's arming sequence, and put it downrange into
+          empty ground where a slagged round is ash and a live one cracks the dunes.] Set up on the
+          open ground past the gate, lay the launcher on empty wastes, run the round through its
+          arming sequence, and RANGE-FIRE it — and watch a charge the manifest swore was inert light
+          its motor, fly true, and detonate over the dunes exactly as a destroyed round cannot. That
+          crack over empty ground is the whole proof written in a breath. `missile weapons`, the
+          ordnance-hand's skill to arm and fire a launcher-round clean and safe onto empty ground —
+          `chain attempt` when a "demilitarized" seismic round has flown and detonated downrange.
+        completion:
+          type: skill_check_passed
+          skill: "missile weapons"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You lay the launcher on the open wastes past the monastery, run the "demilitarized" round
+          through its arming sequence — where a slagged round would sit dead — and it comes alive under
+          the sequence the way no destroyed charge can: the motor lights clean, the round leaps the
+          tube and flies true out over the empty dunes, and a klick downrange it cracks the wastes in a
+          flat hard detonation that rolls back across the sand a beat later. A seismic charge the
+          manifest swore was rendered inert and destroyed, flown and detonated over ground where a
+          destroyed round is ash. You have both halves of the lie now — a live grenade off the crated
+          lot and a live seismic round put downrange — and a "demilitarized" charge that flies is a
+          destruction that never happened. All that stands between the proof and the settlers' supply
+          board is the yard's enforcer, and Sarlacc keeps him at the Lucky Despot's Star Chamber where
+          the outfit takes its business over caf.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "You've got the live grenade and the fired seismic round — now get the proof to the settlers' supply board. Carry it to the Lucky Despot's Star Chamber Cafe, and stand off Sarlacc's enforcer when he comes for it — `attack`, `dodge`."
+
+      - step: 4
+        title: "The Floor Under the Starfield"
+        location: lucky_despot_star_chamber
+        npc: "Hurss Kadag"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "At the Lucky Despot's Star Chamber Cafe, stop Hurss Kadag when Sarlacc's enforcer comes to keep the live round the manifest swore was destroyed from reaching the settlers' supply board — `attack`, `dodge`."
+        npc_intro: >
+          [The Star Chamber Cafe is the Lucky Despot's genteel public face — a hotel restaurant under
+          a famous false starfield where Sarlacc Reclamation takes the fringe's disposal business over
+          caf and a clean manifest, the last civilized room between a crated live lot in the holds and
+          the settlers' supply board that pays the fee. A leathery Weequay rises from a corner table as
+          you come in with the safed grenade and the launcher, a worn blaster loose at his hip and a
+          yard chit clipped at his collar, with the flat patience of a being paid to see that nothing
+          leaves these holds the yard cannot afford to have read.] Hurss Kadag — Vorm Dessek's
+          enforcer, not the yard-master who logs the ordnance destroyed and sells it live and not the
+          clerk who forges the manifests, but the muscle the yard keeps for the lots that come back
+          questioned, the one sent to talk a caravan pool out of auditing a furnace and to run a nosy
+          bench-hand off. He has heard a stranger was down in the holds and out past the Dim-U gate
+          with a launcher, and the easy menace of a man who keeps a cafe door goes hard. "That lot's
+          ash, friend — logged destroyed, manifest stamped clean, fee squared, the yard's to keep.
+          Whatever you think you're carrying off our holds, it doesn't reach any supply board." [He
+          sets himself between you and the door under the turning false starfield, the Star Chamber's
+          caf-drinkers at the far tables too incurious to mark a thing.] "Set the round down and walk
+          off the cafe floor, or you don't walk that proof to anyone. The yard burns what it certifies.
+          I'm the part of it that keeps the ash nobody sifted from getting up and going bang."
+        completion:
+          type: combat_won
+          enemy_template: "cold_charge_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Hurss Kadag goes down on the Star Chamber floor, the blaster knocked loose across the tiles
+          under the turning false starfield, and the safed grenade and the launcher stay in your hands.
+          The way to the door stands clear, and the cafe's caf-drinkers at the far tables never stir
+          for a thing too brief and too quiet to mark. Carry it on out — a live defense grenade off a
+          lot logged slagged, a seismic round the dunes still smoke for, and the manifest that swears
+          both were destroyed — and there is nothing between the Star Chamber floor and the settlers'
+          supply board now but an open road, Sarlacc's cold charge coming apart live in your hands.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The enforcer is down and the way's clear — get the live grenade, the fired seismic round, and the destruction-manifest to the settlers' supply board, then go back to Dessa Molvar at the Mos Eisley Inn."
+
+      - step: 5
+        title: "A Lot That Wasn't Ash"
+        location: mos_eisley_inn
+        npc: "Dessa Molvar"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Dessa Molvar at the Mos Eisley Inn with the disposal contract voided and the yard's book coming apart."
+        npc_intro: >
+          [Dessa is back at her wall table when you return, a comm-slate of supply-board notices
+          scrolling in her hand and Sarlacc's disposal contract marked VOID under the board's seal now,
+          watching the caravan pools reckon which yards they dare hand their surplus to after this.]
+          "Done — and the board read it the way no word of mine ever could. A live grenade off a lot
+          logged slagged and a seismic charge the dunes still smoke for, beside the manifest that swore
+          both burned — there's no bonded paper papers over that. Their desk voided Sarlacc's contract
+          and blacklisted the yard before the season turns. The collectives stopped taking Dessek's
+          destruction-manifests on faith, a yard that actually burns what it's paid to burn is taking
+          up the trade, and the raiders who bought their ordnance off the back of it have lost the
+          supply. No Senate office and no Jedi looked twice at a fringe demil yard — the settlers' own
+          supply board did, the only authority a Tatooine disposal contract ever answers to, once a
+          live round the manifest called ash sat on its desk." [She sets the spent safing-tool down
+          beside the slate.] "`talk` to me and let me say it plain, now there's a board's VOID where a
+          clean manifest used to be."
+        completion:
+          type: talk_to_npc
+          npc: "Dessa Molvar"
+        npc_complete: >
+          "Here's your fee — what an out-of-work armorer keeps back between contracts, and worth twice
+          the credits to hand it to the hand that safed a 'destroyed' round live off a smuggler's crate
+          and put a 'demilitarized' one downrange to prove it flies. A yard's only as honest as the ash
+          it never sifts; you took a live round out of the crate and put another over the dunes to prove
+          the furnace never ate them, and an outfit that collects a farm's fee to destroy the ordnance
+          it means to sell the raiders is finished the moment a board stands one live round against one
+          stamped manifest. That farm collective was a caravan season from being hit again with a lot it
+          paid Sarlacc to burn, and the next pool Dessek meant to bill for a furnace he never ran was
+          going the same way — they'll not, now, and the surplus they wanted gone is gone for real.
+          Word goes slow up a board desk and fast across the caravan roads — a road, a pool, a claim
+          learns quick who'll safe a live round off a crate and put a charge downrange and stand a live
+          lot against its own destruction-manifest. When a yard down here starts logging live ordnance
+          ash again, there's a name they'll send for now. Carry mine with it — and trust a live fuse
+          over any manifest a yard stamps; I'll not have the hand that put Sarlacc's cold charge
+          downrange take a stamped destruction on faith."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The book is finished and the racket is coming apart: the live grenade off the lot logged
+          slagged, the seismic round the dunes still smoke for, and the manifest that swore both
+          destroyed reach the settlers' supply board, and a faked destruction cannot hold — a round
+          that arms and a charge that flies, beside a manifest that certifies them burned, is a fraud
+          no bonded document papers over. The board voids Sarlacc Reclamation's disposal contract and
+          blacklists the outfit, the farm collectives and caravan pools stop taking its
+          destruction-manifests on faith, a yard that actually burns what it is paid to burn takes up
+          the trade, and the fringe raiders lose the ordnance the yard was feeding them — no court
+          tried the fraud, the settlers' supply board did, the only authority a Tatooine disposal
+          contract answers to. A hand who will safe a "destroyed" round live off a smuggler's crate,
+          put a "demilitarized" charge downrange to prove it flies, and stand a live lot against its
+          own destruction-manifest has a way of being sent for — the caravan roads carry a name now,
+          out where a yard that actually burns what it takes is the difference between a surplus gone
+          and a surplus that comes back over the dunes to kill the farm that paid to be rid of it.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════
