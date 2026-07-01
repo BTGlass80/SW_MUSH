@@ -5224,7 +5224,10 @@ class SituationCommand(BaseCommand):
     when there are no active events.
     """
     key = "situation"
-    aliases = ["sit"]
+    # No "sit" alias: it introduced a new prefix-collision the command-syntax-
+    # rework's baseline-ratchet forbids (and "sit" reads as an emote, not the
+    # board). `situation` is the whole word newcomers type.
+    aliases = []
     help_text = "Show the current galactic situation: active events and threats."
     usage = "situation"
 

@@ -460,6 +460,21 @@ class CommandParser:
             session_mgr=self.session_mgr,
         )
 
+        # ── Movement verbs before the registry prefix-match (fun15 fix) ──
+        # `go`/`walk`/`head` are movement reflexes, not command names. Route
+        # them to MoveCommand BEFORE registry.get(), or `go`/`go north` would
+        # PREFIX-match the `goals` command (fun15 — the only registered key
+        # starting with "go") and print goals instead of moving. The
+        # direction/exit is the argument (bare `go` → MoveCommand prompts).
+        if session.character and cmd_name in ("go", "walk", "head"):
+            _move_v = self.registry.get("move")
+            if _move_v is not None:
+                if args_str:
+                    ctx.args = args_str.strip()
+                    ctx.args_list = ctx.args.split()
+                await self._execute(_move_v, ctx)
+                return
+
         # ── Look up command ────────────────────────────────────────────
         cmd = self.registry.get(cmd_name)
 
@@ -524,23 +539,10 @@ class CommandParser:
                 if handled:
                     return
 
-            # fun12: `go <dir>` / `walk <dir>` / `head <dir>` — the near-universal
-            # text-game movement reflex. The dispatcher already routes a BARE
-            # direction or a typed exit-name to MoveCommand; also accept the
-            # go/walk/head prefix so `go north` doesn't dead-end. MoveCommand
-            # resolves compass + named exits and lists the room's exits on a
-            # miss, so this is forgiving. (Additive routing convenience — not a
-            # new command; canonical verb naming stays the command-syntax-rework's
-            # call.)
-            if (session.character and move_cmd is not None and _mv_char
-                    and not _mv_wild
-                    and cmd_name in ("go", "walk", "head")
-                    and ctx.args and ctx.args.strip()):
-                _dir = ctx.args.strip()
-                ctx.args = _dir
-                ctx.args_list = [_dir]
-                await self._execute(move_cmd, ctx)
-                return
+            # (`go`/`walk`/`head` movement is handled earlier, BEFORE the
+            # registry prefix-match — see the fun15 movement-verb block — so it
+            # can't be swallowed by the `goals` command's prefix. Nothing to do
+            # here for those verbs.)
 
             # fun12: route EVERY in-game unknown command through the helpful
             # recovery (was gated to question-like input only). The reflexive

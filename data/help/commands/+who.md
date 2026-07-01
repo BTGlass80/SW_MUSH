@@ -3,7 +3,7 @@ key: +who
 title: +Who — Online Player List
 category: "Commands: Social"
 summary: Display all players currently logged in and in-game, with species and connection type.
-aliases: [who, online, +online]
+aliases: [who, online, +online, presence]
 see_also: [+sheet, say, +where, channels]
 tags: [social, info, online, command]
 access_level: 0
