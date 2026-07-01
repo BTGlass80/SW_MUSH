@@ -113,11 +113,11 @@ def test_single_word_unknown_gets_recovery_in_game():
 
 
 def test_reflexive_command_word_gets_recovery():
-    # Post-graduation reflex words that are NOT (yet) real commands still get
-    # the helpful recovery instead of a dead-end. (NOTE: `inventory` is now a
-    # real alias of +inv as of fun13, so it's excluded here — these are the
-    # web-panel reflexes with no backing command.)
-    for word in ("situation", "presence", "objectives"):
+    # A reflex word with NO backing command still gets the helpful recovery
+    # instead of a dead-end. (Most reflexes now RESOLVE: `inventory`/`inv`/`i`
+    # via fun13; `goals`/`situation`/`list`/`presence` via fun15 — so this uses
+    # a synonym that intentionally has no command.)
+    for word in ("objectives", "whereto"):
         out = _run(word)
         assert "Unknown command" not in out, f"{word!r} dead-ended: {out!r}"
         assert "didn't catch that" in out.lower()
