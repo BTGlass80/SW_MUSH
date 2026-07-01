@@ -11907,6 +11907,258 @@ chains:
           between a freighter home off the deep lanes and a freighter broken or boarded on the run its
           overhaul was paid to let it survive.
 
+  - chain_id: coruscant_blank_ticket
+    chain_name: "The Blank Ticket"
+    description: >
+      A licensed bridge-crew certification bureau — Coreward Crew Certification —
+      holds the merchant freight lines' contract to run the mandatory competency
+      boards that a spacer must pass before a line may rate them to a capital-
+      freighter bridge: the helm rating, the gunnery rating, the shield rating.
+      Instead of running the boards it sells the tickets — a cadet pays the board
+      fee, gets a full master's rating stamped, and never sits a rig, and Coreward
+      logs an instant pass with no simulator telemetry behind it. So the lines put
+      "certified" bridge officers who cannot run a bridge onto capital freighters,
+      and the ships founder: a bulk hauler that couldn't hold its traffic tier, a
+      freighter whose rated gunners couldn't answer a raider pass and whose rated
+      shield-hand folded the envelope on the first load, crews and cargo lost. One
+      examiner — Jenra Voll, a retired capital-ship master who sits the boards
+      honestly for the spacers' board — can't beat Coreward on paper: it holds the
+      contract and its stamped tickets override every failing mark she writes. So
+      she needs a genuinely master-rated hand to run the three boards for real, to
+      master standard, on Coreward's own rigs, with her recording — the one record
+      that collapses every blank ticket at once. A bureau full of forged passes is
+      no place for a firefight; this is a job for a real bridge officer — run the
+      helm, run the guns, run the shields, and let the boards tell the truth. A
+      freelance favor, open to anyone, no faction required.
+    archetype_label: "Freelance Board"
+    faction_alignment: independent
+    starting_zone: commercial_district
+    starting_room: coco_town_civic_block
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["blank_ticket_cleared"]
+      drop_room: coco_town_civic_block
+      follow_up_hint: >
+        The master board-record reaches the freight lines beside Coreward's
+        telemetry-less passes, and the blank tickets collapse all at once — every
+        crew Coreward "certified" pulled from a capital-freighter bridge before
+        it can founder one, the hauler-line whose bulk carrier the last blind crew
+        nearly lost first among them. The bureau that never failed a paying cadet
+        just had its whole book set beside one real board, and word moves the way
+        it moves along a berth: there is a hand who can actually run a bridge, and
+        will run one to prove which of the "rated" can't.
+
+    steps:
+      - step: 1
+        title: "The Examiner's Problem"
+        location: coco_town_civic_block
+        npc: "Jenra Voll"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Jenra Voll at the Coco Town Civic Block."
+        npc_intro: >
+          [A blue-skinned Duros woman in a worn spacer's board coat has an
+          examiner's office among the civic block's mutual-aid trade orgs, a
+          datapad of over-ruled examination marks face down on the table.] "You
+          have the look of someone who's actually held a bridge, not just a
+          ticket that says so. Good. Jenra Voll — I sit the boards for the
+          spacers' board, the ones that rate a hand to a capital-freighter helm,
+          and lately I'm losing. There's a bureau, Coreward Crew Certification;
+          it holds the lines' contract to run those boards and sells the tickets
+          instead — a cadet pays, gets a master's rating stamped, and never sits
+          a rig. I fail them on a real board and my mark's over-ruled by a
+          certificate I can't reach. `talk` to me and I'll tell you how we set it
+          right."
+        completion:
+          type: talk_to_npc
+          npc: "Jenra Voll"
+        npc_complete: >
+          "A stamped ticket beats an examiner's word to a freight line every
+          time — so we don't beat it with a word, we beat it with a board. Coreward
+          logs its passes with no simulator telemetry behind them, because it
+          never runs the rig; a real board run to master standard, recorded,
+          stood beside one of its blank passes, is a case no certificate papers
+          over. Its rigs are leased across the mid-city where the rent's cheap and
+          the scrutiny's thin — the helm sim's in a converted loft warehouse, the
+          gunnery board fronts as a credentials counter in the market arcade, the
+          shield rig sits in a back room off the Outlander. Run all three. To
+          master. I'll record every mark."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Go to the Coco Town Loft District where Coreward leases its helm simulator, and run the master helm board — a full traffic approach and capital-freighter docking — with your `capital ship piloting` skill. `chain attempt`."
+
+      - step: 2
+        title: "The Helm Board"
+        location: coco_town_loft_district
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["capital ship piloting"]
+        objective: "Run Coreward's master helm board — a full traffic approach and capital-freighter docking — on the leased loft simulator with a capital ship piloting check."
+        npc_intro: >
+          [Coreward's helm rig fills a converted loft warehouse — a full-motion
+          bridge mock-up on hydraulic jacks, wrapped in a projected Coruscant
+          approach so dense with traffic tiers and lane crossings that a capital
+          hull's mass makes every correction a slow argument with inertia. This is
+          the board a cadet is supposed to sit for the helm rating and, on
+          Coreward's logs, "passes" in a stamp — the jacks cold, the telemetry
+          drum empty.] Bring a real freighter down through the tiers and onto the
+          berth: read the mass, feel the lag, hold the lane, and set her on the
+          pad clean, the way a hand who'd earned the rating would. `capital ship
+          piloting`, steady on the helm — `chain attempt`, and fly it for the
+          record.
+        completion:
+          type: skill_check_passed
+          skill: "capital ship piloting"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [The freighter comes down through the traffic tiers under real hands —
+          the mass lag anticipated, the lane held through two crossings, the hull
+          set on the berth so soft the mock-up's jacks barely register the touch —
+          and the telemetry drum fills with a master helm run where Coreward's
+          logs show a cadet "passing" this same board with no rig-time at all.
+          Jenra's recorder takes it whole: the approach, the corrections, the
+          set-down, timestamped against an empty pass. One board of three run for
+          real. The gunnery rig is across the district, fronting as a credentials
+          counter where no gun is ever actually run.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "The helm board's recorded — now the guns. Get to the Coco Town Market Arcade where Coreward fronts its gunnery board as a credentials counter, and run the master gunnery board with your `capital ship gunnery` skill. `chain attempt`."
+
+      - step: 3
+        title: "The Gunnery Board"
+        location: coco_town_market_arcade
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["capital ship gunnery"]
+        objective: "Run Coreward's master gunnery board — coordinating a capital freighter's point-defense against a simulated raider pass — at the market-arcade front with a capital ship gunnery check."
+        npc_intro: >
+          [Behind a market-arcade storefront hung with a "Coreward Certified"
+          placard sits the gunnery board — a fire-control station wired to a
+          simulated capital-freighter turret ring, the exercise a raider pack
+          crossing a bulk hauler's arcs in a spread no single gun can hold. This
+          is the board that rates a hand to a capital ship's guns and, on
+          Coreward's logs, "passes" over the counter with a stamp; the station's
+          run-clock reads zeros.] Fight the ship the way a rated gunner would:
+          read the spread, walk the turrets across the pass, hold the arcs the
+          crossing means to open, and keep the hull from being raked. `capital
+          ship gunnery`, cool on the fire-control — `chain attempt`, and run the
+          guns for the record.
+        completion:
+          type: skill_check_passed
+          skill: "capital ship gunnery"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [The raider pass breaks on real gunnery — the spread read early, the
+          turret ring walked to cover the arcs the crossing opens, the hull carried
+          through unraked while the station's run-clock counts a master board
+          where Coreward logged a stamp over zeros. Jenra's recorder takes the
+          whole engagement beside the empty pass Coreward calls "gunnery certified."
+          Two boards of three run for real. Only the shield rating is left — and
+          Coreward keeps that rig where it keeps its quietest business, a back room
+          off the Outlander, out of anyone's sightline.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "The gunnery board's recorded — now the shields, the last of the three. Get to the back rooms off the Outlander Cantina where Coreward keeps its shield rig, and run the master shield board with your `capital ship shields` skill. `chain attempt`."
+
+      - step: 4
+        title: "The Shield Board"
+        location: outlander_cantina
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["capital ship shields"]
+        objective: "Run Coreward's master shield board — holding a capital freighter's deflector envelope through a simulated raider pass — in the Outlander back room, and pull its telemetry-less pass logs; a capital ship shields check."
+        npc_intro: >
+          [The shield rig sits in a discreet back room off the Outlander, a
+          deflector-control board wired to a simulated capital-freighter envelope
+          and a raider pass built to load every quadrant at once — the board that
+          rates a hand to a ship's shields, and the one where a "certified" crew's
+          failure gets people boarded and killed. Coreward's log here is the same
+          as the others: a stamped pass over an empty run-drum. This is the whole
+          job in one board.] Hold the envelope through the pass — balance the
+          quadrants, feed the loaded facings, and don't let a facing fold the way
+          the rated hand who folded a real one did — and pull Coreward's own pass
+          logs off the rig while you're on it. `capital ship shields`, even on the
+          board — `chain attempt`, and run the shields for the record.
+        completion:
+          type: skill_check_passed
+          skill: "capital ship shields"
+          difficulty: 14
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [The envelope holds through the pass under a real shield-hand — quadrants
+          balanced, the loaded facings fed as they take the hits, not one facing
+          folded — and the run-drum fills with a master shield board beside the
+          stamped pass Coreward logged over nothing. And the rig gives up the rest:
+          its pass logs copy out whole, every "certified" helm, gunnery, and shield
+          rating Coreward stamped, each one a pass with no telemetry behind it, no
+          rig-time, no board ever run. Three master boards, recorded, against a
+          book of blank ones. It only has to reach the freight lines before
+          Coreward learns the boards were sat by a hand it never stamped — and the
+          whole ticket-book collapses at once.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "You have three master boards recorded and Coreward's blank pass logs — now get them to the lines before the bureau reacts. Bring it all back to Jenra Voll at the Coco Town Civic Block."
+
+      - step: 5
+        title: "A Board That Was Run"
+        location: coco_town_civic_block
+        npc: "Jenra Voll"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Jenra Voll with the three master boards and Coreward's blank pass logs to collapse the tickets."
+        npc_intro: >
+          [Jenra reads the recorded boards and the copied pass logs side by side in
+          the examiner's office, red eyes going hard as she scrolls.] "You actually
+          ran all three. A master helm, master guns, master shields — recorded,
+          timestamped — beside Coreward's own logs stamping cadets 'passed' on the
+          same boards with the run-drums empty. This isn't a mark it can over-rule;
+          this is the case that ends it. Boards run and boards never run, in the
+          bureau's own hand, and not a shot fired — that's the cleanest piece of
+          work I've seen brought to this chair in years. `talk` to me and let me
+          pay you what it's worth before I go put it where the lines have to look."
+        completion:
+          type: talk_to_npc
+          npc: "Jenra Voll"
+        npc_complete: >
+          "It's filed — with the freight lines and the underwriters both, the three
+          master boards beside Coreward's telemetry-less passes, before the bureau
+          could stamp its way out of it. Every blank ticket it hung collapses at
+          once: the lines pull the 'certified' crews who never sat a rig off the
+          capital bridges before another hauler goes the way the last one nearly
+          did, and a board that actually runs the board takes up the contract.
+          Here's your fee, honestly paid, and there's more than the fee in it — the
+          berths have a name now for a hand who can run a real bridge and will run
+          one to show which of the rated can't, and that name travels. A ticket's
+          cheap up here. A hand who's earned it is rare, and worth more. Come find
+          me when you want the next one."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The blank tickets collapse and the certified-but-unqualified crews come
+          off the capital bridges before the next hauler founders, the hauler-line
+          Coreward nearly cost first among them. A name moves along the berths and
+          the mid-city — someone who can actually run a capital-ship helm, guns,
+          and shields, and will run all three to prove a bought rating for the
+          fraud it is — and honest crews and the lines that need them have a way of
+          finding the hand that can tell a master from a blank ticket.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════
