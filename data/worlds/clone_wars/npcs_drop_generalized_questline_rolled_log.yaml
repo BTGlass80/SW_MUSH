@@ -1,0 +1,319 @@
+# Generalized Questline Drop — "The Rolled Log" (T3.24 twenty-ninth slice, 2026-06-30)
+#
+# The TWENTY-NINTH accessible (non-t5, non-tutorial) `kind: questline` chain, set on
+# TATOOINE — at the Mos Eisley spaceport (the tatooine_spaceport zone), on a FRESH FOUR-ROOM
+# CLUSTER no chain has touched: the used-craft lot's home bay where an honest checkout is
+# offered and the racket is named (Docking Bay 92), the spaceport control tower that clears and
+# times a logged checkout flight over the field (Mos Eisley Spaceport Control Tower), the pit
+# floor where a craft is lowered and its drive cracked open (Docking Bay 94 - Pit Floor), and
+# the spaceport customs office where the yard's man intercepts the proof before it reaches the
+# port registry desk (docking_bay_92 / mos_eisley_control_tower / docking_bay_94_pit /
+# spaceport_customs_office). Every one of these four rooms is FRESH to the entire chain corpus.
+# HONEST DISCIPLINE NOTE: The Sabotaged Run already used a tatooine_spaceport room
+# (spaceport_speeders) and The Short Weight used two (docking_bay_86 / docking_bay_87), so this
+# is the THIRD arc on the Mos Eisley spaceport face, NOT a fresh face, and the NINTH Tatooine arc
+# overall; what is fresh is the four-room CLUSTER. At twenty-nine arcs across six planets and a
+# finite set of combat-capable (non-SECURED) rooms, no untouched zone with four contested rooms
+# remains — so the discipline this slice keeps is the honest one still available: a fresh ROOM
+# CLUSTER, not a fresh face. (Only the step-4 combat room must be combat-capable:
+# spaceport_customs_office has no explicit security_level and so defaults to CONTESTED. The
+# giver/return room and the two skill rooms host no fight — a logged checkout circuit flown over
+# the field and a drive teardown on the pit floor are a pilot's and a mechanic's feats, not a
+# brawl; the spaceport's ambient traffic never drives the plot.)
+# It reuses the SAME live questline engine (engine/tutorial_chains.py + chain_events.py: the
+# `kind: questline` type + `active_questline` slot, the existing event types, the four reward
+# funnels) with NO new engine code, no new slot, no new event type, no schema migration, no new
+# reward faucet, and NO map-coordinate or exit-graph change — the sanctioned right-of-launch
+# widening per quest_expansion_postlaunch_path_v1.md (T3.24): author MORE questlines on the
+# proven pattern.
+#
+# Firsts for the accessible-questline arc:
+#   1. A TWENTY-NINTH distinct skill spread — STARFIGHTER PILOTING (Mechanical) + STARFIGHTER
+#      REPAIR (Technical) — neither of which any prior accessible questline uses. It is the FIRST
+#      accessible questline to reward the TEST-PILOT / SMALL-CRAFT MECHANIC build — the hand that
+#      flies a light craft hard enough to feel a fault the paper denies and the same hand that
+#      cracks its drive to read the truth off the metal — the FIRST to use STARFIGHTER PILOTING
+#      and the FIRST to use STARFIGHTER REPAIR, and the FIRST accessible arc set on the SMALL-CRAFT
+#      / starfighter class at all. (Honest notes: it is NOT the first ship arc — The Salted Lane
+#      rewarded space transports + starship gunnery, The Condemned Hull space transport repair +
+#      astrogation, and The Skimmed Line security + bargain on a shipyard face before it — and it
+#      is NOT the first Mechanical+Technical cross: The Condemned Hull (space transport repair +
+#      astrogation) and The Long Haul (ground vehicle repair + ground vehicle operation) already
+#      crossed Mechanical + Technical. What is genuinely first is the STARFIGHTER-PILOTING and
+#      STARFIGHTER-REPAIR skills, the FLY-IT-THEN-STRIP-THE-SAME-CRAFT diagnostic pairing where
+#      one skill flies a light craft to feel the hidden wear and the other opens its drive to
+#      prove it, and the small-craft class itself.)
+#   2. Set on TATOOINE, at the Mos Eisley spaceport — but, honestly, NOT a fresh face: The
+#      Sabotaged Run and The Short Weight already worked the tatooine_spaceport zone. What is
+#      fresh is the four-room CLUSTER (docking_bay_92 / mos_eisley_control_tower /
+#      docking_bay_94_pit / spaceport_customs_office, every one new to the entire chain corpus).
+#      It touches NO map coordinate or world exit graph — the rooms already exist and are loaded
+#      (planets/tatooine.yaml); only NPCs + a chains.yaml entry + an achievement are added.
+#
+# It is also a new STORY SHAPE: breaking a USED-CRAFT FLIGHT-HOURS "CLOCKING" / SERVICE-HISTORY
+# FALSIFICATION FRAUD — the first accessible arc whose racket is odometer-rollback. A used
+# light-craft lot at the Mos Eisley spaceport (Kessro Craft & Charter, run by the yard-master
+# Dath Kessro) buys high-time, hard-worn light craft off the off-world auction feeders for
+# nothing, has a bench-tech roll back the drive's own flight-hour cycle-counter and forge a clean
+# service history to match, and sells the clapped-out craft as low-hours and nearly-new at a
+# nearly-new price — the fringe buyer trusting the lot's sale certificate and the drive's reading
+# over anything a seller says. The wear is real and hidden, not manufactured: a rolled-back lift
+# drive fails a week or a month out over the Dune Sea from the hours the log swears it never flew,
+# and the lot points to its own clean paper and calls it the buyer's abuse, voiding recourse. The
+# spaceport is a fringe port with no authority that audits a used-craft sale, so the rolled logs
+# are never checked and the lot sells on. Pointedly DISTINCT from the three prior consumer/ goods
+# frauds it might be mistaken for: The Cut Coil's garage SABOTAGES a sound speeder to manufacture
+# the repair it then bills (it DAMAGES the thing) — here nothing is damaged; the craft is already
+# worn and the LOG is rolled back to HIDE that wear. The Empty Proof's independent proof-house
+# sells a certification on goods it never TESTED (it SKIPS the proof) — here the craft has a long
+# TRUE service history that is rolled back and washed, not a proof skipped. The Rigged Issue's
+# seller SUBSTITUTES counterfeits for the genuine issue (fake goods) — here the goods are genuine,
+# only their history is falsified. The racket is broken not by a slicer, an armorer, or a marksman
+# but by a TEST-PILOT / MECHANIC who does the two things the lot's paper cannot survive: takes the
+# clocked craft up on a logged checkout circuit and flies it hard enough that its true wear shows
+# in the way it flies (a low-hours drive does not hunt and sag under load the way a high-time one
+# does), then lowers it into the pit and cracks the drive to read the true cycle-count off the
+# counter's own tamper-ring against the clean hours the sale certificate swears to. It carries a
+# real combat climax (step 4), with a single placed antagonist NPC and a chain_enemy_template.
+#
+# These NPCs back the `mos_eisley_rolled_log` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Sabra Ollun  — the Bith ferry-pilot and small-craft mechanic who flew checkout flights and
+#                    ran the bench for Kessro Craft & Charter until she caught the lot rolling its
+#                    logs and walked; she offers + closes the quest (step-1 npc = the questline's
+#                    start-NPC, per get_questline_offer). Step-1 + step-5 NPC.
+#   * Grull Vantok — the combat-step yard enforcer (ai_config.chain_enemy_template
+#                    rolled_log_enforcer; the step-4 combat_won foil), the muscle the yard-master
+#                    sends to keep a cracked-open craft and a true-hours read off a registry desk.
+# The yard-master who buys the high-time stock and sells it clocked (Dath Kessro), the bench-tech
+# who rolls the drive counters and forges the service histories, the off-world auction feeder who
+# supplies the worn craft cheap, the clocked light craft with its rolled cycle-counter and forged
+# sale certificate, the fringe buyers stranded when a hidden-wear drive quits over the Dune Sea,
+# the young pilot whose lift drive failed out on the sea, the spaceport's ambient traffic, and the
+# port registry whose desk pulls the lot's dealer bond and craft-sale licence, are NARRATED ONLY —
+# story beats carried in the prose, NOT spawned NPC entities. Only the giver and the single combat
+# foil are real placed NPCs.
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures. The racket is a
+# private used-craft lot's consumer fraud and its hired muscle, never a war faction; the Senate,
+# the Jedi, and the Republic war effort have no reach at a Hutt-fringe used-craft lot and never
+# appear, the spaceport's ambient traffic never drives the plot, and the "authority" that ends
+# the lot is the port registry that pulls its dealer bond once the rolled log is read — nodded to
+# and never instantiated.
+# Provenance: Bith (the high-browed, meticulous species of Clak'dor VII, gifted with fine
+# manipulation and precise perception, a natural fit both for a checkout pilot who reads a craft
+# by how it flies and for a mechanic who reads a drive by the tamper-ring on its counter, and
+# era-clean and not war-faction coded) and Nikto (the horned Hutt-space toughs common on the
+# Tatooine fringe as lot-muscle and enforcers, era-clean and not war-faction coded) are both
+# era-clean.
+# Stats matched to the shipped accessible-questline bands — the giver to the non-combat fixer band
+# (Yelza Korrin / Dorae Vint / Sashi Renko / Dav Nuro / Soree Bann / Hessa Veil / Cassa Brel /
+# Vessa Tial / Terva Dohl / Ria Tann / Nuva Sehl / Neyla Sur / Veelo Trinn / Numi Vesh / Brama
+# Hool / Ulil Maan / Senni Vrook / Jando Vekk / Grett Bashan / Corwin Hale / Nabo Threll / Oren
+# Vask / Tomar Hess / Nilo Sabb / Burlo Vethic / Garn Holvo / Sela Marrenn / Resa Halix), with
+# the pilot-mechanic's spread skewed to the flight-and-drive of a checkout hand to embody the two
+# skills the quest sends a hand to use; the enforcer to the small-time-criminal antagonist band
+# (Brakkis Vone / Gorvahn Brusk / Skarn Vex / Suro Vant / Vohrek Sarn / Brask Yade / Varn Tesk /
+# Tarko Venn / Drevin Saar / Vossk Rhal / Korsa Drael / Bohrus Kang / Gornt Reska / Hekka Vrool /
+# Greel Vodo / Vurr Magh / Draygo Sull / Drozz Kael / Hask Vorran / Garvo Naak / Dussek Rao /
+# Brunt Kosh / Vagh Sarko / Draz Kullo / Neevo Karr / Sesko Vahr / Drovan Pell): a real fight,
+# beatable by a fresh post-chargen character, carrying the proven blaster_pistol of the ranged
+# foils on the same in-band guarded stat line as The Salted Lane's, The Short Weight's, The
+# Wreckers' Light's, The Bonded Crew's, The Kept Watch's, The Buried Block's, The Cut Coil's, The
+# Fouled Sump's, The Fixed Bout's, The Empty Proof's, and The Cut Lane's foils (squarely in the
+# proven beatable band, no balance flag needed — and pointedly NOT the melee/heavy-weapon line of
+# The Condemned Hull's out-of-band Houk foil Bohrus Kang; the yard-boss is the lot's muscle, who
+# settles things with a blaster at a customs queue, not on a bench). WEG40120 PDF is local-only
+# (gitignored) and absent in this tree; the bands are cited against the in-repo reference NPCs,
+# not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The pilot-mechanic — Sabra Ollun (questline GIVER + closer)
+  # Questline: mos_eisley_rolled_log ("The Rolled Log")
+  # Placement: Docking Bay 92 (docking_bay_92, zone tatooine_spaceport).
+  #            Step-1 + step-5 NPC.
+  # NOTE: a Bith ferry-pilot and small-craft mechanic who flew checkout flights and ran the bench
+  # for the used-craft lot Kessro Craft & Charter until she caught the lot rolling back its drives'
+  # flight-hour counters and forging clean service histories, and walked out cursing the yard-master.
+  # She can read a craft two ways — by how it flies under load and by the tamper-ring on its
+  # cycle-counter — but a checkout hand who quit the lot in a temper is "sour grapes" to a port
+  # registry, and the buyers she warned bought Kessro's clean paper over her word. Now a young pilot
+  # she'd flagged a flyer high-time for bought it "low-hours" anyway and dropped its lift drive over
+  # the Dune Sea a week out, stranded on the wear the rolled log swore the craft never flew.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Sabra Ollun
+    room: "Docking Bay 92"
+    species: Bith
+    description: >-
+      A high-browed, large-eyed Bith in a checkout pilot's oil-dark coveralls, her long fine
+      fingers never quite still over the drive-cowling of a light craft up on the trestles in the
+      leased quiet of Docking Bay 92, where she runs an honest checkout-and-inspection service for
+      the fringe buyers who cannot tell a low-hours flyer from a clocked one by looking. She flew
+      checkout flights and ran the bench for Kessro Craft & Charter, the big used-craft lot two
+      bays over, until the day she matched a drive's true cycle-count against the clean service
+      history the lot had just printed for it and understood what the bench-tech did in the back
+      after hours — rolled the flight-hour counter back on a hard-worn craft, forged a history to
+      fit, and sold a clapped-out light drive as nearly-new at a nearly-new price. She walked out
+      cursing the yard-master, and that is exactly the trouble: a checkout hand who quit Kessro in
+      a temper is "sour grapes" to a port registry, and the buyers she warned took the lot's clean
+      paper over the word of a woman with a grudge. A week ago a young pilot she had told plainly
+      that a certain flyer was high-time bought it off Kessro anyway — low-hours, the certificate
+      swore, the counter reading barely broken in — and dropped its lift drive over the Dune Sea
+      seven days out, down on the wear the rolled log promised was not there, lucky to walk off the
+      sand. Sabra can prove none of it from a bench she no longer stands: she can read a clocked
+      craft by flying it and by cracking its drive, but her read is a disgruntled ex-hand's word and
+      Kessro's paper is a bonded lot's certificate. She needs a neutral hand who can do the two
+      things she can — take the next flyer Kessro has certified low-hours up on a logged checkout
+      circuit and fly it hard enough that its true wear shows in the air, then lower it and crack
+      the drive to read the true count off the counter's own tamper-ring — and carry that read to
+      the port registry, where a clean history that a cracked drive gives the lie to pulls a dealer
+      bond her grudge never could.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D+2
+        perception: 2D+2
+        strength: 2D
+        technical: 2D+2
+      skills:
+        starfighter piloting: 4D+1
+        starfighter repair: 4D
+        space transports: 3D+1
+        sensors: 3D
+        blaster: 3D
+        dodge: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A checkout pilot and bench mechanic with a Bith's precise, unhurried attention and no
+        patience left for a lot that sells lies stamped on honest metal — she reads a craft by how
+        it flies under load and by the ring on its counter the way another being reads a face, and
+        she trusts what the drive tells her over any certificate a bonded lot prints. She knows a
+        clocked craft the way she knows a wrong note: the low-hours flyer that hunts and sags under
+        power the way no low-hours drive would, the counter reading that is too clean for the wear
+        on the bearings — that is not a nearly-new craft, it is a hard-worn one with its history
+        rolled back and washed, and Kessro sells them by the row. But a hand who walked off the
+        lot's bench cursing the yard-master cannot carry that to a registry herself; her grudge and
+        her old paycheck from the very lot are in the way, and the buyers believe a clean
+        certificate over a sour ex-employee every time. Calm and certain that a lot which rolls a
+        drive's hours and sells the wear it hid is not the rough honest used-craft trade of a
+        fringe port but a thief selling a lie on good metal; she offers her fee — what a checkout
+        hand keeps back between contracts — because the credits are no good to her while Kessro
+        sells clocked flyers to fringe pilots who drop them over the sand, and the next young hand
+        handed a low-hours certificate on a high-time drive is stranded the same way. A neutral
+        pilot who can fly the checkout and read the drive is the only thing that reads a rolled log
+        for what it is.
+      knowledge:
+        - "She is Sabra Ollun, a Bith ferry-pilot and small-craft mechanic who flew checkout flights and ran the bench for the used-craft lot Kessro Craft & Charter at the Mos Eisley spaceport until she caught the lot rolling back its drives' flight-hour counters and forging clean service histories, and walked out. She now runs an honest checkout-and-inspection service out of a leased corner of Docking Bay 92 for the fringe buyers who cannot read a clocked craft by looking — but her word carries no weight with the port registry, because a checkout hand who quit Kessro in a temper is 'sour grapes' and the lot's certificate is a bonded lot's paper."
+        - "The racket is a used-craft flight-hours 'clocking' fraud: Kessro Craft & Charter (run by the yard-master Dath Kessro) buys high-time, hard-worn light craft off the off-world auction feeders for nothing, has a bench-tech roll the drive's own flight-hour cycle-counter back and forge a clean service history to match, and sells the clapped-out craft as low-hours and nearly-new at a nearly-new price. The wear is real and hidden, not manufactured — a rolled-back lift drive fails a week or a month out over the Dune Sea from the hours the log swears it never flew, and the lot points to its own clean paper and calls it the buyer's abuse, voiding any recourse. A fringe port audits no used-craft sale, so the rolled logs are never checked."
+        - "Sabra can prove none of it from a bench she no longer stands, but a neutral hand who can fly and wrench can do what she cannot: take the next flyer Kessro has certified low-hours up on a logged checkout circuit cleared through the spaceport control tower and fly it hard enough that its true wear shows in the air — a low-hours drive does not hunt and sag under load the way a high-time one does, and a checkout circuit flown hard reads the hours the certificate hides (starfighter piloting); then lower the craft into the pit in Docking Bay 94 and crack the drive to read the true cycle-count off the counter's own tamper-ring, the mark a rolled counter cannot hide, against the clean hours the sale certificate swears to (starfighter repair); and stand off the yard-boss (Grull Vantok) who comes to the customs office to keep a cracked-open craft and a true-hours read from ever reaching the registry desk (combat)."
+        - "Get the clocked craft, its cracked drive's true cycle-count, and Kessro's own forged sale certificate to the port registry, and a rolled log cannot be un-rolled: a drive whose tamper-ring reads triple the hours the certificate swears to, beside the certificate that swore it, is fraud no clean paper papers over. The registry pulls Kessro Craft & Charter's dealer bond and craft-sale licence; the fringe buyers stop taking the lot's certificates on faith; a lot that actually flies and reads what it sells takes up the trade; and the off-world auction feeder who fed the worn stock in loses the one buyer that took it. No Senate office and no Jedi looked twice at a used-craft sale; the port registry pulled it, the only authority a fringe lot answers to, once a cracked drive gave a clean certificate the lie. Sabra's read stops being a grudge, and the Republic never needs notice a checkout pilot set a used-craft lot straight."
+      faction: independent
+      dialogue_style: >-
+        Precise, plain, a mechanic's economy of words — names how a craft flies and what a counter
+        reads before she names a grievance, and trusts a cracked drive over any certificate a lot
+        prints. Calm and certain; she flew and wrenched enough craft to know a low-hours drive from
+        a clocked one, and she has a young pilot down on the Dune Sea to prove what Kessro's clean
+        paper is worth.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'You fly? Fly and wrench — take a light craft up and feel a fault in the way it flies, then crack its drive and read the truth off the metal? Then you can do what I can't from a bench I walked off of, and a registry won't wave you off the way it waves me. I'm Sabra Ollun — I flew checkout and ran the bench for Kessro Craft & Charter two bays over until I caught what they do in the back after hours, and I walked. They roll a drive's flight-hours back, forge a clean history to fit, and sell a clapped-out light craft as low-hours at a nearly-new price. A week ago a kid I told plainly a flyer was high-time bought it off them anyway — low-hours, the certificate swore — and dropped its lift drive over the Dune Sea seven days out. Lucky to walk off the sand.'"
+        - "*Sabra Ollun turns a drive-counter in her long fingers, thumb on a bright scored ring at its base.* 'See that? A counter's got a tamper-ring — roll the hours back and the ring scores, every time, and no clean certificate hides it once you crack the drive to look. Kessro certifies these low-hours and the reading backs the paper, but the ring says the drive flew triple what the log swears. I know a clocked craft by how it flies, too — a low-hours drive doesn't hunt and sag under load like a worn one — but my word's a sour ex-hand's word, and their paper's a bonded lot's certificate. A buyer takes the certificate every time.'"
+        - "'So read one for me. Kessro's got a flyer up now, certified low-hours — take it on a logged checkout circuit off the control tower and fly it hard, hard enough the wear shows in the air where a tower log catches it. Then lower it into the pit in Bay Ninety-Four and crack the drive: read the true count off the ring against the clean hours on the certificate. Do both and you've got a clocked craft, a cracked drive that reads triple, and the lot's own forged paper. Then mind the customs office — Kessro keeps a yard-boss, Grull Vantok, to see a cracked-open craft never reaches the registry desk. Get the craft, the read, and the certificate to the port registry, and a rolled log pulls a dealer bond the way my grudge never could. My fee's yours then — what a checkout hand keeps back between contracts. I'd sooner it bought the next kid a lot that flies what it sells than bought me one more quiet month while Kessro sells the sand another drive.'"
+
+  # ── Questline antagonist: Grull Vantok (combat step 4) ────────────────
+  # Single hostile instance at the spaceport customs office, on the way between the pit where the
+  # drive is cracked and the port registry desk. Matches the mos_eisley_rolled_log step-4
+  # combat_won enemy_template. Carries the proven blaster_pistol of the ranged foils on the same
+  # in-band guarded stat line as The Salted Lane's, The Short Weight's, The Wreckers' Light's, The
+  # Bonded Crew's, The Kept Watch's, The Buried Block's, The Cut Coil's, The Fouled Sump's, The
+  # Fixed Bout's, The Empty Proof's, and The Cut Lane's foils (squarely in the proven beatable
+  # band) so a fresh post-chargen character has a real, winnable fight — and pointedly NOT the
+  # melee line of The Condemned Hull's out-of-band Houk foil. The yard-boss is the lot's muscle: he
+  # settles things with a blaster at a customs queue, not a mechanic or a duelist.
+
+  - name: Grull Vantok
+    room: "Spaceport Customs Office"
+    species: Nikto
+    description: >-
+      A horned, leather-skinned Nikto with the flat, unhurried patience of a being paid to see that
+      nothing leaves the lot's bays the yard cannot afford to have read, planted at the customs
+      office where the port registry logs a sale and pulls a dealer bond, a worn blaster pistol
+      loose at his hip and a lot chit clipped at his collar. He is Dath Kessro's yard-boss — not the
+      tech who rolls the drives and not the feeder who ships the worn stock in, but the muscle the
+      yard-master keeps for the sales that come back wrong: the one sent to talk a stranded buyer
+      out of a registry complaint, to buy back a clocked flyer quiet before anyone cracks its drive,
+      and to keep the customs queue between a cracked-open craft and the registry desk so nothing
+      the lot needs unread ever reaches it. He rarely has to draw, because a clocking fraud at a
+      fringe port runs on a port that audits no used-craft sale and buyers who take a clean
+      certificate over a mechanic's word. The whole racket lives on rolled counters no one cracks
+      and a bonded lot's paper the registry takes at its word; it does not live on a neutral hand
+      walking into customs with a clocked flyer, a cracked drive whose tamper-ring reads triple the
+      certified hours, and the lot's own forged certificate. He has heard a stranger flew the
+      checkout flight and cracked the drive Kessro certified low-hours, and the easy menace of a man
+      who keeps a customs queue goes hard the instant the one thing the lot cannot survive starts
+      moving toward the desk that can pull its bond. The craft is a lot recovery and the sale on it
+      is clean, as far as anyone at the customs office will hear him say it; and whoever is walking
+      it to the registry is handing it back or going down on the customs-office floor with it, where
+      the port's ambient queue pays a brief, quiet thing at a side counter no mind.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        brawling: 3D+1
+        intimidation: 3D+2
+        space transports: 3D
+        streetwise: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: rolled_log_enforcer
+      personality: >-
+        A used-craft lot's yard-boss genuinely unused to being made to fight for a sale — bored and
+        contemptuous while a fringe port that audits no used-craft sale and buyers who trust a clean
+        certificate do his work, and immediately, heavily violent the moment a neutral hand walks
+        into customs with a clocked flyer, a cracked drive that reads triple its certified hours, and
+        the lot's own forged certificate, headed for the registry desk. He works a blaster and a flat
+        threat and a chit, not his hands: dangerous and direct, he plants himself at the customs
+        queue between the cracked-open craft and the registry and would rather break a hand on the
+        customs-office floor than let a read drive reach a desk that can pull a bond. His pay and his
+        standing with Kessro ride on rolled counters no one cracks and a bonded lot's paper the
+        registry takes on faith, so he'll draw on anyone walking in the proof the hours were rolled.
+        Combat foil for the questline's confrontation beat — the lot's muscle, not a mechanic or a
+        duelist; he settles it with a blaster, at the customs queue.
+      knowledge:
+        - "He is Grull Vantok, the Nikto yard-boss Dath Kessro keeps for the sales that come back wrong — talking stranded buyers out of registry complaints, buying back clocked flyers quiet before anyone cracks a drive, and keeping the customs queue between a cracked-open craft and the registry desk, rarely having to draw because a clocking fraud runs on a fringe port that audits no used-craft sale and buyers who take a clean certificate over a mechanic's word. He is muscle, not a tech or a duelist."
+        - "A neutral hand flew the checkout circuit on a flyer Kessro certified low-hours, felt the true wear in how it flew, cracked its drive on the pit floor, and read a tamper-ring that says the drive flew triple its certified hours — and is walking the clocked craft, the cracked drive's true count, and the lot's own forged sale certificate toward the port registry; the racket lives on rolled counters no one cracks and a bonded lot's paper the registry takes on faith, so he'll draw on whoever carries the proof the hours were rolled rather than let the one thing the lot cannot survive reach the desk that can pull Kessro's dealer bond."
+      faction: criminal
+      dialogue_style: >-
+        Flat, unhurried, contemptuous — names the craft as a lot recovery and the sale on it as
+        clean before the threat. States once that the craft is a logged recovery and the sale is
+        clean, and after that lets the blaster keep the customs queue the way a rolled counter keeps
+        the lot.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'That flyer you're walking in is a Kessro recovery, friend — bought back fair, sale logged clean, the lot's to collect. Whatever you think you read off that drive, it doesn't reach any registry desk. Set it down and walk off the customs floor.'"
+        - "*Grull Vantok steps out from the customs queue as you bring the cracked-open flyer in, sets himself between you and the registry desk, and lets his hand fall loose to the worn blaster he would rather not have to draw, the port's ambient queue at the far counters too far off to mark a brief, quiet thing at a side desk.*"
+        - "'Every craft on our lot is what the certificate says. So says the paper. So do I. And that flyer's a clean recovery, low-hours and sold fair — bad luck for you somebody cracked its drive. Bad day for you to walk it toward a registry. Last time — set the craft and the drive and the lot's papers down and walk off the customs floor, or you don't walk that read to any desk. The lot sells what it certifies. I'm the part of it that keeps the drives nobody cracked from saying otherwise.'"

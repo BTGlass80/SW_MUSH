@@ -893,3 +893,11 @@ achievements:
     icon: "🛡️"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "coruscant_cut_lane"}
+
+  - key: rolled_log_cleared
+    name: "The Rolled Log"
+    description: "Broke a used-craft flight-hours 'clocking' fraud at the Mos Eisley spaceport — a used light-craft lot (Kessro Craft & Charter) that bought high-time, hard-worn light craft off the off-world auction feeders for nothing, rolled the drive's own flight-hour cycle-counter back and forged a clean service history to match, and sold the clapped-out craft as low-hours and nearly-new at a nearly-new price, so a rolled-back lift drive quit a week or a month out over the Dune Sea from the hours the log swore it never flew and the lot called it the buyer's abuse, while a fringe port that audits no used-craft sale never checked a rolled log. Took a flyer the lot certified low-hours up on a logged checkout circuit off the control tower and flew it hard enough that its true wear showed in the air — the drive hunting and sagging under load the way no low-hours lift would (starfighter piloting); lowered it into the pit in Docking Bay 94 and cracked the drive to read the true cycle-count off the counter's own tamper-ring — the witness-mark a rolled face cannot hide — against the clean low hours the sale certificate swore to (starfighter repair); and stood off the yard-boss who came to the customs office to keep the cracked-open craft off the registry desk. A drive whose tamper-ring read triple the hours it was sold with, beside the certificate that swore it near-new, was fraud no clean paper could paper over — and with no Senate office to try it, the port registry pulled it: it pulled Kessro Craft & Charter's dealer bond and craft-sale licence, the fringe buyers stopped taking the lot's certificates on faith, a lot that actually flies and reads what it sells took up the trade, and a port that had written its stranded pilots off as buyer's abuse stopped taking a clocked lot's paper over a mechanic's cracked-drive read."
+    category: profession
+    icon: "🛡️"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "mos_eisley_rolled_log"}
