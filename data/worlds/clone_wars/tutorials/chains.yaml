@@ -10591,6 +10591,341 @@ chains:
           name now, out where a lot that flies what it sells is the difference between a drive that
           holds and a pilot dropped onto the sand.
 
+  # ─────────────────────────────────────────────────────────────────────
+  # GENERALIZED QUESTLINE — "The Paper Death" (T3.24 thirtieth slice, Jun 30 2026)
+  # data/worlds/clone_wars/npcs_drop_generalized_questline_paper_death.yaml.
+  # The THIRTIETH accessible (non-t5, non-tutorial) kind:questline chain, and the EIGHTH set on
+  # CORUSCANT — in the southern_underground (lower-city / undercity) zone, on a FRESH FOUR-ROOM
+  # CLUSTER no chain has touched: the freelancer-crew service alley behind the Crystal Jewel cantina
+  # where a skip-tracer takes her contracts and the racket is named (crystal_jewel_alley), the cheap
+  # letting-rooms above the cantina where a debtor written dead is laying low and must be run down
+  # before the broker's crew reaches her (crystal_jewel_back_rooms), the frozen Zhell-chieftain
+  # crypts where the broker's body-handler logs a salted stand-in "corpse" to make the death
+  # forensically real (ice_crypts), and the underfunded lower-city clinic whose bought orderly forges
+  # the death certificates, where the enforcer corners the proof before it reaches the one doctor who
+  # can disprove a death (lower_medical). HONEST DISCIPLINE NOTE: The Buried Block already set an arc
+  # in the southern_underground zone, so this is the SECOND arc on the Coruscant undercity face, NOT
+  # a fresh face — what is fresh is the four-room CLUSTER; at 30 arcs and a finite set of
+  # combat-capable non-SECURED rooms no untouched zone with four contested rooms remains but the
+  # war-coded, Jedi Temple, and war-risky Senate faces the accessible-arc discipline keeps off. Only
+  # the step-4 combat room must be combat-capable: lower_medical is contested, while the giver/return
+  # room and the two skill rooms host no fight. The THIRTIETH distinct skill spread — RUNNING +
+  # MELEE COMBAT — is the FIRST to reward the MANHUNTER / SKIP-TRACER build, the FIRST to use RUNNING
+  # and the FIRST to use MELEE COMBAT. (Honest notes: BOTH are Dexterity, so this is NOT a
+  # cross-attribute spread — it is the SECOND all-Dexterity-weapon-pool spread after The Empty
+  # Proof's firearms + thrown; and NOT the first weapon arc — The Empty Proof's marksman came first.
+  # Genuinely first are the running and melee-combat skills and the RUN-IT-DOWN-THEN-TAKE-IT-CLOSE
+  # pursuit pairing, pointedly distinct from The Empty Proof's two-RANGED-weapon marksman: this is a
+  # PURSUIT-and-CLOSE build, foot-speed to catch and a blade to take.) New STORY SHAPE: breaking a
+  # FALSE-DEATH BOND FRAUD — the FIRST accessible arc whose racket is the fabrication of a living
+  # person's DEATH for profit. A lower-city bond-broker (Dral Vante) who holds recovery bonds and
+  # death-clause policies on lower-city debtors files a debtor CONFIRMED DEAD when she is worth more
+  # dead than found: a bought clinic orderly forges a death certificate, a salted stand-in body is
+  # logged into the freezing Ice Crypts where the cold defeats a forensic read, and the broker
+  # collects the death-clause payout AND seizes the estate while the living woman is written out of
+  # existence and, if she surfaces, hunted to make the paper death real. Pointedly DISTINCT from the
+  # prior arcs it might be mistaken for: The Bonded Crew BONDS people into labor (they live, worked)
+  # — here a living person is declared DEAD to collect a death payout and seize an estate; The Buried
+  # Block declares an inhabited BUILDING derelict — here a living PERSON is declared dead; The
+  # Wasting Ward / The Dust-Sick fake an AILMENT on the healthy — here the person is provably alive
+  # and the DEATH is the lie; The Rolled Log rolls back a CRAFT's history — here a PERSON's death
+  # record is fabricated whole. Busted not by a slicer, an investigator, or a medic but by a
+  # MANHUNTER who RUNS the living "corpse" down before the crew silences her and takes the
+  # body-handler CLOSE and quiet with a blade to seize the salted stand-in and the crypt-log. The
+  # Senate, the Jedi, and the Republic war effort have no reach at a lower-city debtor written dead
+  # and never appear — the undercity's ambient traffic never drives the plot — and the racket is run
+  # afoul of in the end by the lower-city bond registry itself, which will not hold a death signed on
+  # a woman who never died, the way every prior accessible arc keeps the larger powers offstage.
+  # Reuses the live questline engine (kind:questline + active_questline + existing event types + the
+  # four reward funnels) with NO new engine code, no new slot/event type, no schema migration, no new
+  # reward faucet, and NO map-coordinate or exit-graph change.
+  # ─────────────────────────────────────────────────────────────────────
+  - chain_id: coruscant_paper_death
+    chain_name: "The Paper Death"
+    description: >
+      In the Coruscant lower city — the freelancer-crew service alley behind the Crystal Jewel
+      cantina where a skip-tracer takes her recovery contracts, the cheap letting-rooms above the
+      cantina where a debtor written dead is hiding, the freezing Ice Crypts where a salted stand-in
+      "corpse" is logged among the Zhell chieftains, and the underfunded lower-city clinic whose
+      bought orderly signs the death certificates — a Twi'lek skip-tracer named Nima Tarr, who runs
+      recovery bonds for the lower-city lenders, is trying to stop a broker who has found that a
+      debtor is worth more dead than found. Nima took a routine recovery bond on a lower-city worker,
+      Oly Fenn, and found her not skipped but signed DEAD: a death certificate filed out of the
+      clinic, an estate seized against the debt, the ledger squared over her head — and the woman
+      herself alive and terrified in the letting-rooms above the cantina, hunted by the broker who
+      signed her. A bond-broker named Dral Vante buys a forged certificate off a tired clinic and a
+      salted stand-in body logged into crypts too cold to read, collects the death-clause payout and
+      the seized estate, and if the "dead" debtor surfaces sends his crew to make the paper death
+      real. A skip-tracer who tells a registry a certified corpse walks is "working a grudge for a
+      deadbeat's family," and Vante's paper is a bonded document a desk takes at its word. So Nima
+      needs a neutral hand who can run and fight: get to the letting-rooms and RUN Oly Fenn down
+      before Vante's crew reaches her, because a living body that walks is the one thing a death
+      certificate cannot survive; get down to the Ice Crypts and take the body-handler close and
+      quiet with a blade to seize the salted stand-in and the crypt-log before the fake corpse is
+      sealed; and stand the living woman and the salted stand-in side by side for the lower-city bond
+      registry, where a breathing debtor beside her own certificate voids a death a grudge never
+      could. A freelance favor — open to anyone, no faction required.
+    archetype_label: "Freelance Operator's Favor"
+    faction_alignment: independent
+    starting_zone: southern_underground
+    starting_room: crystal_jewel_alley
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["paper_death_cleared"]
+      drop_room: crystal_jewel_alley
+      follow_up_hint: >
+        The living Oly Fenn stands beside the salted stand-in that was filed in her name, the
+        crypt-log and the forged clinic certificate with them, and a paper death cannot hold: a woman
+        breathing beside the corpse signed in her name is a fraud no bonded document papers over. The
+        lower-city bond registry voids the death, reopens the seized estate, and pulls Dral Vante's
+        bond-licence before the notice finishes printing; the lower-city lenders stop taking his
+        death-filings on faith; a skip-trace book that runs the living down instead of signing them
+        dead takes up the trade; and the bought clinic orderly who forged the certificates loses the
+        broker who paid for them. No Senate office and no Jedi looked twice at a lower-city debtor
+        written dead — the bond registry did, the only authority a lower-city book ever answers to,
+        once a living body stood against a bonded certificate. The enforcer who meant to keep the
+        living woman off the doctor's desk keeps nothing but a lender's chit gone worthless. Word
+        travels the lower city the way it never travels a filed death: there is a hand who will run a
+        written-dead debtor off a letting-room floor before the crew reaches her, take a body-handler
+        quiet at the crypt, and stand the living against their own certificate — and a lower city that
+        had learned to let a debtor's death be nobody's business stops taking a broker's death-filing
+        on faith, and Nima Tarr's word stops being a grudge and starts being the thing that voided a
+        death and pulled a licence.
+
+    steps:
+      - step: 1
+        title: "A Death Filed on a Living Woman"
+        location: crystal_jewel_alley
+        npc: "Nima Tarr"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Nima Tarr in the Crystal Jewel alley, where she runs recovery bonds for the lower-city lenders and has found a debtor signed dead who is very much alive."
+        npc_intro: >
+          [A lean, weather-hard Twi'lek in a skip-tracer's scuffed coat looks up from a closed
+          bond-file in the mouth of her rented office off the Crystal Jewel alley, lekku pinned back
+          for work.] "You run? Run a mark down through a warren before she goes to ground, and take a
+          man close and quiet when a blaster would bring the whole floor down on you? Then you can do
+          what I can't carry alone, and a registry won't wave you off the way it waves a fixer working
+          a grudge. `talk` to me. I'm Nima Tarr — I run recovery bonds off this alley, honest work as
+          such work goes, and I took a routine bond on a lower-city woman named Oly Fenn and found her
+          not skipped but signed DEAD. Death certificate out of the clinic, estate seized, ledger
+          squared over her head — and the woman alive and hiding in the letting-rooms above the
+          cantina, hunted by the broker who signed her dead. A man named Dral Vante found she's worth
+          more dead than found: the death-clause payout and the seized estate together beat any
+          recovery he'd collect living. He's killing her on paper to collect on her."
+        completion:
+          type: talk_to_npc
+          npc: "Nima Tarr"
+        npc_complete: >
+          [She thumbs the file open to a death certificate stamped clean and a crypt intake logged the
+          same day, then sets a lender's recovery chit in your hand.] "See the dates? Filed dead and
+          logged into the Ice Crypts inside a day — nobody thaws a lower-city corpse to check, that's
+          the whole trick. But there's no body of hers down there; there's a stand-in, salted in, and
+          the certificate swore it was her. Vante's crew is closing on the letting-rooms where Oly's
+          laid up right now. Get up there and run her down before they do — off the floor, away from
+          the doors — because a woman breathing is the one thing his certificate can't survive. Do
+          that and you've kept a written-dead woman from being made dead for real."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Get to the cheap letting-rooms above the Crystal Jewel cantina and run Oly Fenn down — off the floor and away from the doors — before Vante's crew reaches her. Use your `running` skill, then `chain attempt`."
+
+      - step: 2
+        title: "The Body That Walks"
+        location: crystal_jewel_back_rooms
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["running"]
+        objective: "In the letting-rooms above the Crystal Jewel cantina, run Oly Fenn down and get her off the floor before Vante's crew reaches her — a running check."
+        npc_intro: >
+          [The back-of-cantina letting-rooms are a warren — a narrow stair up off the bar to a row of
+          small rooms, cots and footlockers and windows that don't open, the innkeeper's board run on
+          a heavy datapad and a heavier blaster, the clientele the between-jobs spacers and refugees
+          and laid-low hunters who pay by the night and ask nothing. Oly Fenn is up here somewhere,
+          holed up and spooked, and she does not know you from the crew Vante has sent to close the
+          same floor — the moment she catches a stranger on the stair she'll bolt, and a spooked mark
+          who bolts through a warren of rooms and stairs and dead-end corridors is lost in a breath
+          unless you can run her down and cut her off before she reaches a window or a back door.]
+          Take the stair fast, read where she breaks, and RUN her down — through the corridor, up the
+          landing, cut the angle to head her off the fire-stair before she's out a window and gone,
+          and get her stopped and off the floor before Vante's crew comes up behind you. `running`,
+          the manhunter's legs to run a fleeing woman down through a warren and the eye to cut her
+          off before she goes to ground — `chain attempt` when you have her stopped and off the
+          letting-room floor.
+        completion:
+          type: skill_check_passed
+          skill: "running"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You take the stair the way Nima said to — fast and low, reading the bolt before she makes
+          it — and when Oly Fenn breaks for the fire-stair you are already cutting the angle, running
+          her down the corridor and heading her off the landing before she's out the window, and you
+          get a hand on her and get her stopped, breathing hard and alive and no more a corpse than
+          you are. And that is the whole of it in one gasping woman: the certificate says she died a
+          week ago and here she stands, run down and living, and a death filed on a body that walks is
+          a lie the moment the body is caught breathing. Vante's crew comes up the stair a beat too
+          late for an empty room. Now the salted stand-in that stood in for her has to be seized
+          before it's sealed away, and that wants the crypt.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "You've got the living woman — now seize the fake. Get down to the Ice Crypts where Vante's body-handler is logging the salted stand-in into a chamber, and take him close and quiet with a blade before it's sealed. Use your `melee combat` skill, then `chain attempt`."
+
+      - step: 3
+        title: "The Stand-In in the Cold"
+        location: ice_crypts
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["melee combat"]
+        objective: "In the Ice Crypts, take Vante's body-handler close and quiet with a blade and seize the salted stand-in body and the crypt-log before the fake corpse is sealed into a chamber — a melee combat check."
+        npc_intro: >
+          [The Ice Crypts run cold below freezing, meandering passages off to thirteen chambers of
+          mummified Zhell chieftains, and the cold is the whole reason a filed death is logged down
+          here: a body no one thaws is a body no one reads, and a stand-in salted into a chamber holds
+          up a certificate forever. Vante's body-handler is here now, working a stand-in body into an
+          open chamber to seal it under Oly Fenn's name — and the read has to be taken CLOSE and
+          quiet. A blaster in the crypts brings the curators who pace these tunnels and the Guild
+          neutrality that keeps this undercity, down on a killing in a tomb; a blade does not. Take
+          the handler close — a controlled takedown, quiet, before he seals the chamber and calls the
+          floor down — and cut the stasis-seal to lever the stand-in out and seize it with the
+          crypt-log that filed it, the salted corpse the certificate swore was her.] Take him at the
+          chamber mouth, quiet, and seize the stand-in and the log before the seal sets. `melee
+          combat`, the manhunter's blade to put a man down close and controlled without a shot and the
+          hand to lever a sealed chamber open — `chain attempt` when the handler is down quiet and the
+          stand-in and the crypt-log are in your hands.
+        completion:
+          type: skill_check_passed
+          skill: "melee combat"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You take him the way Nima takes a mark she can't afford to spook the floor over — close,
+          controlled, a blade and a hand and no shot fired, the handler down quiet at the chamber
+          mouth before he can seal it or call out. Then the stasis-seal, cut and levered, and the
+          stand-in comes out of the cold: a salted body, no more Oly Fenn than the mummies down the
+          passage, logged into the chamber under her name against the certificate that swore it was
+          her. You have the living woman above and the false corpse below, the crypt-log that filed it
+          and the clinic certificate that signed it — the whole lie in your hands, whole. Now it has
+          to reach the one doctor down here who can read a body alive and disprove a death, and Vante
+          keeps a hand at the clinic to see that it doesn't.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "You've got the living woman, the salted stand-in, and the crypt-log — now get them to the one lower-city doctor who can disprove a death. Walk them into the lower-city clinic, and stand off Vante's enforcer when he comes for them — `attack`, `dodge`."
+
+      - step: 4
+        title: "The Doorway to the Doctor"
+        location: lower_medical
+        npc: "Tovek Grahl"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "At the lower-city clinic, stop Tovek Grahl when Vante's enforcer comes to keep the living woman and the salted stand-in from reaching the one doctor who can disprove the death — `attack`, `dodge`."
+        npc_intro: >
+          [The lower-city clinic is where the forged death certificate was signed by a bought orderly
+          and where the one honest doctor down here still works her eighteen-hour shifts — the one desk
+          between a filed death and a read that could disprove it, and the last chokepoint the broker's
+          muscle can hold before a living body reaches it. A heavy, houndish Klatooinian steps into the
+          doorway as you bring the Fenn woman in, a worn blaster loose at his hip and a lender's chit
+          clipped at his collar, with the flat patience of a being paid to see that nothing reaches
+          this clinic the book cannot afford to have read.] Tovek Grahl — Dral Vante's enforcer, not
+          the broker who signs the deaths and not the orderly who forges the certificates but the
+          muscle the broker keeps for the filings that come back walking, the one sent to buy a
+          written-dead debtor's silence quiet before anyone stands her against her certificate. He has
+          heard a stranger ran the Fenn woman off the letting-room floor and took the handler at the
+          crypt, and the easy menace of a man who keeps a clinic doorway goes hard. "That woman's a
+          closed file, friend — filed dead, certificate stamped clean, estate squared, the book's to
+          keep. Whatever you've got standing next to her, it doesn't reach any doctor's desk." [He sets
+          himself between you and the desk, the lower-city sick at the far benches too far off to mark
+          a thing at a side door.] "Turn her over and walk off the clinic floor, or you don't walk that
+          proof to anyone. The book files what it certifies. I'm the part of it that keeps the dead
+          nobody thawed from getting up and saying otherwise."
+        completion:
+          type: combat_won
+          enemy_template: "paper_death_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Tovek Grahl goes down in the clinic doorway, the blaster knocked loose across the floor, and
+          the living Oly Fenn stays on her feet beside you with the salted stand-in and the crypt-log
+          still in your hands. The way to the doctor's desk stands clear, and the lower-city sick at
+          the far benches never stir for a thing too brief and too quiet to mark. Walk them on in — a
+          breathing woman the certificate swore was dead, the stand-in that stood in for her, and the
+          crypt-log and clinic paper that filed it — and there is nothing between the clinic floor and
+          the bond registry now but the doctor's read and the open desk, Vante's paper death coming
+          apart in your hands.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The enforcer is down and the way's clear — get the living woman, the salted stand-in, and the crypt-log to the doctor and the lower-city bond registry, then go back to Nima Tarr in the Crystal Jewel alley."
+
+      - step: 5
+        title: "A Woman Who Wasn't Dead"
+        location: crystal_jewel_alley
+        npc: "Nima Tarr"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Nima Tarr in the Crystal Jewel alley with the death voided and the broker's book coming apart."
+        npc_intro: >
+          [Nima is back in the mouth of her office when you return, a comm-slate of registry notices
+          scrolling in her hand and Oly Fenn's file reopened under the bond registry's seal now,
+          watching the alley's crews reckon which brokers they dare carry paper for after this.]
+          "Done — and the registry read it the way no word of mine ever could. A woman breathing beside
+          the corpse filed in her name, the stand-in the certificate swore was her — there's no bonded
+          paper papers over that. Their desk voided the death, reopened the estate, and pulled Dral
+          Vante's bond-licence before the notice finished printing. The lenders stopped taking his
+          death-filings on faith, a book that runs the living down instead of signing them dead is
+          taking up the trade, and the orderly who forged the certificates has no broker left to pay
+          him. No Senate office and no Jedi looked twice at a lower-city debtor written dead — the bond
+          registry did, the only authority a lower-city book ever answers to, once a living body stood
+          against a bonded certificate." [She sets the closed-file datachip down beside the slate.]
+          "`talk` to me and let me say it plain, now there's a registry's seal where a filed death used
+          to be."
+        completion:
+          type: talk_to_npc
+          npc: "Nima Tarr"
+        npc_complete: >
+          "Here's your fee — what a tracer keeps back between bonds, and worth twice the credits to
+          hand it to the hand that ran a written-dead woman off a letting-room floor and stood her
+          against her own certificate. A book's only as honest as the bodies under its paper; you ran
+          the living one down before the crew reached her and took the false one out of the cold to
+          prove it, and a broker who signs the living dead to square a ledger is finished the moment a
+          registry stands one breathing woman against one filed death. Oly Fenn was a week from being
+          made dead for real to hold up a certificate, and the next lower-city debtor Vante meant to
+          write off the books was going the same way — they'll not, now, and she's got her name and her
+          estate back. Word goes slow up a registry desk and fast across the lower city — an alley, a
+          cantina, a clinic learns quick who'll run a fleeing woman down and take a man quiet at a
+          crypt and stand the living against a bonded death. When a broker down here starts signing the
+          living dead again, there's a name they'll send for now. Carry mine with it — and trust a
+          breathing body over any certificate a registry stamps; I'll not have the hand that ran Oly
+          Fenn down take a filed death on faith."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The book is finished and the racket is coming apart: the living Oly Fenn, the salted stand-in
+          that was filed in her name, and the crypt-log and clinic certificate that signed it reach the
+          lower-city bond registry, and a paper death cannot hold — a woman breathing beside the corpse
+          filed in her name is a fraud no bonded document papers over. The registry voids the death,
+          reopens the seized estate, and pulls Dral Vante's bond-licence, the lenders stop taking his
+          death-filings on faith, a skip-trace book that runs the living down takes up the trade, and
+          the bought clinic orderly loses the broker who paid him — no court tried the death, the bond
+          registry did, the only authority a lower-city book answers to. A hand who will run a
+          written-dead debtor off a letting-room floor before the crew reaches her, take a body-handler
+          quiet at the crypt, and stand the living against their own certificate has a way of being
+          sent for — the lower city carries a name now, out where a book that runs the living down
+          instead of signing them dead is the difference between a debtor found and a debtor filed
+          under a stone that was never hers.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════

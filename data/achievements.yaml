@@ -901,3 +901,11 @@ achievements:
     icon: "🛡️"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "mos_eisley_rolled_log"}
+
+  - key: paper_death_cleared
+    name: "The Paper Death"
+    description: "Broke a false-death bond fraud in the Coruscant lower city — a bond-broker (Dral Vante) who held recovery bonds and death-clause policies on lower-city debtors and, when a debtor was worth more dead than found, filed her CONFIRMED DEAD: a bought orderly at the underfunded lower-city clinic forged a death certificate, a salted stand-in body was logged into the freezing Ice Crypts where the cold defeated any forensic read, and the broker collected the death-clause payout and seized the estate while the living woman was written out of existence and, if she surfaced, hunted to make the paper death real. Ran the written-dead debtor (Oly Fenn) down through the letting-rooms above the Crystal Jewel cantina and got her off the floor before the broker's crew reached her — a living body that walks being the one thing a death certificate cannot survive (running); took the broker's body-handler close and quiet with a blade in the Ice Crypts, no shot to bring the curators or the Guild down, and seized the salted stand-in and the crypt-log before the fake corpse was sealed into a chamber (melee combat); and stood off the enforcer who came to keep the living woman and the salted stand-in from reaching the one doctor who could disprove a death. A breathing woman beside the corpse filed in her name, the stand-in the certificate swore was her, was a fraud no bonded document could paper over — and with no Senate office to try it, the lower-city bond registry did: it voided the death, reopened the seized estate, and pulled Dral Vante's bond-licence, the lower-city lenders stopped taking his death-filings on faith, a skip-trace book that runs the living down instead of signing them dead took up the trade, and a lower city that had learned to let a debtor's death be nobody's business stopped taking a broker's filed death over a living body run down and stood against its own certificate."
+    category: profession
+    icon: "🛡️"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "coruscant_paper_death"}

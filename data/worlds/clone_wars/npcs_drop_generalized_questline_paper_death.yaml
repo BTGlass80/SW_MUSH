@@ -1,0 +1,325 @@
+# Generalized Questline Drop — "The Paper Death" (T3.24 thirtieth slice, 2026-06-30)
+#
+# The THIRTIETH accessible (non-t5, non-tutorial) `kind: questline` chain, set on
+# CORUSCANT — in the southern_underground (lower-city / undercity) zone, on a FRESH FOUR-ROOM
+# CLUSTER no chain has touched: the freelancer-crew service alley behind the Crystal Jewel
+# cantina where a skip-tracer takes her contracts and the racket is named (Crystal Jewel Alley),
+# the cheap letting-rooms above the cantina where a debtor written dead is laying low and has to
+# be run down before the broker's crew reaches her (Crystal Jewel Cantina - Back Rooms), the
+# frozen Zhell-chieftain crypts where the broker's body-handler logs a salted stand-in "corpse"
+# to make the death forensically real (The Ice Crypts), and the underfunded lower-city clinic
+# whose bought orderly forges the death certificates, where the broker's enforcer corners the
+# proof before it can reach the one doctor who can disprove a death (Lower City Medical Post)
+# (crystal_jewel_alley / crystal_jewel_back_rooms / ice_crypts / lower_medical). Every one of
+# these four rooms is FRESH to the entire chain corpus.
+# HONEST DISCIPLINE NOTE: The Buried Block already set an accessible arc in the southern_underground
+# zone (underground_tenement_block / lower_descent / southern_underground / lower_market), so this
+# is the SECOND arc on the Coruscant undercity face, NOT a fresh face, and the EIGHTH Coruscant arc
+# overall; what is fresh is the four-room CLUSTER. At thirty arcs across six planets and a finite
+# set of combat-capable (non-SECURED) rooms, no untouched zone with four contested rooms remains
+# except the war-coded (Geonosis/Kamino), the Jedi Temple, and the war-risky Senate faces, all of
+# which the accessible-arc discipline keeps off — so the honest discipline this slice keeps is a
+# fresh ROOM CLUSTER, not a fresh face. (Only the step-4 combat room must be combat-capable:
+# lower_medical is CONTESTED. The giver/return room and the two skill rooms host no fight — a
+# foot-pursuit through the letting-rooms and a quiet blade at the crypt are a manhunter's feats,
+# not a brawl; the lower city's ambient traffic never drives the plot.)
+# It reuses the SAME live questline engine (engine/tutorial_chains.py + chain_events.py: the
+# `kind: questline` type + `active_questline` slot, the existing event types, the four reward
+# funnels) with NO new engine code, no new slot, no new event type, no schema migration, no new
+# reward faucet, and NO map-coordinate or exit-graph change — the sanctioned right-of-launch
+# widening per quest_expansion_postlaunch_path_v1.md (T3.24): author MORE questlines on the
+# proven pattern.
+#
+# Firsts for the accessible-questline arc:
+#   1. A THIRTIETH distinct skill spread — RUNNING (Dexterity) + MELEE COMBAT (Dexterity) —
+#      neither of which any prior accessible questline uses. It is the FIRST accessible questline
+#      to reward the MANHUNTER / SKIP-TRACER build — the legs that run a fleeing mark down through
+#      a warren and the blade that takes her clean and quiet at close quarters — the FIRST to use
+#      RUNNING and the FIRST to use MELEE COMBAT. (Honest notes: BOTH spread skills are Dexterity,
+#      so this is NOT a cross-attribute spread — it is the SECOND all-Dexterity-weapon-pool spread,
+#      after The Empty Proof's firearms + thrown weapons; and it is NOT the first weapon arc — The
+#      Empty Proof's marksman came first. What is genuinely first is the RUNNING and MELEE-COMBAT
+#      skills and the RUN-IT-DOWN-THEN-TAKE-IT-CLOSE pursuit pairing. It is pointedly distinct from
+#      The Empty Proof's marksman, whose spread is two RANGED weapons (firearms + thrown) fired
+#      from a stance; this build is a PURSUIT-and-CLOSE build — foot-speed to catch and a blade to
+#      take — not a shooting build.)
+#   2. Set on CORUSCANT, in the southern_underground (undercity) zone — but, honestly, NOT a fresh
+#      face: The Buried Block already worked the Coruscant undercity. What is fresh is the four-room
+#      CLUSTER (crystal_jewel_alley / crystal_jewel_back_rooms / ice_crypts / lower_medical, every
+#      one new to the entire chain corpus). It touches NO map coordinate or world exit graph — the
+#      rooms already exist and are loaded (planets/coruscant.yaml); only NPCs + a chains.yaml entry
+#      + an achievement are added.
+#
+# It is also a new STORY SHAPE: breaking a FALSE-DEATH BOND FRAUD — the first accessible arc whose
+# racket is the fabrication of a living person's DEATH for profit. A crooked lower-city bond-broker
+# (Dral Vante, who works his book out of a rented office off the Crystal Jewel alley) holds
+# recovery bonds and death-clause policies on lower-city debtors. When a debtor is hard to collect
+# or worth more dead than found, the broker files her CONFIRMED DEAD: a bought orderly at the
+# underfunded lower-city clinic forges a death certificate, a salted stand-in body is logged into
+# the freezing Ice Crypts where the cold defeats any forensic read, and the broker collects the
+# bond's death-clause payout AND seizes the "estate" — everything the debtor owned — while the
+# living woman is written out of existence, her debts and her name closed over her head. If she
+# surfaces, the broker's crew is sent to make the paper death real. Pointedly DISTINCT from the
+# prior arcs it might be mistaken for: The Bonded Crew BONDS people into labor against a debt (they
+# live, worked) — here no one is bonded; a living person is declared DEAD to collect a death payout
+# and seize an estate. The Buried Block declares an inhabited BUILDING derelict to strip it — here
+# it is a living PERSON declared dead. The Wasting Ward and The Dust-Sick fake an AILMENT on the
+# healthy — here the person is genuinely, provably alive; the DEATH is the lie. The Rolled Log
+# rolls back a CRAFT's service history — here a PERSON's death record is fabricated whole. The
+# racket is broken not by a slicer, an investigator, or a medic but by a MANHUNTER / SKIP-TRACER
+# who does the two things a paper death cannot survive: RUNS the living "corpse" down through the
+# letting-room warren before the broker's crew can silence her (a living body that walks is the
+# lie), then gets to the Ice Crypts and takes the broker's body-handler CLOSE and quiet with a
+# blade to seize the salted stand-in and the crypt-log before the fake corpse is sealed into a
+# chamber (the stand-in is the fraud). It carries a real combat climax (step 4), with a single
+# placed antagonist NPC and a chain_enemy_template.
+#
+# These NPCs back the `coruscant_paper_death` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Nima Tarr    — the Twi'lek skip-tracer who took an honest recovery contract on a debtor the
+#                    broker had written dead, found the woman alive and running, and understood the
+#                    death was fabricated; she offers + closes the quest (step-1 npc = the
+#                    questline's start-NPC, per get_questline_offer). Step-1 + step-5 NPC.
+#   * Tovek Grahl  — the combat-step enforcer (ai_config.chain_enemy_template paper_death_enforcer;
+#                    the step-4 combat_won foil), the muscle the broker sends to keep a living body
+#                    and a salted stand-in from ever reaching the clinic doctor who can disprove a
+#                    death.
+# The bond-broker who files the false deaths and collects the death-clause payouts (Dral Vante),
+# the bought clinic orderly who forges the death certificates, the lower-city lenders and insurers
+# who pay the death-clause and let the broker seize the estate, the salted stand-in body logged
+# into the crypts, the crypt-curators who pace the frozen tunnels, the living debtor written dead
+# and hunted (Oly Fenn), the real lower-city doctor whose read disproves a forged death, the
+# freelancer crews and cantina traffic of the alley, and the lower-city bond registry whose desk
+# voids the death and pulls the broker's bond-licence, are NARRATED ONLY — story beats carried in
+# the prose, NOT spawned NPC entities. Only the giver and the single combat foil are real placed
+# NPCs. (The room-flavor figures the loaded rooms already name — the Guild chapter head Doss Vek,
+# the clinic doctor Pell Merdo, the innkeeper Wesseri — are nodded to in prose and never
+# instantiated by this drop.)
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures. The racket is a
+# private lower-city bond-broker's insurance fraud and its hired muscle, never a war faction; the
+# Senate, the Jedi, and the Republic war effort have no reach at a lower-city debtor written dead
+# and never appear, the undercity's ambient traffic never drives the plot, and the "authority"
+# that ends the racket is the lower-city bond registry that voids the false death and pulls the
+# broker's bond-licence once a living body stands against the certificate — nodded to and never
+# instantiated.
+# Provenance: Twi'lek (the lekku-headed people of Ryloth, common throughout the lower-city
+# underworld as freelancers, fixers, and skip-tracers, era-clean and not war-faction coded) and
+# Klatooinian (the heavy, houndish Hutt-space toughs common as lower-city enforcers and muscle,
+# era-clean and not war-faction coded) are both era-clean.
+# Stats matched to the shipped accessible-questline bands — the giver to the non-combat fixer band
+# (Yelza Korrin / Dorae Vint / Sashi Renko / Dav Nuro / Soree Bann / Hessa Veil / Cassa Brel /
+# Vessa Tial / Terva Dohl / Ria Tann / Nuva Sehl / Neyla Sur / Veelo Trinn / Numi Vesh / Brama
+# Hool / Ulil Maan / Senni Vrook / Jando Vekk / Grett Bashan / Corwin Hale / Nabo Threll / Oren
+# Vask / Tomar Hess / Nilo Sabb / Burlo Vethic / Garn Holvo / Sela Marrenn / Resa Halix / Sabra
+# Ollun), with the skip-tracer's spread skewed to the legs-and-blade of a manhunter to embody the
+# two skills the quest sends a hand to use; the enforcer to the small-time-criminal antagonist band
+# (Brakkis Vone / Gorvahn Brusk / Skarn Vex / Suro Vant / Vohrek Sarn / Brask Yade / Varn Tesk /
+# Tarko Venn / Drevin Saar / Vossk Rhal / Korsa Drael / Bohrus Kang / Gornt Reska / Hekka Vrool /
+# Greel Vodo / Vurr Magh / Draygo Sull / Drozz Kael / Hask Vorran / Garvo Naak / Dussek Rao /
+# Brunt Kosh / Vagh Sarko / Draz Kullo / Neevo Karr / Sesko Vahr / Drovan Pell / Grull Vantok): a
+# real fight, beatable by a fresh post-chargen character, carrying the proven blaster_pistol of the
+# ranged foils on the same in-band guarded stat line as The Salted Lane's, The Short Weight's, The
+# Wreckers' Light's, The Bonded Crew's, The Kept Watch's, The Buried Block's, The Cut Coil's, The
+# Fouled Sump's, The Fixed Bout's, The Empty Proof's, The Cut Lane's, and The Rolled Log's foils
+# (squarely in the proven beatable band, no balance flag needed — and pointedly NOT the
+# melee/heavy-weapon line of The Condemned Hull's out-of-band Houk foil Bohrus Kang; the broker's
+# enforcer is muscle who settles things with a blaster in a clinic doorway, not on a bench). WEG40120
+# PDF is local-only (gitignored) and absent in this tree; the bands are cited against the in-repo
+# reference NPCs, not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The skip-tracer — Nima Tarr (questline GIVER + closer)
+  # Questline: coruscant_paper_death ("The Paper Death")
+  # Placement: Crystal Jewel Alley (crystal_jewel_alley, zone southern_underground).
+  #            Step-1 + step-5 NPC.
+  # NOTE: a Twi'lek skip-tracer who works recovery contracts out of a rented back-room office off
+  # the Crystal Jewel alley — running down bail-jumpers and absconded debtors for the lower-city
+  # lenders, honest work as such work goes. She took a routine recovery bond on a lower-city worker,
+  # Oly Fenn, and went to serve it — and found the woman not skipped but written DEAD, a death
+  # certificate filed, an estate closed, and the woman herself very much alive and running scared
+  # through the letting-rooms above the cantina. A skip-tracer knows a live mark from a dead file;
+  # a broker's death certificate, forged by a bought clinic and backed by a body logged into the
+  # freezing crypts, is a bonded document a registry takes at its word — and a skip-tracer who
+  # walks in claiming a certified corpse walks is "working a grudge for a deadbeat's family." She
+  # can run the woman down before the broker's crew silences her and take the crew's body-handler
+  # at the crypt to seize the salted stand-in, but her word alone is a fixer's word against a
+  # bonded certificate.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Nima Tarr
+    room: "Coruscant - Crystal Jewel Alley"
+    species: "Twi'lek"
+    description: >-
+      A lean, weather-hard Twi'lek in a skip-tracer's scuffed coat, her lekku wound back and pinned
+      for work, planted in the mouth of her rented office off the Crystal Jewel alley where the
+      freelancer crews take their contracts close enough to the cantina's foot traffic to be found
+      and far enough back that the wrong kind of attention slides past. She runs recovery bonds for
+      the lower-city lenders — bail-jumpers, absconded debtors, the small honest cruelties of a
+      lending book — and she is good at it, because she can read a live mark from a dead file and
+      run a fleeing one down through a warren before it goes to ground. She took a routine recovery
+      bond on a lower-city worker named Oly Fenn and went to serve it, and found something she has
+      not been able to put down since: the woman was not skipped. She was written DEAD — a death
+      certificate filed out of the lower-city clinic, an estate closed and seized against the debt,
+      the whole ledger squared over her head — and the woman herself alive and terrified, hiding in
+      the cheap letting-rooms above the cantina, hunted by the very broker who had signed her dead.
+      Nima has worked the alley long enough to know what she is looking at: a bond-broker named Dral
+      Vante who has found that a debtor is worth more dead than found — the death-clause payout and
+      the seized estate together beat any recovery he could collect on a living woman — and who buys
+      a forged certificate off a tired clinic and a salted stand-in body logged into the freezing
+      crypts to make the death real enough that a registry closes the file. A skip-tracer who walks
+      into that registry saying a certified corpse walks is "working a grudge for a deadbeat's
+      family," and Vante's paper is a bonded document. She needs a neutral hand who can do the two
+      things she can — run Oly Fenn down and get her off the floor before Vante's crew makes the
+      paper death real, and take the crew's body-handler at the crypt to seize the stand-in and the
+      crypt-log before the fake corpse is sealed away — and stand the living woman and the salted
+      body side by side where a registry cannot look away.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D+1
+        technical: 2D
+      skills:
+        running: 4D+1
+        melee combat: 4D
+        search: 3D+2
+        streetwise: 3D
+        dodge: 3D+1
+        brawling: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A lower-city skip-tracer with a manhunter's economy and no give left for a broker who signs
+        the living dead to square a book — she reads a live mark from a dead file the way another
+        being reads a face, and she trusts what a running body and a cold stand-in tell her over any
+        certificate a registry stamps. She knows a paper death the way she knows a bad bond: the
+        debtor filed dead who was seen breathing a week later, the estate closed too fast and too
+        clean, the corpse logged into a crypt no one thaws to check — that is not a death, it is a
+        broker collecting a death-clause on a woman he means to have silenced or sold quiet. But a
+        skip-tracer who walks a registry a claim that a certified corpse walks is "working a grudge
+        for a deadbeat's family," and the broker's certificate is a bonded document a desk takes at
+        its word. Level and certain that a book squared by declaring the living dead is not the hard
+        honest recovery trade of the lower city but a thief killing people on paper to collect on
+        them; she offers her fee — what a skip-tracer keeps back between bonds — because the credits
+        are no good to her while Vante signs lower-city debtors dead and the next one written off
+        the books is hunted the way Oly Fenn is now. A neutral hand who can run a fleeing woman down
+        before the crew reaches her and take the body-handler at the crypt is the only thing that
+        stands a living body against a bonded death.
+      knowledge:
+        - "She is Nima Tarr, a Twi'lek skip-tracer who works recovery bonds out of a rented office off the Crystal Jewel alley in the Coruscant lower city — running down bail-jumpers and absconded debtors for the lower-city lenders, honest work as such work goes. She took a routine recovery bond on a lower-city worker, Oly Fenn, and found the woman not skipped but written DEAD: a death certificate filed out of the lower-city clinic, an estate seized against the debt, and the woman herself alive and hiding in the letting-rooms above the cantina, hunted by the broker who signed her dead. A skip-tracer's word that a certified corpse walks is 'a grudge for a deadbeat's family' to a registry that takes a bonded certificate at its word."
+        - "The racket is a false-death bond fraud: a lower-city bond-broker named Dral Vante, who works his book off the Crystal Jewel alley, holds recovery bonds and death-clause policies on lower-city debtors. When a debtor is hard to collect or worth more dead than found, he files her CONFIRMED DEAD — a bought orderly at the underfunded lower-city clinic forges a death certificate, a salted stand-in body is logged into the freezing Ice Crypts where the cold defeats any forensic read, and Vante collects the death-clause payout AND seizes the estate, everything the debtor owned, while the living woman is written out of existence, her debts and her name closed over her head. If she surfaces, his crew is sent to make the paper death real. The lower city, where the clinic is underfunded and the crypts are cold and a lower-city debtor's death is nobody's business, never checks a filed death."
+        - "Nima can prove none of it from a fixer's word, but a neutral hand who can run and fight can do what she cannot: get to the letting-rooms above the cantina and RUN Oly Fenn down — off the floor and away from the stairs and the doors — before Vante's crew reaches her and makes the paper death real, because a living body that walks is the one thing a death certificate cannot survive (running); then get down to the Ice Crypts where Vante's body-handler is logging the salted stand-in into a chamber, and take him CLOSE and quiet with a blade — no blaster to bring the curators or the Guild down on a killing in the crypts — to seize the stand-in and the crypt-log before the fake corpse is sealed away (melee combat); and stand off the enforcer (Tovek Grahl) who corners the proof at the lower-city clinic, where the forged certificate was signed and the one doctor who can disprove a death still works (combat)."
+        - "Stand the living Oly Fenn and the salted stand-in body side by side, the crypt-log and the forged clinic certificate with them, and a paper death cannot hold: a woman breathing beside the corpse filed in her name, the stand-in the certificate swore was her, is a fraud no bonded document papers over. The lower-city bond registry voids the death, reopens the seized estate, and pulls Dral Vante's bond-licence; the lower-city lenders stop taking his death-filings on faith; a skip-trace book that runs the living down instead of signing them dead takes up the trade; and the bought orderly who forged the certificates loses the broker who paid for them. No Senate office and no Jedi looked twice at a lower-city debtor written dead — the bond registry did, the only authority a lower-city book answers to, once a living body stood against a bonded certificate. Nima's word stops being a grudge, and the Republic never needs notice a skip-tracer kept a lower-city woman from being killed to square a ledger."
+      faction: independent
+      dialogue_style: >-
+        Level, plain, a manhunter's economy of words — names how a mark runs and what a filed death
+        reads like before she names a grievance, and trusts a living body and a cold stand-in over
+        any certificate a registry stamps. Level and certain; she has run enough marks down to know
+        a live one from a dead file, and she has a woman breathing in the letting-rooms to prove
+        what Vante's clean certificate is worth.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'You run? Run a mark down through a warren before she goes to ground, and take a man close and quiet when a blaster would bring the whole floor down? Then you can do what I can't carry alone, and a registry won't wave you off the way it waves a fixer working a grudge. I'm Nima Tarr — I run recovery bonds off this alley, and I took a routine bond on a lower-city woman, Oly Fenn, and found her not skipped but signed DEAD. Death certificate out of the clinic, estate seized, ledger squared over her head — and the woman alive and hiding upstairs, hunted by the broker who signed her. A man named Dral Vante found she's worth more dead than found. He's collecting a death-clause on a woman he means to have silenced.'"
+        - "*Nima Tarr turns a closed bond-file in her hands, thumbs it to a death certificate stamped clean and a crypt intake logged the same day.* 'See the dates? Filed dead and logged into the Ice Crypts inside a day — nobody thaws a lower-city corpse to check, that's the whole trick. Cold defeats the read, the crypt-log squares the certificate, and a registry closes the file. But there's no body of hers down there — there's a stand-in, salted in, and the certificate swore it was her. I know a live mark from a dead file; that's my trade. But my word's a fixer's word, and Vante's paper is bonded. A desk takes the certificate every time.'"
+        - "'So carry it for me. Vante's crew is closing on the letting-rooms above the cantina where Oly's laid up — get up there and RUN her down before they do, off the floor and away from the doors, because a woman breathing is the one thing his death certificate can't survive. Then get to the Ice Crypts: his body-handler's logging the stand-in into a chamber right now — take him close, take him quiet with a blade, no blaster to bring the curators or the Guild down, and seize the stand-in and the crypt-log before it's sealed. Then mind the clinic — Vante keeps an enforcer, Tovek Grahl, to see a living body and a salted corpse never reach the one doctor down here who can disprove a death. Stand Oly and the stand-in side by side for the bond registry, and a paper death voids and pulls his licence the way my word never could. My fee's yours then — what a tracer keeps back between bonds. I'd sooner it kept the next debtor off a slab than kept me between jobs while Vante signs the lower city dead one book at a time.'"
+
+  # ── Questline antagonist: Tovek Grahl (combat step 4) ────────────────
+  # Single hostile instance at the lower-city clinic, the chokepoint between the crypt where the
+  # stand-in was logged and the one doctor who can disprove a forged death. Matches the
+  # coruscant_paper_death step-4 combat_won enemy_template. Carries the proven blaster_pistol of the
+  # ranged foils on the same in-band guarded stat line as The Salted Lane's, The Short Weight's, The
+  # Wreckers' Light's, The Bonded Crew's, The Kept Watch's, The Buried Block's, The Cut Coil's, The
+  # Fouled Sump's, The Fixed Bout's, The Empty Proof's, The Cut Lane's, and The Rolled Log's foils
+  # (squarely in the proven beatable band) so a fresh post-chargen character has a real, winnable
+  # fight — and pointedly NOT the melee line of The Condemned Hull's out-of-band Houk foil. The
+  # broker's enforcer is muscle: he settles things with a blaster in a clinic doorway, not a blade
+  # or a bench.
+
+  - name: Tovek Grahl
+    room: "Coruscant - Lower City Medical Post"
+    species: Klatooinian
+    description: >-
+      A heavy, houndish Klatooinian with the flat, unhurried patience of a being paid to see that
+      nothing reaches the lower-city clinic that the broker's book cannot afford to have read,
+      planted in the doorway of the underfunded medical post where a bought orderly signs the death
+      certificates and the one honest doctor down here still works her eighteen-hour shifts. A worn
+      blaster pistol rides loose at his hip and a lender's chit is clipped at his collar. He is Dral
+      Vante's enforcer — not the broker who signs the deaths and not the orderly who forges the
+      certificates, but the muscle the broker keeps for the filings that come back walking: the one
+      sent to talk a debtor's family out of a registry complaint, to buy a written-dead debtor's
+      silence quiet before anyone stands her against her own certificate, and to keep the clinic
+      doorway between a living body and the one doctor whose read could disprove a forged death. He
+      rarely has to draw, because a false-death fraud in the lower city runs on a clinic too
+      underfunded to check, crypts too cold to read, and a registry that takes a bonded certificate
+      at its word. The whole racket lives on filed deaths no one disputes and a body no one thaws;
+      it does not live on a neutral hand walking into the clinic with a living woman the certificate
+      swore was dead, the salted stand-in that stood in for her, and the crypt-log that filed it. He
+      has heard a stranger ran the Fenn woman off the letting-room floor before the crew reached her
+      and took the body-handler at the crypt, and the easy menace of a man who keeps a clinic doorway
+      goes hard the instant the one thing the book cannot survive — a breathing woman beside her own
+      corpse — starts moving toward the doctor who can read it. The death is filed and clean, as far
+      as anyone in the waiting room will hear him say it; and whoever is walking the living woman to
+      that doctor is turning her over or going down in the clinic doorway with her, where the
+      lower-city sick pay a brief, quiet thing at a side door no mind.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        brawling: 3D+1
+        intimidation: 3D+2
+        streetwise: 3D
+        search: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: paper_death_enforcer
+      personality: >-
+        A bond-broker's enforcer genuinely unused to being made to fight for a filing — bored and
+        contemptuous while an underfunded clinic, crypts too cold to read, and a registry that trusts
+        a bonded certificate do his work, and immediately, heavily violent the moment a neutral hand
+        walks into the clinic with a living woman the certificate swore was dead, the salted stand-in
+        that stood in for her, and the crypt-log that filed it, headed for the one doctor who can
+        disprove a death. He works a blaster and a flat threat and a chit, not his hands: dangerous
+        and direct, he plants himself in the clinic doorway between the living body and the doctor
+        and would rather break a hand on the waiting-room floor than let a breathing woman reach a
+        desk that can read her alive. His pay and his standing with Vante ride on filed deaths no one
+        disputes and a body no one thaws, so he'll draw on anyone walking in the living proof the
+        death was signed on a woman who never died. Combat foil for the questline's confrontation
+        beat — the broker's muscle, not a duelist or a medic; he settles it with a blaster, in the
+        clinic doorway.
+      knowledge:
+        - "He is Tovek Grahl, the Klatooinian enforcer Dral Vante keeps for the false-death filings that come back walking — talking debtors' families out of registry complaints, buying a written-dead debtor's silence quiet before anyone stands her against her certificate, and keeping the lower-city clinic doorway between a living body and the one doctor whose read could disprove a forged death, rarely having to draw because a false-death fraud runs on an underfunded clinic, crypts too cold to check, and a registry that takes a bonded certificate at its word. He is muscle, not a broker or a medic."
+        - "A neutral hand ran the Fenn woman off the letting-room floor before Vante's crew reached her, took the body-handler at the Ice Crypts, and seized the salted stand-in and the crypt-log that filed her dead — and is walking the living woman, the stand-in, and the log toward the lower-city clinic and the one doctor who can read a body alive; the racket lives on filed deaths no one disputes and a corpse no one thaws, so he'll draw on whoever carries the living proof the death was signed on a woman who never died rather than let the one thing the book cannot survive — a breathing debtor beside her own certificate — reach the desk that can void it and pull Vante's bond-licence."
+      faction: criminal
+      dialogue_style: >-
+        Flat, unhurried, contemptuous — names the death as filed clean and the woman as a mistaken
+        deadbeat before the threat. States once that the death is filed and the certificate holds,
+        and after that lets the blaster keep the clinic doorway the way a filed death keeps the book.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'That woman you're walking in is a closed file, friend — filed dead, certificate stamped clean, estate squared, the book's to keep. Whatever you think you've got standing next to her, it doesn't reach any doctor's desk. Turn her over and walk off the clinic floor.'"
+        - "*Tovek Grahl steps into the clinic doorway as you bring the living woman in, sets himself between you and the doctor's desk, and lets his hand fall loose to the worn blaster he would rather not have to draw, the lower-city sick at the far benches too far off to mark a brief, quiet thing at a side door.*"
+        - "'Every death on Vante's book is what the certificate says. So says the paper. So do I. And that one's filed and closed — bad luck for you somebody's got a body walking that's supposed to be cold. Bad day for you to walk it toward a doctor. Last time — turn the woman and the stand-in and the log over and walk off the clinic floor, or you don't walk that proof to any desk. The book files what it certifies. I'm the part of it that keeps the dead nobody thawed from getting up and saying otherwise.'"
