@@ -1930,16 +1930,7 @@
     }
   ],
   "design_calls_pending_brian": [
-            {
-      "id": "BAL.condemned_hull_melee_foil_band",
-      "status": "RESOLVED 2026-07-01 (drop fun14-vibroaxe-band): Brian chose fork (A) — broaden the guard. test_questline_foil_winnability_band now models MELEE foils properly: a melee foil is judged on its melee_combat to-hit (not its deliberately-low blaster) and its melee weapon is admitted via ALLOWED_MELEE (winnability = the character's ranged advantage — shoot/kite/dodge while the foil must close; the to-hit ceiling still guarantees dodge windows). Bohrus Kang (melee_combat 4D, STR 3D+1, brawling 4D+1) is squarely in-band on the melee model; no foil nerf needed. All 10 winnability tests green; main re-greened. The vibroaxe's heavier landed-hit damage is the accepted cost of the ranged advantage (per Brian: accept the vibroaxe), NOT gated by a no-one-shot bound.",
-      "title": "test_questline_foil_winnability_band fails on origin/main (3 cases) — The Condemned Hull's combat foil Bohrus Kang carries a vibroaxe with blaster 2D+2, which the band guard rejects (non-sidearm + below the to-hit floor + the 2D+2 low blows the to-hit cluster spread past 4 pips). Decision: accommodate the sanctioned melee foil in the guard, or revert the foil to a sidearm.",
-      "origin": "Surfaced while gating drop generalized-questline-wasting-ward (the 16th accessible questline). My drop's own foil (Greel Vodo, blaster 4D / blaster_pistol) is squarely in band; the failures are entirely The Condemned Hull's foil (shipped b9a1609).",
-      "premise_verified_at_head": "Verified by stashing ALL of this drop's changes (git stash -u) and re-running tests/test_questline_foil_winnability_band.py on clean origin/main: 3 failed, 7 passed, identical to the un-stashed run — the 3 reds (test_weapon_is_a_winnable_sidearm, test_to_hit_under_ceiling_and_non_vacuous, test_to_hit_cluster_is_tight) are 100% attributable to Bohrus Kang (vibroaxe, blaster 2D+2=8 pips < the 3D+1=10 floor and < the sidearm set {blaster_pistol, heavy_blaster_pistol}; the 2D+2..4D+1 spread = 5 pips > CLUSTER_SPREAD_MAX=4). The Condemned Hull drop intentionally introduced 'the first melee-armed foil, stat-offset to the proven beatable band' (its CHANGELOG carries an explicit balance flag), but the winnability-band test only models blaster sidearms and so rejects any melee foil outright.",
-      "fork": "Two valid resolutions, both Brian's call (combat balance + a balance-guard test): (A) BROADEN the guard to model a melee foil's winnability properly — e.g. evaluate melee_combat/the actual weapon damage against a melee ceiling and exempt a sanctioned melee weapon from the sidearm set (the 'best/most-complete' path — keeps the deliberate melee-foil variety). (B) REVERT Bohrus Kang to a sidearm (blaster_pistol/vibroblade per the drop's own balance-flag note) — the minimal path that re-greens the guard and keeps every foil ranged. Until decided, this is a known baseline red, independent of the questline drops.",
-      "lane_note": "Combat balance is an Opus-loop AVOID-LANE; I did not guess a fix. The wasting-ward drop is clean and in-band on its own foil.",
-      "decision_needed": "Pick (A) broaden the band guard to admit a balanced melee foil, or (B) revert the condemned_hull foil to a sidearm."
-    },
+
             {
       "id": "FUN2.feed_and_combat_render_INVESTIGATED",
       "status": "INFO (likely not a bug — verification notes for Brian)",
@@ -2051,6 +2042,13 @@
     }
   ],
   "design_calls_resolved_recent": [
+    {
+      "id": "BAL.condemned_hull_melee_foil_band",
+      "raised_date": "2026-06-30",
+      "raised_by": "Loop questline The Condemned Hull (b9a1609); surfaced as a hard gate-red by the loop-added test_questline_foil_winnability_band",
+      "severity": "gate-red (3 winnability-band cases) - combat balance",
+      "status": "RESOLVED 2026-07-01 (drop fun14-vibroaxe-band): Brian chose fork (A) broaden the guard. test_questline_foil_winnability_band now models MELEE foils (judged on melee_combat via _primary_to_hit; melee weapons admitted via ALLOWED_MELEE; cluster on the effective attack skill). Melee-foil winnability = the character's ranged advantage; the to-hit ceiling still guarantees dodge windows. Bohrus Kang in-band on melee stats, no nerf. All 10 winnability tests green; main re-greened."
+    },
     {
       "id": "FORCE.chargen_sensitivity_representation",
       "raised_date": "2026-06-22",
