@@ -11584,6 +11584,329 @@ chains:
           for — the docking pits carry a name now, out where a shop that actually fits what it takes
           is the difference between a freighter armed and a freighter opened on the first raider pass.
 
+  - chain_id: kuat_papered_refit
+    chain_name: "The Papered Refit"
+    description: >
+      On Kuat — the Spaceport Concourse Hotel above the civilian main port where an out-of-work
+      capital-ship refit inspector takes a room, the Main Spaceport Arrivals berth where a merchant
+      combine's bulk freighter sits "overhauled full" and structurally untouched, the corporate-ring
+      office annex where the crooked refit yard keeps its survey desk and a test cradle holding the
+      freighter's "bench-serviced" point-defense that was never touched, and the ring residential
+      block where the yard's enforcer corners the proof before it can reach the shippers' survey
+      board — a Mon Calamari master shipwright named Ormo Delth, who ran the survey bench for the
+      yard Trueline Refit & Survey, is trying to stop a racket that takes a shipper's credits to
+      overhaul its freighter and sends the unsound ship back to the deep lanes untouched. Trueline is
+      paid by the independent bulk-freight combines and the merchant shippers whose capital-class
+      freighters run the raider-worked deep lanes to perform the mandated periodic overhaul the
+      underwriters and the shippers' survey board require before a freighter may carry cargo —
+      hull-integrity rework and point-defense armament servicing — but the yard-master Palo Kessin
+      books the ship in, holds it the scheduled weeks doing nothing, forges the completed work-orders
+      and the survey certificate, bills the full overhaul fee, and returns the freighter in its
+      original worn, unsafe state. So a combine that paid to have its hauler renewed and gunned finds,
+      when the deep run comes, its hull carrying every fatigue-crack the overhaul was paid to cut out
+      and its point-defense sitting dead — sold out by the yard that surveyed it whole. Ormo surveyed
+      them honest until she caught the hulls logged renewed that had never been opened and the
+      point-defense logged serviced that had never been touched, and heard the freighters she passed
+      coming apart and being boarded on the deep runs; she walked off the bench, but a fired
+      inspector's word that a bonded survey is a lie is "sour grapes" to an underwriters' board that
+      takes a stamped certificate at its word. So Ormo needs a neutral hand who can work capital-ship
+      systems: get aboard the "overhauled" freighter on the arrivals berth and open its hull, because
+      a hull logged renewed that was never opened is an overhaul that was never done; cycle the
+      freighter's "bench-serviced" point-defense on the yard's test cradle and read it dead, because a
+      point-defense certified serviced that can't answer a pass is servicing that never happened; and
+      put the opened hull and the dead point-defense, beside the survey certificate that swears them
+      both done, on the shippers' survey board, where a phantom overhaul beside a bonded survey voids
+      a contract a fired hand's word never could. A freelance favor — open to anyone, no faction
+      required.
+    archetype_label: "Freelance Operator's Favor"
+    faction_alignment: independent
+    starting_zone: kuat_main_spaceport
+    starting_room: spaceport_concourse_hotel
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["papered_refit_cleared"]
+      drop_room: spaceport_concourse_hotel
+      follow_up_hint: >
+        The capital hull opened on the Main Spaceport Arrivals berth to the mandated rework it never
+        got, and the point-defense fire-control cycled dead on Trueline's own test cradle in the
+        survey office, reach the shippers' survey board beside the survey certificate that swears both
+        were overhauled full — and a phantom refit cannot hold: a hull that was never renewed and a
+        point-defense that was never serviced, beside a bonded survey that certifies them both done,
+        is a fraud no certificate papers over. The board voids Trueline Refit & Survey's survey
+        certification and pulls its yard bond before the next combine hauler sails; the independent
+        bulk-freight combines and merchant shippers stop taking its surveys on faith; a yard that
+        actually does the overhaul it certifies takes up the trade; and the freighters that would have
+        gone back to the deep lanes unsound and defenseless are overhauled for real before they run.
+        No Senate office and no Jedi looked twice at a civilian refit yard — the shippers' own survey
+        board did, the only authority a Kuat overhaul contract ever answers to, once an unopened hull
+        and a dead point-defense the survey called done sat on its desk. The enforcer who meant to
+        keep them off that board keeps nothing but a yard chit gone worthless. Word travels the
+        berths the way it never travels a stamped survey: there is a hand who will open a "renewed"
+        hull to show its overhaul was never done, cycle a "serviced" point-defense to show it's dead,
+        and stand a phantom refit against its own survey — and a shipping trade that had learned to be
+        grateful its freighters were passed stops taking a yard's word that they were overhauled, and
+        Ormo Delth's word stops being sour grapes and starts being the thing that voided a contract
+        and put unsound haulers back on a yard's bench to be made whole before they burned for it on
+        the deep lanes.
+
+    steps:
+      - step: 1
+        title: "The Hull That Was Never Opened"
+        location: spaceport_concourse_hotel
+        npc: "Ormo Delth"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Ormo Delth at the Spaceport Concourse Hotel, where the out-of-work capital-ship refit inspector who ran the survey bench has found the freighters she passed coming apart on the deep lanes."
+        npc_intro: >
+          [A high-domed, salmon-skinned Mon Calamari woman has a modular room in the Spaceport
+          Concourse Hotel above the main port, where an out-of-work hand can watch the berths and be
+          found, a cold cup of kelp tea forgotten at her elbow and a capital-ship survey slate
+          turning over in her wide, independently-swivelling eyes and webbed hands.] "You work
+          capital hulls? Open a frame and read whether its overhaul was ever done, and cycle a
+          point-defense unit and read whether its servicing was ever done? Then you can do what I
+          can't carry alone, and a survey board won't wave you off the way it waves a quit inspector
+          crying sour grapes. `talk` to me. I'm Ormo Delth — I ran the survey bench for Trueline
+          Refit & Survey, the yard this port's shippers pay to overhaul their freighters before the
+          deep lanes. I surveyed them honest for three years, until I started catching hulls logged
+          renewed that had never been opened and point-defense logged serviced that had never been
+          touched, all billed at the full fee on Palo Kessin's forged surveys. The combines'
+          freighters are coming apart and being boarded on the deep runs, overhauled full on paper
+          and untouched in the frame. Kessin collects the overhaul fee and never spends a bench-hour
+          earning it."
+        completion:
+          type: talk_to_npc
+          npc: "Ormo Delth"
+        npc_complete: >
+          [She sets the survey slate face-up and taps a certificate logging a hull renewed and a
+          point-defense serviced beside a yard-log showing the same freighter booked in and shipped
+          out three weeks later with no work-order hours drawn against it, then puts a slim hull-panel
+          tool in your hand.] "See it? Certified overhauled full, and not a bench-hour spent on it —
+          nobody on an underwriters' board cracks a hull to check what was actually done, that's the
+          whole trick. There's a combine's bulk freighter down on the civilian Main Spaceport
+          Arrivals berth right now, logged overhauled full and structurally untouched. Get aboard and
+          open its hull, and read the fatigue-cracked frames the survey swears renewed and the
+          corrosion it swears cut out — because a hull logged renewed that was never opened is an
+          overhaul that was never done. Do that and you've got the first half of a lie in your hand."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Get down to the civilian Main Spaceport Arrivals berth, get aboard the 'overhauled' combine freighter, open its hull, and read the mandated structural rework undone. Use your `capital ship repair` skill, then `chain attempt`."
+
+      - step: 2
+        title: "A Refit That Wasn't Done"
+        location: kuat_arrivals
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["capital ship repair"]
+        objective: "On the Main Spaceport Arrivals berth, open the 'overhauled' combine freighter's hull and read the mandated structural rework undone — a capital ship repair check."
+        npc_intro: >
+          [The Kuat Main Spaceport handles the system's civilian and commercial traffic — everything
+          that isn't a warship — and past the KSF port officers processing arrivals with theatrical
+          thoroughness, a merchant combine's capital-class bulk freighter sits on a civilian berth
+          with a Trueline survey certificate lodged against its docking papers swearing its hull
+          renewed and its structure sound after a full mandated overhaul — the same hauler due out on
+          a raider-worked deep run the overhaul was meant to let it survive. A capital hull is an
+          honest thing to read: a renewed frame shows fresh members, cut-out corrosion, and re-shimmed
+          drive mounts, and a phantom-overhauled one shows the original fatigue-cracked frames, the
+          corrosion still eating the mounts, and the worn shims still seated — and the only way to
+          tell an "overhauled" hull from an untouched one is to open it on the berth and read the
+          frame.] Open the freighter's hull with the panel tool and read it: pull the inspection
+          plating, trace the fatigue-cracking the survey swears was cut out still running the members,
+          and find the drive mounts the work-order swears re-shimmed still on the worn shims — a hull
+          logged renewed that was never opened is an overhaul that was never done, and that is the
+          survey's first lie in your hand. `capital ship repair`, the shipwright's touch to open a
+          capital hull and read a done overhaul from a phantom one — `chain attempt` when you have an
+          "overhauled" hull opened and proved untouched.
+        completion:
+          type: skill_check_passed
+          skill: "capital ship repair"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You open the freighter's hull the way an overhauled ship's is never opened by the board
+          that bonds it — unhurried, no give for the yard's watchers — and the truth is under the
+          plating: the frames the survey swears renewed are the original members, fatigue-cracked
+          along the same lines a shipwright would have cut out and replaced; the corrosion the
+          certificate swears scoured is still eating the drive mounts; the mounts logged re-shimmed sit
+          on the same worn shims, gapped and working loose. A capital-class hull in bonded good order
+          that a survey up in the yard office swears was overhauled full — and it carries every fault
+          the overhaul was paid to cut out, faults that open on the deep run into a broken back or a
+          hull a raider skiff can crack. You have the first half of the lie: a freighter certified
+          overhauled that was never opened, the fee billed and no bench-hour spent. Now the survey's
+          other swear — that the point-defense went out serviced and live — wants a powered unit and a
+          run of the fire-control to disprove, and Trueline keeps the freighter's pulled point-defense
+          on its test cradle up in the survey office on the corporate ring.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "You've got an 'overhauled' hull proved untouched — now the guns. Get up to Trueline's survey office on the corporate ring and cycle the freighter's 'bench-serviced' point-defense on the yard's test cradle. Use your `capital ship weapon repair` skill, then `chain attempt`."
+
+      - step: 3
+        title: "The Guns That Never Woke"
+        location: kdy_main_offices
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["capital ship weapon repair"]
+        objective: "In Trueline's survey office on the corporate ring, cycle the freighter's 'bench-serviced' point-defense fire-control on the yard's test cradle and read it dead — a capital ship weapon repair check."
+        npc_intro: >
+          [Up on the corporate ring, in a leased office segment among the suites where the Ten Kuati
+          merchant families conduct their business, Trueline Refit & Survey keeps its survey desk and
+          a test cradle off the traffic of the yards — where the work-orders are cut and the surveys
+          stamped, and where a freighter's pulled point-defense fire-control sits certified
+          "bench-serviced and live" on paper it never earned. One capital-ship point-defense unit is
+          racked on the cradle now, pulled off the combine hauler three berths down and logged
+          serviced full, its survey up on the desk swearing its tracking rebuilt and its charge banks
+          renewed. A ship's point-defense is an honest thing to run: a serviced array powers up with
+          its tracking servos free and true and its charge banks holding, and a phantom-serviced one —
+          a unit never opened — comes up with the servos binding on the old wear and the banks sitting
+          flat, dead where it should track and charge, and the only way to tell a "serviced" unit from
+          an untouched one is to power it on the cradle and cycle it.] Power the point-defense unit on
+          Trueline's cradle and cycle it: run the tracking through its arc where the servos the
+          work-order swears rebuilt still bind on the old wear, and read the charge banks the survey
+          swears renewed sitting flat — a point-defense certified serviced that can't answer a pass is
+          servicing that never happened, and that is the whole second half of the lie in one dead
+          cycle. `capital ship weapon repair`, the yard-tech's skill to run a capital-ship weapon unit
+          up and read serviced from dead — `chain attempt` when a "serviced" point-defense has cycled
+          dead on the cradle.
+        completion:
+          type: skill_check_passed
+          skill: "capital ship weapon repair"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You bring the point-defense unit up on Trueline's cradle and cycle it — where a serviced
+          array would track free and hold hard — and it comes up the way no serviced unit does: the
+          tracking servos binding and juddering on wear the work-order swears was stripped and rebuilt,
+          the charge banks the survey swears renewed climbing a breath and sitting flat, the whole
+          array dead where it should track and charge, exactly as it would sit dead on the first
+          raider pass. A capital-ship point-defense certified serviced and live that a combine paid for
+          and staked a deep run on, never opened and never touched. You have both halves of the lie now
+          — a hull certified renewed that was never opened and a point-defense certified serviced that
+          was never woken — and an overhaul that leaves the hull cracked and the guns dead is an
+          overhaul that never happened. All that stands between the proof and the shippers' survey
+          board is Trueline's enforcer, and Kessin keeps him down in the ring residential block where
+          the yard lodges the hands who keep its quiet.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "You've got the untouched hull and the dead point-defense — now get the proof to the shippers' survey board. Carry it down to the ring residential block, and stand off Trueline's enforcer when he comes for it — `attack`, `dodge`."
+
+      - step: 4
+        title: "The Corridor Off the Berths"
+        location: kuat_ring_apartments
+        npc: "Vodran Sekk"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "In the ring residential block, stop Vodran Sekk when Trueline's enforcer comes to keep the opened hull and the dead point-defense from reaching the shippers' survey board — `attack`, `dodge`."
+        npc_intro: >
+          [The ring residential block is twelve stories of tight KDY worker housing stacked into the
+          orbital ring's superstructure, and Trueline lodges the hands it keeps for its quiet in a
+          corridor at the end where the workers coming off shift learn not to look twice — the last
+          stop between a phantom overhaul carried up off the berths and the shippers' survey board that
+          bonds the freighters. A heavy, tentacle-faced Quarren comes off the corridor wall as you come
+          up from the berths with the survey slate and the hull-tool, a worn blaster loose at his hip
+          and a yard chit clipped at his collar, with the flat patience of a being paid to see that
+          nothing leaves these berths the yard cannot afford to have read.] Vodran Sekk — Palo Kessin's
+          enforcer, not the yard-master who forges the surveys and pockets the fees and not the clerk
+          who cuts the work-orders, but the muscle the yard keeps for the overhauls that come back
+          questioned, the one sent to talk a shipper out of pulling a hull and to run a nosy inspector
+          off. He has heard a stranger was down on the arrivals berth with a hull-tool and up in the
+          survey office running a fire-control unit, and the easy menace of a man who keeps a ring
+          corridor goes hard. "That overhaul's certified, friend — survey stamped done, fee squared,
+          the yard's to keep. Whatever you think you're carrying up off that berth, it doesn't reach
+          any board." [He sets himself between you and the lift, the KDY workers filing past their
+          doors gone conveniently blind.] "Set the slate down and walk off, or you don't walk that
+          proof to anyone. The yard certifies what it overhauls. I'm the part of it that keeps the
+          refits nobody cracked from getting up and going to a survey desk."
+        completion:
+          type: combat_won
+          enemy_template: "papered_refit_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [Vodran Sekk goes down on the ring corridor plating, the blaster knocked loose across the
+          decking, and the survey slate and the hull-tool stay in your hands. The way to the lift
+          stands clear, and the KDY workers filing past their doors never look up from a thing too
+          brief and too quiet to mark. Carry it on out — a capital hull certified renewed that was
+          never opened, a point-defense certified serviced that cycles dead, and the survey that swears
+          both overhauled full — and there is nothing between the ring corridor and the shippers'
+          survey board now but an open lift, Trueline's phantom refit coming apart in your hands.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The enforcer is down and the way's clear — get the opened hull, the dead point-defense, and the survey certificate to the shippers' survey board, then go back to Ormo Delth at the Spaceport Concourse Hotel."
+
+      - step: 5
+        title: "An Overhaul That Wasn't Made"
+        location: spaceport_concourse_hotel
+        npc: "Ormo Delth"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Ormo Delth at the Spaceport Concourse Hotel with the overhaul contract voided and Trueline's book coming apart."
+        npc_intro: >
+          [Ormo is back at the hotel table when you return, a comm-slate of survey-board notices
+          scrolling in her webbed hand and Trueline's survey certification marked VOID under the
+          board's seal now, watching the combines reckon which yards they dare hand their freighters to
+          after this.] "Done — and the board read it the way no word of mine ever could. A hull that
+          was never opened and a point-defense that never woke, beside the survey that swore both
+          overhauled full — there's no bonded certificate papers over that. Their desk voided
+          Trueline's survey-cert and pulled its yard bond before the next combine hauler sails. The
+          shippers stopped taking Kessin's surveys on faith, a yard that actually does the overhaul it
+          certifies is taking up the trade, and the freighters he'd have sent back to the deep lanes
+          unsound are on a bench being made whole for real. No Senate office and no Jedi looked twice
+          at a civilian refit yard — the shippers' own survey board did, the only authority a Kuat
+          overhaul contract ever answers to, once a phantom overhaul the survey called done sat on its
+          desk." [She sets the hull-tool down beside the slate.] "`talk` to me and let me say it plain,
+          now there's a board's VOID where a clean survey used to be."
+        completion:
+          type: talk_to_npc
+          npc: "Ormo Delth"
+        npc_complete: >
+          "Here's your fee — what an out-of-work inspector keeps back between contracts, and worth
+          twice the credits to hand it to the hand that opened a 'renewed' hull to show it was never
+          touched and cycled a 'serviced' point-defense to show it's dead. A yard's only as honest as
+          the hull it never lets a shipper crack; you opened the frame and ran the guns and read the
+          lie the survey hid, and a yard that collects a shipper's fee to overhaul the freighter it
+          means to send back untouched is finished the moment a board stands one phantom refit against
+          one stamped survey. That combine hauler was a deep run from breaking its back or being opened
+          with a hull that was never renewed, and the next shipper Kessin meant to bill for an overhaul
+          he never made was going the same way — they'll not, now, and the freighters they wanted
+          overhauled are overhauled for real, or they'll know before they burn for it. Word goes slow
+          up a survey desk and fast across the berths — a berth, a combine, a shipping trade learns
+          quick who'll open a phantom hull and cycle a dead point-defense and stand an unbuilt overhaul
+          against its own survey. When a yard up here starts certifying overhauls it never does again,
+          there's a name they'll send for now. Carry mine with it — and trust an opened hull over any
+          survey a yard stamps; I'll not have the hand that cracked Trueline's phantom refit take a
+          stamped certificate on faith."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The book is finished and the racket is coming apart: the capital hull opened to its undone
+          rework, the point-defense cycled dead on the yard's own cradle, and the survey that swore
+          both overhauled full reach the shippers' survey board, and a phantom refit cannot hold — a
+          hull that was never renewed and a point-defense that was never serviced, beside a survey that
+          certifies them done, is a fraud no certificate papers over. The board voids Trueline Refit &
+          Survey's survey certification and pulls its yard bond, the independent combines and merchant
+          shippers stop taking its surveys on faith, a yard that actually does what it is paid to
+          overhaul takes up the trade, and the freighters that would have run the deep lanes unsound
+          are made whole before they sail — no court tried the fraud, the shippers' survey board did,
+          the only authority a Kuat overhaul contract answers to. A hand who will open a "renewed"
+          hull to show its overhaul was never done, cycle a "serviced" point-defense to show it's
+          dead, and stand a phantom refit against its own survey has a way of being sent for — the
+          berths carry a name now, out where a yard that actually does what it takes is the difference
+          between a freighter home off the deep lanes and a freighter broken or boarded on the run its
+          overhaul was paid to let it survive.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════
