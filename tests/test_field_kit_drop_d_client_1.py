@@ -129,11 +129,15 @@ class TestF1CanonicalWoundLadder:
         modifier classes any more. The old conditional
         'c.wound_level === 0 ? healthy : c.wound_level <= 2 ? hurt : bad'
         is the canary; if it returns, the canonical ladder is masked."""
-        # The legacy ternary used three exact tokens together.
+        # The legacy ternary put the three tokens TOGETHER in one expression.
+        # The old unbounded `.*?` + DOTALL matched them scattered thousands of
+        # lines apart (e.g. 'healthy' in the canonical 7-level w-status array,
+        # 'hurt' in the g5 here-wound badge, 'bad' in the grace-period flag) —
+        # a false positive that has nothing to do with the legacy 3-bucket
+        # ternary. Bound the gap so only a real adjacent ternary trips it.
         legacy = re.search(
-            r"'healthy'.*?'hurt'.*?'bad'",
+            r"'healthy'[\s\S]{0,120}'hurt'[\s\S]{0,120}'bad'",
             client_html_text,
-            re.DOTALL,
         )
         assert legacy is None, (
             "legacy three-bucket healthy/hurt/bad ternary is back — "
