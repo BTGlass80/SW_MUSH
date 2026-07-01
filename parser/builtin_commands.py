@@ -2102,7 +2102,9 @@ class WhoCommand(BaseCommand):
     # nothing player-facing. (The old builtin's `[PROTOCOL]` column was
     # dropped \u2014 low value vs. location/status.)
     key = "+who"
-    aliases = []
+    # fun15: `presence` is a reflexive newcomer alias — new players type it
+    # looking for the web WHO/PRESENCE panel; route them to the real command.
+    aliases = ["presence"]
     help_text = "See who is online, with their location and status."
     usage = "+who"
 
@@ -5106,6 +5108,224 @@ class DrinkCommand(BaseCommand):
             log.debug("[drink] HUD push failed", exc_info=True)
 
 
+# ── fun15: text-status commands ───────────────────────────────────────────────
+# New players reflexively type web panel names (`goals`, `situation`) or panel-
+# adjacent words (`list`) and hit the generic recovery.  These commands render
+# the SAME data the web sidebars use, as plain text, so telnet AND web players
+# can type them and get a real answer.  No new producers — each reuses an
+# existing engine singleton (missions board, bounty board, chain_events, world
+# events).  No faucet/sink/schema changes.
+
+class GoalsCommand(BaseCommand):
+    """`goals` — print the player's active goals as text (fun15).
+
+    Mirrors _hud_sidebar_goals: the active questline step (engine.chain_events),
+    the one accepted mission (engine.missions board), and the claimed bounty
+    (engine.bounty_board).  All three reads are individually try/except guarded
+    so a lookup error degrades that slot to empty rather than crashing.
+    Suppresses the questline slot while the NPE chain is active (same gate as
+    the sidebar).  Prints a friendly empty line when nothing is active.
+    """
+    key = "goals"
+    aliases = []
+    help_text = "List your active goals: questline step, mission, and bounty."
+    usage = "goals"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        if not char:
+            await ctx.session.send_line("  No character loaded.")
+            return
+        char_id_str = str(char.get("id", ""))
+        lines = []
+
+        # ── Questline slice (suppressed during active NPE chain) ──────────────
+        try:
+            from engine.chain_events import (
+                get_questline_status, build_onboarding_state,
+            )
+            onboarding = build_onboarding_state(char)
+            npe_active = bool(onboarding and onboarding.get("active"))
+            if not npe_active:
+                q = get_questline_status(char)
+                if q is not None:
+                    title = q.get("title") or ""
+                    objective = q.get("objective") or ""
+                    step = q.get("step")
+                    total = q.get("chain_total_steps")
+                    cmd_hint = q.get("command_to_type") or ""
+                    step_str = (f" [{step}/{total}]"
+                                if step is not None and total else "")
+                    hint_str = f"  Type: {ansi.yellow(cmd_hint)}" if cmd_hint else ""
+                    lines.append(
+                        f"  \033[1mQuestline{step_str}:\033[0m {title}")
+                    if objective:
+                        lines.append(f"    {objective}")
+                    if hint_str:
+                        lines.append(hint_str)
+        except Exception:
+            log.debug("[goals cmd] questline lookup failed", exc_info=True)
+
+        # ── Mission slice (one accepted mission, no visibility filter) ─────────
+        try:
+            from engine.missions import get_mission_board, MissionStatus
+            board = get_mission_board()
+            for m in board._missions.values():
+                if (m.accepted_by == char_id_str
+                        and m.status == MissionStatus.ACCEPTED):
+                    reward = int(getattr(m, "reward", 0) or 0)
+                    lines.append(
+                        f"  \033[1mMission:\033[0m {m.title or '(untitled)'}")
+                    if getattr(m, "objective", ""):
+                        lines.append(f"    {m.objective}")
+                    lines.append(
+                        f"    Reward: {reward:,} cr  — "
+                        f"type {ansi.yellow('+missions')} to manage")
+                    break
+        except Exception:
+            log.debug("[goals cmd] mission lookup failed", exc_info=True)
+
+        # ── Bounty slice (claimed contract) ───────────────────────────────────
+        try:
+            from engine.bounty_board import get_bounty_board, BountyStatus
+            bboard = get_bounty_board()
+            for c in bboard._contracts.values():
+                if (getattr(c, "claimed_by", None) == char_id_str
+                        and getattr(c, "status", "") == BountyStatus.CLAIMED):
+                    reward = int(getattr(c, "reward", 0) or 0)
+                    target = getattr(c, "target_name", "Unknown")
+                    lines.append(
+                        f"  \033[1mBounty:\033[0m {target}")
+                    lines.append(
+                        f"    Reward: {reward:,} cr  — "
+                        f"type {ansi.yellow('bounties')} to manage")
+                    break
+        except Exception:
+            log.debug("[goals cmd] bounty lookup failed", exc_info=True)
+
+        if not lines:
+            await ctx.session.send_line(
+                "  No active goals — pull a job with "
+                f"{ansi.yellow('+missions')} or {ansi.yellow('bounties')}.")
+            return
+
+        await ctx.session.send_line(ansi.header("=== Active Goals ==="))
+        for line in lines:
+            await ctx.session.send_line(line)
+        await ctx.session.send_line("")
+
+
+class SituationCommand(BaseCommand):
+    """`situation` — print the active world-events situation as text (fun15).
+
+    Reuses engine.world_events.get_world_event_manager().get_status() — the
+    same data the web SITUATION panel consumes via compile_situation_digest.
+    No DB call needed for the events themselves.  Prints a quiet-sector line
+    when there are no active events.
+    """
+    key = "situation"
+    aliases = ["sit"]
+    help_text = "Show the current galactic situation: active events and threats."
+    usage = "situation"
+
+    async def execute(self, ctx: CommandContext):
+        events = []
+        try:
+            from engine.world_events import get_world_event_manager
+            events = get_world_event_manager().get_status()
+        except Exception:
+            log.debug("[situation cmd] world event lookup failed", exc_info=True)
+
+        if not events:
+            await ctx.session.send_line(
+                "  The sector is quiet right now. No active events.")
+            return
+
+        await ctx.session.send_line(ansi.header("=== Situation ==="))
+        for ev in events:
+            name = ev.get("name") or ev.get("type") or "Unknown event"
+            headline = ev.get("headline") or ""
+            remaining = ev.get("remaining_minutes")
+            zones = ev.get("zones") or []
+            zone_str = (f" [{', '.join(str(z) for z in zones)}]"
+                        if zones else " [sector-wide]")
+            time_str = (f" (~{remaining}m remaining)"
+                        if remaining is not None else "")
+            await ctx.session.send_line(f"  \033[1m{name}\033[0m{zone_str}{time_str}")
+            if headline:
+                await ctx.session.send_line(f"    {headline}")
+        await ctx.session.send_line(
+            f"  Use {ansi.yellow('+holonet')} or {ansi.yellow('+news')} for full coverage.")
+        await ctx.session.send_line("")
+
+
+class ListCommand(BaseCommand):
+    """`list` — show the in-room vendor's buyable stock as text (fun15).
+
+    New players reflexively type `list` at a shop looking for inventory.  This
+    command scans for an NPC with ai_config.vendor == true in the current room
+    (the same gate BuyCommand uses) then prints all vendor_stocked weapons from
+    the registry (the exact catalog `buy <item>` sells, so list and buy agree).
+    No vendor in the room → helpful pointer to `browse` for player shops.
+    No faucet/sink — pure read-only.
+    """
+    key = "list"
+    aliases = []
+    help_text = "List the in-room vendor's stock. (Player shops: use `browse`.)"
+    usage = "list"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        if not char:
+            await ctx.session.send_line("  No character loaded.")
+            return
+
+        # ── Vendor-presence gate (mirrors BuyCommand's scan) ─────────────────
+        vendor_npc = None
+        try:
+            import json as _json
+            npcs = await ctx.db.get_npcs_in_room(char["room_id"])
+            for npc in npcs:
+                ai_cfg = npc.get("ai_config_json", "{}")
+                if isinstance(ai_cfg, str):
+                    ai_cfg = _json.loads(ai_cfg) if ai_cfg else {}
+                if ai_cfg.get("vendor"):
+                    vendor_npc = npc
+                    break
+        except Exception:
+            log.debug("[list cmd] vendor scan failed", exc_info=True)
+
+        if vendor_npc is None:
+            await ctx.session.send_line(
+                "  No vendor here. "
+                f"(Use {ansi.yellow('browse')} for player-run shops.)")
+            return
+
+        # ── Print vendor_stocked catalog (identical filter to buy) ────────────
+        from engine.weapons import get_weapon_registry
+        wr = get_weapon_registry()
+        stocked = [w for w in wr.all_weapons()
+                   if getattr(w, "vendor_stocked", False)]
+
+        vendor_name = vendor_npc.get("name", "Merchant")
+        await ctx.session.send_line(
+            ansi.header(f"=== {vendor_name}'s Stock ==="))
+        if not stocked:
+            await ctx.session.send_line("  No items currently in stock.")
+        else:
+            await ctx.session.send_line(
+                f"  {'Item':<24s} {'Damage':>8s}  {'Cost':>8s}")
+            await ctx.session.send_line(
+                f"  {'-'*24} {'-'*8}  {'-'*8}")
+            for w in stocked:
+                cost_str = f"{w.cost:,} cr" if w.cost else "—"
+                await ctx.session.send_line(
+                    f"  {w.name:<24s} {w.damage:>8s}  {cost_str:>8s}")
+        await ctx.session.send_line(
+            f"  Type {ansi.yellow('buy <item name>')} to purchase.")
+        await ctx.session.send_line("")
+
+
 def register_all(registry):
     """Register all built-in commands with the registry."""
     commands = [
@@ -5157,6 +5377,12 @@ def register_all(registry):
         DropStubCommand(),
         # drop 34 (2026-06-23): redirect `who`/`online` to canonical `+who`.
         WhoStubCommand(),
+        # fun15 (2026-07-01): text-status commands for newcomers who type web
+        # panel names at the prompt.  Reuse existing engine singletons; no new
+        # producers, no schema changes.
+        GoalsCommand(),
+        SituationCommand(),
+        ListCommand(),
     ]
     for cmd in commands:
         registry.register(cmd)
