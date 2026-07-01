@@ -4682,6 +4682,7 @@ a { color: inherit; text-decoration: none; }
     </div>
     <div class="top-strip-center" id="top-context">—</div>
     <div class="top-strip-right">
+      <button class="top-strip-btn" id="ambient-audio-btn" title="Toggle ambient audio (zone music — off by default; requires audio files)">SOUND</button>
       <button class="top-strip-btn" id="clean-mode-btn" title="Toggle clean mode (disables scanlines/glow for accessibility)">CLEAN</button>
       <a href="/" class="top-strip-btn" target="_blank" title="Open the web portal">PORTAL</a>
       <button class="top-strip-btn danger" id="conn-btn" title="Disconnect from server">DISC</button>
@@ -7269,6 +7270,12 @@ function handleHudUpdate(data) {
     $('g-map-region').textContent = data.zone_name || '—';
   }
 
+  // Ambient audio: react to zone_type on every hud_update so a zone change
+  // crossfades the loop (fun16; no-op when audio is off or files absent).
+  if (data.zone_type !== undefined) {
+    ambientAudioReact(data.zone_type);
+  }
+
   // Exits — emit exits row and update direction buttons
   if (data.exits && data.exits.length > 0) {
     lastExits = data.exits;
@@ -8439,6 +8446,11 @@ function handleSpaceState(data) {
   // Top context strip
   var topCtx = (data.zone_name || 'SPACE') + (data.zone_type ? ' · ' + data.zone_type.toUpperCase() : '');
   $('top-context').textContent = topCtx;
+
+  // Ambient audio: react to space zone_type (fun16).
+  if (data.zone_type !== undefined) {
+    ambientAudioReact(data.zone_type);
+  }
 
   // Update top mode label with ship name
   $('top-mode-label').textContent = ((data.ship_class || '').toUpperCase() + ' · ' + (data.ship_name || '').toUpperCase() + ' · FLIGHT MODE').trim();
@@ -14713,6 +14725,130 @@ function setConnStatus(state) {
 }
 
 /* ════════════════════════════════════════════════════════════════════
+   AMBIENT AUDIO MANAGER (fun16)
+   Zone-keyed looping audio — OFF by default, SILENT until CC0 loop
+   files are dropped into static/audio/ (Brian sources the audio).
+
+   localStorage keys:
+     sw_ambient_enabled  — '1' = on, default absent/falsy = OFF
+     sw_ambient_volume   — '0'..'1', default '0.5'
+
+   Audio plays only after the user enables the toggle (satisfies
+   browser autoplay policy — a button click is a user gesture).
+   Every load/play path is wrapped in try/catch + Promise .catch so a
+   missing file (404) or a blocked autoplay produces silence, never a
+   console error or an uncaught rejection.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* zone_type → track basename (maps to static/audio/<basename>.ogg).
+   Null means "silence" for that zone type.                           */
+var ZONE_AUDIO = {
+  'cantina':      'cantina',
+  'spaceport':    'spaceport',
+  'landing':      'spaceport',
+  'market':       'market',
+  'space':        'deep-space',
+  'deep_space':   'deep-space',
+  'urban':        'city',
+  'city':         'city',
+};
+
+var _ambientEnabled = false;        // tracks live toggle state
+var _ambientCurrentTrack = null;    // basename of the playing loop
+var _ambientCurrentAudio = null;    // the HTMLAudioElement, or null
+var _ambientFadeTimer = null;       // setTimeout handle for fade-out
+
+function _ambientGetVolume() {
+  try {
+    var v = parseFloat(localStorage.getItem('sw_ambient_volume'));
+    if (!isNaN(v) && v >= 0 && v <= 1) return v;
+  } catch (_) {}
+  return 0.5;
+}
+
+/* Fade-out a given Audio element over ~800ms, then stop it. */
+function _ambientFadeOut(audio) {
+  if (!audio) return;
+  var step = audio.volume / 16;
+  var t = setInterval(function() {
+    try {
+      if (audio.volume > step) {
+        audio.volume = Math.max(0, audio.volume - step);
+      } else {
+        audio.volume = 0;
+        audio.pause();
+        clearInterval(t);
+      }
+    } catch (_) { clearInterval(t); }
+  }, 50);
+}
+
+/* Crossfade to a new track basename (or null = silence). */
+function _ambientCrossfadeTo(basename) {
+  if (!_ambientEnabled) return;
+  if (basename === _ambientCurrentTrack) return;
+
+  // Fade out the current loop (if any)
+  _ambientFadeOut(_ambientCurrentAudio);
+  _ambientCurrentAudio = null;
+  _ambientCurrentTrack = null;
+
+  if (!basename) return;           // silence requested
+
+  var targetVol = _ambientGetVolume() * 0.35;  // ambient = 35% of user volume
+  var audio;
+  try {
+    audio = new Audio('static/audio/' + basename + '.ogg');
+    audio.loop = true;
+    audio.volume = 0;
+    _ambientCurrentAudio = audio;
+    _ambientCurrentTrack = basename;
+    var promise = audio.play();
+    if (promise && typeof promise.then === 'function') {
+      promise.then(function() {
+        // Fade in over ~800ms
+        var step = targetVol / 16;
+        var t = setInterval(function() {
+          try {
+            if (audio.volume < targetVol - step) {
+              audio.volume = Math.min(targetVol, audio.volume + step);
+            } else {
+              audio.volume = targetVol;
+              clearInterval(t);
+            }
+          } catch (_) { clearInterval(t); }
+        }, 50);
+      }).catch(function() {
+        // Autoplay blocked or file missing — stay silent
+        _ambientCurrentAudio = null;
+        _ambientCurrentTrack = null;
+      });
+    }
+  } catch (_) {
+    // Audio API unavailable or constructor threw
+    _ambientCurrentAudio = null;
+    _ambientCurrentTrack = null;
+  }
+}
+
+/* Stop all audio immediately (called when toggle goes off). */
+function _ambientStop() {
+  _ambientFadeOut(_ambientCurrentAudio);
+  _ambientCurrentAudio = null;
+  _ambientCurrentTrack = null;
+}
+
+/* Called from handleHudUpdate (ground) and handleSpaceState (space)
+   whenever zone_type arrives on the wire.                            */
+function ambientAudioReact(zoneType) {
+  if (!_ambientEnabled) return;
+  var basename = (zoneType && ZONE_AUDIO.hasOwnProperty(zoneType))
+    ? ZONE_AUDIO[zoneType]
+    : null;
+  _ambientCrossfadeTo(basename);
+}
+
+/* ════════════════════════════════════════════════════════════════════
    INITIALIZATION
    ════════════════════════════════════════════════════════════════════ */
 function init() {
@@ -14764,6 +14900,40 @@ function init() {
       $('clean-mode-btn').textContent = 'EFFECTS';
     }
   } catch (_) {}
+
+  // Ambient audio toggle (fun16) — default OFF; audio starts only on user
+  // gesture (button click) to satisfy browser autoplay policy.
+  var audioBtn = $('ambient-audio-btn');
+  if (audioBtn) {
+    // Restore persisted state (never auto-play — only update button label)
+    try {
+      if (localStorage.getItem('sw_ambient_enabled') === '1') {
+        // User previously enabled — label reflects ON but audio will NOT
+        // auto-play until the next zone transition (next hud_update).
+        _ambientEnabled = true;
+        audioBtn.textContent = 'SND ON';
+        audioBtn.title = 'Ambient audio ON — click to disable';
+      }
+    } catch (_) {}
+    audioBtn.addEventListener('click', function() {
+      _ambientEnabled = !_ambientEnabled;
+      try { localStorage.setItem('sw_ambient_enabled', _ambientEnabled ? '1' : '0'); } catch (_) {}
+      if (_ambientEnabled) {
+        audioBtn.textContent = 'SND ON';
+        audioBtn.title = 'Ambient audio ON — click to disable';
+        // Trigger audio for current zone if the HUD has been received
+        if (lastHud && lastHud.zone_type !== undefined) {
+          ambientAudioReact(lastHud.zone_type);
+        } else if (lastSpace && lastSpace.zone_type !== undefined) {
+          ambientAudioReact(lastSpace.zone_type);
+        }
+      } else {
+        audioBtn.textContent = 'SOUND';
+        audioBtn.title = 'Toggle ambient audio (zone music — off by default; requires audio files)';
+        _ambientStop();
+      }
+    });
+  }
 
   // Auto-focus the active input on click anywhere not on a button/link/input
   document.addEventListener('click', function(e) {
