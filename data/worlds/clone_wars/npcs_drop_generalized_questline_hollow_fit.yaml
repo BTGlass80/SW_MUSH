@@ -1,0 +1,350 @@
+# Generalized Questline Drop — "The Hollow Fit" (T3.24 thirty-second slice, 2026-07-01)
+#
+# The THIRTY-SECOND accessible (non-t5, non-tutorial) `kind: questline` chain, set on
+# TATOOINE — spanning the tatooine_cantina and tatooine_spaceport zones, on a FRESH FOUR-ROOM
+# CLUSTER no chain has touched: the elevated entrance of Chalmun's Cantina where an out-of-work
+# ship defensive-systems tech who walked off the fit-bench takes her drink and names the racket
+# (Chalmun's Cantina - Entrance), the curtained back cellar off the cantina's rear hallway where
+# a crooked outfitter keeps the re-fit bench on which it guts the ship weapons it is paid to fit
+# (Chalmun's Cantina - Back Hallway), the pit of Docking Bay 94 where a "full-rated" trader's
+# freighter sits with a deflector fit that folds far below its certified rating (Docking Bay 94 -
+# Entrance), and the cheap Spaceport Hotel over the docking pits where the outfitter's enforcer
+# corners the hollow-fit proof before it can reach the traders' berth registry that bonds the
+# fit-contracts (Spaceport Hotel) (chalmuans_cantina_entrance / chalmuans_cantina_back_hallway /
+# docking_bay_94_entrance / spaceport_hotel). Every one of these four rooms is FRESH to the entire
+# chain corpus.
+# HONEST DISCIPLINE NOTE: this is a CROSS-ZONE cluster (tatooine_cantina + tatooine_spaceport),
+# and NEITHER face is fresh — The Crooked Wheel already worked Chalmun's main bar
+# (chalmuans_cantina_main_bar) in the cantina face, and The Sabotaged Run, The Short Weight, and
+# The Rolled Log all worked the tatooine_spaceport face (spaceport_speeders, docking_bay_86/87,
+# docking_bay_92 / mos_eisley_control_tower / docking_bay_94_pit / spaceport_customs_office). So
+# this is the ELEVENTH Tatooine arc overall; what is fresh is the four-room CLUSTER. At
+# thirty-two arcs across six planets and a finite set of combat-capable (non-SECURED) rooms, the
+# room wall is real: the last clean CIVILIAN clusters are cross-zone assemblies like this one, and
+# a ship-systems arc wants a civilian docking pit — which Tatooine's lawless Mos Eisley spaceport
+# supplies (Docking Bay 94), where Kuat's fresh rooms are heavily war-coded (KSF, Venator
+# drydocks, clone-trooper medical) and would fight the civilian racket. So the honest discipline
+# this slice keeps is a fresh ROOM CLUSTER, not a fresh face. (Only the step-4 combat room must be
+# combat-capable: spaceport_hotel defaults to CONTESTED — it carries no explicit security_level,
+# and a fieldless room is combat-capable. The giver/return room and the two skill rooms host no
+# fight — stripping a gutted cannon mount on a cellar bench and running a folding deflector fit on
+# a hardstand are a ship-tech's proofs, not a brawl; Mos Eisley's ambient traffic never drives the
+# plot.)
+# It reuses the SAME live questline engine (engine/tutorial_chains.py + chain_events.py: the
+# `kind: questline` type + `active_questline` slot, the existing event types, the four reward
+# funnels) with NO new engine code, no new slot, no new event type, no schema migration, no new
+# reward faucet, and NO map-coordinate or exit-graph change — the sanctioned right-of-launch
+# widening per quest_expansion_postlaunch_path_v1.md (T3.24): author MORE questlines on the
+# proven pattern.
+#
+# Firsts for the accessible-questline arc:
+#   1. A THIRTY-SECOND distinct skill spread — STARSHIP WEAPON REPAIR (Technical) + STARSHIP
+#      SHIELDS (Mechanical) — neither of which any prior accessible questline uses. It is the FIRST
+#      accessible questline to reward the SHIP DEFENSIVE-SYSTEMS TECHNICIAN build — the hand that
+#      strips a ship weapon mount to read its firing circuit and the hand that runs a deflector fit
+#      up to read its ceiling — the FIRST to use STARSHIP WEAPON REPAIR and the FIRST to use
+#      STARSHIP SHIELDS. (Honest notes: this IS a cross-attribute spread — starship weapon repair
+#      is TECHNICAL, starship shields is MECHANICAL — but it is NOT the first Mechanical+Technical
+#      cross: The Condemned Hull (space-transport-repair + astrogation), The Long Haul
+#      (ground-vehicle-repair + operation), and The Rolled Log (starfighter-piloting + repair) all
+#      crossed Mechanical+Technical before it. What is genuinely first is the STARSHIP-SHIELDS and
+#      STARSHIP-WEAPON-REPAIR skills and the DEFENSIVE-SYSTEMS / PROVE-THE-FIT-IS-HOLLOW pairing:
+#      one hand strips a "fitted" cannon to show it can't fire, the other runs a "full-rated"
+#      shield to show it folds. It is also pointedly distinct from the prior SMALL-SHIP arcs: The
+#      Rolled Log rewards the STARFIGHTER pilot/mechanic (the airframe and drive of a small CRAFT),
+#      and The Salted Lane rewards space transports + starship gunnery (the PILOT and GUNNER of a
+#      freighter); this rewards the DEFENSIVE-SYSTEMS TECHNICIAN — the shields and the gun MOUNTS —
+#      and MEMORY-CORRECTION: starship shields and starship weapon repair are SMALL-SHIP skills
+#      (the "starship" class, sibling to space transports / starfighter), NOT the big-ship
+#      capital-ship pool, so this arc sidesteps the civilian-big-ship-ROOM problem entirely by
+#      working a light freighter in a civilian docking pit.)
+#   2. Set on TATOOINE, spanning the tatooine_cantina and tatooine_spaceport zones — but, honestly,
+#      NEITHER a fresh face (The Crooked Wheel worked Chalmun's main bar; The Sabotaged Run, The
+#      Short Weight, and The Rolled Log worked the spaceport) NOR a single-zone cluster: it is a
+#      CROSS-ZONE assembly of four rooms (chalmuans_cantina_entrance / chalmuans_cantina_back_hallway
+#      / docking_bay_94_entrance / spaceport_hotel), every one new to the entire chain corpus,
+#      precedented by The Empty Proof's tatooine_outskirts + tatooine_jundland cross-zone cluster.
+#      It touches NO map coordinate or world exit graph — the rooms already exist and are loaded
+#      (planets/tatooine.yaml); only NPCs + a chains.yaml entry + an achievement are added.
+#
+# It is also a new STORY SHAPE: breaking a HOLLOW-FIT / DEFENSIVE-SYSTEMS FRAUD — the first
+# accessible arc whose racket is selling a ship a hollow shell of the defenses it paid for and
+# fencing its real teeth to the predators. A ship-defense outfitter (Kestrel Defensive Outfitters,
+# run by the proprietor Bevin Torr) is paid by the independent traders, the moisture-farm
+# supply-haulers, and the small caravan freighters that run the raider-thick desert supply lanes
+# and the pirate-worked deep runs off Tatooine to fit and certify their light freighters'
+# defenses — deflector shields and hull-mount laser cannons. Instead of fitting real systems, the
+# shop installs GUTTED units — shield generators with the capacitor banks pulled, cannon mounts
+# with the emitter and actuator drawn and a dead slug fitted — certifies them full-rated on forged
+# fit-sheets, pockets the gap between a real fit and a hollow shell, and fences the pulled real
+# components AND the haulers' run schedules to the very raiders who prey on those lanes. So a
+# trader who paid to be shielded and gunned finds, when the raiders hit, his shields fold on the
+# first volley and his cannon won't throw a bolt — sold out by the shop that fitted him.
+# Pointedly DISTINCT from the prior arcs it might be mistaken for: The Empty Proof's certifier
+# SKIPS a proof it was paid to run on UN-tested goods (nothing is touched) — here the outfitter
+# GUTS installed systems in place and forges the fit-sheet. The Rigged Issue SUBSTITUTES
+# counterfeit arms for real ones — here the real systems are GUTTED in place, the shell left and
+# the guts pulled and fenced, not swapped for counterfeits. The Cut Coil DAMAGES a sound speeder
+# to manufacture the repair it bills — here the shop is PAID to install defenses and delivers
+# hollow ones AND fences the real parts and the run schedules to the raiders who will exploit the
+# hollow fit (a hollow-fit fraud + predator collusion, not a self-dealing repair). The Rolled Log
+# rolls back a CRAFT's flight-hours to hide real wear — here a ship's DEFENSIVE FIT is hollowed and
+# certified full. The Cold Charge fakes the DESTRUCTION of ordnance — here the FIT of live defenses
+# is faked. The racket is broken not by a slicer, an investigator, or a medic but by a SHIP
+# DEFENSIVE-SYSTEMS TECHNICIAN who does the two things a hollow fit cannot survive: opens a
+# hull-cannon mount the fit-sheet certifies live on the shop's stashed re-fit bench and STRIPS it —
+# a mount with a dead firing circuit and its emitter pulled is a gun that was never fitted (starship
+# weapon repair) — then runs a "full-rated" freighter's deflector fit up on the Docking Bay 94
+# hardstand and reads it FOLD far below its certified rating — a shield that folds on the first load
+# is a fit that was never made (starship shields). It carries a real combat climax (step 4), with a
+# single placed antagonist NPC and a chain_enemy_template.
+#
+# These NPCs back the `mos_eisley_hollow_fit` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Nyla Sabo   — the Sullustan freighter shield-and-gun tech who ran the fit-bench for the
+#                   outfit until she caught the gutting and walked; she offers + closes the quest
+#                   (step-1 npc = the questline's start-NPC, per get_questline_offer). Step-1 +
+#                   step-5 NPC.
+#   * Draxo Venn  — the combat-step enforcer (ai_config.chain_enemy_template hollow_fit_enforcer;
+#                   the step-4 combat_won foil), the muscle the proprietor keeps to see that a
+#                   hollow fit the fit-sheets swear is full never reaches the traders' berth
+#                   registry that could void the fit-contract.
+# The proprietor who certifies the hollow fits and fences the pulled cores and run schedules (Bevin
+# Torr), the clerk who forges the fit-sheets, the fringe raiders and underworld fences who buy the
+# pulled generators and cannon-cores and the haulers' timetables, the independent traders and
+# moisture-farm supply pools and caravan freighters who pay the fit fee and take the certification
+# on faith, the gutted deflector generators and hull-cannon mounts, the haulers boarded on the
+# supply lanes by defenses that fold on the first pass, and the traders' berth registry whose desk
+# voids the fit-contract and pulls the bonding, are NARRATED ONLY — story beats carried in the
+# prose, NOT spawned NPC entities. Only the giver and the single combat foil are real placed NPCs.
+# (The room-flavor figures the loaded rooms already imply — Chalmun's cantina staff, the De Maal
+# docking hands, the Spaceport Hotel's Sullustan clerk — are nodded to in prose and never
+# instantiated by this drop.)
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures. The racket is a
+# private Mos Eisley ship-outfitter's hollow-fit fraud and its hired muscle, never a war faction;
+# the Senate, the Jedi, and the Republic war effort have no reach at a fringe ship-outfitter on
+# Tatooine and never appear, Mos Eisley's ambient traffic never drives the plot, and the
+# "authority" that ends the racket is the traders' own berth registry that voids the fit-contract
+# and pulls the bonding once a hollow fit the fit-sheets swore was full is put on its desk —
+# nodded to and never instantiated.
+# Provenance: Sullustan (the round-eyed, jowled cave-dwellers of Sullust, famed across the galaxy
+# as navigators, pilots, and ship technicians — era-clean and not war-faction coded, here a
+# freighter defensive-systems fit-hand whose people's ship-tech reputation grounds the build) and
+# Aqualish (the tusked, walrus-faced brawlers of Ando, common as Outer-Rim and Hutt-space muscle
+# and enforcers, era-clean and not war-faction coded) are both era-clean.
+# Stats matched to the shipped accessible-questline bands — the giver to the non-combat fixer band
+# (Yelza Korrin / Dorae Vint / Sashi Renko / Dav Nuro / Soree Bann / Hessa Veil / Cassa Brel /
+# Vessa Tial / Terva Dohl / Ria Tann / Nuva Sehl / Neyla Sur / Veelo Trinn / Numi Vesh / Brama
+# Hool / Ulil Maan / Senni Vrook / Jando Vekk / Grett Bashan / Corwin Hale / Nabo Threll / Oren
+# Vask / Tomar Hess / Nilo Sabb / Burlo Vethic / Garn Holvo / Sela Marrenn / Resa Halix / Sabra
+# Ollun / Nima Tarr / Dessa Molvar), with the ship-tech's spread skewed to the shields-and-gun-mount
+# of a defensive-systems fit-hand to embody the two skills the quest sends a hand to use; the
+# enforcer to the small-time-criminal antagonist band (Brakkis Vone / Gorvahn Brusk / Skarn Vex /
+# Suro Vant / Vohrek Sarn / Brask Yade / Varn Tesk / Tarko Venn / Drevin Saar / Vossk Rhal / Korsa
+# Drael / Bohrus Kang / Gornt Reska / Hekka Vrool / Greel Vodo / Vurr Magh / Draygo Sull / Drozz
+# Kael / Hask Vorran / Garvo Naak / Dussek Rao / Brunt Kosh / Vagh Sarko / Draz Kullo / Neevo Karr /
+# Sesko Vahr / Drovan Pell / Grull Vantok / Tovek Grahl / Hurss Kadag): a real fight, beatable by a
+# fresh post-chargen character, carrying the proven blaster_pistol of the ranged foils on the same
+# in-band guarded stat line as The Salted Lane's, The Short Weight's, The Wreckers' Light's, The
+# Bonded Crew's, The Kept Watch's, The Buried Block's, The Cut Coil's, The Fouled Sump's, The Fixed
+# Bout's, The Empty Proof's, The Cut Lane's, The Rolled Log's, The Paper Death's, and The Cold
+# Charge's foils (squarely in the proven beatable band, no balance flag needed — and pointedly NOT
+# the melee/heavy-weapon line of The Condemned Hull's out-of-band Houk foil Bohrus Kang; the shop's
+# enforcer is muscle who settles things with a blaster in a hotel corridor, not an axe). WEG40120
+# PDF is local-only (gitignored) and absent in this tree; the bands are cited against the in-repo
+# reference NPCs, not re-derived.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The ship-tech — Nyla Sabo (questline GIVER + closer)
+  # Questline: mos_eisley_hollow_fit ("The Hollow Fit")
+  # Placement: Chalmun's Cantina - Entrance (chalmuans_cantina_entrance, zone tatooine_cantina).
+  #            Step-1 + step-5 NPC.
+  # NOTE: a Sullustan freighter defensive-systems tech who ran the fit-bench for Kestrel Defensive
+  # Outfitters — the Mos Eisley shop the independent traders, moisture-farm supply-haulers, and small
+  # caravan freighters pay to fit and certify their light freighters' deflector shields and hull-mount
+  # laser cannons against the raider-thick desert supply lanes and the pirate-worked deep runs. She
+  # fit the systems and read the diagnostics honest until she saw the deflector generators going out
+  # with their capacitor banks pulled and the cannon mounts going out with the emitters drawn and dead
+  # slugs fitted, all of it certified full-rated on the proprietor's fit-sheets — and heard the
+  # certified freighters coming apart on the supply lanes, boarded with the defenses they paid Kestrel
+  # to fit. She walked off the bench; but a fit-hand who quit the shop is "sour grapes" to a berth
+  # registry that takes a bonded fit-sheet at its word. A ship-tech reads a live fit from a hollow one
+  # cold — but a fired bench-hand's word is not a cracked hull.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Nyla Sabo
+    room: "Chalmun's Cantina - Entrance"
+    species: Sullustan
+    description: >-
+      A small, round-eyed Sullustan woman with the jowled face and deft, careful hands of her
+      cave-dwelling, ship-crewing people, sitting at the elevated entrance rail of Chalmun's Cantina
+      where a newcomer can be sized up, a cooling drink at her elbow and a shield-fit diagnostic slate
+      turning over and over in her fingers. She is a freighter defensive-systems tech by trade and a
+      fit-bench hand by her last job — the one who ran the fit-bench for Kestrel Defensive Outfitters,
+      the Mos Eisley shop the independent traders and moisture-farm supply-haulers and small caravan
+      freighters pay to fit and certify their light freighters' defenses: the deflector shields and
+      the hull-mount laser cannons a hauler needs to cross the raider-thick desert supply lanes and
+      the pirate-worked deep runs off this world and live. She fit the systems and ran the diagnostics
+      honest for two years, until she started seeing the deflector generators go out to the certified
+      ships with their capacitor banks pulled, and the cannon mounts go out with the emitters drawn
+      and dead slugs fitted in their seats — all of it stamped full-rated on the proprietor Bevin
+      Torr's fit-sheets — and started hearing that the exact freighters she had certified were coming
+      apart on the supply lanes, boarded and opened with the defenses they had paid Kestrel to fit.
+      She walked off the bench the day she was sure. Now an independent hauler she used to fit is a
+      deep run from being boarded with shields that fold on the first pass, and she knows to the mount
+      where the real cores are going instead: pulled, fenced, and sold to the raiders along with the
+      haulers' own run schedules. A ship-tech reads a live fit from a hollow one the way another being
+      reads a face; but a bench-hand who quit the shop is "sour grapes" to a berth registry that takes
+      a bonded fit-sheet at its word. She needs a neutral hand who can do the two things she can —
+      strip a "fitted" cannon mount to show its firing circuit is dead and its emitter pulled, and run
+      a "full-rated" deflector fit up to show it folds far below its sheet — and put a hollow fit the
+      certification swore was full on the traders' berth registry where they cannot look away.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D
+        mechanical: 3D
+        perception: 2D+1
+        strength: 2D
+        technical: 3D
+      skills:
+        starship shields: 4D+1
+        starship weapon repair: 4D
+        starship gunnery: 3D+2
+        sensors: 3D+1
+        blaster: 3D
+        dodge: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A freighter defensive-systems tech with a fit-hand's flat, careful economy and no give left
+        for a shop that takes a hauler's credits to arm the freighter it means to sell the raiders —
+        she trusts what a fit does under a load and a mount reads on the bench over any sheet a shop
+        stamps. She knows a hollow fit the way she knows a bad solder: the generator that goes out
+        bright and empty with its capacitor banks pulled, the cannon mount that reads full to a hand
+        that only hefts it and dead to one that opens it, the certified freighter that comes apart on
+        the deep run. That is not fitting; it is a shop collecting a fit fee on a hollow shell it means
+        to sell the raiders who will open the ship it hollowed. But a bench-hand who quit the shop
+        walking a registry a claim that a bonded fit-sheet is a lie is "sour grapes from a fired
+        hand," and the shop's certification is a bonded document a desk takes at its word. Level and
+        certain that a fee collected to arm a freighter and a hollow fit sold instead is not the hard
+        honest fit-trade the fringe needs but a shop arming the raiders its own customers pay it to
+        armor against; she offers her fee — what an out-of-work fit-hand keeps back between contracts —
+        because the credits are no good to her while Kestrel sells hollow the defenses the haulers pay
+        to fit and the next freighter boarded is boarded with a fit she was supposed to have made real.
+        A neutral hand who can strip a "fitted" cannon dead and run a "full-rated" shield to a fold is
+        the only thing that stands a hollow fit against a bonded certification.
+      knowledge:
+        - "She is Nyla Sabo, a Sullustan freighter defensive-systems tech who ran the fit-bench for Kestrel Defensive Outfitters, the Mos Eisley shop the independent traders, moisture-farm supply-haulers, and small caravan freighters pay to fit and certify their light freighters' deflector shields and hull-mount laser cannons against the raider-thick desert supply lanes and the pirate-worked deep runs. She fit the systems and read the diagnostics honest until she saw the deflector generators going out with their capacitor banks pulled and the cannon mounts going out with the emitters drawn and dead slugs fitted, all certified full-rated on the proprietor's fit-sheets, and heard the freighters she certified coming apart on the supply lanes. She walked off the bench; a bench-hand's word that a bonded fit-sheet is a lie is 'sour grapes from a fired hand' to a berth registry that takes a certification at its word."
+        - "The racket is a hollow-fit fraud: a ship-defense outfitter named Kestrel Defensive Outfitters, run by the proprietor Bevin Torr, is paid by the fringe haulers to fit and certify their freighters' defenses. Instead of fitting real systems, the shop installs gutted units — deflector generators with the capacitor banks pulled, hull-cannon mounts with the emitter and actuator drawn and a dead slug fitted — certifies them full-rated on forged fit-sheets, pockets the gap between a real fit and a hollow shell, and fences the pulled real cores AND the haulers' run schedules to the fringe raiders who prey on those lanes, collecting the fit fee AND the resale while the traders believe their freighters are armed. The same ships come apart on the supply lanes, boarded with defenses that fold on the first pass, and a fringe that cracks no certified hull never checks whether a stamped fit-sheet is a real fit."
+        - "Nyla can prove none of it from a fired hand's word, but a neutral hand who can work ship systems can do what she cannot: get into Kestrel's stashed re-fit bench in the back cellar off Chalmun's Cantina's rear hallway where a pulled hull-cannon mount waits certified live on the sheet, and STRIP it — open the housing and trace the firing circuit dead and find the emitter drawn and a slug seated in its place — because a mount that can't throw a bolt is a gun that was never fitted (starship weapon repair); then get to the 'full-rated' freighter in the pit of Docking Bay 94 and RUN its deflector fit up the load band, where it comes up bright and empty and collapses far below its certified rating, folding on the first load exactly as it will fold on the first raider volley (starship shields); and stand off the shop's enforcer (Draxo Venn) who corners the hollow-fit proof at the Spaceport Hotel over the pits before it reaches the traders' berth registry (combat)."
+        - "Put a hollow fit the certification swore was full on the traders' berth registry — a hull-cannon mount stripped dead off the re-fit bench and a deflector fit run to a fold on the Bay 94 hardstand, beside the fit-sheet that stamps both full — and a hollow fit cannot hold: a gun that can't throw a bolt and a shield that folds on the first load, beside a bonded certification, is a fraud no fit-sheet papers over. The registry voids Kestrel's fit-certification and pulls its bonding; the haulers and supply pools stop taking its fit-sheets on faith; a shop that actually fits what it certifies takes up the trade; and the raiders who bought the pulled cores and the run schedules off the back of the shop lose both. No Senate office and no Jedi looked twice at a fringe ship-outfitter — the traders' own berth registry did, the only authority a Mos Eisley fit-contract answers to, once a hollow fit the sheet called full sat on its desk. Nyla's word stops being sour grapes, and the Republic never needs notice a fit-hand kept a hauler's own freighter from being opened by defenses it paid to be armed with."
+      faction: independent
+      dialogue_style: >-
+        Level, plain, a fit-hand's economy of words — names what a fit does under a load and a mount
+        reads on the bench before she names a grievance, and trusts a run of the shields over any sheet
+        a shop stamps. Level and certain; she has fit enough freighters to read a live system from a
+        hollow one, and she has a gutted mount on Kestrel's bench and a folding fit in Bay 94 to prove
+        what the shop's clean certification is worth.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'You work ship systems? Run a deflector up and read where it folds, and strip a cannon mount down to read a dead firing circuit? Then you can do what I can't carry alone, and a berth registry won't wave you off the way it waves a fired fit-hand crying sour grapes. I'm Nyla Sabo — I ran the fit-bench for Kestrel Defensive Outfitters, the shop this port's traders pay to arm their freighters against the raider lanes. I fit them honest for two years, until I saw the deflector generators going out with their capacitor banks pulled and the cannon mounts going out dead, all certified full-rated on Bevin Torr's fit-sheets. The haulers are being boarded with the defenses they paid Kestrel to fit. Torr collects the fit fee and sells the pulled cores and the run schedules to the raiders who open the ships he hollowed.'"
+        - "*Nyla Sabo sets a diagnostic slate face-up on the rail, taps a fit-sheet certifying a deflector at full rating beside a bench-log showing the same generator's capacitor banks logged out and fenced.* 'See it? Certified full, gutted on the bench the same shift — nobody in a berth registry cracks a hull to check what's actually fitted, that's the whole trick. The sheet squares the fee, the registry closes the contract, and the real cores go out the back to the raiders. I know a live fit from a hollow one; that's my bench. But my word's a fired hand's word, and Torr's certification is bonded. A desk takes the sheet every time.'"
+        - "'So carry it for me. There's a hull-cannon mount on Kestrel's re-fit bench right now, in the back cellar off the cantina's rear hallway, pulled off a hauler's freighter and certified live on the sheet — get in and strip it, and read the dead firing circuit and the pulled emitter, because a mount that can't throw a bolt is a gun that was never fitted. Then get to the full-rated freighter in the pit of Docking Bay 94, and run its deflector fit up the load band — so it comes up bright and empty and folds far below its sheet, the way it'll fold on the first raider pass. Then mind the Spaceport Hotel — Torr keeps an enforcer, Draxo Venn, over the pits to see a hollow fit the sheet swore was full never reaches the traders' berth registry. Put the stripped mount and the folded-shield reading on that registry, and a hollow fit voids the contract and pulls the bonding the way my word never could. My fee's yours then — what an out-of-work fit-hand keeps back between contracts. I'd sooner it kept the next hauler from being opened with a fit I was supposed to have made real than kept me drinking here while Torr sells the raiders the ships he hollowed.'"
+
+  # ── Questline antagonist: Draxo Venn (combat step 4) ─────────────────
+  # Single hostile instance at the Spaceport Hotel over the docking pits, where Kestrel Defensive
+  # Outfitters lodges the hands it keeps for its quiet and the chokepoint between a hollow fit carried
+  # out of the pits and the traders' berth registry that bonds the fit-contracts. Matches the
+  # mos_eisley_hollow_fit step-4 combat_won enemy_template. Carries the proven blaster_pistol of the
+  # ranged foils on the same in-band guarded stat line as The Salted Lane's, The Short Weight's, The
+  # Wreckers' Light's, The Bonded Crew's, The Kept Watch's, The Buried Block's, The Cut Coil's, The
+  # Fouled Sump's, The Fixed Bout's, The Empty Proof's, The Cut Lane's, The Rolled Log's, The Paper
+  # Death's, and The Cold Charge's foils (squarely in the proven beatable band) so a fresh post-chargen
+  # character has a real, winnable fight — and pointedly NOT the melee line of The Condemned Hull's
+  # out-of-band Houk foil. The shop's enforcer is muscle: he settles things with a blaster in a hotel
+  # corridor, not a blade or a bench.
+
+  - name: Draxo Venn
+    room: "Spaceport Hotel"
+    species: Aqualish
+    description: >-
+      A heavy, tusk-jawed Aqualish with the flat, unhurried patience of a being paid to see that
+      nothing leaves Kestrel's pits that the shop cannot afford to have read, planted on the corridor
+      bench of the cheap Spaceport Hotel over the docking pits, where the outfitter lodges the hands
+      it keeps for its quiet and the Sullustan clerk asks no questions. A worn blaster pistol rides
+      loose at his hip and a shop chit is clipped at his collar. He is Bevin Torr's enforcer — not the
+      proprietor who certifies the hollow fits and sells the cores and not the clerk who forges the
+      fit-sheets, but the muscle the shop keeps for the fits that come back questioned: the one sent
+      to talk a hauler out of pulling a hull, to buy a nosy fit-hand's silence or run her off, and to
+      keep the hotel corridor between a hollow fit and the traders' berth registry that could void the
+      contract. He rarely has to draw, because a hollow-fit fraud on the fringe runs on a hull no one
+      cracks, fit-sheets too bonded to question, and a hauler too grateful to be armed to check that he
+      is. The whole racket lives on fits certified full no one opens the hull to disprove; it does not
+      live on a neutral hand walking into the corridor with a hull-cannon mount stripped dead off the
+      re-fit bench and word that a "full-rated" fit just folded on the Bay 94 hardstand. He has heard
+      a stranger was down in the back cellar with a mount-tool and out on the pit running a fit, and
+      the easy menace of a man who keeps a hotel corridor goes hard the instant the one thing the shop
+      cannot survive — a hollow fit the sheet swore was full — starts moving toward the registry that
+      bonds the contract. The fit is certified and the fee is earned, as far as anyone in the corridor
+      will hear him say it; and whoever is walking that hollow fit to the traders' berth registry is
+      setting it down or going down on the corridor floor, where the clerk at his desk knows better
+      than to mark a brief, quiet thing.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        brawling: 3D+1
+        intimidation: 3D+2
+        streetwise: 3D
+        search: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: hollow_fit_enforcer
+      personality: >-
+        A ship-outfitter's enforcer genuinely unused to being made to fight for a fit-sheet — bored and
+        contemptuous while an uncracked hull, bonded certifications, and a hauler grateful to be armed
+        do his work, and immediately, heavily violent the moment a neutral hand walks into the hotel
+        corridor with a hull-cannon mount stripped dead off the re-fit bench and word that a
+        "full-rated" fit just folded on the Bay 94 hardstand. He works a blaster and a flat threat and a
+        chit, not his hands: dangerous and direct, he plants himself in the corridor between the hollow
+        fit and the traders' berth registry and would rather break a hand over the pits than let a fit
+        the sheet called full reach a desk that can void the contract. His pay and his standing with Torr
+        ride on fits certified full no one cracks the hull to disprove, so he'll draw on anyone walking
+        in the live proof the fit was hollow. Combat foil for the questline's confrontation beat — the
+        shop's muscle, not a fit-tech or a broker; he settles it with a blaster, in the hotel corridor.
+      knowledge:
+        - "He is Draxo Venn, the Aqualish enforcer Bevin Torr keeps for the fits that come back questioned — talking haulers out of pulling a hull, buying or running off nosy fit-hands, and keeping the Spaceport Hotel corridor between a hollow fit and the traders' berth registry that could void the fit-contract, rarely having to draw because a hollow-fit fraud runs on a hull no one cracks, bonded fit-sheets, and a hauler grateful to be armed. He is muscle, not a proprietor or a clerk."
+        - "A neutral hand was down in the back cellar with a mount-tool and out on the Bay 94 hardstand running a fit — stripped a hull-cannon mount the fit-sheet certified live and read it dead, and ran a 'full-rated' deflector fit up until it folded far below its sheet — and is walking the hollow-fit proof toward the traders' berth registry that bonds the fit-contract; the racket lives on fits certified full no one cracks the hull to disprove, so he'll draw on whoever carries the live proof the fit was hollow rather than let the one thing the shop cannot survive — a hollow fit the sheet swore was full — reach the desk that can void the contract and pull the bonding."
+      faction: criminal
+      dialogue_style: >-
+        Flat, unhurried, contemptuous — names the fit as certified and the fee as earned before the
+        threat. States once that the fit holds and the sheet stands, and after that lets the blaster
+        keep the corridor the way a bonded certification keeps the contract.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'That fit's certified, friend — sheet stamped full, fee squared, the shop's to keep. Whatever you think you're carrying out of our pits, it doesn't reach any registry. Set it down and walk off.'"
+        - "*Draxo Venn rises from the corridor bench as you come off the stairs with the stripped mount, sets himself between you and the stairwell, and lets his hand fall loose to the worn blaster he would rather not have to draw, the Sullustan clerk at his desk gone conveniently deaf.*"
+        - "'Every fit on Torr's book holds the way the sheet says. So says the paper. So do I. And that mount's certified and squared — bad luck for you somebody's carrying a gun that's supposed to fire. Bad day for you to walk it toward a berth desk. Last time — set the mount down and walk off, or you don't walk that proof to any registry. The shop certifies what it fits. I'm the part of it that keeps the fits nobody cracked from getting up and going to a berth desk.'"
