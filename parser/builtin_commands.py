@@ -2324,11 +2324,15 @@ class UseCommand(BaseCommand):
 
 
 class InventoryCommand(BaseCommand):
-    # Canonical OOC inventory display (command_syntax_rework_design_v2.md
-    # Drop 1, A1): `+inv` only. The bare `inventory`/`inv`/`i` and the
-    # `+inventory` synonym are DELETED — no back-compat aliases.
+    # Canonical OOC inventory display: `+inv` (command_syntax_rework_design_v2.md
+    # Drop 1, A1). fun13 (2026-06-27, Brian's call): the bare `inventory`/`inv`/
+    # `i` reflexes are RE-ADDED as back-compat aliases — the fun-assessment pass
+    # found new players reflexively type them (e.g. right after being handed a
+    # rifle + armor at graduation) and hit a dead-end. `+inv` stays the canonical
+    # + help form; the `+inventory` +synonym stays deleted (not a newcomer
+    # reflex). Mirrors the drop-34 who/online newcomer re-add.
     key = "+inv"
-    aliases = []
+    aliases = ["inventory", "inv", "i"]
     help_text = "View your inventory."
     usage = "+inv"
 

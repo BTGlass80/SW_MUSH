@@ -49,8 +49,11 @@ CANONICAL_FORMS = ["+who", "+inv", "+sheet", "+finger", "+roll", "+check"]
 DELETED_EXACT_FORMS = [
     # +who family — `who` and `online` are now redirect stubs (drop-34); not deleted.
     "+online", "players",
-    # +inv family
-    "inventory", "i", "+inventory",
+    # +inv family — fun13 (2026-06-27, Brian's call): the bare `inventory`/`inv`/
+    # `i` reflexes are RE-ADDED as back-compat aliases (new players reflexively
+    # type them and hit a dead-end at the open-world handoff). `+inv` stays
+    # canonical; only the `+inventory` +synonym stays deleted.
+    "+inventory",
     # +sheet family
     "sheet", "score", "stats", "+score", "+stats", "sc",
     # +finger / +roll / +check
@@ -83,21 +86,17 @@ def test_deleted_forms_are_gone(registry):
         )
 
 
-def test_bare_inv_no_longer_maps_to_inventory(registry):
-    """The bare `inv` was an inventory alias; deleting it means `inv` no longer
-    reaches the inventory command. (It now prefix-matches `investigate`, the
-    only registered key starting with `inv` — a documented, intentional
-    consequence of the CLEAN deletion.)"""
-    assert not registry.has_exact("inv")
+def test_bare_inv_reflexes_map_to_inventory(registry):
+    """fun13 (2026-06-27, Brian's call): the bare inventory reflexes
+    `inventory`/`inv`/`i` are RE-ADDED as back-compat aliases of the canonical
+    `+inv` (new players reflexively type them and used to hit a dead-end). They
+    must now resolve to the inventory command."""
     inv_cmd = registry.get("+inv")
-    resolved = registry.get("inv")
-    assert resolved is not inv_cmd, (
-        "bare `inv` must not resolve to the inventory command after Drop 1"
-    )
-    # The surviving prefix-match is investigate (or None if ambiguous) — never
-    # inventory.
-    if resolved is not None:
-        assert resolved.key != "+inv"
+    assert inv_cmd is not None and inv_cmd.key == "+inv"
+    for reflex in ("inv", "inventory", "i"):
+        assert registry.has_exact(reflex), f"{reflex!r} should be a live alias"
+        assert registry.get(reflex) is inv_cmd, (
+            f"{reflex!r} must resolve to the +inv inventory command")
 
 
 def test_who_is_single_canonical_command(registry):
