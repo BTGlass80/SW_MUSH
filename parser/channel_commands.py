@@ -106,7 +106,7 @@ class ComlinkCommand(BaseCommand):
             ctx.session_mgr, char["name"], message,
             db=ctx.db, sender_planet=sender_planet)
         if count == 1:
-            await ctx.session.send_line(ansi.dim("  (No other players online to hear you.)"))
+            await ctx.session.send_line(ansi.dim("  (No other players on your planet to hear you.)"))
 
 
 # ── Faction Chat ──────────────────────────────────────────────────────────────

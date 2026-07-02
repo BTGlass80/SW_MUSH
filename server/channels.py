@@ -228,16 +228,24 @@ class ChannelManager:
         for sess in session_mgr.all:
             if sess.character:
                 if db is not None:
+                    # Planet-scoped: the sender always hears their own echo;
+                    # everyone else must be on the sender's planet.  An
+                    # off-planet sender (sender_planet is None — deep space /
+                    # ship in transit) reaches only themselves.  A per-recipient
+                    # DB hiccup skips just that recipient rather than aborting
+                    # the whole broadcast (and the intercept delivery below).
                     is_sender = sess.character.get("name") == sender_name
-                    if sender_planet is None:
-                        # Off-planet sender: no planetary comm net to ride —
-                        # only the sender hears their own echo.
-                        if not is_sender:
+                    if not is_sender:
+                        if sender_planet is None:
                             continue
-                    else:
-                        recip_planet = await _planet_for_room(
-                            db, sess.character.get("room_id") or 0)
-                        if recip_planet != sender_planet and not is_sender:
+                        try:
+                            recip_planet = await _planet_for_room(
+                                db, sess.character.get("room_id") or 0)
+                        except Exception:
+                            log.debug("[comlink] recipient planet lookup failed",
+                                      exc_info=True)
+                            continue
+                        if recip_planet != sender_planet:
                             continue
                 _proto = getattr(sess, "protocol", None)
                 _is_web = _proto is not None and getattr(_proto, "value", None) == "websocket"
