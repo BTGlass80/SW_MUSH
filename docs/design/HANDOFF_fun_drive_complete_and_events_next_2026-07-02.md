@@ -9,7 +9,8 @@
 
 ## Operating model (READ FIRST)
 - **Worktrees, not the live tree.** All work lands on `main` via per-session git worktrees. This session used **`C:/SW_MUSH_grind`** (drop worktree) and **`C:/SW_MUSH_ux`** (fun-pass re-runs). `c:\SW_MUSH` is Brian's view — keep it on `main`. Drive via `git -C <worktree>`.
-- **Land pattern:** branch `drop/<name>` off `origin/main` → implement + targeted tests → **two-phase gate** → `git branch -f main HEAD && git push origin main` (re-fetch first; if BEHIND, merge origin/main and re-gate). CHANGELOG + TODO update in the same drop.
+- **Land pattern:** branch `drop/<name>` off `origin/main` → implement + targeted tests → **two-phase gate** → land. CHANGELOG + TODO update in the same drop.
+  - **⚠ ff-pattern changed this session:** `main` is now **checked out in `c:\SW_MUSH`** (Brian's tree was synced to it), so `git branch -f main HEAD` fails (`cannot force update the branch 'main' used by worktree`). Land instead with **`git -C <worktree> push origin HEAD:main`** (re-fetch first; if BEHIND, merge `origin/main` + re-gate), then **`git -C c:/SW_MUSH pull --ff-only origin main`** to keep Brian's tree current. (Alternative: move `c:\SW_MUSH` back onto a throwaway branch to restore the old `git branch -f main` flow.)
 - **Two-phase gate** (the OpusLoop reds the gate between drops — this catches it):
   - Phase 1: `python -m pytest tests/ --ignore=tests/e2e -n auto --dist loadscope -p no:cacheprovider --continue-on-collection-errors --maxfail=300 -o addopts= -m "not smoke and not smoke_slow and not slow" -q` (~2.5-4 min, ~14,180 pass).
   - Phase 2: `python -m pytest tests/smoke -m smoke -k foundation -o addopts= -p no:cacheprovider -q` (~16s).
