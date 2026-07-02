@@ -207,12 +207,38 @@ class ChannelManager:
         session_mgr: "SessionManager",
         sender_name: str,
         message: str,
+        db=None,
+        sender_planet=None,
     ) -> int:
-        """Broadcast planet-wide IC comlink to all in-game sessions."""
+        """Broadcast an IC comlink to online sessions on the sender's planet.
+
+        When ``db`` is provided the transmission is planet-scoped: only
+        characters whose current room resolves (via
+        ``engine.housing._planet_for_room``) to ``sender_planet`` receive it,
+        and the sender always hears their own echo.  A sender who is not on any
+        planet (``sender_planet is None`` — deep space, a ship in transit)
+        reaches only themselves; comlink is the ground channel (space uses the
+        cockpit ``comm``).  When ``db is None`` (no location context, e.g. unit
+        harnesses) it degrades to the legacy unfiltered broadcast.
+        """
         line = fmt_comlink(sender_name, message)
         count = 0
+        if db is not None:
+            from engine.housing import _planet_for_room
         for sess in session_mgr.all:
             if sess.character:
+                if db is not None:
+                    is_sender = sess.character.get("name") == sender_name
+                    if sender_planet is None:
+                        # Off-planet sender: no planetary comm net to ride —
+                        # only the sender hears their own echo.
+                        if not is_sender:
+                            continue
+                    else:
+                        recip_planet = await _planet_for_room(
+                            db, sess.character.get("room_id") or 0)
+                        if recip_planet != sender_planet and not is_sender:
+                            continue
                 _proto = getattr(sess, "protocol", None)
                 _is_web = _proto is not None and getattr(_proto, "value", None) == "websocket"
                 if _is_web:

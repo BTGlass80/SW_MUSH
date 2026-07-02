@@ -1972,26 +1972,6 @@
       "decision_needed": "Confirm A (keep) or request B. Low priority."
     },
     {
-      "id": "COMM.comlink_not_planet_scoped",
-      "status": "OPEN",
-      "title": "comlink is documented (everywhere) as a planet-wide IC channel but is implemented as a galaxy-wide broadcast to ALL online characters — enforce planet-scoping, or rebrand it as the global IC channel?",
-      "origin": "Guide_21 Channels/Mail/News authoritative pass (drop guide-21-channels-mail-news-authoritative, 2026-06-23): documenting comlink against HEAD showed the 'planet-wide' label is aspirational only.",
-      "premise_verified_at_head": "server/channels.py ChannelManager.broadcast_comlink takes only (session_mgr, sender_name, message) and iterates `for sess in session_mgr.all: if sess.character: send`. There is NO planet/zone/room argument or filter — the sender's planet is never consulted — so comlink reaches every online character galaxy-wide, functionally identical in reach to ooc (differing only in IC framing + intercept-ability). The docstrings (server/channels.py module header + the method) and ComlinkCommand.help_text all SAY 'planet-wide', but no code enforces it. The guide was corrected to state comlink reaches all online characters (galaxy-wide IC).",
-      "fork": "(A) Make comlink genuinely planet-scoped: pass the sender's planet/zone into broadcast_comlink and filter recipients to the same planet (matches the long-standing design intent + the IC fiction of a planetary comm net), then restore the guide's 'planet-wide' framing; (B) accept galaxy-wide IC as the launch design (fine at low population — comlink = the global IC voice, ooc = the global OOC voice), update the stale docstrings/help to match, and keep the guide's galaxy-wide framing.",
-      "lane_note": "server/channels.py is not an avoid-lane and the change is small/self-contained, but which way to go is a game-feel design call (planetary immersion vs a simple global IC channel) — flagging, not guessing.",
-      "decision_needed": "Pick A or B. If A, confirm the scope key (planet vs zone) and whether cross-planet should be impossible or just default-off."
-    },
-    {
-      "id": "EVENT.communal_rework_staged_scenarios",
-      "status": "OPEN",
-      "title": "Rework communal events (rally/cults) from a menace COUNTER into staged playable SCENARIOS — the whole system, not just Hollow Sun",
-      "origin": "Brian 2026-06-21 played Cult of the Hollow Sun: 'typing rally / rally strike isn't gameplay'. Events should be: go to a location, cooperate, waves of enemies / locations to traverse, varied skills (slice terminals).",
-      "current_state": "engine/communal_objective.py CULT_ROSTER (all cults mechanically identical) + parser/communal_commands.py rally/'rally strike' = a global menace meter chipped by one auto-rolled best-pool strike per ~10 min. Explicitly an MVP ('design III.3'; 'rally-objective mechanics are design-open').",
-      "plan": "Compose existing primitives — wilderness-anomaly multi-phase WAVE combat + skill-mode (perform_skill_check) + the tutorial-chain/questline step engine (T3.24) — into multi-stage SITE scenarios: travel -> wave combat -> multi-skill objectives (slice conduits / free captives / break wards) -> boss -> resolve; cooperative; 'rally' becomes the find/track surface, not the gameplay. Extend, don't add. Vertical-slice Hollow Sun first, tune with Brian, then generalize to the roster.",
-      "doc": "docs/design/event_rework_staged_scenarios_2026-06-22.md",
-      "decision_needed": "(1) TIMING — pre-launch (lean yes for at least the vertical slice; an unfun headline event is a launch-quality issue) vs right-of-launch? (2) FIRST SCENARIO SHAPE — which skills feature, how many waves, and solo-viable vs requires a small group (the multi-phase combat assumes 3-5 coordinating players)?"
-    },
-    {
       "id": "CP.ai_trickle_director_wiring",
       "status": "OPEN",
       "title": "Wire the Director AI to award CP ticks (award_ai_trickle) for quality RP, or leave it permanently dormant?",
@@ -1999,26 +1979,6 @@
       "premise_verified_at_head": "engine/cp_engine.py CPEngine.award_ai_trickle (L313) is fully built (clamps to AI_MAX_TICKS_PER_EVAL=15, weekly-cap aware, graceful-drop) but a symbol-level grep of engine/parser/server/ai found ZERO callers — director.py never calls it. So no player can earn AI-eval ticks today. The guide was corrected to present the THREE active sources (passive/scene/kudos) and mark the AI trickle 'Planned — not yet active'.",
       "fork": "Should the live Director (Claude Haiku, funded $30, $20/mo circuit-breaker) award a few CP ticks per evaluation for standout roleplay? If yes, the producer lives in engine/director.py (AVOID-LANE) and adds a metered-API eval cost per award; if no, leave award_ai_trickle dormant and keep the guide's 'Planned' framing.",
       "decision_needed": "(1) Wire it pre-launch, defer post-launch, or never? (2) If wired — at what trigger (per Director turn? per flagged-quality pose?) and what cost ceiling, given the $20/mo Director cap already covers faction-turn news."
-    },
-    {
-      "id": "ENV.hazard_debuff_no_cure_path",
-      "status": "OPEN",
-      "title": "Environmental-hazard debuffs (dehydration / toxic exposure) are permanent with no in-game cure — intended, or wire a recovery path?",
-      "origin": "Guide_24 Encounters & Hazards authoritative pass (drop guide-24-encounters-hazards-authoritative, 2026-06-22): the guide claimed dehydration clears when you 'drink water or leave the heat' and toxic exposure when you 'equip a breath mask or leave' — both are phantom recovery paths.",
-      "premise_verified_at_head": "engine/buffs.py BUFF_TEMPLATES['dehydration'] and ['toxic_exposure'] are duration_seconds:0 (is_expired() returns False = permanent), and engine/buffs.py remove_buff() has ZERO callers across engine/parser/server (symbol grep). engine/hazards.py mitigation only PREVENTS the check (returns mitigated:True without touching existing buffs) — carrying a canteen/mask never clears stacks already taken. No 'drink'/'rest'/medical/relog path resets active_buffs. So once dehydration (up to -1D STR / -1D DEX at 3 stacks) or toxic exposure (-1D STR) lands, it is permanent. The guide was corrected to a prevention-not-cure framing.",
-      "secondary_finding": "Severity scaling looks double-applied: set_room_hazard stores difficulty = base + (severity-1)*3, then check_hazard_for_character adds (severity-1)*3 again — net +6 per severity tier, not the apparent +3. Harmless at the default severity 1 (the common case), but worth confirming intent.",
-      "fork": "hazards.py is NOT avoid-lane, but adding a cure mechanic is a feature/design decision. (A) wire remove_buff to a recovery action (e.g. a 'drink' verb that consumes a water_canteen and clears 1 dehydration stack; rest/medical for toxic); (B) give the debuffs a time-decay duration; (C) intended-permanent — keep as a hard prevention-first punishment and accept the guide's prevention framing as final.",
-      "decision_needed": "Pick A/B/C for the cure path, and confirm whether the per-severity difficulty double-scaling is intended."
-    },
-    {
-      "id": "SPACE.anomaly_engagement_mostly_unwired",
-      "status": "OPEN",
-      "title": "Space anomalies: 6 of 7 types have no engagement command, and the engine's own scan readout tells players to type 'course anomaly <id>', which is unwired",
-      "origin": "Guide_24 Encounters & Hazards authoritative pass (2026-06-22): the guide promised an `investigate <anomaly_id>` flow + rich per-type resolution; verifying against HEAD showed almost none of it is wired.",
-      "premise_verified_at_head": "engine/space_anomalies.py defines 7 anomaly types (derelict, distress, cache, pirates, mineral_vein, imperial->'Republic Dead Drop', mynock) and every full scan readout instructs 'Type course anomaly {id}' to engage. But parser/space_commands.py CourseCommand only handles `course <zone>` / `course cancel` (_match_destination matches adjacent ZONES only) -> `course anomaly 3` fails as 'not an adjacent zone'. The ONLY wired anomaly engagement is SalvageCommand (anomaly_type=='derelict' + combat wrecks). distress / cache / pirates / mineral_vein / dead-drop / mynock have NO resolution command; their slicing-decode / cache-bypass / nest-combat / detach flows are unbuilt. The guide was rewritten to the live loop (scan -> deepscan <id> -> salvage derelicts) and the phantom `investigate <anomaly_id>` removed.",
-      "lane_note": "space_commands.py / the space layer is the interactive conductor's QA lane — flagging here, NOT fixing, to avoid collision.",
-      "fork": "(A) Build the missing per-type engagement (a real `course anomaly <id>` or a dedicated verb routed per anomaly_type), making the readouts true; (B) trim the anomaly system to detection + derelict-salvage at launch and fix the misleading 'course anomaly {id}' readout text to match what's wired; (C) leave as-is post-launch.",
-      "decision_needed": "Pick A/B/C; if anything pre-launch, it belongs to the space/conductor lane, not the unattended loops."
     },
     {
       "id": "SPACE.ships_log_thresholds_stale_vs_reworked_graph",
@@ -2042,6 +2002,26 @@
     }
   ],
   "design_calls_resolved_recent": [
+    {
+      "id": "COMM.comlink_not_planet_scoped",
+      "date": "2026-07-02",
+      "decision": "OPTION A (planet-scoped) - Brian 2026-07-02: comlink becomes genuinely planet-scoped (reaches only characters currently on the sender's planet), not a galaxy-wide broadcast; the guide's 'planet-wide' framing is restored. Scope key = planet; cross-planet reach is impossible (not merely default-off). A sender not on any planet (deep space / ship in transit) reaches only same-locus peers. Implemented this session in drop/decisions-comlink-hazard-anomaly-2026-07-02 (broadcast_comlink now derives the sender's planet and filters recipients)."
+    },
+    {
+      "id": "EVENT.communal_rework_staged_scenarios",
+      "date": "2026-07-02",
+      "decision": "TIMING = PRE-LAUNCH - Brian 2026-07-02: the rally/cult menace-counter rework into staged playable SITE scenarios (travel -> wave combat -> multi-skill objectives -> boss -> resolve) ships BEFORE launch, per docs/design/event_rework_staged_scenarios_2026-06-22.md (compose existing wilderness-anomaly wave combat + skill-mode + questline step engine; extend, don't add; vertical-slice Hollow Sun first, then generalize). First-scenario shape (which skills, wave count, solo-viable vs small-group) tuned during the slice. IMPLEMENTATION LANE = the parallel main-dev session (Events is its declared next-focus per handoff 121f6dc); logged here as the answered timing fork, not built by this (decisions) session."
+    },
+    {
+      "id": "ENV.hazard_debuff_no_cure_path",
+      "date": "2026-07-02",
+      "decision": "OPTION A (wire a cure) - Brian 2026-07-02 confirmed hazards must have a cure. VERIFIED AT HEAD: the cure was ALREADY implemented 2026-06-23 (fork-env-recovery) - this call was STALE-OPEN; the premise_verified_at_head text described pre-fix 2026-06-22 code. Shipped: (1) DrinkCommand (parser/builtin_commands.py, registered, alias 'hydrate') clears dehydration via remove_buff when carrying a water_canteen; (2) BOTH dehydration and toxic_exposure now carry duration_seconds:1200 (engine/buffs.py) and are pruned by buff_expiry_tick (server/tick_handlers_economy.py), so debuffs decay ~20 min after leaving the hazard zone (the 'leave the area' recovery); (3) the secondary per-severity difficulty double-scaling bug was ALSO already fixed (check_hazard_for_character now uses the stored pre-scaled difficulty as-is; CHANGELOG QA break-it batch-2 tail). Regression test tests/test_fork_env_recovery_2026_06_23.py. Closing stale-OPEN - nothing to build this session. RESIDUAL (optional, NOT built - minor feature/balance, left to Brian): toxic_exposure has decay-only, no ACTIVE medical cure; drink clears all dehydration stacks (not one); the canteen is durable (not consumed on drink)."
+    },
+    {
+      "id": "SPACE.anomaly_engagement_mostly_unwired",
+      "date": "2026-07-02",
+      "decision": "OPTION A (build the engagement) - Brian 2026-07-02 'fix it'. VERIFIED AT HEAD: the engagement was ALREADY built + test-pinned 2026-06-23 (commit a49f3e0, a speculative conductor fork) - this call was STALE-OPEN; the pending->resolved grooming was deferred at the time. Shipped: parser/space_commands.py CourseCommand routes 'course anomaly <id>' (intercepted before the helm gate, so any crew member can engage) to _engage_anomaly -> per-type resolution for all 7 types (derelict->salvage, mineral_vein->mine, and distress/cache/pirates/imperial/mynock via _ANOMALY_ENGAGE: perform_skill_check -> adjust_credits(anomaly_* tags) -> remove_anomaly, fail-closed). Regression test tests/test_fork_space_anomaly_engage_2026_06_23.py green (6/6). Brian ratifies Option A. UPDATE 2026-07-02 (later same day): Brian reviewed the five conservative single-roll simplifications and directed a RICHER, more-engaging rework (explicitly NOT a simple system) - now an active build in drop/space-anomaly-richer-flavor-2026-07-02: pirates -> real space-combat encounter (2-3 hostiles at Short, salvage on victory) via engine/space_encounters.py; imperial-failure -> spawn a real ERA-CLEAN patrol (Republic/Separatist/pirate, NOT Imperial per B3); cache -> two-step pilot-approach + engineer-bypass; mynock -> apply real system damage + Easy piloting to detach; distress -> Perception ambush-detect (align skill to the readout). ALSO fixing the flagged latent bug: sibling space commands calling the nonexistent sr.load_default() (AttributeError swallowed -> skill check silently treated as a PASS). Doc re-sync -> Guide_24 sec.4 re-documents the now-live 'course anomaly <id>' engagement in the richer-flavor drop (documenting final behavior; the phantom-removal guard test updated in lockstep)."
+    },
     {
       "id": "BAL.condemned_hull_melee_foil_band",
       "raised_date": "2026-06-30",
