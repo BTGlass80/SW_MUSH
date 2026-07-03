@@ -2504,8 +2504,13 @@ SCENARIO_TEMPLATES = {
     # matching the cult's rally_hook "restore the cut power, trace their cells
     # through the yards, and keep the dock crews calm in the dark". Era-clean
     # (B3/Q1): invented orbital-saboteur cult, no Imperial/Rebel strings, no
-    # canon figures. Reward bands copied EXACTLY from the Ember Court's
-    # same-tier templates — conservative, balance-neutral.
+    # canon figures. Credit + influence bands match the Ember Court's
+    # same-tier templates — conservative, balance-neutral, pinned by the
+    # equality test. Resource drops are re-themed to energy for this
+    # shipyard/blackout cult at equal quantity+value, so they are NOT
+    # byte-for-byte identical to the Ember Court's (composite->energy on
+    # iron_veil_cell_assault + iron_veil_veilmaster); only the skill stage,
+    # iron_veil_power_relay, is fully identical.
     # ══════════════════════════════════════════════════════════════════════════
 
     # ── Stage 1: wave combat — Break the Saboteur Cells ───────────────────────
