@@ -177,16 +177,21 @@ class _FakeTS:
     def __init__(self, sid, name):
         self.ship_id = sid
         self.display_name = name
+        self.transponder_type = "none"
+        self.in_live_combat = False
 
 
 class _FakeTrafficMgr:
     def __init__(self):
         self.spawns = []
+        self.ships = []
 
     async def spawn_for_encounter(self, db, session_mgr, zone_id, archetype):
         sid = 1000 + len(self.spawns)
         self.spawns.append((zone_id, archetype))
-        return _FakeTS(sid, f"Hostile-{sid}"), {"template": "z95", "crew_skill": "3D"}
+        ts = _FakeTS(sid, f"Hostile-{sid}")
+        self.ships.append(ts)
+        return ts, {"template": "z95", "crew_skill": "3D"}
 
 
 class _FakeCombatMgr:
@@ -224,6 +229,14 @@ def test_engage_combat_pirates_spawns_2_3_and_promotes(monkeypatch):
     assert all(p["target_ship_id"] == 5 for p in fcombat.promotes)
     assert removed == [("tz", 7)]                              # the nest is consumed
     assert any("[COMBAT]" in ln for ln in ctx.session.lines)
+    # BLOCKER-1 fix: each hostile is individually targetable (distinct callsign
+    # + a display-surfacing 'combat' transponder, not all 'Unregistered fighter')
+    names = [s.display_name for s in ftraffic.ships]
+    assert len(set(names)) == len(names), f"raider names not distinct: {names}"
+    assert all(s.transponder_type == "combat" for s in ftraffic.ships)
+    # BLOCKER-2 fix: promoted ships are flagged so the ambient traffic tick
+    # (tailing / extortion) leaves them alone
+    assert all(s.in_live_combat for s in ftraffic.ships)
 
 
 def test_engage_combat_patrol_spawns_exactly_one(monkeypatch):
@@ -272,3 +285,34 @@ def test_npc_space_combat_tick_is_registered():
     src = pathlib.Path("server/game_server.py").read_text(encoding="utf-8")
     assert "async def npc_space_combat_tick" in src
     assert 'register("npc_space_combat"' in src
+
+
+def test_combat_transponder_surfaces_distinct_name():
+    """BLOCKER-1: a 'combat' transponder shows the ship's real (distinct) name so
+    `fire <name>` can target it; ambient 'none' pirates still collapse to a
+    single 'Unregistered fighter'."""
+    from engine.npc_space_traffic import TrafficShip, TrafficState
+    hostile = TrafficShip(ship_id=1, archetype=TrafficArchetype.PIRATE,
+                          state=TrafficState.IDLE, current_zone="tz",
+                          display_name="Raider Alpha", transponder_type="combat")
+    assert hostile.sensors_name() == "Raider Alpha"
+    ambient = TrafficShip(ship_id=2, archetype=TrafficArchetype.PIRATE,
+                          state=TrafficState.IDLE, current_zone="tz",
+                          display_name="Whatever", transponder_type="none")
+    assert ambient.sensors_name() == "Unregistered fighter"
+
+
+def test_idle_tick_skips_live_combat_ships():
+    """BLOCKER-2: the ambient traffic tick must not tail/hail/extort a ship the
+    combat manager owns (in_live_combat)."""
+    from engine.npc_space_traffic import (
+        get_traffic_manager, TrafficShip, TrafficState)
+    mgr = get_traffic_manager()
+    ts = TrafficShip(ship_id=1, archetype=TrafficArchetype.PIRATE,
+                     state=TrafficState.IDLE, current_zone="tz",
+                     display_name="Raider Alpha", transponder_type="combat")
+    ts.in_live_combat = True
+    result = asyncio.run(mgr._tick_idle(ts, None, None))  # guard returns before db use
+    assert result is False
+    assert ts.tailing_ship_id is None      # never began tailing
+    assert ts.state == TrafficState.IDLE   # unchanged

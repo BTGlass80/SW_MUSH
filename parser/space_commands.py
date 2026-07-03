@@ -3667,12 +3667,20 @@ class CourseCommand(BaseCommand):
         mgr = get_traffic_manager()
         combat = get_npc_combat_manager()
         bridge = ship.get("bridge_room_id")
+        callsigns = ["Alpha", "Bravo", "Charlie", "Delta"]
         spawned = 0
-        for _ in range(count):
+        for i in range(count):
             res = await mgr.spawn_for_encounter(ctx.db, ctx.session_mgr, zone_id, arch)
             if not res:
                 continue
             ts, tmpl = res
+            if kind == "pirate":
+                # Distinct, individually-targetable sensor names — the ambient
+                # pirate 'none' transponder collapses ALL raiders to one
+                # 'Unregistered fighter' (un-targetable when 2-3 share a zone).
+                # 'combat' surfaces the callsign so `fire raider bravo` works.
+                ts.display_name = f"Raider {callsigns[i % len(callsigns)]}"
+                ts.transponder_type = "combat"
             try:
                 combat.promote_to_combat(
                     npc_ship_id=ts.ship_id,
@@ -3685,6 +3693,9 @@ class CourseCommand(BaseCommand):
                     profile=profile,
                     starting_range=SpaceRange.SHORT,
                 )
+                # The combat manager now owns this ship — keep the ambient
+                # traffic tick (tailing / extortion hails / re-routing) off it.
+                ts.in_live_combat = True
                 spawned += 1
             except Exception:
                 log.warning("anomaly combat: promote_to_combat failed", exc_info=True)

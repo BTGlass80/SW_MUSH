@@ -742,6 +742,12 @@ class TrafficShip:
             return "Unregistered fighter"
         elif self.transponder_type == "hunter":
             return f"Pursuit vessel ({self.display_name})"
+        elif self.transponder_type == "combat":
+            # Engagement hostiles: surface the distinct per-ship name so the
+            # player can target each one with `fire <name>` (ambient 'none'
+            # pirates all collapse to 'Unregistered fighter', un-targetable
+            # when several share a zone).
+            return self.display_name
         return self.display_name
 
     def to_json(self) -> dict:
@@ -1194,6 +1200,11 @@ class NpcSpaceTrafficManager:
         return False
 
     async def _tick_idle(self, ship: TrafficShip, db, session_mgr) -> bool:
+        # Ships promoted into live combat (anomaly pirate nests / dead-drop
+        # patrols) are owned by NpcSpaceCombatManager — the ambient tick must
+        # not tail / hail / extort / re-route them mid-firefight.
+        if getattr(ship, "in_live_combat", False):
+            return False
         # Patrol: scan for players in zone and hail them
         # NOTE: Gated behind PATROL_AUTO_HAIL_ENABLED (currently False).  The
         # legacy "comms keyword" inspection model is being replaced by the
@@ -1775,6 +1786,9 @@ class NpcSpaceTrafficManager:
             return False, f"No ship named '{target_name}' in your zone."
         if ts.archetype != TrafficArchetype.PIRATE:
             return False, f"{ts.sensors_name()} isn't demanding anything from you."
+        if getattr(ts, "in_live_combat", False):
+            return False, (f"{ts.sensors_name()} is already firing on you — "
+                           "there's no deal to buy.")
         if ts.state != TrafficState.HAILING or ts.pirate_demand_credits <= 0:
             return False, f"{ts.sensors_name()} hasn't made a demand yet."
         if ts.pirate_paid:
