@@ -220,6 +220,34 @@ class NpcSpaceCombatManager:
         c.hull_damage += hull_damage
         return c.is_destroyed()
 
+    async def destroy_combatant(self, npc_ship_id: int, db, session_mgr,
+                                already_rewarded: bool = False) -> bool:
+        """Externally-triggered kill teardown (SPACE.b1 fix).
+
+        Hull damage against a live combatant is actually written to the DB
+        ship row by `parser.space_commands.FireCommand._apply_hull_damage`,
+        not through `apply_damage_to_npc` (nothing calls that today — see its
+        docstring) — so a fire-kill never flips `c.is_destroyed()` and the
+        tick loop's own destroy detection never fires, leaving an unkillable
+        ghost combatant that keeps shooting and can't be re-targeted (its DB
+        row is already gone). This is the fire path's counterpart to the
+        tick loop's destroy handling: same `_handle_combat_end("destroyed")`
+        teardown, called externally right after `fire` confirms the kill.
+
+        `already_rewarded=True` (the fire path's case — it already paid the
+        bounty and spawned the wreck via `handle_traffic_ship_destroyed`)
+        skips `_handle_combat_end`'s own wreck-spawn + bounty section so
+        reward and wreck each happen exactly once. Returns True if a live
+        combatant was found and torn down.
+        """
+        c = self._combatants.get(npc_ship_id)
+        if c is None:
+            return False
+        await self._handle_combat_end(c, "destroyed", db, session_mgr,
+                                      already_rewarded=already_rewarded)
+        self.remove_combatant(npc_ship_id)
+        return True
+
     # ── Tick ─────────────────────────────────────────────────────────────
 
     async def tick(self, db, session_mgr) -> None:
@@ -525,30 +553,35 @@ class NpcSpaceCombatManager:
     # ── Combat End ───────────────────────────────────────────────────────
 
     async def _handle_combat_end(self, c: SpaceNpcCombatant, reason: str,
-                                 db, session_mgr) -> None:
+                                 db, session_mgr, already_rewarded: bool = False) -> None:
         if reason == "destroyed":
             await self._bcast(c,
                 f"\n  {GREEN}[COMBAT]{RST} {c.display_name} explodes! Combat over.\n"
                 f"  {DIM}Type 'salvage' for wreckage.{RST}", session_mgr)
-            try:
-                from engine.space_anomalies import add_wreck_anomaly
-                add_wreck_anomaly(c.zone_id, c.display_name)
-            except Exception as e:
-                log.warning("[npc_combat] wreck spawn: %s", e)
-            try:
-                from engine.npc_space_traffic import get_traffic_manager
-                sessions = session_mgr.sessions_in_room(c.target_bridge_room)
-                if sessions:
-                    for sess in sessions:
-                        if sess.character:
-                            awarded = await get_traffic_manager().handle_traffic_ship_destroyed(
-                                c.npc_ship_id, sess.character, db, session_mgr)
-                            if awarded:
-                                await sess.send_line(
-                                    f"  {GREEN}[BOUNTY]{RST} Recovered {awarded:,} credits!")
-                            break
-            except Exception as e:
-                log.warning("[npc_combat] kill reward: %s", e)
+            # already_rewarded=True (set by destroy_combatant() for an
+            # externally-triggered fire-kill) means the caller already spawned
+            # the wreck + paid the bounty — skip both here so they land
+            # exactly once instead of twice.
+            if not already_rewarded:
+                try:
+                    from engine.space_anomalies import add_wreck_anomaly
+                    add_wreck_anomaly(c.zone_id, c.display_name)
+                except Exception as e:
+                    log.warning("[npc_combat] wreck spawn: %s", e)
+                try:
+                    from engine.npc_space_traffic import get_traffic_manager
+                    sessions = session_mgr.sessions_in_room(c.target_bridge_room)
+                    if sessions:
+                        for sess in sessions:
+                            if sess.character:
+                                awarded = await get_traffic_manager().handle_traffic_ship_destroyed(
+                                    c.npc_ship_id, sess.character, db, session_mgr)
+                                if awarded:
+                                    await sess.send_line(
+                                        f"  {GREEN}[BOUNTY]{RST} Recovered {awarded:,} credits!")
+                                break
+                except Exception as e:
+                    log.warning("[npc_combat] kill reward: %s", e)
 
         elif reason == "fled":
             try:

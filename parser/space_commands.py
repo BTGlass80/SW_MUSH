@@ -2806,6 +2806,24 @@ class FireCommand(BaseCommand):
         if new_dmg < destroyed_threshold:
             return
 
+        # SPACE.b1 (BLOCKER fix): if this kill is a live combat-AI combatant
+        # (promoted via `course anomaly` -> _engage_combat), end its
+        # participation HERE. Nothing feeds NpcSpaceCombatManager's own hull
+        # tracking (apply_damage_to_npc is dead code — this fire path writes
+        # hull_damage straight to the DB row instead), so without this the
+        # tick loop's `c.is_destroyed()` check never trips: the combatant
+        # keeps firing forever and can't be re-targeted once its DB row is
+        # gone. already_rewarded=True — the bounty + wreck below are this
+        # path's job; destroy_combatant() skips its own copies of both.
+        try:
+            from engine.npc_space_combat_ai import get_npc_combat_manager
+            await get_npc_combat_manager().destroy_combatant(
+                target_ship["id"], ctx.db, ctx.session_mgr,
+                already_rewarded=True)
+        except Exception:
+            log.warning("_apply_hull_damage: combat-AI teardown failed",
+                        exc_info=True)
+
         traffic_mgr = get_traffic_manager()
         ts = traffic_mgr.get_ship(target_ship["id"])
         if ts is None:
@@ -3505,21 +3523,29 @@ class CourseCommand(BaseCommand):
         dice roll goes through perform_skill_check and fails CLOSED.
         """
         from engine.skill_checks import perform_skill_check
-        from engine.space_anomalies import get_anomalies_for_zone, remove_anomaly
+        from engine.space_anomalies import (
+            get_anomalies_for_zone, remove_anomaly, restore_anomaly)
         parts = raw.split()
         if len(parts) < 2 or not parts[1].isdigit():
             await ctx.session.send_line(
                 "  Usage: course anomaly <id>  (the id shown by `deepscan`).")
             return
         aid = int(parts[1])
-        ship = await _get_ship_for_player(ctx)
-        if not ship:
-            await ctx.session.send_line("  You're not aboard a ship.")
+        # SPACE.b2/b4: committing to an anomaly (esp. the "pirates"/"imperial"
+        # combat mechanics) moves the whole crewed ship into a fight, so gate
+        # it exactly like `course <zone>` -- pilot-only, not mid-hyperspace,
+        # not ion-frozen (_validate_helm), and not already mid-sublight-transit
+        # (matches the same check `course <zone>` runs post-validate). Before
+        # this a non-pilot passenger with no station could unilaterally commit
+        # the ship to combat, and engaging mid-transit spawned a hostile the
+        # zone-scoped `fire` target resolver could never find after arrival.
+        ship, systems, _zone, _arg = await self._validate_helm(ctx)
+        if ship is None:
             return
-        if ship.get("docked_at"):
-            await ctx.session.send_line("  You're docked. Launch first.")
+        if systems.get("sublight_transit"):
+            await ctx.session.send_line(
+                "  Already in transit. Use 'course cancel' to abort.")
             return
-        systems = _get_systems(ship)
         zone_id = systems.get("current_zone", "")
         target = next(
             (a for a in get_anomalies_for_zone(zone_id) if a.id == aid), None)
@@ -3545,6 +3571,21 @@ class CourseCommand(BaseCommand):
         if not spec:
             await ctx.session.send_line(f"  There's nothing to engage on anomaly #{aid}.")
             return
+
+        # SPACE.b3: atomic claim. remove_anomaly() is synchronous and
+        # everything since this coroutine last awaited (inside
+        # `_validate_helm`) has been synchronous too, so whichever concurrent
+        # `course anomaly <id>` call reaches this line first wins the anomaly
+        # outright -- a second racer's remove_anomaly() call returns False
+        # here and is refused exactly like "no anomaly in zone". Non-one-shot
+        # mechanics (cache/mynock) restore_anomaly() below on a failed
+        # attempt so a single player can still retry; the claim only needs to
+        # hold for the duration of one attempt, not the anomaly's lifetime.
+        if not remove_anomaly(zone_id, target.id):
+            await ctx.session.send_line(
+                f"  No anomaly #{aid} in this zone. Use `deepscan` to detect anomalies.")
+            return
+
         char = ctx.session.character
         sr = get_cached_skill_registry()
 
@@ -3573,12 +3614,14 @@ class CourseCommand(BaseCommand):
             (a_skill, a_diff), (b_skill, b_diff) = spec["steps"]
             approach = _roll(a_skill, a_diff)
             if not _ok(approach):
+                restore_anomaly(zone_id, target)  # not one-shot -- retry allowed
                 await ctx.session.send_line(
                     f"  {ansi.BRIGHT_YELLOW}[ANOMALY]{ansi.RESET} {spec['fail_approach']} "
                     f"({a_skill}, diff {a_diff})")
                 return
             bypass = _roll(b_skill, b_diff)
             if not _ok(bypass):
+                restore_anomaly(zone_id, target)  # not one-shot -- retry allowed
                 await ctx.session.send_line(
                     f"  {ansi.BRIGHT_YELLOW}[ANOMALY]{ansi.RESET} {spec['fail_bypass']} "
                     f"({b_skill}, diff {b_diff})")
@@ -3601,8 +3644,10 @@ class CourseCommand(BaseCommand):
             # mynock: a latched colony chews a working system (readout: 1 system damage)
             if mechanic == "detach_damage":
                 await self._damage_random_system(ctx, ship, systems)
-            if spec["one_shot"]:
-                remove_anomaly(zone_id, target.id)
+            # one-shot types stay claimed (consumed above, win or lose);
+            # non-one-shot (mynock) restores the claim so retry still works.
+            if not spec["one_shot"]:
+                restore_anomaly(zone_id, target)
             return
 
         # ── success: credit faucet (distress / imperial-decode / mynock) ────
@@ -3611,15 +3656,18 @@ class CourseCommand(BaseCommand):
             crit=bool(result and result.critical_success))
 
     async def _anomaly_payout(self, ctx, char, spec, zone_id, target, crit=False):
-        """Faucet payout shared by the credit-reward anomaly mechanics."""
+        """Faucet payout shared by the credit-reward anomaly mechanics.
+
+        The anomaly is already claimed (removed) by _engage_anomaly()'s
+        up-front atomic claim (SPACE.b3) -- no remove_anomaly() call needed
+        here on the success path.
+        """
         import random
-        from engine.space_anomalies import remove_anomaly
         lo, hi = spec["credits"]
         amount = hi if crit else random.randint(lo, hi)
         new_bal = await ctx.db.adjust_credits(char["id"], amount, spec["tag"])
         if isinstance(char, dict) and new_bal is not None:
             char["credits"] = new_bal
-        remove_anomaly(zone_id, target.id)
         await ctx.session.send_line(
             f"  {ansi.BRIGHT_CYAN}[ANOMALY]{ansi.RESET} {spec['ok']} "
             f"(+{amount:,} credits)")
@@ -3654,12 +3702,16 @@ class CourseCommand(BaseCommand):
         This is a DIRECT promote_to_combat from a live command — it does NOT go
         through the unwired structured-encounter framework or the phantom
         engine.npc_space_traffic.spawn_pirate_for_encounter.
+
+        The anomaly is already claimed (removed) by _engage_anomaly()'s
+        up-front atomic claim (SPACE.b3) -- no remove_anomaly() call needed
+        here; the contact is consumed the moment the caller commits, win or
+        lose, exactly as before.
         """
         import random
         from engine.npc_space_traffic import get_traffic_manager, TrafficArchetype
         from engine.npc_space_combat_ai import get_npc_combat_manager
         from engine.starships import SpaceRange
-        from engine.space_anomalies import remove_anomaly
         if kind == "pirate":
             arch, profile, count = TrafficArchetype.PIRATE, "aggressive", random.randint(2, 3)
         else:
@@ -3699,8 +3751,6 @@ class CourseCommand(BaseCommand):
                 spawned += 1
             except Exception:
                 log.warning("anomaly combat: promote_to_combat failed", exc_info=True)
-        # The contact is consumed the moment you commit — win or lose.
-        remove_anomaly(zone_id, target.id)
         if spawned == 0:
             await ctx.session.send_line(
                 "  The contact scatters before you can close — nothing to engage.")

@@ -263,6 +263,21 @@ def remove_anomaly(zone_id: str, anomaly_id: int) -> bool:
     return len(_anomalies[zone_id]) < before
 
 
+def restore_anomaly(zone_id: str, anomaly) -> None:
+    """Put a previously-`remove_anomaly()`-claimed Anomaly back into the zone.
+
+    `course anomaly <id>` (parser.space_commands.CourseCommand._engage_anomaly)
+    claims an anomaly atomically by removing it up front (closing a
+    concurrent-engage race — two players can no longer both win the same
+    contact), then restores it here on a failed attempt for mechanics that
+    allow a retry (cache/mynock are not one-shot). No-ops if an anomaly with
+    the same id is already present (defensive against a double-restore).
+    """
+    zone_list = _anomalies.setdefault(zone_id, [])
+    if not any(a.id == anomaly.id for a in zone_list):
+        zone_list.append(anomaly)
+
+
 def tick_anomaly_expiry(zone_id: str) -> None:
     """Prune expired anomalies for a zone — call periodically from game_server."""
     _prune_expired(zone_id)
