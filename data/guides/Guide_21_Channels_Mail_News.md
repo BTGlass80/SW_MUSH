@@ -9,7 +9,7 @@ tags: ["channels", "mail", "news", "communication", "chat", "message"]
 
 **Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
-**Guide Version 1.1**
+**Guide Version 1.2**
 
 ---
 

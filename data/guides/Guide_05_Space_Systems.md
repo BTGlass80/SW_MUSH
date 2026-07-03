@@ -166,7 +166,7 @@ skills:
 
 | Station | Skill | What It Does | Key Commands |
 |---------|-------|--------------|--------------|
-| **Pilot** | Space Transports / Starfighter Piloting | Flies the ship, maneuvers, docks/launches | `course`, `close`, `flee`, `evade`, `tail` |
+| **Pilot** | Space Transports / Starfighter Piloting | Flies the ship, maneuvers, docks/launches | `course`, `close`, `fleeship`, `evade`, `tail` |
 | **Copilot** | Space Transports | Assists pilot (+1D via Coordinate) | `assist` |
 | **Gunner** | Starship Gunnery | Fires weapons, manages lock-on | `fire`, `lockon` |
 | **Engineer** | ST Repair / Starfighter Repair | Damage control, power, shields | `damcon`, `power`, `shields`, `+ship/repair` |
@@ -233,7 +233,7 @@ in all directions; front-only weapons can't reach a target behind you.
 
 **Maneuvering** — opposed piloting rolls that change the tactical picture:
 - `close <target>` — Reduce range by one band
-- `flee` — Increase range (escape attempt)
+- `fleeship` (alias `breakaway`) — Increase range (escape attempt)
 - `tail <target>` — Get behind the target (rear position — they can't bring back-arc weapons to bear)
 - `outmaneuver <target>` — Strip the target's position advantage
 - `evade` — Evasive action to break tail locks (clears lock-ons against you)
@@ -472,7 +472,7 @@ The web client provides a rich space interface:
 | **Ship Management** | `+ship`, `+ship/list`, `+ship/info`, `+ship/mine`, `+ship/rename`, `+ship/mods`, `+ship/install`, `+ship/uninstall`, `+ship/repair`, `board`, `disembark`, `pay` |
 | **Crew Stations** | `pilot`, `copilot`, `gunner`, `engineer`, `navigator`, `commander`, `sensors`, `vacate` |
 | **Navigation** | `course`, `hyperspace`, `land`, `launch` |
-| **Combat** | `fire`, `lockon`, `close`, `flee`, `tail`, `outmaneuver`, `evade`, `jink`, `barrelroll`, `loop`, `slip` |
+| **Combat** | `fire`, `lockon`, `close`, `fleeship`, `tail`, `outmaneuver`, `evade`, `jink`, `barrelroll`, `loop`, `slip` |
 | **Ship Operations** | `scan`, `deepscan`, `shields`, `damcon`, `power`, `coordinate`, `assist`, `order` |
 | **Economy / Wildspace** | `market`, `buy`, `sell`, `mine`, `salvage`, `refine`, `hail`, `transponder` |
 | **Admin** | `@spawn` (staff) |

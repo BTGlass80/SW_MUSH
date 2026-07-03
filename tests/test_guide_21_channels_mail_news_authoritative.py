@@ -232,4 +232,7 @@ def test_guide_era_clean_no_coronet():
 
 def test_guide_version_bumped():
     text = _read_guide()
-    assert "Guide Version 1.1" in text, "Guide_21 version should be 1.1 after this pass"
+    # 2026-07-02 accuracy pass: the header was left at 1.1 while the
+    # reconciliation note (§ How to Read This Guide) already called out a
+    # 1.2-level change (comlink going planet-scoped) — header now matches.
+    assert "Guide Version 1.2" in text, "Guide_21 version should be 1.2 after this pass"

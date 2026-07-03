@@ -287,14 +287,14 @@ On the ground, certain rooms carry **environmental hazards** that periodically t
 **Extreme Heat.**
 - **Tested by:** Stamina vs. base difficulty 10 (rolls harder in more severe zones). On a desert tile the difficulty also tracks the twin-sun clock — worst under the noon suns, eased after dark (and floored at a Very Easy 5 so a cool night never makes the check trivial).
 - **Mitigation items:** Water canteen or cooling unit, carried in your inventory. Both are **durable** — once crafted they never wear out.
-- **Debuff applied:** **Dehydration** — −1 pip to *both* Strength and Dexterity per stack, stacking up to 3× (so a fully-stacked −1D Strength **and** −1D Dexterity). It does not tick away on its own; carrying water prevents new stacks but does not clear ones you already have, so treat it as prevention-first.
+- **Debuff applied:** **Dehydration** — −1 pip to *both* Strength and Dexterity per stack, stacking up to 3× (so a fully-stacked −1D Strength **and** −1D Dexterity). It doesn't clear the instant you have water in hand — but you're never permanently stuck with it: `drink` (alias `hydrate`) clears it on the spot if you're carrying a water canteen, and even with no canteen it decays on its own **~20 minutes** after you leave the heat.
 - **Environments:** Desert wilderness, barren zones, desert fringe.
 - **Found in:** Tatooine Dune Sea, Jundland Wastes, certain desert outposts.
 
 **Toxic Atmosphere.**
 - **Tested by:** Stamina vs. base difficulty 12 (harder in more severe zones).
 - **Mitigation items:** Breath mask, carried in inventory (**durable**).
-- **Debuff applied:** **Toxic Exposure** — a flat −1D Strength (it does not stack). Like dehydration, it sticks once it lands; the mask prevents new exposure rather than curing what you've taken, so carry it *before* you enter.
+- **Debuff applied:** **Toxic Exposure** — a flat −1D Strength (it does not stack). The mask prevents new exposure rather than curing what you've taken, so carry it *before* you enter — but the debuff isn't permanent either way: it decays on its own **~20 minutes** after you leave the toxic air.
 - **Environments:** Deep underground zones.
 - **Found in:** Coruscant underworld levels, certain industrial zones, the deep Kessel mines.
 
@@ -308,7 +308,7 @@ On the ground, certain rooms carry **environmental hazards** that periodically t
 **Radiation.**
 - **Tested by:** Stamina vs. base difficulty **15 (Difficult)**, rising in more severe zones.
 - **Mitigation items:** Radiation suit — a **consumable** that averts up to **10** hazard ticks before it falls apart. Unlike the canteen and mask, the suit wears out, so pack a spare for long irradiated jobs.
-- **Debuff applied:** **Toxic Exposure** — radiation applies the *same* −1D Strength debuff as toxic atmosphere; there is no separate "radiation sickness" effect. It persists the same way (prevention over cure).
+- **Debuff applied:** **Toxic Exposure** — radiation applies the *same* −1D Strength debuff as toxic atmosphere; there is no separate "radiation sickness" effect. It clears the same way too — no instant cure for it, but it decays on its own **~20 minutes** after you leave the irradiated zone.
 - **Environments:** Manually tagged rooms only (e.g., reactor cores, irradiated wreckage, certain Kessel areas).
 
 ### How hazards work
@@ -320,7 +320,7 @@ On the ground, certain rooms carry **environmental hazards** that periodically t
 3. If they have mitigation: the check is bypassed. No roll. No debuff. (Consumable gear — the radiation suit and anti-theft alarm — spends a use each time it averts a tick; durable gear does not.)
 4. If they don't: a skill check is rolled. Pass = no debuff. Fail = the relevant debuff applies (or stacks).
 
-**Mitigation prevents; it does not cure.** Carrying the right item makes step 3 fire — the hazard skips your check entirely — but it does *not* clear a debuff you picked up earlier while unprotected. Dehydration and toxic exposure stick once they land, so the gear is a shield to carry *before* you enter, not a remedy to grab after.
+**Mitigation prevents new checks; recovery is a separate step.** Carrying the right item makes step 3 fire — the hazard skips your check entirely — but it does not instantly clear a debuff you already picked up while unprotected. To recover: `drink` (alias `hydrate`) clears dehydration on the spot if you're carrying a water canteen, and both dehydration and toxic exposure decay on their own **~20 minutes** after you leave the hazard zone. So the gear is still worth carrying *before* you enter — it's the difference between never taking the debuff and having to drink it off or wait it out.
 
 The 5-minute cadence means hazards are **slow attrition**, not instant damage. You can spend 5-10 minutes in extreme heat without consequence if your Stamina rolls hot. Stay 30+ minutes without water, and the dehydration stacks add up.
 
@@ -384,7 +384,7 @@ Six concrete pictures.
 
 **Scenario 3 — Distress signal investigation.** You're in deep space. Sensors ping: "Distress signal, unknown source." You `respond investigate`. You arrive at the signal — a damaged freighter, captain pleading for help with supplies. You give him 200 cr worth of medpacs. He thanks you, gives you a contact name in Coronet. Two weeks later that contact pays out a 5,000 cr smuggling job. The investigation paid off in indirect ways.
 
-**Scenario 4 — Wilderness heat death.** You're tracking bandits through the Dune Sea at midday. No canteen. After 30 minutes of real-time, you've failed three Stamina checks at 5-minute intervals — Dehydration is now 3-stacked: −1D Strength *and* −1D Dexterity. Your soak and your blaster rolls have both sagged a full die. The next bandit fight goes badly; you're Wounded Twice and barely escape — and because the dehydration doesn't lift just because you left the sand, you limp home still penalized until you can shake it. Lesson: carry the canteen *before* you set out — prevention, not cure.
+**Scenario 4 — Wilderness heat death.** You're tracking bandits through the Dune Sea at midday. No canteen. After 30 minutes of real-time, you've failed three Stamina checks at 5-minute intervals — Dehydration is now 3-stacked: −1D Strength *and* −1D Dexterity. Your soak and your blaster rolls have both sagged a full die. The next bandit fight goes badly; you're Wounded Twice and barely escape. Back at base you finally find a canteen and `drink` — the dehydration clears on the spot; if you'd had no water at all it would've faded on its own **~20 minutes** after you left the sand. Lesson: carry the canteen *before* you set out — it's the difference between never taking the hit and having to drink or wait it off afterward.
 
 **Scenario 5 — Hunter encounter.** A PC bounty was posted on your character (you're worth 25,000 cr to the right hunter). You're transiting Kessel Approach. The encounter fires: "Bounty Hunter — Boba Vinn intercepts your ship." You see the choices. You `respond fight`. The hunter is a Veteran-tier — better-equipped than a pirate. You take significant damage but survive; the hunter's ship is destroyed. The bounty doesn't pay (you didn't kill the hunter cleanly), but you're alive. Lesson: PC bounty Hunter encounters carry real stakes. Travel armed.
 
@@ -420,6 +420,7 @@ Six concrete pictures.
 | `salvage` | Strip a fully-resolved derelict or wreck for resources |
 | `anomalies` | List active **wilderness** anomalies in your current region (alias `anom`) |
 | `investigate <id>` | Act on a wilderness anomaly at its anchor site — skill check, combat engage, or skill-gate phase |
+| `drink` (alias `hydrate`) | Clear dehydration on the spot if you're carrying a water canteen |
 
 ---
 
@@ -449,6 +450,7 @@ Six concrete pictures.
 | Republic Dead Drop decode | Slicing vs. Difficult (20); failure → Republic patrol |
 | Dehydration | −1 pip STR + −1 pip DEX per stack, max 3 (→ −1D / −1D) |
 | Toxic exposure / radiation debuff | −1D STR, single stack |
+| Env-hazard debuff decay (dehydration / toxic exposure) | ~20 minutes (1,200 seconds) after you leave the hazard |
 | Wilderness anomaly lifetime — Tier 1 / 2 / 3 | ~30 min / ~2 hr / ~8 hr |
 | Wilderness skill-anomaly check | Better of two skills vs. Moderate–Difficult (13) |
 | Wilderness skill-gate retry cooldown | ~12 seconds between attempts |
