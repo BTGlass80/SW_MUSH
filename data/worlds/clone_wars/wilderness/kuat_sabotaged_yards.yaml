@@ -1,0 +1,192 @@
+# data/worlds/clone_wars/wilderness/kuat_sabotaged_yards.yaml
+#
+# iron_veil_kuat_staged_scenario (2026-07-02): a new, SMALL wilderness region
+# authored to give the Iron Veil (Kuat) the site substrate it lacked at
+# events_more_scenarios time (2026-06-24), so its communal objective can
+# convert from the menace path to a playable 3-stage site scenario, mirroring
+# the Ember Court (geonosis_ey_akh) / Ashen Hand (coruscant_underworld) drops.
+#
+# ── PROVENANCE / DISCIPLINE ─────────────────────────────────────────────────
+# Wholly original content — no sourcebook extraction. The Iron Veil ("orbital
+# saboteurs who veil the shipyards in engineered blackouts", per
+# engine/communal_objective.py's CultDef) is an invented dark-side cult (B3/Q1:
+# no Imperial/Rebel strings, no canon figures). Modeled on wilderness/ey_akh.yaml
+# (the reference small-region shape: inline landmarks, one on-foot edge, no
+# landmark_includes split). The staged-scenario combat/skill/boss content itself
+# lives in engine/wilderness_anomalies.py (iron_veil_cell_assault /
+# iron_veil_power_relay / iron_veil_veilmaster) and engine/staged_event.py
+# (IRON_VEIL_STAGES) — this file is the physical site those stages anchor in.
+#
+# ── SCOPE (deliberately minimal — mirrors dune_sea.yaml's original minimal
+#   substrate, not the larger open-wilderness regions) ───────────────────────
+# This is a small (~4-room), SITE-PURPOSE region — it exists to anchor the
+# Iron Veil's staged scenario, not to be a large explorable wilderness. No
+# `encounters:` pool is authored: the featured content is the staged-cult
+# anomaly (arm_stage_site), and standing population is seeded separately via
+# npcs_drop_iron_veil_scenario.yaml (content_refs.wilderness_npcs). A future
+# drop MAY add an encounter pool if this pocket earns a life of its own beyond
+# the cult scenario (deferred, not phantom — the loader treats an absent
+# `encounters:` block as a no-op EncounterPool per its own docstring).
+#
+# ── LANDED (this region's arc) ──────────────────────────────────────────────
+#   * The Sabotaged Yards: a blacked-out KDY warehouse sub-level the Iron Veil
+#     has claimed, reached via a new maintenance-hatch edge room off Kuat
+#     Drive Yards - Ring Warehouse District (see planets/kuat.yaml,
+#     kuat_sabotaged_yards_edge).
+#   * 4 landmarks spanning the cult's rally_hook beats ("restore the cut
+#     power, trace their cells through the yards, keep the dock crews calm in
+#     the dark"): the entry gantry, the dark cargo bay (Stage 1's site), the
+#     dead relay hub (Stage 2 AND Stage 3's site — the Veilmaster's last
+#     stand), and the Veil Den (the cell's hidden staging room).
+
+schema_version: 1
+
+region:
+  slug: kuat_sabotaged_yards
+  name: "The Sabotaged Yards"
+  planet: kuat
+  zone: kuat_sabotaged_yards           # inherits security from this zone
+  default_security: contested          # nominally KDY territory, saboteur-held
+  narrative_tone_key: kuat_sabotaged_yards
+
+grid:
+  width: 10                            # x-coords 0..9
+  height: 10                           # y-coords 0..9
+  tile_scale_km: 1                     # dense industrial sub-level, not open terrain
+  default_terrain: blackout_gantry
+
+terrains:
+  blackout_gantry:
+    # The main causeways — catwalks and gantries with the power cut. Default
+    # terrain; low sight radius reflects the dark.
+    move_cost: 1
+    sight_radius: 1
+    ambient_hazard: none
+    hazard_severity: 0
+    variants:
+      - "A metal catwalk runs on into the dark, hand-torch light pooling a few meters at a time. The overhead strip lighting is dead — has been for a while."
+      - "Gantry decking, cut loose of the grid's power. Somewhere below, machinery that should be running sits silent."
+      - "The dark here has a texture to it — old grease, cold metal, the smell of a place that used to be full of people and isn't anymore."
+
+  cargo_hold:
+    # Warehouse interior bays — wider, better sight, more cover.
+    move_cost: 1
+    sight_radius: 2
+    ambient_hazard: none
+    hazard_severity: 0
+    variants:
+      - "A cavernous cargo bay, crates stacked into makeshift walls. Someone has been living — or working — in here for a while."
+      - "Durasteel shipping containers, stenciled with KDY manifests, arranged into a rough perimeter. This was never meant to be a redoubt. It is one now."
+
+  relay_substation:
+    # Where the yard's power routing lives — the Iron Veil's actual target.
+    move_cost: 2
+    sight_radius: 1
+    ambient_hazard: none
+    hazard_severity: 0
+    variants:
+      - "Banks of relay conduit line the walls, most of them dark, a few sparking where a hand-cut left a live edge exposed."
+      - "The substation floor is a mess of pried-open junction boxes and severed cable runs — surgical, not random. Someone knew exactly which lines to cut."
+
+# ─── Landmarks ───────────────────────────────────────────────────────────────
+landmarks:
+
+  - id: sabotaged_yards_gantry
+    name: "The Blackout Gantry"
+    coordinates: [2, 5]
+    terrain: blackout_gantry
+    short_desc: "The first stretch of dead gantry past the maintenance hatch — the last place the emergency strips still flicker."
+    description: |
+      Past the hatch, the Ring Warehouse District's steady light gives out
+      entirely within a few dozen meters. This gantry is the threshold: the
+      last emergency strip still gutters overhead, throwing more shadow than
+      light. Scorch marks on the deck plating mark where a KSF patrol tried
+      to push through, once, and did not push far. Beyond here the Iron Veil
+      considers the dark theirs.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+    adjacency:
+      - sabotaged_yards_cargo_dark
+
+  - id: sabotaged_yards_cargo_dark
+    name: "The Dark Cargo Bay"
+    coordinates: [4, 5]
+    terrain: cargo_hold
+    short_desc: "A blacked-out cargo bay the Iron Veil has fortified with stacked shipping containers."
+    description: |
+      A cargo bay the size of a small hangar, its usual traffic of loader
+      droids and inventory teams long since driven off. The Iron Veil has
+      built a rough perimeter out of durasteel shipping containers, cutting
+      fields of fire down every aisle. Hand-torches move between the stacks —
+      pickets on rotation, watching the approach from the gantry. This is
+      where the cult makes its first stand against anyone trying to relight
+      the yards.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+    adjacency:
+      - sabotaged_yards_gantry
+      - sabotaged_yards_relay_hub
+
+  - id: sabotaged_yards_relay_hub
+    name: "The Dead Relay Hub"
+    coordinates: [6, 5]
+    terrain: relay_substation
+    short_desc: "The severed heart of the sub-level's power grid — and the Veilmaster's last stand."
+    description: |
+      The substation that used to feed the whole warehouse sub-level its
+      power now sits dark, its relay banks hand-cut conduit by conduit —
+      patient, deliberate sabotage, not a single dramatic strike. A steady
+      set of hands could re-splice the severed feeds here in minutes; the
+      Iron Veil has made sure no one steady-handed gets close enough to try.
+      When the cult's cell-master finally shows themself, it is here, at the
+      dead heart of the grid they killed.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+    adjacency:
+      - sabotaged_yards_cargo_dark
+      - sabotaged_yards_veil_den
+
+  - id: sabotaged_yards_veil_den
+    name: "The Veil Den"
+    coordinates: [8, 5]
+    terrain: cargo_hold
+    short_desc: "A stripped foreman's office the Iron Veil has converted into its local staging room."
+    description: |
+      A foreman's office, stripped of everything that could be resold and
+      refitted with a cot, a comm rig running on a scavenged power cell, and
+      a wall of hand-drawn conduit maps marking every line the cell has cut
+      or means to. This is where the local blackout cell plans its next
+      move — and where the rattled dock crews who got pressed into service
+      are kept, watched, and told the lights are staying off for their own
+      good.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+    adjacency:
+      - sabotaged_yards_relay_hub
+
+# ─── Edges ───────────────────────────────────────────────────────────────────
+# The on-foot gateway from the Ring Warehouse District. kuat_sabotaged_yards_edge
+# is authored in planets/kuat.yaml (zone kuat_sabotaged_yards); the loader wires
+# the bidirectional edge-room <-> region-tile link from this declaration. "down"
+# / "up" are standard compass words (parser._MOVEMENT_DIRECTIONS) so they route
+# to MoveCommand without needing the custom-edge-word scan.
+edges:
+  - room_slug: kuat_sabotaged_yards_edge
+    coords: [1, 5]
+    direction_from_room: down
+    direction_back_to_room: up
+    enter_message: |
+      You duck through the hatch and the last of the Ring Warehouse
+      District's light dies behind you. The dark here has weight to it —
+      cut cable, cold metal, and somewhere close, the sound of someone
+      trying very hard not to be heard.
+    exit_message: |
+      You climb back up through the hatch into the Ring Warehouse
+      District's steady light. Behind you, the dark closes back in like it
+      was never disturbed.
+
+unwalkable_tiles: []

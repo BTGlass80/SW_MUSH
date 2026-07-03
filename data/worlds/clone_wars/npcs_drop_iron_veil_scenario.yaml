@@ -1,0 +1,267 @@
+# data/worlds/clone_wars/npcs_drop_iron_veil_scenario.yaml
+#
+# Iron Veil Sabotaged Yards Wilderness Population (2026-07-02)
+#
+# Four NPCs seeded across the new Sabotaged Yards wilderness landmark rooms
+# (data/worlds/clone_wars/wilderness/kuat_sabotaged_yards.yaml) so the region
+# isn't a barren shell outside the staged-cult scenario's dynamically-spawned
+# combat_npcs (engine/wilderness_anomalies.py). Mirrors the standing-population
+# precedent every other new wilderness region shipped with (e.g.
+# npcs_drop_mob_grind_geonosis_ey_akh.yaml for the E'Y-Akh, the three
+# npcs_drop_mob_grind_coruscant_underworld*.yaml files for the Underworld).
+#
+# Zone: kuat_sabotaged_yards (threat_band: contested_marches, security: contested)
+# Rooms are WILDERNESS LANDMARK rooms (wilderness_region_id IS NOT NULL)
+# defined in the region YAML above. These resolve via
+# engine/npc_loader._resolve_wilderness_room_id() at runtime (DB lookup by
+# landmark name after the wilderness writer runs). This file uses the
+# `wilderness_npcs:` top-level key and is registered under
+# content_refs.wilderness_npcs in era.yaml — NOT content_refs.npcs.
+#
+# Room spread:
+#   The Blackout Gantry x1   (Iron Veil Lookout — Human)
+#   The Dark Cargo Bay x1    (Iron Veil Bay Guard — Twi'lek)
+#   The Dead Relay Hub x1    (Rattled Dock Tech — Human, NON-hostile)
+#   The Veil Den x1          (Iron Veil Cell Handler — Zabrak)
+#
+# Three of four satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present (is_bounty_target /
+#     is_anomaly_target / is_wilderness_encounter / is_dsp_hunter /
+#     is_intel_handler / chain_enemy_template / vendor)
+# The Rattled Dock Tech is deliberately non-hostile flavor (the cult's
+# rally_hook names "keep the dock crews calm in the dark" — this is that
+# civilian, pressed into service and too rattled to fight back), so she is
+# excluded from is_huntable_mob() by hostile=false rather than a marker.
+#
+# DESIGN NOTE (deviation from the drop brief, logged for the record): the
+# brief's "boss gets a chain_enemy_template" was NOT applied to any NPC here.
+# chain_enemy_template is the CW tutorial/questline chain-enemy tag (read by
+# parser/combat_commands.py's combat_won hook, engine/chain_events.py) and is
+# ALSO an is_huntable_mob() exclusion marker in engine/hunting_rewards.py. No
+# questline chain in this drop targets an "iron_veil_*" enemy_template, so
+# tagging a standing NPC with it would silently zero their mob-grind reward
+# for no compensating payout (chain_events.on_combat_won no-ops with no
+# matching chain step) — a dead-end, not a forward-compatible prerequisite
+# (the historical precedent for pre-authoring the tag, npcs_drop_f8c2a /
+# npcs_drop_f8c2b2_combat_templates, seeded NPCs a CHAIN STEP ALREADY NAMED,
+# not a tag with no consumer yet). The scenario's actual boss (the Veilmaster)
+# is the dynamically-spawned combat_npc in iron_veil_veilmaster
+# (engine/wilderness_anomalies.py), exactly mirroring how ember_court/
+# ashen_hand/hollow_sun have no standalone seeded boss NPC either. The Cell
+# Handler below is a distinct, standing elite (not the Veilmaster) so there is
+# no duplicate-identity confusion between the always-there population and the
+# scenario's live spawn.
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats grounded in sibling mob-grind baselines (Pit Scavenger /
+#   Wreck Plunderer, npcs_drop_mob_grind_geonosis_ey_akh.yaml) — average-tier
+#   humanoid thugs, blaster 4D-5D band. Sourcebooks absent in this tree —
+#   stats UNVERIFIED against the WEG40120 PDF (matches sibling-file discipline).
+# Loaded by: engine/npc_loader.py::load_wilderness_npcs() via
+#   era.yaml content_refs.wilderness_npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+wilderness_npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # THE BLACKOUT GANTRY — 1 NPC
+  # The threshold picket, watching the approach from the warehouse side.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Iron Veil Lookout
+    room: "The Blackout Gantry"
+    species: Human
+    description: >-
+      A hunched figure crouched at the gantry rail, a hand-torch shuttered
+      to a sliver of light and a comlink pressed to one ear. The Iron Veil
+      keeps this stretch watched around the clock — the one approach a KSF
+      patrol or a repair crew would have to use. The Lookout has clearly
+      done this rotation before; the moment your footstep changes the echo
+      of the catwalk, the comlink is already up and the blaster is already
+      drawn.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 3D
+        technical: 2D+1
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        sneak: 3D+2
+        search: 3D+1
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 1
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        An Iron Veil picket standing the threshold watch. Calm, procedural,
+        unhurried right up until the comlink call goes out — then fast and
+        final. Does not negotiate with anyone approaching from the lit side
+        of the hatch.
+      knowledge: []
+      faction: independent
+      dialogue_style: "Clipped comlink jargon. 'Contact at the gantry' is the whole conversation."
+      hostile: true
+      combat_behavior: tactical
+      fallback_lines:
+        - "*The Lookout's comlink clicks twice — a warning already sent.*"
+        - "'Wrong side of the hatch.' *The blaster pistol comes level.*"
+        - "*Torch-light swings across you, then away, then the shot comes anyway.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # THE DARK CARGO BAY — 1 NPC
+  # The perimeter guard behind the container walls.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Iron Veil Bay Guard
+    room: "The Dark Cargo Bay"
+    species: Twi'lek
+    description: >-
+      A rangy Twi'lek in scavenged KDY coveralls, posted at a gap between
+      two stacked shipping containers with a blaster carbine slung ready.
+      The improvised perimeter has clean fields of fire down every aisle,
+      and the Bay Guard has walked this rotation enough times to know every
+      one of them without looking. Anyone crossing the open ground between
+      the gantry and the relay hub crosses it under this rifle.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 3D+2
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        brawling: 4D+2
+        dodge: 3D+1
+        intimidation: 3D
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 1
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A perimeter guard who has internalized the cult's discipline —
+        methodical, patient, unwilling to abandon a covered position even
+        under fire. Trusts the container walls more than any argument an
+        intruder could make.
+      knowledge: []
+      faction: independent
+      dialogue_style: "Short, flat Twi'leki-accented Basic. Warnings, not conversation."
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The Bay Guard doesn't move from the gap — just brings the carbine up.*"
+        - "'This bay is dark for a reason. Turn around.'"
+        - "*A short burst chews into the container beside you — the next one won't miss high.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # THE DEAD RELAY HUB — 1 NPC (non-hostile)
+  # A pressed civilian technician, kept here and watched.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Rattled Dock Tech
+    room: "The Dead Relay Hub"
+    species: Human
+    description: >-
+      A KDY maintenance technician sits on an overturned crate near the
+      dead relay banks, tool satchel still slung across her chest, hands
+      folded tight in her lap. The Iron Veil pulled her off a routine
+      inspection three days ago and has kept her here since — not
+      restrained, exactly, just reminded often enough that the lights
+      staying off is safer for everyone, including her. She flinches at
+      the sound of the door.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D
+        technical: 3D+1
+      skills:
+        computer_programming: 3D+1
+        technical: 4D
+      weapon: ""
+      move: 10
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A competent yard technician who wants nothing to do with any of
+        this. She knows exactly how to re-splice the severed relay feeds —
+        she cut some of them herself, at gunpoint — and would help the
+        instant she believed it was safe to. Talking her down, not fighting
+        her, is the way through.
+      knowledge: []
+      faction: independent
+      dialogue_style: "Quiet, careful Basic. Answers questions in as few words as she can manage."
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "*She glances at the relay banks, then back at the door, and says nothing.*"
+        - "'I just fix things. I don't — I'm not part of whatever this is.'"
+        - "*Her hands tighten on the tool satchel, but she doesn't reach for anything in it.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # THE VEIL DEN — 1 NPC
+  # The local cell's standing elite — distinct from the Veilmaster.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Iron Veil Cell Handler
+    room: "The Veil Den"
+    species: Zabrak
+    description: >-
+      A lean, hard-eyed Zabrak stands over a wall of hand-drawn conduit
+      maps, a data-slate in one hand and a blaster rifle never more than
+      an arm's reach away. This is the local blackout cell's day-to-day
+      handler — not the Veilmaster, but the one who keeps the pickets fed,
+      the schedules straight, and the rattled dock crews from doing
+      anything the cell would have to answer for. Competent, patient, and
+      entirely willing to end this conversation with the rifle.
+    char_sheet:
+      attributes:
+        dexterity: 3D+2
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D+1
+        strength: 3D+1
+        technical: 2D+2
+      skills:
+        blaster: 5D
+        dodge: 3D+2
+        command: 3D
+        intimidation: 3D+1
+      weapon: blaster_rifle
+      move: 10
+      force_points: 1
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        The cell's day-to-day handler — organized, unhurried, and
+        genuinely dangerous under the calm. Runs the blackout operation
+        like a shift schedule and treats an intruder as a scheduling
+        problem to be resolved, permanently, with minimum fuss.
+      knowledge: []
+      faction: independent
+      dialogue_style: "Level, administrative Basic — reads like someone reciting a duty roster, even in a fight."
+      hostile: true
+      combat_behavior: tactical
+      fallback_lines:
+        - "*The Cell Handler sets the data-slate down without hurry and lifts the rifle instead.*"
+        - "'You've cost me a schedule change.' *The rifle doesn't waver.*"
+        - "*A precise, unhurried shot — the Handler has clearly done this before.*"

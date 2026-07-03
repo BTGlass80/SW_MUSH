@@ -2,12 +2,13 @@
 (`rally` / `rally strike` -> staged location scenarios), and its facts match HEAD.
 
 The events-as-playable-scenarios rework (2026-06-24, drops `events-playable-scenarios`
-+ `events-more-scenarios`) turned the dark-side cult events from a global menace
-counter into a real, fightable system: a visible menace meter, a `rally` threat
-board, and for THREE cults a staged location scenario you travel to and
-`investigate`.  That shipped *after* Guide_26's last pass, and §3 had treated all
-dark-side beats as pure Director narration ("don't surface as a tracked number"),
-while the guide corpus documented the live `rally` loop NOWHERE.
++ `events-more-scenarios`; extended 2026-07-02 by `iron_veil_kuat_staged_scenario`)
+turned the dark-side cult events from a global menace counter into a real,
+fightable system: a visible menace meter, a `rally` threat board, and for FOUR
+cults a staged location scenario you travel to and `investigate`.  That shipped
+*after* Guide_26's last pass, and §3 had treated all dark-side beats as pure
+Director narration ("don't surface as a tracked number"), while the guide
+corpus documented the live `rally` loop NOWHERE.
 
 This re-verify pins the new §3 subsection + the §11 `rally` row against the live
 engine — the cult roster, the staged-vs-menace split, the reputation-only reward
@@ -90,18 +91,20 @@ class TestStagedVsMenaceTaught:
     def test_three_staged_cults_match_engine(self, guide_text):
         from engine import staged_event as SE
 
+        # iron_veil_kuat_staged_scenario (2026-07-02): the Iron Veil joined the
+        # staged roster once Kuat got its own wilderness region.
         assert set(SE.STAGED_CULTS.keys()) == {
-            "hollow_sun", "ember_court", "ashen_hand"
+            "hollow_sun", "ember_court", "ashen_hand", "iron_veil"
         }, "STAGED_CULTS changed — reconcile Guide_26 §3"
         # Each staged cult is is_staged True; a menace cult is False.
-        for key in ("hollow_sun", "ember_court", "ashen_hand"):
+        for key in ("hollow_sun", "ember_court", "ashen_hand", "iron_veil"):
             assert SE.is_staged(key)
-        for key in ("drowned_choir", "iron_veil"):
+        for key in ("drowned_choir",):
             assert not SE.is_staged(key)
 
     @pytest.mark.parametrize("name", [
-        "Hollow Sun", "Ember Court", "Ashen Hand",   # staged
-        "Drowned Choir", "Iron Veil",                # menace
+        "Hollow Sun", "Ember Court", "Ashen Hand", "Iron Veil",  # staged
+        "Drowned Choir",                                        # menace
     ])
     def test_prose_names_every_cult(self, guide_text, name):
         assert name in guide_text, (
