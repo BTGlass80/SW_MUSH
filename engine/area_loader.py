@@ -293,6 +293,34 @@ class AreaGeometryLoadError(Exception):
     """Raised on parse or validation failure of an AreaGeometry YAML."""
 
 
+class AreaGeometryOverviewOnlyError(AreaGeometryLoadError):
+    """Raised when the resolved area has only a Tier-1b wilderness-overview
+    projection (tools/gen_wilderness_overview.py output: area_key/bounds/
+    terrain_zones/routes/landmarks/substrate_image — consumed live by
+    static/spa/m3_wilderness_overview_data.js), not a room-based
+    AreaGeometry (schema_version/districts/rooms/exits).
+
+    This is EXPECTED for wilderness-grid regions that move landmark-to-
+    landmark and are already served by the Tier-1b SPA overview map — it
+    is NOT a load failure (TD.FABLE_F4 / MAP.fable_f4_wilderness_overview_
+    no_areageometry_reconfirmed, resolved: skip silently, don't warn)."""
+
+
+def _looks_like_overview_schema(raw: object) -> bool:
+    """True if `raw` matches the Tier-1b wilderness-overview projection
+    schema rather than a room-based AreaGeometry. Used to distinguish
+    'this region only has a Tier-1b SPA overview map' (expected, silent)
+    from a genuine room-based load failure (must still warn). General
+    over any area — not hardcoded to specific slugs."""
+    if not isinstance(raw, dict):
+        return False
+    has_overview_markers = "terrain_zones" in raw or (
+        "area_key" in raw and "bounds" in raw
+    )
+    has_room_schema = "schema_version" in raw or "rooms" in raw
+    return has_overview_markers and not has_room_schema
+
+
 # ── Public API ───────────────────────────────────────────────────────────────
 
 
@@ -313,11 +341,34 @@ def load_area_geometry(area_key: str,
 
     Raises:
         AreaGeometryLoadError: on file-not-found or any validation failure.
+        AreaGeometryOverviewOnlyError (subclass): when the area only has a
+            Tier-1b wilderness-overview projection, not a room-based map —
+            expected for wilderness-grid regions, not a real failure.
     """
     root = worlds_root or DEFAULT_WORLDS_ROOT
     basename = area_key.rsplit(".", 1)[-1] if "." in area_key else area_key
     path = Path(root) / era / "maps" / f"{basename}.yaml"
     if not path.exists():
+        # Before treating this as a genuine failure, check for a sibling
+        # Tier-1b overview projection (`<basename>_overview.yaml`) — the
+        # naming convention tools/gen_wilderness_overview.py writes. If one
+        # exists and matches the overview schema, this area intentionally
+        # has no room-based AreaGeometry; that's not a load failure.
+        overview_path = path.with_name(f"{basename}_overview.yaml")
+        if overview_path.exists():
+            try:
+                with open(overview_path, "r", encoding="utf-8") as f:
+                    overview_raw = yaml.safe_load(f)
+            except (yaml.YAMLError, OSError):
+                overview_raw = None
+            if _looks_like_overview_schema(overview_raw):
+                raise AreaGeometryOverviewOnlyError(
+                    f"{area_key}: no room-based AreaGeometry authored "
+                    f"({path} not found); {overview_path.name} is a "
+                    f"Tier-1b wilderness-overview projection instead — "
+                    f"served by the SPA overview map, not the room-based "
+                    f"registry"
+                )
         raise AreaGeometryLoadError(
             f"AreaGeometry YAML not found: {path}"
         )
@@ -333,6 +384,13 @@ def load_area_geometry(area_key: str,
     if not isinstance(raw, dict):
         raise AreaGeometryLoadError(
             f"{path}: expected top-level mapping, got {type(raw).__name__}"
+        )
+    if _looks_like_overview_schema(raw):
+        raise AreaGeometryOverviewOnlyError(
+            f"{path}: this is a Tier-1b wilderness-overview projection "
+            f"(area_key/terrain_zones), not a room-based AreaGeometry "
+            f"(schema_version/rooms) — served by the SPA overview map "
+            f"instead"
         )
     geom = _parse_area_geometry(raw, path=path)
     _validate_area_geometry(geom, path=path)
@@ -783,6 +841,16 @@ class AreaGeometryRegistry:
         for area_key in discover_area_keys(era, worlds_root):
             try:
                 geom = load_area_geometry(area_key, era, worlds_root)
+            except AreaGeometryOverviewOnlyError as e:
+                # Expected: a wilderness-grid region with only a Tier-1b
+                # SPA overview map, no room-based AreaGeometry authored.
+                # Not a load failure — don't warn (TD.FABLE_F4).
+                log.debug(
+                    "[area_loader] registry: %s has no room-based "
+                    "AreaGeometry (wilderness-overview-only, served by "
+                    "the SPA overview map): %s", area_key, e,
+                )
+                continue
             except AreaGeometryLoadError as e:
                 log.warning(
                     "[area_loader] registry: skipping %s due to load "
@@ -940,7 +1008,7 @@ class AreaGeometryRegistry:
 __all__ = [
     "AreaGeometry", "MapBounds", "District", "MapRoom", "ExitPath",
     "MapLabel", "Landmark",
-    "AreaGeometryLoadError",
+    "AreaGeometryLoadError", "AreaGeometryOverviewOnlyError",
     "AreaGeometryRegistry",
     "load_area_geometry", "discover_area_keys",
 ]
