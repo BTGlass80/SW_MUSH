@@ -8,8 +8,9 @@ Pins the three things the harness must get right without spending a cent:
   3. The error paths (missing style brief; live-requested-but-no-key) fail
      loudly to None rather than silently mocking.
 
-Fully isolated: paths.SEEDS_DIR / BATCHES_DIR / MAPS_DIR are redirected into a
-tempdir so the test never touches static/maps or the real seeds.
+Fully isolated: paths.SEEDS_DIR / BATCHES_DIR / MAPS_DIR / TERM_BOUNDARIES_FILE
+are redirected into a tempdir so the test never touches static/maps, the real
+seeds, or the git-tracked term_boundaries.json boundary-memory file.
 
 Run: python -m pytest tests/test_mapgen_style_ref_experiment.py -x
 """
@@ -40,10 +41,20 @@ def _run(coro):
 class TestStyleRefExperimentOffline(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="sre_"))
-        self._orig = (P.SEEDS_DIR, P.BATCHES_DIR, P.MAPS_DIR)
+        self._orig = (P.SEEDS_DIR, P.BATCHES_DIR, P.MAPS_DIR, P.TERM_BOUNDARIES_FILE)
         P.SEEDS_DIR = self.tmp / "seeds"
         P.BATCHES_DIR = self.tmp / "batches"
         P.MAPS_DIR = self.tmp / "maps"
+        # Hygiene batch (2026-07-03): style_ref_experiment.run_experiment()
+        # constructs its BatchOrchestrator with no boundaries_path=, so
+        # record_boundary() falls through to paths.TERM_BOUNDARIES_FILE —
+        # the git-tracked tools/mapgen/term_boundaries.json seed. Without
+        # this redirect, every on-theme "cantina"/"starship" term detected
+        # in the real mos_eisley paint brief got written straight into the
+        # tracked file on every test run, silently re-dirtying the
+        # committed-empty seed (the exact accidental-commit class this
+        # drop's item 1 fixed). Redirect it alongside the other three.
+        P.TERM_BOUNDARIES_FILE = self.tmp / "term_boundaries.json"
         for d in (P.SEEDS_DIR, P.BATCHES_DIR, P.MAPS_DIR):
             d.mkdir(parents=True, exist_ok=True)
         # Seed the isolated dir with the small text briefs + a stand-in seed/keymap
@@ -56,7 +67,7 @@ class TestStyleRefExperimentOffline(unittest.TestCase):
         (P.MAPS_DIR / f"{AREA}_substrate.png").write_bytes(_PLACEHOLDER_PNG)
 
     def tearDown(self):
-        P.SEEDS_DIR, P.BATCHES_DIR, P.MAPS_DIR = self._orig
+        P.SEEDS_DIR, P.BATCHES_DIR, P.MAPS_DIR, P.TERM_BOUNDARIES_FILE = self._orig
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _snapshot(self):
