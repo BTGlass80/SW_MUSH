@@ -370,6 +370,21 @@ def resolve_experiment_result(
     }
 
 
+def experiment_quality_loss(margin: int) -> int:
+    """Quality points lost when a `quality_loss` experiment outcome fires.
+
+    The loss scales with the FAILURE margin only. A fumble (Wild Die = 1)
+    can co-occur with a net success (positive margin) once the pool is large
+    enough to clear the difficulty after the complication penalty — in that
+    case there is no failure to scale, so the basis is clamped at 0. Feeding
+    the raw margin in here inverted the penalty: a *better* roll on a fumble
+    destroyed *more* quality (loss = abs(positive margin) * 2). Clamping the
+    basis at 0 leaves genuine failures (margin < 0) untouched while a
+    fumble-with-success now costs no quality.
+    """
+    return abs(min(margin, 0)) * 2
+
+
 def resolve_experiment_failure(margin: int, breakdown_type: str) -> str:
     """
     Determine what happens on a failed experiment.

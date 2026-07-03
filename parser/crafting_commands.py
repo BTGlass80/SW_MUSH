@@ -47,6 +47,7 @@ from engine.crafting import (
     get_experiment_difficulty,
     resolve_experiment_result,
     resolve_experiment_failure,
+    experiment_quality_loss,
     get_schematic,
 )
 
@@ -644,14 +645,22 @@ class ExperimentCommand(BaseCommand):
                 f"catch it. The weapon is damaged but still functional. "
                 f"(max condition now {item.max_condition})")
         elif outcome == "quality_loss":
-            loss = abs(result.margin) * 2
-            item.quality = max(1, item.quality - loss)
-            char["equipment"] = write_equipment(weapon=item, armor=_armor)
-            await ctx.db.save_character(
-                char["id"], equipment=char["equipment"])
-            await ctx.session.send_line(
-                f"  The experiment fails. Your tinkering degrades the "
-                f"weapon's overall quality. (quality now {item.quality})")
+            loss = experiment_quality_loss(result.margin)
+            if loss:
+                item.quality = max(1, item.quality - loss)
+                char["equipment"] = write_equipment(weapon=item, armor=_armor)
+                await ctx.db.save_character(
+                    char["id"], equipment=char["equipment"])
+                await ctx.session.send_line(
+                    f"  The experiment fails. Your tinkering degrades the "
+                    f"weapon's overall quality. (quality now {item.quality})")
+            else:
+                # Fumble that still met the difficulty: a complication mid-
+                # tinker leaves the modification unapplied, but no failure
+                # margin means no quality damage.
+                await ctx.session.send_line(
+                    "  The experiment fumbles at the last step — the "
+                    "modification doesn't take, but the weapon is unharmed.")
         else:
             # "fine" — fumble but lucky on the breakdown table
             await ctx.session.send_line(
@@ -669,7 +678,7 @@ class ExperimentCommand(BaseCommand):
                                       EXPERIMENT_FAIL_COOLDOWN_S):
         """Non-fumble failure: small quality loss, fail-cooldown applied."""
         from engine.items import read_equipment, write_equipment
-        loss = abs(result.margin) * 2
+        loss = experiment_quality_loss(result.margin)
         item.quality = max(1, item.quality - loss)
         _armor = read_equipment(char.get("equipment", "{}"))["armor"]
         char["equipment"] = write_equipment(weapon=item, armor=_armor)
