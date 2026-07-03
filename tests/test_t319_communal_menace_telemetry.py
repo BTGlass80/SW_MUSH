@@ -123,9 +123,10 @@ class TestCommunalMenaceEscalationEmit(_TelemetryTestBase):
             await COR.maybe_post(db, None, now_ms=_T0)
             _drain()
             # MENACE_START 35 is in 'rising' (>=34); climb into 'ascendant'
-            # (>=67) needs (67-35)/0.35 ≈ 92 min. Advance 100 min to be safe
-            # while staying under the 48h deadline.
-            later = _T0 + 100 * 60 * 1000
+            # (>=67) needs (67-35)/rate. hollow_sun (rotation 0) is a STAGED cult
+            # (2026-07-02) escalating on the slower staged clock 0.18/min ->
+            # ~178 min. Advance 200 min to cross, well under the 48h deadline.
+            later = _T0 + 200 * 60 * 1000
             await COR.advance_and_resolve(db, None, now_ms=later)
             recs = _drain("communal_menace")
             self.assertEqual(len(recs), 1)

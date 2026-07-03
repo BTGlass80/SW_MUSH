@@ -138,23 +138,28 @@ class TestRewardFactsMatchEngine:
         assert CO.REP_FLOOR == 3
         assert CO.REP_MAX == 15
 
-    def test_prose_states_rep_band_and_no_credits(self, guide_text):
+    def test_prose_states_rep_band_and_win_capstone(self, guide_text):
         low = guide_text.lower()
         assert "republic reputation" in low
-        # The guide must be explicit there is NO credit reward.
-        assert "no credit" in low
+        # 2026-07-02 (Brian): the WIN now also pays a bounded credit bounty + a
+        # one-off relic (the capstone) — the guide must state it, replacing the
+        # old "no credits" promise, so it never under-sells the headline reward.
+        assert "credit bounty" in low
+        assert "relic" in low
         assert "3" in guide_text and "15" in guide_text
 
-    def test_reward_distribution_is_rep_only_no_credits(self):
-        # Pin the no-credits invariant at the source: the reward path must not
-        # mint credits.  If a future change routes a credit faucet through the
-        # cult win, the guide's "no credits" promise breaks and this fails.
+    def test_reward_distribution_pays_capstone_through_adjust_credits(self):
+        # 2026-07-02 (Brian): the headline WIN now pays a BOUNDED credit capstone
+        # + a one-off relic on top of rep/title. Pin that the capstone routes
+        # through the metered adjust_credits faucet (a sanctioned bounded reward),
+        # so Guide_26 §3's "rout bounty + relic" promise matches the engine.
         src = _read(RUNTIME_PATH)
         idx = src.find("def _distribute_rewards")
         assert idx != -1, "reward distributor renamed — re-pin Guide_26 §3"
-        body = src[idx:idx + 2000]
-        assert "adjust_credits" not in body, (
-            "the cult-win reward path now touches credits — Guide_26 §3 says "
-            "'no credit rewards'"
+        body = src[idx:idx + 5500]
+        assert "communal_win_capstone" in body, (
+            "the cult-win capstone credit faucet is gone — Guide_26 §3 promises "
+            "a rout bounty"
         )
-        assert "No credits" in body  # the load-bearing docstring promise
+        assert "win_capstone_credits" in body
+        assert "_grant_capstone_item" in body  # the top-contributor relic
