@@ -225,7 +225,7 @@ When a Cantina Brawl is active:
 - **NPC combat in the cantina** is more active.
 - **The cantina is more "alive"** — bursts of activity, dramatic moments.
 
-The event lasts 30-60 minutes (Director-determined). For **entertainers** this is the peak earning window — every performance pays double. For **gamblers** the edge is unchanged; the brawl just raises the ceiling, so a confident high-skill player can swing bigger pots (and a careless one can lose them faster). Either way, a brawl-time cantina is the liveliest the layer gets.
+The event lasts a sharp **~5 minutes** (Director-determined) — a short, violent burst, not an extended window. For **entertainers** this is a quick spike rather than a session to build around: the 10-minute success cooldown means you can land at most one doubled performance inside a single brawl, so the value is timing a performance you've already got queued up, not planning a long set. For **gamblers** the edge is unchanged; the brawl just raises the ceiling for the handful of quick hands you can fit in before it winds down, so a confident high-skill player can swing bigger pots on those few hands (and a careless one can lose them faster). Either way, a brawl-time cantina is the liveliest the layer gets for a few intense minutes.
 
 To know when a brawl is active, check `+news` (Guide #21). The event appears in the bulletin when it starts.
 
@@ -274,7 +274,7 @@ Five concrete pictures.
 
 **Scenario 3 — The dedicated entertainer.** You're a Twi'lek dancer working the Mos Eisley Cantina. You spend two hours in the cantina performing. You roll perform 8 times across the two hours. Six successes (averaging 130 cr each = 780 cr), one crit (350 cr), one failure (0). Total income: 1,130 cr per session. Plus you've buffed the cantina's social atmosphere with several aura instances — other characters' Persuasion rolls trended better; they appreciate the cover.
 
-**Scenario 4 — The cantina brawl peak.** You log in. The news shows: "Cantina brawl breaks out at Mos Eisley" — a brawl zone for the next 45 minutes. The brawl raises the sabacc ceiling to 4,000 cr, so you bet **big**: 3,000 cr a hand. You win 3, lose 1. The rate is the usual Bet × 0.9, but on 3,000-cr stakes: (3 × 2,700) − 3,000 = **+5,100 cr** net from the table. The risk was real — a single 3,000-cr loss stings — but the high ceiling let you swing for it. Then you perform once during the brawl: a solid success worth ~320 cr, **doubled** by the brawl to 640 cr. Total brawl-session income: **~5,740 cr** in 45 minutes. The brawl was the windfall night — bigger stakes at the table, double pay on the stage.
+**Scenario 4 — The cantina brawl spike.** You log in. The news shows: "Cantina brawl breaks out at Mos Eisley" — the cantina turns into a brawl zone for the next five minutes. There's no time to build a session around it, so you move fast: one big sabacc hand, and a performance you'd already queued up. The brawl raises the sabacc ceiling to 4,000 cr, so you bet **big** on your one hand: 3,000 cr. It hits — the usual Bet × 0.9 rate nets **+2,700 cr**, and the 5-minute win cooldown means that's your one shot at the raised ceiling before the brawl's already over. Your queued performance lands too: a solid success worth ~320 cr, **doubled** by the brawl to 640 cr. Total brawl-spike income: **~3,340 cr** in under five minutes. The brawl isn't an earning window to plan around — it's a short, high-intensity burst where one well-timed big bet and one queued performance are worth chasing, then the room settles back down.
 
 **Scenario 5 — The losing streak.** Your 3D Gambling character plays five hands at 200 cr each. You lose three in a row, win one (180 cr), lose one. Net: −620 cr. The math is honest — non-specialized gamblers lose long-term. You take the hit, move on, and stop playing sabacc as a serious income strategy. The cantina visit was still satisfying RP, but you accept that gambling isn't your earning path.
 
@@ -329,7 +329,7 @@ Five concrete pictures.
 | Morale aura duration | 30 minutes (highest magnitude wins; no stacking) |
 | Morale aura magnitudes | 1 / 2 / 3 / 5 (difficulty reduction, floor 1) |
 | Morale aura affects | Persuasion, Command, Con, Bargain, Willpower, Gambling rolls in-room |
-| Cantina Brawl event duration | 30-60 minutes |
+| Cantina Brawl event duration | ~5 minutes |
 | Cantina Brawl bonus | Perform payouts × 2; sabacc bet ceiling × 2 (sabacc rate unchanged) |
 
 ---

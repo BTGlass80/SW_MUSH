@@ -389,7 +389,7 @@ The bond interacts with several other game systems.
 
 **Player cities.** A bond's geography matters when the Master has citizenship. A Padawan can be added to their Master's city's guest list (Guide #12) so they have free movement. Some Padawans become full citizens of their Master's faction as part of the bond's commitment.
 
-**Death.** The death loop's recovery (Guide #3) applies to a Padawan exactly as it does anyone. The engine doesn't push an automatic death alert down the bond, but a Master watching `+padawan` sees their student drop offline, and the Weight-sense line tells its own story over time. The Master might choose to provide bacta, heal, or otherwise support the Padawan's recovery; none of that is enforced, but it's the natural RP move.
+**Death.** The death loop's recovery (Guide #19) applies to a Padawan exactly as it does anyone. The engine doesn't push an automatic death alert down the bond, but a Master watching `+padawan` sees their student drop offline, and the Weight-sense line tells its own story over time. The Master might choose to provide bacta, heal, or otherwise support the Padawan's recovery; none of that is enforced, but it's the natural RP move.
 
 **The Director AI.** Bond-aware Director content — events that pull both characters in, rumors about the Master a Padawan should hear, openings for joint missions — is a design direction the system is built toward, not a wired feature today; the Director doesn't yet read bond state. In practice, bonded characters' scenes interconnect anyway, because the two players seek each other out and the bond gives them a standing reason to share a stage.
 

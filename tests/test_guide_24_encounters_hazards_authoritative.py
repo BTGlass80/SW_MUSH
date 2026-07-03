@@ -27,11 +27,19 @@ data/schematics.yaml at HEAD):
     are consumable — the guide said items "don't consume on use".
   - cooling_unit is taught by Vek Nurren, not "Venn Kator".
   - Hazard debuffs persist (no cure path); gear prevents new checks rather
-    than curing existing stacks.
+    than curing existing stacks. SUPERSEDED 2026-07-02 (accuracy pass): the
+    ENV recovery drop (2026-06-23) added a real cure path — `drink`/`hydrate`
+    clears dehydration on the spot with a carried water_canteen, and both
+    dehydration and toxic_exposure decay on their own ~20 min
+    (duration_seconds=1200) after you leave the hazard. See
+    ``test_debuff_recovery_documented`` below, which replaced
+    ``test_prevention_not_cure_documented``.
   - Pirate negotiate reduces tribute to 1/2 the demand (1/4 on a critical),
     not "1/3".
-  - Space anomalies are engaged via scan/deepscan + `salvage` (derelicts);
-    the phantom `investigate <anomaly_id>` (a wilderness verb) was removed.
+  - Space anomalies are engaged via scan/deepscan then `course anomaly <id>`
+    (per-type: decode / two-step bypass / gunfight / detach), with `salvage`
+    for derelicts and combat wrecks; `investigate <anomaly_id>` is a WILDERNESS
+    verb, not a space command.
 """
 
 import pathlib
@@ -155,11 +163,24 @@ def test_cooling_unit_crafter_is_vek_nurren_not_venn_kator():
     assert "Vek Nurren" in text
 
 
-def test_prevention_not_cure_documented():
+def test_debuff_recovery_documented():
+    """ENV recovery (2026-06-23): dehydration/toxic_exposure are no longer
+    permanent. `drink` (parser.builtin_commands.DrinkCommand) clears
+    dehydration on the spot with a carried water_canteen, and both debuffs
+    decay on their own duration_seconds=1200 (~20 min) after you leave the
+    hazard (engine/buffs.py BUFF_TEMPLATES). The guide must document the
+    real recovery path, not claim mitigation gear only prevents and debuffs
+    never lift."""
     text = read_guide().lower()
-    assert "prevents" in text and "does not cure" in text, (
-        "Hazard debuffs persist (duration 0, no remove_buff caller); the "
-        "guide must state mitigation prevents rather than cures."
+    assert "does not cure" not in text and "prevention over cure" not in text, (
+        "Stale claim: hazard debuffs are no longer cure-less — `drink` and "
+        "the ~20-minute decay must replace the old 'no cure' language."
+    )
+    assert "drink" in text and "hydrate" in text, (
+        "Guide must document the `drink` (alias `hydrate`) recovery command."
+    )
+    assert "20 minutes" in text or "20-minute" in text, (
+        "Guide must document the ~20-minute (1200s) env-debuff decay."
     )
 
 
@@ -211,15 +232,19 @@ def test_dead_drop_decode_is_slicing_difficult_20():
     assert "Imperial patrol" not in text
 
 
-def test_no_phantom_anomaly_investigate_command():
+def test_anomaly_engagement_commands_are_accurate():
     text = read_guide()
-    # `investigate <anomaly_id>` is a wilderness verb, not a space command;
-    # `course anomaly <id>` is the engine's own (unwired) readout hint.
+    # `investigate <anomaly_id>` is a WILDERNESS verb (§5), never a space
+    # command — it must stay out of the space-anomaly section.
     assert "investigate <anomaly_id>" not in text, (
         "Phantom command: space anomalies are not engaged via "
         "`investigate <anomaly_id>`."
     )
-    assert "course anomaly" not in text
+    # `course anomaly <id>` IS the live per-type space engagement (Brian
+    # 2026-07-02 richer rework) and must be documented.
+    assert "course anomaly" in text, (
+        "Guide_24 must document the live `course anomaly <id>` per-type engagement."
+    )
     # The live anomaly loop (scan/deepscan/salvage) must be present.
     assert "salvage" in text and "deepscan" in text
 
