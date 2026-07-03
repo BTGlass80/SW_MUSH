@@ -1,0 +1,215 @@
+# data/worlds/clone_wars/npcs_drop_drowned_choir_scenario.yaml
+#
+# Drowned Choir Scenario Site — Ambient/Mob-Grind Batch (2026-07-02)
+#
+# Three roaming hostile NPCs seeded across the new nar_shaddaa_drowned_sublevels
+# wilderness landmark rooms (data/worlds/clone_wars/wilderness/
+# nar_shaddaa_drowned_sublevels.yaml), giving the venue baseline life outside
+# the staged-scenario window — mirroring the mob-grind pattern used to seed a
+# freshly-built wilderness region (e.g. npcs_drop_mob_grind_geonosis_ey_akh.yaml).
+#
+# IMPORTANT — this file is NOT the scripted scenario content. The Drowned
+# Choir's actual 3-stage scenario (Raid the Flooded Sub-Levels / Expose the
+# Patrons / Silence the Choirmaster) spawns its wave-combat and boss NPCs
+# PROCEDURALLY via engine/wilderness_anomalies.py's drowned_choir_* templates
+# (combat_npcs specs consumed by _spawn_combat_npcs), exactly mirroring how
+# hollow_sun / ember_court / ashen_hand do it — none of those three sibling
+# cults has a companion static-NPC file either. This file only adds ordinary
+# roaming hostiles so the sub-levels aren't empty between scenario windows.
+#
+# Zone: nar_shaddaa_undercity (reused zone; see the wilderness region file's
+# header note). Rooms are WILDERNESS LANDMARK rooms (wilderness_region_id
+# IS NOT NULL) defined in the region YAML above. These resolve via
+# engine/npc_loader._resolve_wilderness_room_id() at runtime (DB lookup by
+# landmark name after the wilderness writer runs). This file uses the
+# `wilderness_npcs:` top-level key and is registered under
+# content_refs.wilderness_npcs in era.yaml — NOT content_refs.npcs.
+#
+# Room spread:
+#   The Runoff Warrens x1     (Choir Drencher — enforcer holding the outer ring)
+#   The Patrons' Cistern x1   (Cistern Record-Keeper — guards the ledger-hall)
+#   The Drowned Sanctum x1    (Drowned Faithful — guards the innermost rite)
+#
+# All three satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats: humanoid enforcer/cultist baseline matching sibling
+#   mob-grind humanoid stat blocks (e.g. npcs_drop_mob_grind_geonosis_ey_akh.yaml's
+#   "Pit Scavenger"/"Wreck Plunderer" — DEX 3D, blaster/brawling 3D+1-4D+2,
+#   dodge 3D+1). Sourcebooks absent in this tree — stats UNVERIFIED against
+#   WEG40120 PDF (same caveat carried by the sibling mob-grind batches).
+# Loaded by: engine/npc_loader.py::load_wilderness_npcs() via
+#   era.yaml content_refs.wilderness_npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+wilderness_npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # THE RUNOFF WARRENS — 1 NPC
+  # The Choir's outer ring; enforcers hold the flooded junctions.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Choir Drencher
+    room: "The Runoff Warrens"
+    species: Human
+    description: >-
+      A robed enforcer of the Drowned Choir, waterlogged sleeves knotted
+      back past the elbow and a vibroblade held low, wading the flooded
+      junction with the unhurried confidence of someone who knows every
+      dry patch of ground in the warren by memory. Drenchers are the
+      Choir's hands in the outer ring — not preachers, not initiates,
+      just the ones who make sure nobody wanders in or out without the
+      Choir's say-so. This one has clearly done this before.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 1D+2
+        perception: 3D
+        strength: 3D+1
+        technical: 1D+2
+      skills:
+        melee_combat: 4D+1
+        brawling: 4D
+        dodge: 3D+2
+        search: 3D+1
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A Drowned Choir enforcer who has stopped questioning what the
+        chant means and started enjoying being one of the ones who
+        enforces it. Wading the flooded warren is second nature; an
+        unescorted stranger this deep is either a lost initiate to be
+        herded back to the ingress, or a threat to be put down before
+        it reaches the cistern. It rarely bothers deciding which before
+        the vibroblade comes up.
+      knowledge: []
+      faction: independent
+      dialogue_style: "Low, unhurried Basic pitched to carry over dripping water. Quotes the chant's opening line before anything else."
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The Drencher wades forward without hurry, vibroblade angled low.*"
+        - "\"You weren't brought down here. That's a problem.\""
+        - "*A snatch of the Choir's chant, muttered, then the blade comes up.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # THE PATRONS' CISTERN — 1 NPC
+  # Guards the ledger-hall where the Choir's off-world backers are
+  # tracked. Armed, and protective of what the shelving holds.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Cistern Record-Keeper
+    room: "The Patrons' Cistern"
+    species: Human
+    description: >-
+      One of the two robed record-keepers who work the ledger-shelving
+      by lamplight, cross-referencing initiate names against sealed
+      credit chits. This one keeps a blaster pistol within reach at all
+      times — not because it expects trouble from the Choir's own, but
+      because the ledgers name patrons who would pay very well to have
+      certain pages disappear, and the Record-Keeper has been told, more
+      than once, exactly what happens to a record-keeper who lets that
+      happen.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 3D+1
+        mechanical: 1D+2
+        perception: 3D+2
+        strength: 2D+2
+        technical: 2D+1
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        search: 4D+1
+        con: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A meticulous accountant pressed into a dangerous job. It did not
+        sign up to fight, but it understands the ledgers it guards are
+        worth more to certain people than its own life is worth to the
+        Choir, and it has decided the safest posture is to shoot first
+        and let the Choirmaster sort out who the intruder was. Protective
+        of the shelving to the point of irrationality.
+      knowledge: []
+      faction: independent
+      dialogue_style: "Clipped, ledger-precise Basic. Refers to intruders as 'unauthorized entries.'"
+      hostile: true
+      combat_behavior: defensive
+      fallback_lines:
+        - "*The Record-Keeper sets down the data-slate and draws the blaster in one motion.*"
+        - "\"This cistern is not on any Undercity map you have access to. Leave, or become an unauthorized entry.\""
+        - "*It backs toward the shelving, blaster steady, putting its own body between you and the ledgers.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # THE DROWNED SANCTUM — 1 NPC
+  # The innermost chamber; the faithful guard the rite itself.
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Drowned Faithful
+
+    room: "The Drowned Sanctum"
+    species: Human
+    description: >-
+      One of the Choirmaster's faithful, robes soaked through to the
+      chest from standing sentry in the sanctum's flooded dark. It has
+      been down here long enough that the chant has stopped being
+      something it repeats and become something it simply is — every
+      sentence it speaks above water still carries the rhythm. It does
+      not carry a blaster; the faithful who guard the sanctum are trusted
+      to handle intruders with their hands, in the water, on the
+      Choirmaster's ground.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 1D
+        perception: 2D+2
+        strength: 3D+2
+        technical: 1D
+      skills:
+        brawling: 4D+2
+        dodge: 3D
+        swimming: 4D
+        intimidation: 3D+1
+      weapon: ""
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A true believer who no longer distinguishes the Choir's teaching
+        from its own thoughts. It guards the sanctum's flooded dark
+        without fear of the water or of drowning — it has already been
+        drowned once, on the Choirmaster's terms, and considers itself
+        past that particular threat forever. It fights with its hands and
+        the water itself, trying to drag intruders under rather than
+        simply beat them down.
+      knowledge: []
+      faction: independent
+      dialogue_style: "Half-chanted Basic, rhythmic even in threat. Repeats fragments of the Choir's drowning liturgy."
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*It wades forward through the chest-deep water without hesitation, hands open and ready.*"
+        - "\"Hear the dark below,\" it says, and does not sound like it is quoting anyone."
+        - "*It tries to close the distance and drag you toward the deeper water.*"
