@@ -1305,7 +1305,7 @@ async def armory_deposit_item(db, char: dict, org_code: str,
     # Remove from character inventory
     items_list.pop(target_idx)
     inv["items"] = items_list
-    await db.update_character(char["id"], inventory=json.dumps(inv))
+    await db.save_character(char["id"], inventory=json.dumps(inv))
 
     # Add to armory
     storage.setdefault("items", []).append(target)
@@ -1354,7 +1354,7 @@ async def armory_withdraw_item(db, char: dict, org_code: str,
     except Exception:
         inv = {}
     inv.setdefault("items", []).append(target)
-    await db.update_character(char["id"], inventory=json.dumps(inv))
+    await db.save_character(char["id"], inventory=json.dumps(inv))
 
     # Remove from armory
     armory_items.pop(target_idx)
@@ -1433,7 +1433,7 @@ async def armory_withdraw_resources(db, char: dict, org_code: str,
         inv_resources.append({"type": resource_type, "quantity": quantity, "quality": q})
 
     inv["resources"] = inv_resources
-    await db.update_character(char["id"], inventory=json.dumps(inv))
+    await db.save_character(char["id"], inventory=json.dumps(inv))
 
     return {"ok": True,
             "msg": f"Withdrew {quantity}x {resource_type} (quality {q}) from the faction armory."}

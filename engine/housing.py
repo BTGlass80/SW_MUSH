@@ -3473,8 +3473,7 @@ async def attempt_theft(db, char: dict, room_id: int,
     except Exception:
         inv = {}
     inv.setdefault("items", []).append(target_trophy)
-    await db.update_character(char["id"], inventory=json.dumps(inv))
-    await db.commit()
+    await db.save_character(char["id"], inventory=json.dumps(inv))
 
     if session_mgr:
         await _notify_owner(db, session_mgr, h,
