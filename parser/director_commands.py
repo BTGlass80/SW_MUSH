@@ -141,7 +141,14 @@ class DirectorCommand(BaseCommand):
             return
 
         if action in ("win", "resolve"):
-            state = await COR.force_resolve(ctx.db, ctx.session_mgr, won=True)
+            # BUGFIX (2026-07-03): a forced win with zero real contributors
+            # used to pay nothing (confusing for anyone verifying the reward
+            # chain). Credit the invoking admin's character when identifiable
+            # so `@director cult win` actually shows the payout.
+            char = ctx.session.character if ctx.session else None
+            credit_cid = int(char["id"]) if char and char.get("id") is not None else None
+            state = await COR.force_resolve(ctx.db, ctx.session_mgr, won=True,
+                                            credit_char_id=credit_cid)
             await ctx.session.send_line(
                 ansi.green(f"  Forced resolve (win): {state or 'no active uprising'}.")
             )
