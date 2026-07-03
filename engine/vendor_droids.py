@@ -33,6 +33,7 @@ Drops delivered:
   Drop 2  Stock/unstock/price/collect/sales + buy-from-droid
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -100,6 +101,49 @@ def _load_data(obj: dict) -> dict:
 
 def _dump_data(data: dict) -> str:
     return json.dumps(data, ensure_ascii=False)
+
+
+# ── Per-droid concurrency guard (launch-critical, 2026-07-02) ─────────────────
+# sell_to_droid / buy_from_droid / collect_escrow each read the vendor droid's
+# shared JSON `data` blob (stock quantities, buy-order qty_filled/escrow,
+# escrow_credits), await a credit/inventory mutation, then write the mutated
+# blob back — with no lock or optimistic-concurrency guard. Two concurrent
+# calls against the SAME droid (two buyers on a qty=1 stock slot; two sellers
+# filling a buy order funded for exactly one unit) both pass their
+# availability/affordability check against the stale read and both write,
+# producing a lost update (a duplicated item, or a payout that exceeds the
+# order's escrow). Keying the lock by droid_id serializes ops on the SAME
+# droid only — different droids never contend. Module-level dict is safe here:
+# the game server is single-process/single-event-loop, so there is exactly one
+# asyncio loop creating/using these locks.
+_droid_locks: dict[int, asyncio.Lock] = {}
+
+
+def _get_droid_lock(droid_id: int) -> asyncio.Lock:
+    """Get-or-create the asyncio.Lock guarding a single vendor droid's data."""
+    lock = _droid_locks.get(droid_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _droid_locks[droid_id] = lock
+    return lock
+
+
+def reset_droid_locks() -> None:
+    """Test-isolation helper: clear the per-droid lock registry.
+
+    Same class of gotcha as ``engine.world_events._manager`` / the smoke
+    harness's ``reset_bounty_board()``: ``_droid_locks`` persists for the
+    life of the *process*, keyed by ``droid_id``. In production this is
+    harmless (one process = one event loop, and ``objects.id`` never
+    repeats within a single server run). But the in-process test harness
+    boots a fresh temp DB (whose autoincrement restarts at 1) plus a fresh
+    event loop per class-scoped harness while reusing the same Python
+    process — so a Lock left over from a previous harness's now-closed
+    event loop can collide with a same-numbered droid in the next one,
+    raising ``RuntimeError: ... is bound to a different event loop``. Call
+    this from test/harness boot.
+    """
+    _droid_locks.clear()
 
 
 # ── T3.19 telemetry: the player-vendor marketplace loop ──────────────────────
@@ -647,226 +691,233 @@ async def buy_from_droid(buyer: dict, droid_id: int,
     """
     from server import ansi
 
-    obj = await db.get_object(droid_id)
-    if not obj or not obj.get("room_id"):
-        return False, "That vendor droid is not available."
+    # ── Critical section: serialize per-droid so a concurrent buy against
+    # the SAME droid can never observe/act on a stale stock read. The lock
+    # is acquired BEFORE the read of the droid's data blob (so a waiting
+    # task re-reads the post-write state — stock/escrow already consumed —
+    # once it's its turn) and held through the final write-back below.
+    async with _get_droid_lock(droid_id):
+        obj = await db.get_object(droid_id)
+        if not obj or not obj.get("room_id"):
+            return False, "That vendor droid is not available."
 
-    # Same-owner restriction
-    if obj["owner_id"] == buyer["id"]:
-        return False, "You cannot buy from your own vendor droid."
+        # Same-owner restriction
+        if obj["owner_id"] == buyer["id"]:
+            return False, "You cannot buy from your own vendor droid."
 
-    data = _load_data(obj)
-    inv  = data.get("inventory", [])
-    if not inv:
-        return False, "That vendor droid has no items in stock."
+        data = _load_data(obj)
+        inv  = data.get("inventory", [])
+        if not inv:
+            return False, "That vendor droid has no items in stock."
 
-    # Resolve target slot
-    slot = None
-    if item_arg.isdigit():
-        slot = next((s for s in inv if s.get("slot") == int(item_arg)), None)
-    if slot is None:
-        arg_lower = item_arg.lower()
-        slot = next(
-            (s for s in inv if arg_lower in s.get("item_name", "").lower()),
-            None,
-        )
-    if not slot:
-        return False, (
-            f"No item matching '{item_arg}' in stock. "
-            f"Use \033[1;33mbrowse\033[0m to see available items."
-        )
-
-    base_price = slot["price"]
-    final_price = base_price
-
-    # ── Faction shop modifier (S39) ───────────────────────────────────────
-    # If the shop owner aligns with one of the canonical factions, look up
-    # the buyer's reputation with that faction and apply the corresponding
-    # tier modifier. Hostile rep blocks the purchase outright; friendly
-    # rep gives a discount; unfriendly rep imposes a markup.
-    #
-    # The seller's stored faction_id is normalized through this map so a
-    # vendor whose owner sits under a long-form name still resolves to a
-    # canonical code. Codes (architecture v38 §6.5):
-    #   GCW: "empire", "rebel", "hutt", "bh_guild"
-    #   CW (B.1.a, Apr 29 2026): "republic", "cis", "jedi_order",
-    #                            "hutt_cartel", "bounty_hunters_guild"
-    #
-    # Note: "independent" is filtered out below by the
-    # `seller_faction_code != "independent"` guard, so it's not in this
-    # map (no shop modifier ever applies for an independent seller).
-    _FACTION_NAME_MAP = {
-        # ── GCW ──
-        "empire":               "empire",
-        "imperial":             "empire",
-        "galactic empire":      "empire",
-        "rebel":                "rebel",
-        "rebellion":            "rebel",
-        "rebel alliance":       "rebel",
-        "hutt":                 "hutt",
-        "hutts":                "hutt",
-        "hutt cartel":          "hutt",
-        "bh_guild":             "bh_guild",
-        "bounty hunters guild": "bh_guild",
-        "bounty hunters":       "bh_guild",
-        # ── CW (B.1.a) ──
-        "republic":             "republic",
-        "galactic republic":    "republic",
-        "cis":                  "cis",
-        "confederacy":          "cis",
-        "separatist":           "cis",
-        "separatists":          "cis",
-        "confederacy of independent systems": "cis",
-        "jedi":                 "jedi_order",
-        "jedi order":           "jedi_order",
-        "hutt_cartel":          "hutt_cartel",
-        "bounty_hunters_guild": "bounty_hunters_guild",
-        "bounty hunters' guild": "bounty_hunters_guild",
-    }
-    faction_msg = ""
-    seller_faction_raw = ""
-    try:
-        seller_char_for_faction = await db.get_character(obj["owner_id"])
-        if seller_char_for_faction:
-            seller_faction_raw = (
-                seller_char_for_faction.get("faction_id", "") or ""
-            ).strip().lower()
-    except Exception:
-        log.debug("[shops] faction owner lookup failed", exc_info=True)
-
-    seller_faction_code = _FACTION_NAME_MAP.get(seller_faction_raw)
-    if seller_faction_code and seller_faction_code != "independent":
-        try:
-            from engine.organizations import get_faction_shop_modifier
-            allowed, modifier, tier_name = await get_faction_shop_modifier(
-                buyer, seller_faction_code, db,
+        # Resolve target slot
+        slot = None
+        if item_arg.isdigit():
+            slot = next((s for s in inv if s.get("slot") == int(item_arg)), None)
+        if slot is None:
+            arg_lower = item_arg.lower()
+            slot = next(
+                (s for s in inv if arg_lower in s.get("item_name", "").lower()),
+                None,
             )
-            if not allowed:
-                # Hostile rep — vendor refuses to serve.
-                return False, (
-                    f"The vendor refuses to serve you. "
-                    f"({tier_name} with the {seller_faction_code} faction)"
-                )
-            if modifier:
-                final_price = max(1, int(round(base_price * (1.0 + modifier))))
-                pct = int(round(modifier * 100))
-                if pct < 0:
-                    faction_msg = (
-                        f"\n  {ansi.DIM}Faction: "
-                        f"{abs(pct)}% discount ({tier_name}).{ansi.RESET}"
-                    )
-                elif pct > 0:
-                    faction_msg = (
-                        f"\n  {ansi.DIM}Faction: "
-                        f"{pct}% markup ({tier_name}).{ansi.RESET}"
-                    )
+        if not slot:
+            return False, (
+                f"No item matching '{item_arg}' in stock. "
+                f"Use \033[1;33mbrowse\033[0m to see available items."
+            )
+
+        base_price = slot["price"]
+        final_price = base_price
+
+        # ── Faction shop modifier (S39) ─────────────────────────────────────
+        # If the shop owner aligns with one of the canonical factions, look up
+        # the buyer's reputation with that faction and apply the corresponding
+        # tier modifier. Hostile rep blocks the purchase outright; friendly
+        # rep gives a discount; unfriendly rep imposes a markup.
+        #
+        # The seller's stored faction_id is normalized through this map so a
+        # vendor whose owner sits under a long-form name still resolves to a
+        # canonical code. Codes (architecture v38 §6.5):
+        #   GCW: "empire", "rebel", "hutt", "bh_guild"
+        #   CW (B.1.a, Apr 29 2026): "republic", "cis", "jedi_order",
+        #                            "hutt_cartel", "bounty_hunters_guild"
+        #
+        # Note: "independent" is filtered out below by the
+        # `seller_faction_code != "independent"` guard, so it's not in this
+        # map (no shop modifier ever applies for an independent seller).
+        _FACTION_NAME_MAP = {
+            # ── GCW ──
+            "empire":               "empire",
+            "imperial":             "empire",
+            "galactic empire":      "empire",
+            "rebel":                "rebel",
+            "rebellion":            "rebel",
+            "rebel alliance":       "rebel",
+            "hutt":                 "hutt",
+            "hutts":                "hutt",
+            "hutt cartel":          "hutt",
+            "bh_guild":             "bh_guild",
+            "bounty hunters guild": "bh_guild",
+            "bounty hunters":       "bh_guild",
+            # ── CW (B.1.a) ──
+            "republic":             "republic",
+            "galactic republic":    "republic",
+            "cis":                  "cis",
+            "confederacy":          "cis",
+            "separatist":           "cis",
+            "separatists":          "cis",
+            "confederacy of independent systems": "cis",
+            "jedi":                 "jedi_order",
+            "jedi order":           "jedi_order",
+            "hutt_cartel":          "hutt_cartel",
+            "bounty_hunters_guild": "bounty_hunters_guild",
+            "bounty hunters' guild": "bounty_hunters_guild",
+        }
+        faction_msg = ""
+        seller_faction_raw = ""
+        try:
+            seller_char_for_faction = await db.get_character(obj["owner_id"])
+            if seller_char_for_faction:
+                seller_faction_raw = (
+                    seller_char_for_faction.get("faction_id", "") or ""
+                ).strip().lower()
         except Exception:
-            log.debug("[shops] faction shop modifier failed", exc_info=True)
+            log.debug("[shops] faction owner lookup failed", exc_info=True)
 
-    # Bargain check for Tier 2+
-    tier_key = data.get("tier_key", "gn4")
-    tier     = get_tier(tier_key) or {}
-    b_dice   = tier.get("bargain_dice", 0)
-    b_pips   = tier.get("bargain_pips", 0)
-    bargain_msg = ""
-
-    if b_dice > 0 or b_pips > 0:
-        try:
-            from engine.skill_checks import resolve_bargain_check
-            haggle = resolve_bargain_check(
-                buyer, final_price,
-                npc_bargain_dice=b_dice, npc_bargain_pips=b_pips,
-                is_buying=True,
-            )
-            final_price = haggle["adjusted_price"]
-            pct = haggle.get("price_modifier_pct", 0)
-            if pct > 0:
-                bargain_msg = (
-                    f"\n  {ansi.DIM}Bargain: you negotiated a "
-                    f"{pct}% discount.{ansi.RESET}"
+        seller_faction_code = _FACTION_NAME_MAP.get(seller_faction_raw)
+        if seller_faction_code and seller_faction_code != "independent":
+            try:
+                from engine.organizations import get_faction_shop_modifier
+                allowed, modifier, tier_name = await get_faction_shop_modifier(
+                    buyer, seller_faction_code, db,
                 )
-        except Exception as e:
-            log.debug("[shops] Bargain check failed: %s", e)
+                if not allowed:
+                    # Hostile rep — vendor refuses to serve.
+                    return False, (
+                        f"The vendor refuses to serve you. "
+                        f"({tier_name} with the {seller_faction_code} faction)"
+                    )
+                if modifier:
+                    final_price = max(1, int(round(base_price * (1.0 + modifier))))
+                    pct = int(round(modifier * 100))
+                    if pct < 0:
+                        faction_msg = (
+                            f"\n  {ansi.DIM}Faction: "
+                            f"{abs(pct)}% discount ({tier_name}).{ansi.RESET}"
+                        )
+                    elif pct > 0:
+                        faction_msg = (
+                            f"\n  {ansi.DIM}Faction: "
+                            f"{pct}% markup ({tier_name}).{ansi.RESET}"
+                        )
+            except Exception:
+                log.debug("[shops] faction shop modifier failed", exc_info=True)
 
-    if buyer.get("credits", 0) < final_price:
-        return False, (
-            f"Insufficient credits. {slot['item_name']} costs "
-            f"{final_price:,} credits (you have {buyer.get('credits',0):,})."
-        )
+        # Bargain check for Tier 2+
+        tier_key = data.get("tier_key", "gn4")
+        tier     = get_tier(tier_key) or {}
+        b_dice   = tier.get("bargain_dice", 0)
+        b_pips   = tier.get("bargain_pips", 0)
+        bargain_msg = ""
 
-    # Listing fee
-    fee_pct   = tier.get("listing_fee_pct", 2.0) / 100.0
-    fee       = max(1, int(final_price * fee_pct))
-    net_payout = final_price - fee
+        if b_dice > 0 or b_pips > 0:
+            try:
+                from engine.skill_checks import resolve_bargain_check
+                haggle = resolve_bargain_check(
+                    buyer, final_price,
+                    npc_bargain_dice=b_dice, npc_bargain_pips=b_pips,
+                    is_buying=True,
+                )
+                final_price = haggle["adjusted_price"]
+                pct = haggle.get("price_modifier_pct", 0)
+                if pct > 0:
+                    bargain_msg = (
+                        f"\n  {ansi.DIM}Bargain: you negotiated a "
+                        f"{pct}% discount.{ansi.RESET}"
+                    )
+            except Exception as e:
+                log.debug("[shops] Bargain check failed: %s", e)
 
-    # ── Player Cities Phase 4 (May 22 2026): city tax ────────────────────
-    # Per design v1.2 §5.3: the city's cut is carved out of the
-    # seller's net (not added on top of the buyer's debit). The buyer
-    # paid `final_price` regardless of whether the room is in a city;
-    # if it is, the city takes a slice of `net_payout` before the
-    # remainder reaches the droid escrow. apply_city_tax is a no-op
-    # when the droid's room is not in any city or when tax_rate=0.
-    city_tax_msg = ""
-    city_tax_taken = 0
-    try:
-        from engine.player_cities import apply_city_tax
-        city_take, _city_id, city_name = await apply_city_tax(
-            db, obj["room_id"], net_payout,
-        )
-        if city_take > 0:
-            net_payout -= city_take
-            city_tax_taken = city_take
-            city_tax_msg = (
-                f" ({city_take:,}cr city tax to {city_name})"
+        if buyer.get("credits", 0) < final_price:
+            return False, (
+                f"Insufficient credits. {slot['item_name']} costs "
+                f"{final_price:,} credits (you have {buyer.get('credits',0):,})."
             )
-    except Exception:
-        log.warning("[shops] city tax hook failed", exc_info=True)
 
-    # Deduct buyer credits (through the credit chokepoint). allow_negative=False
-    # + None-abort: the city-tax yield above + a stale cache could otherwise
-    # drive the buyer negative (QA re-run, credit-integrity).
-    _bal = await db.adjust_credits(buyer["id"], -final_price, "vendor_purchase",
-                                   allow_negative=False)
-    if _bal is None:
-        return False, "Insufficient credits for that purchase."
-    buyer["credits"] = _bal
+        # Listing fee
+        fee_pct   = tier.get("listing_fee_pct", 2.0) / 100.0
+        fee       = max(1, int(final_price * fee_pct))
+        net_payout = final_price - fee
 
-    # ── Add purchased item to buyer's inventory ──
-    try:
-        # Same bare-list fix as unstock_droid/stock_droid: coerce preserves
-        # an existing bare-list inventory instead of wiping it to {}.
-        from engine.items import coerce_inventory
-        buyer_inv = coerce_inventory(buyer.get("inventory", "[]"))
-        items = buyer_inv.get("items", [])
-        items.append({
-            "key":     slot.get("item_key", ""),
-            "name":    slot["item_name"],
-            "quality": slot.get("quality", 50),
-            "crafter": slot.get("crafter", ""),
-        })
-        buyer_inv["items"] = items
-        buyer["inventory"] = json.dumps(buyer_inv)
-        await db.save_character(buyer["id"], inventory=buyer["inventory"])
-    except Exception as e:
-        log.warning("[shops] Failed to add item to buyer inventory: %s", e)
-        # Credits already deducted — log but don't fail silently.
-        # The transaction log will show the purchase for admin recovery.
+        # ── Player Cities Phase 4 (May 22 2026): city tax ──────────────────
+        # Per design v1.2 §5.3: the city's cut is carved out of the
+        # seller's net (not added on top of the buyer's debit). The buyer
+        # paid `final_price` regardless of whether the room is in a city;
+        # if it is, the city takes a slice of `net_payout` before the
+        # remainder reaches the droid escrow. apply_city_tax is a no-op
+        # when the droid's room is not in any city or when tax_rate=0.
+        city_tax_msg = ""
+        city_tax_taken = 0
+        try:
+            from engine.player_cities import apply_city_tax
+            city_take, _city_id, city_name = await apply_city_tax(
+                db, obj["room_id"], net_payout,
+            )
+            if city_take > 0:
+                net_payout -= city_take
+                city_tax_taken = city_take
+                city_tax_msg = (
+                    f" ({city_take:,}cr city tax to {city_name})"
+                )
+        except Exception:
+            log.warning("[shops] city tax hook failed", exc_info=True)
 
-    # Add to droid escrow
-    data["escrow_credits"] = data.get("escrow_credits", 0) + net_payout
-    data["last_sale_ts"]   = time.time()
-    data["total_sales"]    = data.get("total_sales", 0) + 1
+        # Deduct buyer credits (through the credit chokepoint). allow_negative=False
+        # + None-abort: the city-tax yield above + a stale cache could otherwise
+        # drive the buyer negative (QA re-run, credit-integrity).
+        _bal = await db.adjust_credits(buyer["id"], -final_price, "vendor_purchase",
+                                       allow_negative=False)
+        if _bal is None:
+            return False, "Insufficient credits for that purchase."
+        buyer["credits"] = _bal
 
-    # Remove/decrement slot
-    slot["quantity"] -= 1
-    if slot["quantity"] <= 0:
-        data["inventory"] = [s for s in inv if s.get("slot") != slot["slot"]]
-        for i, s in enumerate(data["inventory"]):
-            s["slot"] = i + 1
-    else:
-        data["inventory"] = inv
+        # ── Add purchased item to buyer's inventory ──
+        try:
+            # Same bare-list fix as unstock_droid/stock_droid: coerce preserves
+            # an existing bare-list inventory instead of wiping it to {}.
+            from engine.items import coerce_inventory
+            buyer_inv = coerce_inventory(buyer.get("inventory", "[]"))
+            items = buyer_inv.get("items", [])
+            items.append({
+                "key":     slot.get("item_key", ""),
+                "name":    slot["item_name"],
+                "quality": slot.get("quality", 50),
+                "crafter": slot.get("crafter", ""),
+            })
+            buyer_inv["items"] = items
+            buyer["inventory"] = json.dumps(buyer_inv)
+            await db.save_character(buyer["id"], inventory=buyer["inventory"])
+        except Exception as e:
+            log.warning("[shops] Failed to add item to buyer inventory: %s", e)
+            # Credits already deducted — log but don't fail silently.
+            # The transaction log will show the purchase for admin recovery.
 
-    await db.update_object(droid_id, data=_dump_data(data))
+        # Add to droid escrow
+        data["escrow_credits"] = data.get("escrow_credits", 0) + net_payout
+        data["last_sale_ts"]   = time.time()
+        data["total_sales"]    = data.get("total_sales", 0) + 1
+
+        # Remove/decrement slot
+        slot["quantity"] -= 1
+        if slot["quantity"] <= 0:
+            data["inventory"] = [s for s in inv if s.get("slot") != slot["slot"]]
+            for i, s in enumerate(data["inventory"]):
+                s["slot"] = i + 1
+        else:
+            data["inventory"] = inv
+
+        await db.update_object(droid_id, data=_dump_data(data))
+    # ── End critical section ──────────────────────────────────────────────
 
     # Log transaction
     await db.log_shop_transaction(
@@ -920,21 +971,25 @@ async def buy_from_droid(buyer: dict, droid_id: int,
 
 async def collect_escrow(char: dict, droid_id: int, db) -> tuple[bool, str]:
     """Owner collects accumulated sale revenue from the droid."""
-    obj = await db.get_object(droid_id)
-    if not obj or obj["owner_id"] != char["id"]:
-        return False, "You don't own that vendor droid."
+    # Critical section (see _get_droid_lock docstring): two concurrent
+    # collects on the same droid must not both pay out the same escrow
+    # balance before either write-back lands.
+    async with _get_droid_lock(droid_id):
+        obj = await db.get_object(droid_id)
+        if not obj or obj["owner_id"] != char["id"]:
+            return False, "You don't own that vendor droid."
 
-    data    = _load_data(obj)
-    escrow  = data.get("escrow_credits", 0)
+        data    = _load_data(obj)
+        escrow  = data.get("escrow_credits", 0)
 
-    if escrow <= 0:
-        return False, "No revenue to collect."
+        if escrow <= 0:
+            return False, "No revenue to collect."
 
-    char["credits"] = await db.adjust_credits(char["id"], escrow, "vendor_escrow_collect")
+        char["credits"] = await db.adjust_credits(char["id"], escrow, "vendor_escrow_collect")
 
-    data["escrow_credits"] = 0
-    data["last_owner_ts"]  = time.time()
-    await db.update_object(droid_id, data=_dump_data(data))
+        data["escrow_credits"] = 0
+        data["last_owner_ts"]  = time.time()
+        await db.update_object(droid_id, data=_dump_data(data))
 
     return True, (
         f"Collected \033[1;33m{escrow:,}cr\033[0m from "
@@ -1264,92 +1319,99 @@ async def sell_to_droid(
     Seller fills a buy order at a vendor droid.
     Transfers resources from seller inventory → droid, pays credits from escrow.
     """
-    obj = await db.get_object(droid_id)
-    if not obj or not obj.get("room_id"):
-        return False, "That vendor droid is not available."
-    if obj["owner_id"] == seller["id"]:
-        return False, "You cannot fill your own buy orders."
+    # ── Critical section: serialize per-droid so two sellers filling the
+    # SAME buy order can never both read the same escrow_remaining/
+    # qty_filled and both write a payout that overruns the escrow (see
+    # _get_droid_lock docstring). Lock is acquired BEFORE the data read
+    # and held through the write-back.
+    async with _get_droid_lock(droid_id):
+        obj = await db.get_object(droid_id)
+        if not obj or not obj.get("room_id"):
+            return False, "That vendor droid is not available."
+        if obj["owner_id"] == seller["id"]:
+            return False, "You cannot fill your own buy orders."
 
-    data   = _load_data(obj)
-    orders = data.get("buy_orders", [])
+        data   = _load_data(obj)
+        orders = data.get("buy_orders", [])
 
-    # Find a matching active order
-    order = next(
-        (o for o in orders
-         if o.get("active")
-         and o["resource_type"] == resource_type
-         and (o["qty_wanted"] - o.get("qty_filled", 0)) > 0),
-        None,
-    )
-    if not order:
-        shop_name = data.get("shop_name", obj["name"])
-        return False, (
-            f"\033[1;37m{shop_name}\033[0m has no active buy order "
-            f"for '{resource_type.replace('_', ' ')}'. "
-            f"Use \033[1;33mbrowse {shop_name}\033[0m to see current orders."
-        )
-
-    # Check seller has the resource
-    try:
-        import json as _j
-        inv = seller.get("inventory", "{}")
-        if isinstance(inv, str):
-            inv = _j.loads(inv) if inv else {}
-        resources = inv.get("resources", [])
-        stack = next(
-            (r for r in resources
-             if r.get("type") == resource_type
-             and float(r.get("quality", 0)) >= order["min_quality"]),
+        # Find a matching active order
+        order = next(
+            (o for o in orders
+             if o.get("active")
+             and o["resource_type"] == resource_type
+             and (o["qty_wanted"] - o.get("qty_filled", 0)) > 0),
             None,
         )
-        if not stack:
+        if not order:
+            shop_name = data.get("shop_name", obj["name"])
             return False, (
-                f"You don't have {resource_type.replace('_', ' ')} "
-                f"with quality {order['min_quality']}+ in your inventory."
+                f"\033[1;37m{shop_name}\033[0m has no active buy order "
+                f"for '{resource_type.replace('_', ' ')}'. "
+                f"Use \033[1;33mbrowse {shop_name}\033[0m to see current orders."
             )
-    except Exception as e:
-        log.warning("[shops] sell_to_droid inventory check failed: %s", e)
-        return False, "Inventory check failed."
 
-    # Calculate how many we can fill
-    have_qty   = int(stack.get("quantity", 1))
-    needed_qty = order["qty_wanted"] - order.get("qty_filled", 0)
-    sell_qty   = min(qty, have_qty, needed_qty)
-    if sell_qty < 1:
-        return False, "Nothing to sell."
+        # Check seller has the resource
+        try:
+            import json as _j
+            inv = seller.get("inventory", "{}")
+            if isinstance(inv, str):
+                inv = _j.loads(inv) if inv else {}
+            resources = inv.get("resources", [])
+            stack = next(
+                (r for r in resources
+                 if r.get("type") == resource_type
+                 and float(r.get("quality", 0)) >= order["min_quality"]),
+                None,
+            )
+            if not stack:
+                return False, (
+                    f"You don't have {resource_type.replace('_', ' ')} "
+                    f"with quality {order['min_quality']}+ in your inventory."
+                )
+        except Exception as e:
+            log.warning("[shops] sell_to_droid inventory check failed: %s", e)
+            return False, "Inventory check failed."
 
-    # Check escrow is sufficient
-    escrow_remaining = (
-        order.get("escrow_deposited", 0)
-        - order.get("qty_filled", 0) * order["price_per"]
-    )
-    max_can_pay = escrow_remaining // order["price_per"]
-    sell_qty = min(sell_qty, max_can_pay)
-    if sell_qty < 1:
-        return False, "Buy order has insufficient escrow to pay for more units."
+        # Calculate how many we can fill
+        have_qty   = int(stack.get("quantity", 1))
+        needed_qty = order["qty_wanted"] - order.get("qty_filled", 0)
+        sell_qty   = min(qty, have_qty, needed_qty)
+        if sell_qty < 1:
+            return False, "Nothing to sell."
 
-    payout = sell_qty * order["price_per"]
+        # Check escrow is sufficient
+        escrow_remaining = (
+            order.get("escrow_deposited", 0)
+            - order.get("qty_filled", 0) * order["price_per"]
+        )
+        max_can_pay = escrow_remaining // order["price_per"]
+        sell_qty = min(sell_qty, max_can_pay)
+        if sell_qty < 1:
+            return False, "Buy order has insufficient escrow to pay for more units."
 
-    # Deduct from seller inventory
-    stack["quantity"] -= sell_qty
-    if stack["quantity"] <= 0:
-        resources = [r for r in resources if r is not stack]
-    inv["resources"] = resources
-    seller["inventory"] = _j.dumps(inv)
-    await db.save_character(seller["id"], inventory=seller["inventory"])
-    seller["credits"] = await db.adjust_credits(
-        seller["id"], payout, "vendor_buy_order_payout"
-    )
+        payout = sell_qty * order["price_per"]
 
-    # Update order
-    order["qty_filled"] = order.get("qty_filled", 0) + sell_qty
-    if order["qty_filled"] >= order["qty_wanted"]:
-        order["active"] = False
+        # Deduct from seller inventory
+        stack["quantity"] -= sell_qty
+        if stack["quantity"] <= 0:
+            resources = [r for r in resources if r is not stack]
+        inv["resources"] = resources
+        seller["inventory"] = _j.dumps(inv)
+        await db.save_character(seller["id"], inventory=seller["inventory"])
+        seller["credits"] = await db.adjust_credits(
+            seller["id"], payout, "vendor_buy_order_payout"
+        )
 
-    data["buy_orders"]    = orders
-    data["last_sale_ts"]  = time.time()
-    data["total_sales"]   = data.get("total_sales", 0) + 1
-    await db.update_object(droid_id, data=_dump_data(data))
+        # Update order
+        order["qty_filled"] = order.get("qty_filled", 0) + sell_qty
+        if order["qty_filled"] >= order["qty_wanted"]:
+            order["active"] = False
+
+        data["buy_orders"]    = orders
+        data["last_sale_ts"]  = time.time()
+        data["total_sales"]   = data.get("total_sales", 0) + 1
+        await db.update_object(droid_id, data=_dump_data(data))
+    # ── End critical section ──────────────────────────────────────────────
 
     # Log transaction
     await db.log_shop_transaction(
