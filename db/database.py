@@ -3037,6 +3037,43 @@ class Database:
         await self.log_credit(char_id, delta, source, new_balance)
         return new_balance
 
+    async def debit_capped(self, char_id: int, cost: int, source: str) -> int:
+        """Sink helper: charge UP TO ``cost`` credits, flooring at zero.
+
+        The unsafe legacy sink pattern computes a debit as a delta from a
+        caller's *cached* balance (``credits = char.get("credits", 0)``;
+        ``adjust_credits(char_id, new - credits, tag)``) with the default
+        ``allow_negative=True``. When that cached snapshot is stale — an
+        out-of-band weekly-debt / housing-rent tick, or a theft, drained the
+        real balance since the caller loaded the character — the delta
+        overdraws the *live* balance and the column goes negative. This
+        helper never trusts a cached balance: it asks ``adjust_credits`` to
+        refuse an overdraw (``allow_negative=False``); if the full ``cost``
+        can't be covered it takes exactly the live remaining balance. A
+        fine / penalty / gambling loss is thereby capped at what the player
+        actually has and the balance can never go negative.
+
+        ``cost`` is treated as a magnitude (its absolute value is charged).
+        Returns the new balance after the debit. Routes every movement
+        through ``adjust_credits`` so the ledger/funnel invariant holds.
+        """
+        cost = abs(int(cost))
+        if cost == 0:
+            row = await self.get_character(char_id)
+            return int((row or {}).get("credits", 0) or 0)
+        # Fast path: the live balance covers the full charge.
+        post = await self.adjust_credits(
+            char_id, -cost, source, allow_negative=False)
+        if post is not None:
+            return post
+        # Can't cover the full cost — take exactly the live remaining balance.
+        row = await self.get_character(char_id)
+        real = int((row or {}).get("credits", 0) or 0)
+        if real <= 0:
+            return 0
+        post = await self.adjust_credits(char_id, -real, source)
+        return post if post is not None else 0
+
     # -- Faucet throttle (@economy throttle, Drop 1.c) --
 
     async def get_faucet_throttle_pct(self) -> int:

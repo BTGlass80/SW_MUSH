@@ -447,15 +447,15 @@ async def check_patrol_on_launch(ctx: CommandContext) -> bool:
     await ctx.session.send_line(f"\n  {outcome['message']}")
 
     if outcome["caught"]:
-        # Confiscate cargo and apply fine
+        # Confiscate cargo and apply fine. Charge against the LIVE balance
+        # (the session snapshot may be stale — a debt/rent tick since load)
+        # so the fine caps at what the smuggler actually has, never overdraws.
         fine = job.fine
         char = ctx.session.character
-        credits = char.get("credits", 0)
-        new_credits = max(0, credits - fine)
-        char["credits"] = await ctx.db.adjust_credits(char_id, new_credits - credits, "smuggling_fine")
+        char["credits"] = await ctx.db.debit_capped(char_id, fine, "smuggling_fine")
         await board.fail(char_id, ctx.db)
         await ctx.session.send_line(
-            f"  Fine deducted: {fine:,} credits. Balance: {new_credits:,} credits."
+            f"  Fine deducted: {fine:,} credits. Balance: {char['credits']:,} credits."
         )
         return True
     else:
@@ -553,13 +553,13 @@ async def check_patrol_on_arrival(ctx: CommandContext, dest_planet: str) -> bool
     await ctx.session.send_line(f"  {outcome['message']}")
 
     if outcome["caught"]:
+        # Charge the fine against the LIVE balance (see check_patrol_on_launch):
+        # cap at what's actually there, never overdraw off a stale snapshot.
         fine = job.fine
-        credits = char.get("credits", 0)
-        new_credits = max(0, credits - fine)
-        char["credits"] = await ctx.db.adjust_credits(char_id, new_credits - credits, "smuggling_fine")
+        char["credits"] = await ctx.db.debit_capped(char_id, fine, "smuggling_fine")
         await board.fail(char_id, ctx.db)
         await ctx.session.send_line(
-            f"  Fine deducted: {fine:,} credits. Balance: {new_credits:,} credits."
+            f"  Fine deducted: {fine:,} credits. Balance: {char['credits']:,} credits."
         )
         return True
     else:

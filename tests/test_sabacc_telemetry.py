@@ -81,6 +81,11 @@ class _FakeDB:
     async def adjust_credits(self, char_id, delta, tag):
         self.credit_calls.append((char_id, delta, tag))
 
+    async def debit_capped(self, char_id, cost, tag):
+        # Mirror the real funnel helper's ledger effect: a capped debit of
+        # ``cost`` records a negative movement (the sabacc loss branch uses it).
+        self.credit_calls.append((char_id, -abs(int(cost)), tag))
+
     async def adjust_org_treasury(self, org_id, amount):
         self.org_treasury_calls.append((org_id, amount))
 

@@ -250,8 +250,12 @@ async def attempt_pickpocket(
             "room_msg": None,
         }
 
-    # Success: steal credits
-    target_credits = target_char.get("credits", 0)
+    # Success: steal credits. Read the target's LIVE balance — the cached
+    # snapshot on a sleeping (possibly offline) victim can be stale after a
+    # debt/rent tick or an earlier theft — and cap the take at what they
+    # actually have so the transfer never overdraws the victim.
+    target_row = await db.get_character(target_char["id"])
+    target_credits = int((target_row or {}).get("credits", 0) or 0)
     if target_credits <= 0:
         return {
             "ok": True,
@@ -260,15 +264,39 @@ async def attempt_pickpocket(
         }
 
     steal_pct = random.randint(THEFT_PCT_MIN, THEFT_PCT_MAX) / 100.0
-    stolen_amount = max(1, int(target_credits * steal_pct))
+    stolen_amount = max(1, min(int(target_credits * steal_pct), target_credits))
 
-    # Transfer credits
-    target_char["credits"] = await db.adjust_credits(
-        target_char["id"], -stolen_amount, "theft_loss"
+    # Transfer atomically: debit the victim (refusing an overdraw), then
+    # credit the thief. If crediting the thief fails, refund the victim —
+    # a half-completed transfer must never destroy credits.
+    new_target_balance = await db.adjust_credits(
+        target_char["id"], -stolen_amount, "theft_loss", allow_negative=False
     )
-    thief["credits"] = await db.adjust_credits(
-        thief["id"], stolen_amount, "theft_gain"
-    )
+    if new_target_balance is None:
+        # A concurrent drain since the read left them unable to cover it.
+        return {
+            "ok": True,
+            "msg": f"  You search {target_name}'s pockets... they're completely broke.",
+            "room_msg": None,
+        }
+    target_char["credits"] = new_target_balance
+    try:
+        thief["credits"] = await db.adjust_credits(
+            thief["id"], stolen_amount, "theft_gain"
+        )
+    except Exception:
+        await db.adjust_credits(
+            target_char["id"], stolen_amount, "theft_loss_refund"
+        )
+        log.warning(
+            "[sleeping] theft credit to thief failed; refunded victim",
+            exc_info=True,
+        )
+        return {
+            "ok": False,
+            "msg": "  The moment slips away — your hands come up empty.",
+            "room_msg": None,
+        }
 
     # Log theft in target's sleeping record
     try:
