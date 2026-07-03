@@ -1,5 +1,5 @@
 ---
-key: salvage
+key: space_salvage
 title: "Salvage & Space Loot"
 category: "Rules: Space"
 summary: "After destroying an NPC ship or finding a derelict anomaly, you can salvage the wreckage for crafting resources."
