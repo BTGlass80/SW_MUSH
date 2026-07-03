@@ -3161,6 +3161,27 @@ class WildernessAnomaly:
     # the random tick, the 5 staged cults, and any other orchestrator
     # caller that doesn't pass it).
     suppress_payout: bool = False
+    # Audit fix F8/F9 (2026-07-03): set True by ``spawn_scenario_anomaly``
+    # when a caller opts in (the communal orchestrator's ``arm_stage_site``
+    # does; ``chain_missions.maybe_arm_site_for_step`` does not, so
+    # chain-armed site_cleared anomalies keep their existing prune timing).
+    # A RESOLVED anomaly with this flag set is exempt from time-based
+    # pruning (``_prune_expired_region``) until the communal orchestrator
+    # explicitly consumes it (``delete_anomaly_by_id``, called from
+    # ``communal_objective_runtime.on_scenario_progress`` after crediting
+    # the resolver). Closes the prune-race window where an hourly tick or
+    # an in-region ``anomalies`` command could otherwise evict a resolved,
+    # not-yet-polled stage anomaly and silently discard the clear.
+    scenario_hold: bool = False
+    # Audit fix F10 (2026-07-03, Brian's Fork-4B ruling): every payout
+    # participant's char_id, stamped alongside ``resolved_by`` at every
+    # resolution path — the SAME list ``_dispatch_site_cleared`` fans the
+    # chain hook over (T1/skill: the sole resolver; T2/T3: room occupants
+    # + contribution_log clearers). Read by
+    # ``communal_objective_runtime.on_scenario_progress`` to pay a reduced
+    # share of stage-clear points to every co-fighter, not just the
+    # resolver.
+    resolved_participants: list = field(default_factory=list)
 
     @property
     def template(self) -> dict:
@@ -3258,11 +3279,23 @@ def _prune_expired_region(region_slug: str, now: Optional[float] = None) -> int:
     a DB-touching operation and this is a pure helper. The tick
     wrapper (``_prune_expired_region_with_cleanup``) handles NPC
     cleanup.
+
+    Audit fix F8/F9 (2026-07-03): a RESOLVED anomaly with
+    ``scenario_hold=True`` is exempt from this time-based prune
+    regardless of its (now-irrelevant) expiry — it stays until the
+    communal orchestrator explicitly consumes it via
+    ``delete_anomaly_by_id``. Every other anomaly (the overwhelming
+    majority — random-tick T1/T2/T3, and chain-armed ``site_cleared``
+    anomalies, which are consumed synchronously at resolve time and
+    never set the flag) prunes exactly as before.
     """
     if now is None:
         now = time.time()
     existing = _anomalies.get(region_slug, [])
-    fresh = [a for a in existing if not a.is_expired(now)]
+    fresh = [
+        a for a in existing
+        if not a.is_expired(now) or (a.resolved and a.scenario_hold)
+    ]
     removed = len(existing) - len(fresh)
     _anomalies[region_slug] = fresh
     return removed
@@ -3280,7 +3313,13 @@ async def _prune_expired_region_with_cleanup(
     if now is None:
         now = time.time()
     existing = _anomalies.get(region_slug, [])
-    expired = [a for a in existing if a.is_expired(now)]
+    # F8/F9: mirror _prune_expired_region's scenario_hold exemption so a
+    # held, resolved-but-unconsumed stage anomaly's NPCs (already dead,
+    # for a combat stage) aren't re-queried on every tick until consumed.
+    expired = [
+        a for a in existing
+        if a.is_expired(now) and not (a.resolved and a.scenario_hold)
+    ]
     # Pure prune first (mutates _anomalies).
     removed = _prune_expired_region(region_slug, now)
     # Then NPC cleanup for expired combat anomalies whose NPCs are
@@ -3554,6 +3593,7 @@ async def spawn_scenario_anomaly(
     now: Optional[float] = None,
     session_mgr=None,
     suppress_payout: bool = False,
+    scenario_hold: bool = False,
 ) -> Optional[WildernessAnomaly]:
     """Spawn a SPECIFIC authored anomaly at a SPECIFIC room — the
     deterministic counterpart to ``spawn_anomaly_for_region``.
@@ -3575,6 +3615,16 @@ async def spawn_scenario_anomaly(
     final-phase clear — the caller (a chain's questline reward) pays the
     ONE richer capstone reward instead, so a chain-armed scenario never
     double-pays. Defaults False (every existing caller is unaffected).
+
+    ``scenario_hold`` (audit fix F8/F9, 2026-07-03): when True, marks the
+    spawned anomaly exempt from time-based pruning once resolved (see
+    ``_prune_expired_region``), until explicitly consumed via
+    ``delete_anomaly_by_id``. The communal orchestrator's
+    ``arm_stage_site`` passes True (its poll-driven consumption needs the
+    resolved anomaly to survive an arbitrary prune-race window);
+    ``chain_missions.maybe_arm_site_for_step`` does not pass it (its
+    consumption is synchronous at resolve time, so it needs no hold).
+    Defaults False (every existing caller is unaffected).
 
     Returns the WildernessAnomaly, or None if the template is unknown. Does NOT
     enforce per-region caps or spawn-chance (scenarios are orchestrator-driven,
@@ -3617,6 +3667,7 @@ async def spawn_scenario_anomaly(
         expiry=now + float(duration_secs),
         tier=int(tier),
         suppress_payout=bool(suppress_payout),
+        scenario_hold=bool(scenario_hold),
     )
     _anomalies.setdefault(region_slug, []).append(anomaly)
 
@@ -3848,6 +3899,29 @@ def find_anomaly_globally(anomaly_id: int) -> Optional[WildernessAnomaly]:
     return None
 
 
+def delete_anomaly_by_id(anomaly_id: int) -> bool:
+    """Remove a specific anomaly from the in-memory registry (any
+    region), by id. Returns True iff one was found and removed.
+
+    Audit fix F8/F9 (2026-07-03): the explicit consumption step for a
+    ``scenario_hold`` anomaly. ``communal_objective_runtime.
+    on_scenario_progress`` calls this once it has credited the stage
+    resolver (+ any other payout participants) and advanced the stage
+    cursor, so a held resolved anomaly doesn't linger in memory forever.
+    Doubles as the idempotent-consumption gate: the first caller to
+    successfully delete an id is the one that gets to credit it — a
+    racing second caller (the inline push-notify racing a poll, or two
+    overlapping polls) sees False back and must no-op rather than
+    crediting the same stage clear twice.
+    """
+    for region_anomalies in _anomalies.values():
+        for i, a in enumerate(region_anomalies):
+            if a.id == int(anomaly_id):
+                del region_anomalies[i]
+                return True
+    return False
+
+
 async def resolve_anomaly(
     db, char: dict, anomaly_id: int,
     *,
@@ -3902,6 +3976,7 @@ async def resolve_anomaly(
     else:
         return await _resolve_anomaly_skill(
             db, char, anomaly, region_slug, rng=rng, now=now,
+            session_mgr=session_mgr,
         )
 
 
@@ -3959,6 +4034,7 @@ async def _resolve_anomaly_skill(
     *,
     rng: random.Random,
     now: float,
+    session_mgr=None,
 ) -> dict:
     """Skill-check resolution path. One-shot: success → full reward,
     failure → partial reward. Anomaly resolved either way."""
@@ -3992,6 +4068,22 @@ async def _resolve_anomaly_skill(
     anomaly.resolved_by = int(char.get("id", 0))
     anomaly.resolved_faction = char.get("faction_id") or "independent"
     anomaly.expiry = min(anomaly.expiry, now + 30)
+    # Audit fix F10: the skill path is a solo one-shot check — no
+    # room-shared participation model, so the resolver is the only
+    # payout participant (mirrors the Tier 1 combat payout).
+    anomaly.resolved_participants = [int(char.get("id", 0))]
+
+    # Staged-questline archetype (2026-07-03): fan the site_cleared
+    # clear-hook over the resolver — a cheap no-op unless the resolver
+    # has an active site_cleared chain step armed on THIS anomaly.
+    # Audit fix F8/F9 (2026-07-03): this is also the ONLY place a
+    # mid-scenario SKILL stage (e.g. hollow_sun's cistern-slice) can
+    # push-notify the communal orchestrator inline — before this fix,
+    # _dispatch_site_cleared only fired from the two COMBAT payout
+    # paths, so a staged cult's skill stage could only ever be picked
+    # up by the ~120s poll (now prune-safe via scenario_hold, but still
+    # laggy without this).
+    await _dispatch_site_cleared(db, anomaly, [char], session_mgr=session_mgr)
 
     if sc.success:
         msg = (f"You resolve the {anomaly.display_name}. "
@@ -4725,6 +4817,8 @@ async def award_combat_anomaly_reward(
 
 async def _dispatch_site_cleared(
     db, anomaly: "WildernessAnomaly", participants: list,
+    *,
+    session_mgr=None,
 ) -> None:
     """Staged-questline archetype (2026-07-03): fire the questline
     clear-hook for every payout participant.
@@ -4742,6 +4836,12 @@ async def _dispatch_site_cleared(
     Failure-tolerant: per-participant dispatch errors are logged and
     swallowed — a broken chain hook must never block the anomaly payout
     it's piggybacking on.
+
+    Audit fix F8/F9 (2026-07-03): also push-notifies the communal
+    orchestrator inline, right here, so a staged cult's stage-clear
+    advance doesn't depend solely on the ~120s communal poll (which a
+    region prune racing ahead of it could otherwise beat, silently
+    discarding the clear — see the `scenario_hold` prune exemption).
     """
     try:
         from engine import chain_events
@@ -4759,6 +4859,61 @@ async def _dispatch_site_cleared(
                 "[anomaly] on_site_cleared dispatch failed for char %s "
                 "(anomaly #%d)", p.get("id"), anomaly.id, exc_info=True,
             )
+
+    try:
+        await _notify_communal_stage_clear(db, session_mgr, anomaly)
+    except Exception:
+        log.warning(
+            "[anomaly] communal stage-clear notify failed (anomaly #%d)",
+            anomaly.id, exc_info=True,
+        )
+
+
+async def _notify_communal_stage_clear(
+    db, session_mgr, anomaly: "WildernessAnomaly",
+) -> None:
+    """Audit fix F8/F9 (2026-07-03): if ``anomaly`` is the active staged
+    cult's CURRENT-stage anomaly, advance the communal objective inline
+    instead of waiting for the next communal tick / `rally` poll.
+
+    Cheap no-op for the overwhelming majority of resolutions: bails
+    immediately unless the anomaly's own template carries a `scenario`
+    key (only the 5 staged-cult SCENARIO_TEMPLATES do) AND the id
+    matches what the active uprising's `_stage` bookkeeping is actually
+    waiting on. Best-effort — any failure here must never block the
+    anomaly resolution/payout this is piggybacking on; a missed notify
+    still lands via the poll (the resolved anomaly is now prune-safe —
+    see `scenario_hold` — until the poll consumes it).
+    """
+    if not anomaly.template.get("scenario"):
+        return
+    try:
+        from engine import communal_objective_runtime as COR
+        from engine import staged_event as SE
+    except Exception:
+        return
+
+    active = await COR.get_active(db)
+    if not active:
+        return
+
+    raw = active.get("contributions_json")
+    try:
+        contribs = json.loads(raw) if isinstance(raw, str) else (raw or {})
+    except (TypeError, ValueError, json.JSONDecodeError):
+        contribs = {}
+    if not isinstance(contribs, dict):
+        return
+
+    state = SE.get_stage_state(contribs)
+    try:
+        armed_id = int(state.get("anomaly_id") or 0)
+    except (TypeError, ValueError):
+        armed_id = 0
+    if armed_id <= 0 or armed_id != int(anomaly.id):
+        return  # not the stage this uprising is currently waiting on
+
+    await COR.on_scenario_progress(db, session_mgr, active)
 
 
 async def _payout_combat_anomaly(
@@ -4809,6 +4964,9 @@ async def _payout_combat_anomaly(
         anomaly.resolved_by = int(killer_char_id)
         anomaly.resolved_faction = killer.get("faction_id") or "independent"
         anomaly.expiry = min(anomaly.expiry, now + 30)
+        # Audit fix F10: Tier 1 has no room-shared participation model —
+        # the killer/resolver is the sole payout participant.
+        anomaly.resolved_participants = [int(killer_char_id)]
 
         log.info(
             "[anomaly] T1 combat reward paid for #%d (%s) to char %s — "
@@ -4826,7 +4984,7 @@ async def _payout_combat_anomaly(
         # Staged-questline archetype (2026-07-03): fan the clear-hook
         # over every payout participant (here: just the killer/resolver;
         # Tier 1 has no room-shared participation model).
-        await _dispatch_site_cleared(db, anomaly, [killer])
+        await _dispatch_site_cleared(db, anomaly, [killer], session_mgr=session_mgr)
 
         return {
             "anomaly_id": anomaly.id,
@@ -5018,6 +5176,12 @@ async def _payout_combat_anomaly(
     anomaly.resolved_by = int(killer_char_id)
     anomaly.resolved_faction = killer_faction
     anomaly.expiry = min(anomaly.expiry, now + 30)
+    # Audit fix F10: the SAME participant list the payout above already
+    # split credits/resources/trophies across (room occupants ∪
+    # kill_counts/contribution_log clearers for T2/T3).
+    anomaly.resolved_participants = [
+        int(p["id"]) for p in participants if p and p.get("id")
+    ]
 
     log.info(
         "[anomaly] T%d combat reward paid for #%d (%s); killer=%s, "
@@ -5038,7 +5202,7 @@ async def _payout_combat_anomaly(
     # clear-hook over EVERY payout participant, not just the resolver —
     # a co-quester on the same site_cleared step who only contributed
     # (a wave kill, a cleared skill_gate) also advances.
-    await _dispatch_site_cleared(db, anomaly, participants)
+    await _dispatch_site_cleared(db, anomaly, participants, session_mgr=session_mgr)
 
     return {
         "anomaly_id": anomaly.id,

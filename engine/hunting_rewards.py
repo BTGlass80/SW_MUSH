@@ -187,16 +187,41 @@ async def on_huntable_kill(db, killer_char: dict, npc_row: dict, *,
         daily_before = _safe_int(log_d.get("daily_credits"))
         reward = _reward_for(daily_before)
 
-        # Credits via the funnel chokepoint (a real, bounded faucet).
+        # Credits via the funnel chokepoint (a real, bounded faucet). The
+        # @economy faucet throttle (db/database.py adjust_credits, the
+        # ``delta = (delta * pct) // 100`` leg) can scale a positive `reward`
+        # down — even to 0 — before it ever reaches the balance. F12: the
+        # daily soft-cap meter below MUST book what was actually PAID, not
+        # the nominal pre-throttle `reward`, or the cap engages on income the
+        # player never received. Read the authoritative pre-award balance on
+        # this SAME db handle immediately before the call, then diff against
+        # the post-award balance `adjust_credits` returns.
+        #   Concurrency: this before/after diff is safe at THIS call site
+        #   because on_huntable_kill always runs to completion as a single
+        #   sequential await chain — its only caller,
+        #   parser/combat_commands.py's _award_mob_grind_rewards, awaits one
+        #   kill's whole reward path (this function, start to finish) before
+        #   starting the next, for both of its call sites (normal + admin
+        #   resolve). No other write to this character's credits is issued
+        #   from within this call chain between the two reads.
+        before_row = await db.get_character(killer_char["id"])
+        credits_before = _safe_int((before_row or killer_char).get("credits"))
         new_balance = await db.adjust_credits(
             killer_char["id"], reward, CREDIT_TAG)
         if isinstance(new_balance, int):
             killer_char["credits"] = new_balance
+            # Floor at 0: a same-window external credit movement racing this
+            # narrow gap (an out-of-process actor, outside this function's own
+            # sequential chain) must never DECREMENT the cap meter — a reward
+            # event can only add to it.
+            applied = max(0, new_balance - credits_before)
+        else:
+            applied = 0  # movement refused/unclear: nothing was actually paid
 
         prev_kills = _safe_int(log_d.get("kills"))
         new_kills = prev_kills + 1
         log_d["kills"] = new_kills
-        log_d["daily_credits"] = daily_before + reward
+        log_d["daily_credits"] = daily_before + applied
         attrs[HUNT_LOG_KEY] = log_d
         await _persist_attrs(db, killer_char, attrs)
 
@@ -241,6 +266,7 @@ async def on_huntable_kill(db, killer_char: dict, npc_row: dict, *,
 
         return {
             "reward": reward,
+            "applied": applied,   # F12: amount actually paid (post-throttle)
             "total_kills": new_kills,
             "daily_credits": log_d["daily_credits"],
             "at_cap": log_d["daily_credits"] >= cap,

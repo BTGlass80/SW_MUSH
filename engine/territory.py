@@ -432,6 +432,28 @@ async def adjust_territory_influence(db, org_code: str, zone_id: int,
                 db, org_code, region_slug)
         except Exception as _e:
             log.warning("[territory] region contest check error: %s", _e)
+    elif delta > 0 and region_slug is None:
+        # Audit fix F3 (2026-07-03): the two highest-volume influence
+        # producers -- invest_influence and tick_territory_presence --
+        # are zone-keyed (a zone can span multiple regions) and pass no
+        # region_slug, so the branch above never ran for them; an org
+        # could cross both auto-declare thresholds purely through
+        # investment/presence and never trigger a contest. Resolve the
+        # zone's OWNED regions and run the same auto-declare check
+        # against each rival-owned one. check_and_declare_region_contests
+        # is already cheap/idempotent in every no-op case (unowned,
+        # self-owned, active contest, cooldown, below threshold), so this
+        # is safe on the hourly presence tick's per-zone fan-out.
+        try:
+            from engine.contest import check_and_declare_region_contests
+            for region in await get_regions_for_zone(db, zone_id):
+                if region.get("org_code") == org_code:
+                    continue  # self-owned — no contest possible
+                await check_and_declare_region_contests(
+                    db, org_code, region["region_slug"])
+        except Exception as _e:
+            log.warning(
+                "[territory] zone-keyed region contest check error: %s", _e)
 
     return new_score
 
@@ -664,6 +686,112 @@ async def invest_influence(db, char: dict, org_code: str,
                 f"Influence: +{influence_gain} (now {new_score}). "
                 f"Treasury: {new_balance:,}cr."),
     }
+
+
+# ── Territory income tick (audit fix F6, 2026-07-03) ────────────────────────
+#
+# The territory-influence FAUCET that funds faction treasuries -- paired
+# with the pre-existing ``faction_payroll_tick`` SINK (stipends, ledgered
+# via ``adjust_credits(..., "org_stipend")``). Before this fix, no
+# non-admin path credited most factions' treasuries at all: region
+# claims/harvest/city income all require ALREADY owning an asset, and
+# claiming a region itself needs treasury >= REGION_CLAIM_COST up front --
+# a bootstrap chicken-and-egg that left every faction's payroll silently
+# paying zero forever (audit finding org_payroll #1). Per Brian's ruling,
+# this ties payroll directly to the territory-control game: an org's daily
+# income scales with the TOTAL influence it holds across every zone (the
+# same score ``adjust_territory_influence`` maintains).
+#
+# Rate derivation (``territory.income_per_influence_point``, conservative
+# per Brian's balance posture -- sized to roughly SUSTAIN, not fund a
+# windfall): pick THRESHOLD_DOMINANCE (75, "a zone convincingly held") as
+# the "typical" bar for an established faction, and target that it funds
+# roughly one leadership-rank stipend per day. The richest stipend near
+# that bracket in STIPEND_TABLE is hutt_cartel rank 5 / republic rank 5-6
+# at 500-750cr; 500 / 75 ~= 6.7, rounded to 7cr/influence-point/day.
+# At DOMINANCE (75) that's 525cr/day; at INFLUENCE_CAP (150, one zone
+# maxed) it's 1,050cr/day -- generous but explicitly bounded by the
+# existing influence cap. Multi-zone holdings scale linearly (a straight
+# sum over zones), rewarding orgs that spread control instead of turtling
+# one zone -- the wider a faction's territorial footprint, the more of its
+# payroll it can actually cover.
+#
+# Called from ``faction_payroll_tick`` (engine/organizations.py) -- the
+# SAME 86400-tick/~1-day cadence layer as the payroll debit it feeds, so
+# income lands before that same tick's stipend disbursement. No new
+# scheduler entry.
+TERRITORY_INCOME_PER_INFLUENCE_POINT = 7  # cr/day per influence point held
+
+
+async def tick_territory_income(db, session_mgr=None) -> int:
+    """Credit each faction org's treasury from its total territory influence.
+
+    Faucet half of the audit-fix F6 pair (sink = faction_payroll_tick's
+    stipend disbursement). All treasury movement goes through the
+    ``adjust_org_treasury`` funnel -- no direct writes. Best-effort per-org
+    (one bad org can't block the rest). ``session_mgr`` is optional; when
+    supplied, online members get a one-line notice (matches
+    ``tick_region_passive_yield``'s pattern). Returns the total credited
+    across all orgs.
+    """
+    from engine.tunables import get_tunable
+    rate = get_tunable("territory.income_per_influence_point",
+                        TERRITORY_INCOME_PER_INFLUENCE_POINT)
+
+    total_income = 0
+    try:
+        rows = await db.fetchall(
+            "SELECT org_code, SUM(score) AS total_score "
+            "FROM territory_influence WHERE score > 0 GROUP BY org_code"
+        )
+    except Exception:
+        log.warning("tick_territory_income: read failed", exc_info=True)
+        return 0
+
+    for r in rows:
+        row = dict(r)
+        org_code = row["org_code"]
+        total_score = row.get("total_score") or 0
+        if total_score <= 0:
+            continue
+
+        org = await db.get_organization(org_code)
+        if not org or org.get("org_type") != "faction":
+            continue
+
+        income = int(total_score * rate)
+        if income <= 0:
+            continue
+
+        try:
+            await db.adjust_org_treasury(org["id"], income)
+        except Exception:
+            log.warning(
+                "tick_territory_income: treasury credit failed for %s",
+                org_code, exc_info=True)
+            continue
+
+        try:
+            await db.log_faction_action(
+                None, org["id"], "territory_income",
+                f"Daily territory income: {income}cr (influence={total_score})"
+            )
+        except Exception:
+            log.debug("tick_territory_income: faction_log write failed",
+                       exc_info=True)
+
+        total_income += income
+        log.info("[territory] income tick: %s +%dcr (influence=%d)",
+                 org_code, income, total_score)
+        if session_mgr is not None:
+            await _notify_org_members(
+                session_mgr,
+                org_code,
+                (f"  \033[2m[Territory] Daily territory income: "
+                 f"{income:,}cr to treasury (influence: {total_score}).\033[0m"),
+            )
+
+    return total_income
 
 
 # ── Presence tick ────────────────────────────────────────────────────────────
@@ -1594,6 +1722,38 @@ async def _get_region_zone(db, region_slug: str) -> Optional[int]:
     except Exception:
         log.warning("_get_region_zone: unhandled exception", exc_info=True)
         return None
+
+
+async def get_regions_for_zone(db, zone_id: int) -> list[dict]:
+    """Return OWNED region slugs (+ owning org) whose landmark rooms sit
+    in a zone. The reverse of ``_get_region_zone``.
+
+    Audit fix F3 (2026-07-03): zone-keyed influence producers (``faction
+    invest``, the hourly presence tick) never pass ``region_slug`` to
+    ``adjust_territory_influence``, so the region-contest auto-declare
+    hook (gated ``if delta > 0 and region_slug``) never fired for either
+    of the two highest-volume influence gains. This helper lets the
+    funnel resolve candidate regions from the zone alone. Joined to
+    ``region_ownership`` so unowned regions -- which
+    ``check_and_declare_region_contests`` already no-ops on -- are never
+    even returned; the caller still filters out self-owned regions.
+
+    Returns a list of ``{"region_slug": str, "org_code": str}`` dicts.
+    """
+    try:
+        rows = await db.fetchall(
+            "SELECT DISTINCT r.wilderness_region_id AS region_slug, "
+            "ro.org_code AS org_code "
+            "FROM rooms r "
+            "JOIN region_ownership ro "
+            "  ON ro.region_slug = r.wilderness_region_id "
+            "WHERE r.zone_id = ? AND r.wilderness_region_id IS NOT NULL",
+            (zone_id,),
+        )
+        return [dict(r) for r in rows]
+    except Exception:
+        log.warning("get_regions_for_zone: unhandled exception", exc_info=True)
+        return []
 
 
 # ── Region ownership queries ────────────────────────────────────────────────
