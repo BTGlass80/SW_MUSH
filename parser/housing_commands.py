@@ -183,12 +183,17 @@ class HousingCommand(BaseCommand):
         if not h:
             await ctx.session.send_line("  You don't have a rented room.")
             return
-        storage = _storage(h)
-        if storage:
-            await ctx.session.send_line(
-                f"  \033[1;33mYour storage has {len(storage)} item(s). "
-                f"They will be returned to your inventory on checkout.\033[0m"
-            )
+        # An owned private_residence is refused by checkout_room (housing-
+        # engine-hardening 2026-07-02, Bug 2) -- skip the storage teaser for
+        # that case so the player isn't told items "will be returned on
+        # checkout" right before the refusal.
+        if h.get("housing_type") != "private_residence":
+            storage = _storage(h)
+            if storage:
+                await ctx.session.send_line(
+                    f"  \033[1;33mYour storage has {len(storage)} item(s). "
+                    f"They will be returned to your inventory on checkout.\033[0m"
+                )
         result = await checkout_room(ctx.db, char)
         await ctx.session.send_line(
             ansi.success(f"  {result['msg']}") if result["ok"]
@@ -1020,7 +1025,10 @@ class AdminHousingCommand(BaseCommand):
                 await ctx.session.send_line(f"  Player '{rest}' not found.")
                 return
             target = dict(char_rows[0])
-            result = await checkout_room(ctx.db, target)
+            # force=True: an admin-initiated eviction must still be able to
+            # tear down an owned Tier-3 home, not just rentals (housing-
+            # engine-hardening 2026-07-02, Bug 2 follow-on).
+            result = await checkout_room(ctx.db, target, force=True)
             await ctx.session.send_line(
                 ansi.success(f"  Evicted {target['name']}. {result['msg']}") if result["ok"]
                 else ansi.error(f"  {result['msg']}")
