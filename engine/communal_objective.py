@@ -401,6 +401,19 @@ REP_MAX = 15           # the single largest contributor
 # III.2 status flag (the "earned status" payoff).
 TITLE_SHARE_THRESHOLD = 0.10
 
+# BUGFIX (2026-07-03): a STAGED cult's site-clear path (see
+# engine.communal_objective_runtime.on_scenario_progress) must record
+# CONTRIBUTION POINTS for the resolving character, the same currency
+# record_strike writes for the legacy strike-path cults -- without it,
+# _distribute_rewards' `total = sum(points)` is always <= 0 and every reward
+# (rep, title, the credit capstone, the relic) silently pays nothing on a real
+# staged-cult win. Reward math downstream is entirely SHARE-relative
+# (reward_rep_for_share / earns_title / the capstone title-gate all divide by
+# the contributors' point TOTAL), so this magnitude only matters relative to
+# itself across contributors within one uprising -- it never needs to match
+# STRIKE reward math.
+STAGE_CLEAR_POINTS = 100
+
 
 # ── Reward-lever accessors (T3.19 config breadth; see the difficulty block) ───
 def rep_floor() -> int:
@@ -426,6 +439,17 @@ def title_share_threshold() -> float:
     return max(0.0, _safe_float(
         get_tunable("communal.title_share_threshold", TITLE_SHARE_THRESHOLD),
         TITLE_SHARE_THRESHOLD))
+
+
+def stage_clear_points() -> int:
+    """Contribution points credited to a staged cult's stage-clear resolver
+    (see STAGE_CLEAR_POINTS). Clamped >= 1 so a stage clear can never fail to
+    register any contribution -- a 0 would leave _distribute_rewards' `total
+    <= 0` short-circuit dead again, the exact bug this constant fixes."""
+    from engine.tunables import get_tunable
+    return max(1, _safe_int(
+        get_tunable("communal.stage_clear_points", STAGE_CLEAR_POINTS),
+        STAGE_CLEAR_POINTS))
 
 
 def reward_rep_for_share(points: int, total_points: int, won: bool) -> int:

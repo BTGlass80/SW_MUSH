@@ -12482,6 +12482,261 @@ chains:
           name now, out where a dealer that actually re-works what it recalls is the difference between
           a guard home off a raider lane and a guard maimed by the weapon he paid to be safe.
 
+  - chain_id: kuat_phantom_tonnage
+    chain_name: "The Phantom Tonnage"
+    description: >
+      Aboard the Ardent Span — a merchant-combine bulk-freight liner docked at Kuat's Supply Space
+      Station, riding the inspection queue bonded and cleared on its papers — an independent
+      bonded-tonnage auditor named Suli Verrin has caught the liner squawking a manifest tonnage its
+      own scanned hull-mass cannot be carrying. The Ardent Span books bonded bulk freight same as any
+      combine hauler, but its manifest core is doctored: forged entries pad the declared tonnage up to
+      match the bonded cargo while a large slice of its true loaded mass moves as undeclared
+      contraband tonnage for a syndicate running a ghost-manifest smuggling front behind it. KSF
+      inspectors clear the liner on the papers every time, because a berth checkpoint that boards a
+      manifest and never cracks a hold has no way to catch a tonnage that only a scanner run against
+      the hull itself would flag. Suli has run that scanner twice now, off her own clock, and both
+      times the Ardent Span's scanned mass sits well above what its manifest declares — but a flagged
+      discrepancy is not proof, and a suspicion cannot pull a bonded liner's registry. She needs a
+      neutral hand to get aboard and bring back the live proof: scan the true loaded mass against the
+      declared tonnage in person, fight through the illegally-manned gun-deck the syndicate keeps
+      crewed to guard the contraband run, slice the doctored manifest core to surface the ghost
+      entries the forged tonnage buries, and stand down the liner's enforcer captain, Renk Talo, once
+      the deck is cleared and the manifest is exposed. With the true mass read, the sliced manifest in
+      hand, and the captain stood down, the shippers' survey board and KSF can pull the Ardent Span's
+      bonded registry before it runs another load. A freelance favor — open to anyone, no faction
+      required.
+    archetype_label: "Freelance Operator's Favor"
+    faction_alignment: independent
+    starting_zone: kdy_orbital_ring
+    starting_room: kuat_supply_station
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 25
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 300
+      faction_rep:
+        independent: 5
+      items: []
+      achievements: ["phantom_tonnage_cleared"]
+      drop_room: kuat_supply_station
+      follow_up_hint: >
+        The true loaded mass read against the Ardent Span's own declared tonnage on the boarding
+        gangway, the doctored manifest core sliced open to its ghost entries aft of the cleared
+        gun-deck, and the enforcer captain stood down on the bridge with nothing left to hold — a
+        phantom tonnage cannot survive that stacked against it: a scanned mass a manifest cannot
+        account for, beside a sliced core that shows exactly where the ghost cargo was buried, is a
+        racket no bonded registry papers over. The shippers' survey board and KSF pull the Ardent
+        Span's bonded registry before it runs another load; the syndicate that fronted the contraband
+        run loses the ship it was moving cargo through; the ghost tonnage that would have ridden out
+        undeclared on a clean manifest does not; and the berths carry a name for a hand who will scan
+        a bonded liner's true mass, walk its rigged gun-deck, and slice a doctored manifest core
+        against its own papers. No Senate office and no Jedi looked twice at a bonded civilian bulk
+        hauler — the shippers' own survey board did, the only authority a Kuat bonded registry ever
+        answers to, once a phantom tonnage a scanner had already proven sat on its desk. Word travels
+        the berths the way it never travels a clean manifest: there is a hand who will read a liner's
+        true mass off its own hull, fight a rigged gun-deck to reach its manifest core, and slice a
+        doctored ledger open against its own declared tonnage — and a shipping trade that had learned
+        to trust a bonded stamp starts asking a scanner instead, and Suli Verrin's flagged discrepancy
+        stops being a suspicion and starts being the proof that pulled a registry and grounded a
+        syndicate's ghost-manifest run.
+
+    steps:
+      - step: 1
+        title: "The Tonnage That Doesn't Weigh"
+        location: kuat_supply_station
+        npc: "Suli Verrin"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Suli Verrin at the Supply Space Station, where the independent bonded-tonnage auditor has flagged a bulk-freight liner squawking a manifest tonnage its own hull-mass can't carry."
+        npc_intro: >
+          [A lean, sun-weathered woman works a scanner slate against the docking manifests scrolling
+          past the Supply Station's inspection apron, off to one side of the KSF queue where an
+          independent hand can watch the berths without a checkpoint officer looking twice.] "You run
+          sensors? Read a hull's true loaded mass and tell it from what the manifest swears it's
+          carrying? Then you can do what I can't carry alone, and a survey board won't wave you off
+          the way it waves an auditor's flagged discrepancy. `talk` to me. I'm Suli Verrin — an
+          independent bonded-tonnage auditor. I've scanned that combine bulk-freight liner twice now,
+          off my own clock — the Ardent Span, riding the inspection queue bonded and clean on its
+          papers. Both times its scanned hull-mass sits well above the tonnage its own manifest
+          declares. A gap that wide on a hauler that size isn't a rounding error. It's a ghost-manifest
+          front, and I can't pull a bonded liner's registry on a suspicion."
+        completion:
+          type: talk_to_npc
+          npc: "Suli Verrin"
+        npc_complete: >
+          [She turns the scanner slate face-up, a manifest tonnage figure sitting stubbornly below the
+          hull-mass reading beside it, both runs off her own clock and twice repeated, then puts a
+          boarding chit in your hand.] "See it? Bonded, cleared, stamped by KSF at the berth — and
+          carrying more mass than its own manifest admits to. Nobody on that inspection queue boards a
+          hold to check what a scanner would catch from the outside; that's the whole trick. The
+          Ardent Span is docked at this station's gangway right now. Get aboard and scan the true
+          loaded mass against the declared tonnage yourself — because a manifest tonnage a hull's own
+          scanned mass can't support is the first half of a racket in your hands."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Get aboard the Ardent Span through the Supply Station's `gangway` exit and scan the liner's true loaded mass against its declared tonnage. Use your `sensors` skill, then `chain attempt`."
+
+      - step: 2
+        title: "A Mass the Manifest Can't Carry"
+        location: kuat_liner_gangway
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["sensors"]
+        objective: "On the Ardent Span's boarding gangway, scan the liner's true loaded mass against its declared tonnage and prove the phantom tonnage — a sensors check."
+        npc_intro: >
+          [The Ardent Span's boarding gangway runs off the Supply Station's inspection apron, a combine
+          bulk hauler's hull curving away into the dark on either side, bonded and stamped and lodged
+          clean against the berth on its own papers. A liner's true loaded mass is an honest thing to
+          read: a hull carrying exactly what its manifest declares scans clean and square, and a hull
+          carrying undeclared ghost tonnage scans heavy against its own paperwork, the difference
+          sitting right where the declared cargo swears there should be nothing more — and the only way
+          to tell a clean manifest from a phantom one is to run a sensor sweep against the hull itself
+          and read the gap.] Run a sensor sweep along the Ardent Span's hull and read its true loaded
+          mass against the tonnage its own manifest declares: a mass the manifest can't carry is the
+          racket's whole first half. `sensors`, the auditor's read Suli Verrin has already flagged
+          twice off her own scanner — `chain attempt` when you have the true mass scanned and proved
+          against the declared tonnage.
+        completion:
+          type: skill_check_passed
+          skill: "sensors"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You run the sweep the way no KSF checkpoint officer ever does — hull-deep, unhurried, no give
+          for the inspection queue's watchers — and the truth reads plain against the manifest lodged at
+          the berth: the Ardent Span's true loaded mass sits well above the tonnage its own papers
+          declare, a gap wide enough to hide a contraband run's worth of undeclared cargo. A bonded bulk
+          hauler squawking a clean manifest and carrying a hold's worth of mass that manifest never
+          admits to — you have the first half of the proof Suli Verrin could only flag from the outside.
+          Now the ghost tonnage has to come from somewhere the manifest itself can show it: the doctored
+          manifest core aft, past the gun-deck the syndicate keeps crewed to guard the run.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "You've got the true mass scanned and proved — now the gun-deck between you and the manifest core. Push `in` off the gangway and stand off whoever the syndicate has crewing it — `attack`, `dodge`."
+
+      - step: 3
+        title: "The Deck That Shouldn't Be Crewed"
+        location: kuat_liner_gundeck
+        npc: "Hakko Vurm"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "On the Ardent Span's gun-deck, stop Hakko Vurm when the syndicate's deck-boss comes off the mounts to keep you from reaching the manifest core aft — `attack`, `dodge`."
+        npc_intro: >
+          [No bonded civilian bulk hauler carries a manned gun-deck, and the Ardent Span's is illegal
+          twice over — crewed and hot, kept by the syndicate to guard the contraband run the doctored
+          manifest hides. A heavy, sun-cured Weequay comes off the point-defense mounts as you come up
+          from the gangway with a sensor read that just proved the liner's true mass, a worn blaster
+          pistol loose at his hip.] Hakko Vurm — the syndicate's gun-deck deck-boss, muscle for the
+          contraband run, not a spacer. "That manifest's bonded, friend — tonnage squared, papers
+          stamped. Whatever you think you read off this hull, it doesn't reach any board. Off the
+          deck." [He lets his hand fall loose to the blaster, plants himself between you and the way
+          aft to the manifest core, and means to down you on the deck plating before a ghost-tonnage
+          racket gets read any further than a sensor sweep already has.] "Last time — off the deck, or
+          you don't walk that read anywhere. This liner's clean on its papers. I'm the part of it that
+          keeps a read hull from reaching a survey desk."
+        completion:
+          type: combat_won
+          enemy_template: "phantom_tonnage_gundeck_boss"
+          enemy_count: 1
+        npc_complete: >
+          [Hakko Vurm goes down on the gun-deck plating, the blaster knocked loose across the decking,
+          and the illegally-manned mounts stand crewless behind you. The way aft to the manifest core
+          stands clear — a bonded liner's gun-deck that was never supposed to exist, cleared the only
+          way a syndicate's muscle ever yields it. The true mass is scanned and proved; now the doctored
+          manifest core waits aft, where the ghost entries that bury the contraband tonnage are written
+          in.]
+        reward:
+          credits: 150
+          faction_rep:
+            independent: 3
+        next_hint: "The gun-deck is cleared — push `in` to the manifest core aft and slice the doctored ledger open. Use your `computer programming` skill, then `chain attempt`."
+
+      - step: 4
+        title: "The Manifest That Was Written Twice"
+        location: kuat_liner_manifest_core
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["computer programming"]
+        objective: "In the Ardent Span's manifest core, slice the doctored ledger and surface the ghost entries the forged tonnage buries — a computer programming check."
+        npc_intro: >
+          [The manifest core is where a liner's cargo record is written and bonded, and the Ardent
+          Span's has been doctored twice over: forged entries pad the declared tonnage up to match the
+          bonded freight, while the true ghost mass — the syndicate's contraband run — rides undeclared
+          beneath it, buried in the ledger the same way it was buried from Suli Verrin's scanner until a
+          hand got aboard to prove it. A manifest core is an honest thing to slice: a clean ledger's
+          entries match a hull's real cargo line for line, and a doctored one carries forged entries
+          padding the declared tonnage over ghost cargo the true manifest never logs — and the only way
+          to tell a clean core from a doctored one is to slice it open and read the entries against the
+          mass you've already proved.] Slice the manifest core and surface the ghost entries: read the
+          forged tonnage lines against the true loaded mass you scanned on the gangway, and pull the
+          doctored ledger's contraband cargo out from under the bonded declaration burying it.
+          `computer programming`, the slicer's hand to open a doctored core and read a ghost entry from
+          a bonded one — `chain attempt` when the manifest core is sliced and the ghost entries surfaced.
+        completion:
+          type: skill_check_passed
+          skill: "computer programming"
+          difficulty: 13
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You slice the manifest core the way no KSF inspection ever does — line by line, unhurried, no
+          give for whatever alarm the syndicate wired into it — and the ledger comes apart under you:
+          forged entries padding the declared tonnage sit right where the bonded cargo should end, and
+          beneath them the ghost entries surface clean, a contraband run's worth of undeclared mass
+          logged nowhere the manifest was ever meant to show a KSF inspector. The scanned mass, the
+          cleared gun-deck, and now the sliced core with its ghost entries laid bare — three halves of
+          one racket, all in your hands. All that's left aboard the Ardent Span is the captain who ran
+          this front from the bridge, and with the deck down and the manifest open, he has nothing left
+          to square it against.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "The manifest's sliced open and the ghost entries are surfaced — push `in` to the bridge and stand down the Ardent Span's captain. `talk` to Renk Talo."
+
+      - step: 5
+        title: "A Front With Nothing Left to Hold"
+        location: kuat_liner_bridge
+        npc: "Renk Talo"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "On the Ardent Span's bridge, stand down Renk Talo now that the gun-deck is cleared, the true mass is read, and the manifest is sliced open."
+        npc_intro: >
+          [The Ardent Span's bridge is where the enforcer captain who ran the ghost-manifest front kept
+          the whole racket squared — the bonded papers up top, the doctored core below, the gun-deck
+          between them. A greying, heavyset man stands at the console with the flat stillness of
+          someone who already knows the run is over.] "Deck's down. Core's sliced. You've got the read
+          mass and the ghost entries both, and there's nothing on this bridge left to square that
+          against." [He sets both hands flat on the console, well clear of the sidearm at his belt.]
+          "I'm Renk Talo. I'm not drawing on a hand who's already proven the front's finished. `talk` to
+          me and let's have this the easy way."
+        completion:
+          type: talk_to_npc
+          npc: "Renk Talo"
+        npc_complete: >
+          "The Ardent Span ran a clean manifest as long as no one could prove otherwise. You proved
+          otherwise — the true mass scanned against the declared tonnage, the gun-deck that was never
+          supposed to exist cleared, and the manifest core sliced open to the ghost entries the forged
+          tonnage buried. I'll not pretend a stood-down bridge is a fight worth having. Take it to the
+          survey board. There's nothing left aboard this liner for the syndicate's run to hide behind."
+          [He steps back from the console and lets you carry the proof off the bridge unopposed.]
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: >
+          The front is finished and the racket is coming apart: the true loaded mass read against the
+          declared tonnage on the boarding gangway, the illegally-manned gun-deck cleared, the doctored
+          manifest core sliced open to its ghost entries, and the enforcer captain stood down on the
+          bridge with nothing left to hold — a phantom tonnage cannot survive that stack against it, no
+          court tried the fraud, the shippers' own survey board did, the only authority a Kuat bonded
+          registry ever answers to. The board pulls the Ardent Span's bonded registry, the syndicate
+          loses the ship it was running contraband through, and the berths carry a name for a hand who
+          will scan a bonded liner's true mass, walk its rigged gun-deck, and slice a doctored manifest
+          core against its own papers.
+
   # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════
