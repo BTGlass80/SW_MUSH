@@ -213,8 +213,13 @@ async def on_huntable_kill(db, killer_char: dict, npc_row: dict, *,
             # Floor at 0: a same-window external credit movement racing this
             # narrow gap (an out-of-process actor, outside this function's own
             # sequential chain) must never DECREMENT the cap meter — a reward
-            # event can only add to it.
-            applied = max(0, new_balance - credits_before)
+            # event can only add to it. Ceiling at the nominal reward
+            # (verify-drop follow-up 2026-07-03): the throttle can only ever
+            # REDUCE the paid amount, so a diff exceeding `reward` means an
+            # unrelated concurrent credit (tick/admin/trade) landed inside
+            # the gap — clamping keeps that foreign delta from inflating the
+            # daily soft-cap meter (the player-hostile direction).
+            applied = min(max(0, new_balance - credits_before), reward)
         else:
             applied = 0  # movement refused/unclear: nothing was actually paid
 

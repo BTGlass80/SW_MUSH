@@ -1740,33 +1740,75 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
                     # anomaly/WoW.3a hooks above), and feed the Anchor /
                     # dsp-hunter / creature-spoils loops below the same
                     # union so a straight-to-DEAD Anchor still resolves.
-                    _beaten_opponents = list(combat.combatants.values()) + _newly_dead
-                    beaten = [
-                        oc.name for oc in _beaten_opponents
-                        if oc.id != c.id and oc.char and
-                        oc.char.wound_level.value >= _WLN.INCAPACITATED.value
+                    # Verify-drop follow-up (2026-07-03, aggregate code
+                    # review of the audit-fix lanes): two defects shared
+                    # this block. (1) `beaten` had no is_npc filter — a
+                    # beaten PC fired the NPC-flavored rep
+                    # ("kill_enemy_faction_npc") + on_npc_kill influence
+                    # AND stacked with the new on_pvp_kill award at death
+                    # (engine/death.py), double-counting the flagship
+                    # contest-PvP influence. PC opponents now route ONLY
+                    # through on_pvp_kill. (2) a beaten-but-alive opponent
+                    # stays in combat.combatants until DEAD, so this block
+                    # re-fired every round of a continuing fight — each
+                    # victor now credits each opponent ONCE per fight via
+                    # a two-tier (victor, opponent, tier) latch on the
+                    # CombatInstance (mirrors _chain_credited_ids). The
+                    # tiers are separate so a Region Anchor first credited
+                    # at INCAPACITATED ("beaten", >=4) still resolves its
+                    # contest / dsp-hunter / creature-spoils hooks when it
+                    # later dies ("killed", >=5).
+                    if not hasattr(combat, "_victory_credited"):
+                        combat._victory_credited = set()
+                    _vc = combat._victory_credited
+                    _all_opponents = [
+                        oc for oc in
+                        list(combat.combatants.values()) + _newly_dead
+                        if oc.id != c.id and oc.char
                     ]
-                    if beaten:
-                        await log_action(ctx.db, c.id, NT.COMBAT_VICTORY,
-                                         f"Defeated {', '.join(beaten)} in combat")
-                        # Drop 6: award faction rep for combat victory
-                        try:
-                            from engine.organizations import adjust_rep
-                            await adjust_rep(
-                                sess.character,
-                                sess.character.get("faction_id", "independent"),
-                                ctx.db,
-                                "kill_enemy_faction_npc",
-                            )
-                        except Exception:
-                            pass  # graceful-drop
-                        # Drop 6A: territory influence for NPC kill
-                        try:
-                            from engine.territory import on_npc_kill
-                            await on_npc_kill(ctx.db, sess.character,
-                                              combat.room_id)
-                        except Exception:
-                            pass  # graceful-drop
+                    _beaten_opponents = [
+                        oc for oc in _all_opponents
+                        if oc.char.wound_level.value >= _WLN.INCAPACITATED.value
+                        and (c.id, oc.id, "beaten") not in _vc
+                    ]
+                    _killed_opponents = [
+                        oc for oc in _all_opponents
+                        if oc.char.wound_level.value >= _WLN.MORTALLY_WOUNDED.value
+                        and (c.id, oc.id, "killed") not in _vc
+                    ]
+                    _vc.update(
+                        (c.id, oc.id, "beaten") for oc in _beaten_opponents)
+                    _vc.update(
+                        (c.id, oc.id, "killed") for oc in _killed_opponents)
+                    beaten = [oc.name for oc in _beaten_opponents]
+                    _beaten_npcs = [
+                        oc for oc in _beaten_opponents if oc.is_npc]
+                    if beaten or _killed_opponents:
+                        if beaten:
+                            await log_action(
+                                ctx.db, c.id, NT.COMBAT_VICTORY,
+                                f"Defeated {', '.join(beaten)} in combat")
+                        # Drop 6: award faction rep for combat victory —
+                        # NPC opponents only (a defeated PC awards via
+                        # on_pvp_kill at death, engine/death.py)
+                        if _beaten_npcs:
+                            try:
+                                from engine.organizations import adjust_rep
+                                await adjust_rep(
+                                    sess.character,
+                                    sess.character.get("faction_id", "independent"),
+                                    ctx.db,
+                                    "kill_enemy_faction_npc",
+                                )
+                            except Exception:
+                                pass  # graceful-drop
+                            # Drop 6A: territory influence for NPC kill
+                            try:
+                                from engine.territory import on_npc_kill
+                                await on_npc_kill(ctx.db, sess.character,
+                                                  combat.room_id)
+                            except Exception:
+                                pass  # graceful-drop
                         # SYN.3 (2026-05-25): Region Anchor kill
                         # detection. Replaces the Drop 6D hostile-
                         # takeover-on-guard-kill block (per-room
@@ -1782,7 +1824,7 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
                             # Walk the combatants; any dead NPC is a
                             # potential Anchor candidate. The handler
                             # is a no-op for non-Anchor NPCs (cheap).
-                            for _oc in _beaten_opponents:
+                            for _oc in _killed_opponents:
                                 if (_oc.is_npc and _oc.char
                                         and _oc.char.wound_level.value >= 5):
                                     await on_npc_killed_in_combat(
@@ -1801,7 +1843,7 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
                         try:
                             from engine.dsp_hunter_runtime import (
                                 on_dsp_hunter_killed)
-                            for _oc in _beaten_opponents:
+                            for _oc in _killed_opponents:
                                 if (_oc.is_npc and _oc.char
                                         and _oc.char.wound_level.value >= 5):
                                     await on_dsp_hunter_killed(
@@ -1823,7 +1865,7 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
                         try:
                             from engine.wilderness_encounter_runtime import (
                                 on_wild_creature_killed)
-                            for _oc in _beaten_opponents:
+                            for _oc in _killed_opponents:
                                 if (_oc.is_npc and _oc.char
                                         and _oc.char.wound_level.value >= 5):
                                     await on_wild_creature_killed(
@@ -1835,12 +1877,15 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
                                     )
                         except Exception:
                             pass  # graceful-drop
-                        # From Dust to Stars: combat kill hook
-                        try:
-                            from engine.spacer_quest import check_spacer_quest
-                            await check_spacer_quest(sess.session, ctx.db, "combat_kill")
-                        except Exception:
-                            pass  # graceful-drop
+                        # From Dust to Stars: combat kill hook (newly-
+                        # beaten batches only — the per-fight latch above
+                        # keeps this from re-firing every round)
+                        if beaten:
+                            try:
+                                from engine.spacer_quest import check_spacer_quest
+                                await check_spacer_quest(sess.session, ctx.db, "combat_kill")
+                            except Exception:
+                                pass  # graceful-drop
             except Exception:
                 log.warning("_apply_combat_wear: unhandled exception", exc_info=True)
                 pass
