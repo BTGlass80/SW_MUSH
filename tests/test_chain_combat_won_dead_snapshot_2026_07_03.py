@@ -111,9 +111,36 @@ def test_call_site_feeds_the_pre_resolution_snapshot():
     src = pathlib.Path("parser/combat_commands.py").read_text(encoding="utf-8")
     i = src.index("F.8.c.2.b")
     block = src[i:i + 2500]
-    assert "_collect_defeated_chain_templates(" in block, \
-        "chain combat_won block no longer calls the snapshot helper"
-    assert "_pre_npcs" in block, "block must feed the pre-resolution snapshot"
+    assert "_fire_chain_combat_won(" in block, \
+        "chain combat_won block no longer calls the accumulated-defeat firer"
     # the old inline live-dict scan must be gone
     assert "_defeated_templates" not in block, \
         "the old inline live-dict collection is back — the DEAD bug can recur"
+
+
+# ── wiring canary (F11, 2026-07-03) — per-round accumulation outside the
+# _combat_finished gate, so a straight-to-DEAD kill in a non-final round of
+# a multi-hostile fight is still tallied ────────────────────────────────────
+def test_accumulate_call_is_outside_the_combat_finished_gate():
+    src = pathlib.Path("parser/combat_commands.py").read_text(encoding="utf-8")
+    fn_start = src.index("async def _try_auto_resolve(")
+    fn_end = src.index("\nasync def ", fn_start + 1)
+    fn_body = src[fn_start:fn_end]
+    accum_i = fn_body.index("_accumulate_chain_defeated_this_round(")
+    gate_i = fn_body.index("if _combat_finished(combat):")
+    assert accum_i < gate_i, (
+        "chain-defeat accumulation must run EVERY round, before the "
+        "_combat_finished gate — otherwise a foil killed in a non-final "
+        "round is dropped again (audit F11)"
+    )
+
+
+def test_resolve_command_shares_the_same_accumulation_and_firing():
+    src = pathlib.Path("parser/combat_commands.py").read_text(encoding="utf-8")
+    fn_start = src.index("class ResolveCommand(BaseCommand):")
+    fn_end = src.index("\nclass ", fn_start + 1)
+    fn_body = src[fn_start:fn_end]
+    assert "_accumulate_chain_defeated_this_round(" in fn_body, \
+        "admin force-resolve must also accumulate chain defeats per round"
+    assert "_fire_chain_combat_won(" in fn_body, \
+        "admin force-resolve must also fire chain combat_won credit"

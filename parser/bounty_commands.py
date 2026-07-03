@@ -363,7 +363,7 @@ class BountyCollectCommand(BaseCommand):
             npc = await ctx.db.get_npc(contract.target_npc_id)
 
         target_down = False
-        captured_alive = False  # wound==5 (mortally wounded, not dead) = captured
+        captured_alive = False  # wound<6 (not dead) = captured alive
 
         if not npc:
             # NPC was deleted (killed in combat and cleaned up)
@@ -371,13 +371,20 @@ class BountyCollectCommand(BaseCommand):
         else:
             # Check wound state from char_sheet_json
             try:
+                from engine.character import WoundLevel
                 cs = json.loads(npc.get("char_sheet_json", "{}"))
                 wound = cs.get("wound_level", 0)
-                # WoundLevel: 5=mortally wounded (incapacitated -> captured
-                # ALIVE), 6=dead.
-                if wound >= 5:
+                # Brian's ruling (2026-07-03, audit F5): pay bounties on
+                # DEFEAT (>= INCAPACITATED=4), consistent with the
+                # EVENT.anomaly_clear_on_defeat precedent (8a8b3ac) — combat
+                # itself ends at INCAPACITATED (WoundLevel.can_act, engine/
+                # combat.py active_combatants), and round-resolution nulls
+                # the NPC's room_id at wound>=4, so a >=5 gate permanently
+                # stranded the modal single-attacker outcome (F5). 4 and 5
+                # both pay the alive-capture bonus; only DEAD (6) is a kill.
+                if wound >= WoundLevel.INCAPACITATED.value:
                     target_down = True
-                    captured_alive = (wound == 5)
+                    captured_alive = (wound < WoundLevel.DEAD.value)
             except Exception:
                 log.warning("execute: unhandled exception", exc_info=True)
                 pass

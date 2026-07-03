@@ -760,15 +760,21 @@ class BountyBoard:
     async def notify_target_killed(self, npc_id: int, killer_char_id: str, db) -> Optional[BountyContract]:
         """
         Called by combat_commands when an NPC with is_bounty_target=True dies.
-        Automatically collects the bounty for the killer.
+        Automatically collects the bounty ON BEHALF OF THE CLAIMANT — killer
+        attribution is only used to find the contract's target NPC; it never
+        changes who gets paid. A non-claimant (or NPC) finishing blow still
+        completes the claimant's contract; the reward goes to claimed_by.
         Returns the collected contract or None.
+
+        Audit F4 (2026-07-03): this used to reassign contract.claimed_by to
+        whoever landed the killing blow, silently hijacking the claimant's
+        contract and paying the killer instead. Deleted — collect() already
+        pays out to contract.claimed_by via the caller (parser/combat_commands
+        .py's bounty kill hook), so no reassignment is needed or correct.
         """
         contract = self.find_by_npc(npc_id)
         if not contract:
             return None
-        if contract.claimed_by != str(killer_char_id):
-            # Killed by someone other than the claimer — still collect for killer
-            contract.claimed_by = str(killer_char_id)
 
         return await self.collect(contract.id, alive=False, db=db)
 

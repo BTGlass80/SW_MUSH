@@ -398,6 +398,10 @@ async def _try_auto_resolve(combat, ctx):
         _wave_ids = await _apply_combat_wear(combat, ctx, _pre_npcs)
         await _award_mob_grind_rewards(combat, ctx, _pre_npcs)
         await _award_early_combat_cp(combat, ctx, _pre_npcs)
+        # Audit F11 (2026-07-03): accumulate chain-tagged defeats EVERY
+        # round (not only the finishing round) — see
+        # _accumulate_chain_defeated_this_round's docstring.
+        await _accumulate_chain_defeated_this_round(combat, ctx.db, _pre_npcs)
 
         # EVENT.wave_reengage (2026-07-03): if a multi-phase combat anomaly
         # just advanced a wave (its kill hook spawned the next wave into the
@@ -444,70 +448,12 @@ async def _try_auto_resolve(combat, ctx):
             except Exception as _e:
                 log.debug("silent except in parser/combat_commands.py:209: %s", _e, exc_info=True)
             # F.8.c.2.b: CW tutorial chain — combat_won completion.
-            # Iterate surviving PCs × defeated NPCs and fire the hook
-            # once per combination of (winner, enemy_template). The
-            # template is stashed in ai_config_json.chain_enemy_template
-            # for chain-relevant NPCs; non-chain NPCs simply have no
-            # tag and the hook no-ops on them. Fires BEFORE the NPC
-            # cleanup that nulls room_id, so we still have the
-            # ai_config row available.
-            try:
-                from engine.chain_events import on_combat_won
-                # Collect defeated chain foils from the PRE-resolution snapshot
-                # (_pre_npcs). resolve_round()'s _cleanup() has ALREADY popped
-                # every combatant that reached DEAD this round from
-                # combat.combatants, so collecting off the live dict silently
-                # loses a foil finished with a straight-to-DEAD blow — credit
-                # lost, and a hard soft-lock on a single-foil questline step.
-                # (DEAD-side twin of the 2026-07-02 anomaly-defeat fix; the
-                # can_act_now predicate below still captures the stun-KO path.)
-                _tpl_counts = await _collect_defeated_chain_templates(
-                    ctx.db, _pre_npcs)
-                # Fire one hook per (surviving PC, template) pair
-                if _tpl_counts:
-                    for c in combat.combatants.values():
-                        if c.is_npc or not c.char:
-                            continue
-                        if c.char.wound_level.value >= 5:
-                            continue  # PC went down too
-                        _csess = ctx.session_mgr.find_by_character(c.id)
-                        if not _csess or not _csess.character:
-                            continue
-                        for _tpl, _ct in _tpl_counts.items():
-                            _adv = await on_combat_won(
-                                ctx.db, _csess.character, _tpl, _ct,
-                            )
-                            if _adv:
-                                # F.8.c.2.c: graduation teleport via
-                                # the per-survivor session, not ctx
-                                # — combat resolution is room-scoped
-                                # and ctx.session may belong to any
-                                # combatant.
-                                try:
-                                    from engine.chain_graduation import (
-                                        execute_pending_teleport,
-                                    )
-                                    _grad_ctx = type(ctx)(
-                                        session=_csess,
-                                        raw_input=ctx.raw_input,
-                                        command=ctx.command,
-                                        args=ctx.args,
-                                        args_list=ctx.args_list,
-                                        db=ctx.db,
-                                        session_mgr=ctx.session_mgr,
-                                    )
-                                    await execute_pending_teleport(
-                                        _grad_ctx, _csess.character,
-                                    )
-                                except Exception as _gerr:
-                                    log.debug(
-                                        "[chain_events] combat-graduation "
-                                        "teleport failed: %s",
-                                        _gerr, exc_info=True,
-                                    )
-            except Exception as _ce:
-                log.debug("silent except in parser/combat_commands.py chain_events combat hook: %s",
-                          _ce, exc_info=True)
+            # Iterate surviving PCs × defeated NPCs (accumulated across
+            # every round of this fight, not just the finishing round —
+            # audit F11, 2026-07-03) and fire the hook once per combination
+            # of (winner, enemy_template). See _fire_chain_combat_won /
+            # _accumulate_chain_defeated_this_round.
+            await _fire_chain_combat_won(combat, ctx)
             # Cleanup: remove incapacitated/dead NPCs from room
             try:
                 for c in combat.combatants.values():
@@ -997,6 +943,104 @@ async def _collect_defeated_chain_templates(db, npc_combatants):
     return out
 
 
+async def _accumulate_chain_defeated_this_round(combat, db, pre_npcs):
+    """Audit F11 (2026-07-03): tally chain-tagged foils DEFEATED this round
+    into a per-CombatInstance accumulator, so credit for a foil that dies
+    straight-to-DEAD in a NON-FINAL round of a multi-hostile fight survives
+    to the round combat actually finishes. `_try_auto_resolve` (and the
+    admin `ResolveCommand`) must call this after EVERY resolve_round(), not
+    only on the finishing round — the caller's `_pre_npcs` is a fresh
+    per-call snapshot each round, so a foil popped by resolve_round's
+    _cleanup() this round is invisible to any LATER round's snapshot, and
+    the chain-completion block used to run only when `_combat_finished`
+    (see F.8.c.2.b), silently dropping any earlier-round kill.
+
+    Dedupes by combatant id via `combat._chain_credited_ids` (lazily
+    created on the CombatInstance) so a foil that lingers several rounds at
+    INCAPACITATED (still in combat.combatants, can_act_now() False) is only
+    tallied once — the first round its can_act gate trips.
+    `_collect_defeated_chain_templates` stays pure/stateless; this is the
+    cross-round accumulation wrapper around it.
+    """
+    if not hasattr(combat, "_chain_credited_ids"):
+        combat._chain_credited_ids = set()
+    if not hasattr(combat, "_chain_defeated_tpl_counts"):
+        from collections import Counter as _Counter
+        combat._chain_defeated_tpl_counts = _Counter()
+    _new_defeats = []
+    for c in pre_npcs or []:
+        if not c.is_npc or not c.char:
+            continue
+        if c.id in combat._chain_credited_ids:
+            continue
+        if c.char.can_act_now():
+            continue  # still in the fight — not defeated (yet)
+        combat._chain_credited_ids.add(c.id)
+        _new_defeats.append(c)
+    if _new_defeats:
+        _delta = await _collect_defeated_chain_templates(db, _new_defeats)
+        combat._chain_defeated_tpl_counts.update(_delta)
+
+
+async def _fire_chain_combat_won(combat, ctx):
+    """Fire on_combat_won once per (surviving PC, template) pair from the
+    per-combat accumulated defeat counts built by
+    `_accumulate_chain_defeated_this_round` (audit F11). Shared by both
+    resolution seams — the normal posing-window auto-resolve path and the
+    admin/builder `ResolveCommand` force-resolve — so a force-resolved
+    fight gets the same chain credit as the normal path (previously the
+    admin path never fired this hook at all).
+    """
+    _tpl_counts = getattr(combat, "_chain_defeated_tpl_counts", None)
+    if not _tpl_counts:
+        return
+    try:
+        from engine.chain_events import on_combat_won
+        # Fire one hook per (surviving PC, template) pair
+        for c in combat.combatants.values():
+            if c.is_npc or not c.char:
+                continue
+            if c.char.wound_level.value >= 5:
+                continue  # PC went down too
+            _csess = ctx.session_mgr.find_by_character(c.id)
+            if not _csess or not _csess.character:
+                continue
+            for _tpl, _ct in _tpl_counts.items():
+                _adv = await on_combat_won(
+                    ctx.db, _csess.character, _tpl, _ct,
+                )
+                if _adv:
+                    # F.8.c.2.c: graduation teleport via the per-survivor
+                    # session, not ctx — combat resolution is room-scoped
+                    # and ctx.session may belong to any combatant.
+                    try:
+                        from engine.chain_graduation import (
+                            execute_pending_teleport,
+                        )
+                        _grad_ctx = type(ctx)(
+                            session=_csess,
+                            raw_input=ctx.raw_input,
+                            command=ctx.command,
+                            args=ctx.args,
+                            args_list=ctx.args_list,
+                            db=ctx.db,
+                            session_mgr=ctx.session_mgr,
+                        )
+                        await execute_pending_teleport(
+                            _grad_ctx, _csess.character,
+                        )
+                    except Exception as _gerr:
+                        log.debug(
+                            "[chain_events] combat-graduation "
+                            "teleport failed: %s",
+                            _gerr, exc_info=True,
+                        )
+    except Exception as _ce:
+        log.debug(
+            "silent except in parser/combat_commands.py chain_events "
+            "combat hook: %s", _ce, exc_info=True)
+
+
 async def _award_mob_grind_rewards(combat, ctx, pre_npcs):
     """Solo-PvE mob-grind reward (2026-06-21).
 
@@ -1179,9 +1223,19 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
                                 # bled out from a mortal wound on a later round
                                 # (no PC re-attacked the downed NPC that round)
                                 # and mis-attributed/dropped multi-attacker and
-                                # killer-also-died kills. notify_target_killed
-                                # self-filters to the PC who holds the contract,
-                                # so a non-contract or NPC attacker just no-ops.
+                                # killer-also-died kills.
+                                #
+                                # Audit F4 (2026-07-03): notify_target_killed
+                                # does NOT self-filter to the claimant — it only
+                                # locates the CLAIMED contract for this NPC and
+                                # collects it (a no-op if unclaimed). The reward
+                                # always pays contract.claimed_by, never the
+                                # killer — a non-claimant (or NPC) finishing
+                                # blow completes the claimant's contract instead
+                                # of hijacking the payout. (Whether a
+                                # cooperating non-claimant killer should get a
+                                # split is a balance fork, logged separately —
+                                # not guessed here.)
                                 _killer_id = c.last_attacker_id
                                 if _killer_id:
                                     _contract = await _board.notify_target_killed(
@@ -1191,6 +1245,7 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
                                         _reward = _board.total_reward(
                                             _contract, alive=False
                                         )
+                                        _claimant_id = int(_contract.claimed_by)
                                         # Award credits UNCONDITIONALLY: the
                                         # contract was just marked COLLECTED
                                         # (irreversible), so an OFFLINE hunter
@@ -1198,9 +1253,9 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
                                         # gated on an online session.
                                         # (QA bounty 2026-06-23.)
                                         _new_bal = await ctx.db.adjust_credits(
-                                            _killer_id, _reward, "bounty")
+                                            _claimant_id, _reward, "bounty")
                                         _sess = ctx.session_mgr.find_by_character(
-                                            _killer_id
+                                            _claimant_id
                                         )
                                         if _sess and _sess.character:
                                             _sess.character["credits"] = _new_bal
@@ -1212,7 +1267,7 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
                                             log.info(
                                                 "[bounty] Auto-collected %s for "
                                                 "char %s: %dcr",
-                                                _contract.id, _killer_id, _reward,
+                                                _contract.id, _claimant_id, _reward,
                                             )
                         except Exception as _be:
                             log.warning(
@@ -1671,9 +1726,23 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
                             log.warning("Scar hook error for char %s: %s",
                                         c.id, _se)
                 elif wl == 0:
-                    # Check if any opponent was beaten
+                    # Check if any opponent was beaten. COMBAT.dead_gated_
+                    # hooks_inert (2026-07-03, audit F1): a straight-to-DEAD
+                    # kill is popped from combat.combatants by resolve_round's
+                    # _cleanup() BEFORE this function runs, so scanning
+                    # combat.combatants alone silently drops the last
+                    # opponent when a hit overkills straight past
+                    # INCAPACITATED — the entire victory block (rep,
+                    # territory influence, Anchor-kill contest resolution,
+                    # dsp-hunter, creature spoils) was skipped. Extend the
+                    # scan with the pre-resolution `_newly_dead` snapshot
+                    # (same union already used for the DEAD-gated bounty/
+                    # anomaly/WoW.3a hooks above), and feed the Anchor /
+                    # dsp-hunter / creature-spoils loops below the same
+                    # union so a straight-to-DEAD Anchor still resolves.
+                    _beaten_opponents = list(combat.combatants.values()) + _newly_dead
                     beaten = [
-                        oc.name for oc in combat.combatants.values()
+                        oc.name for oc in _beaten_opponents
                         if oc.id != c.id and oc.char and
                         oc.char.wound_level.value >= _WLN.INCAPACITATED.value
                     ]
@@ -1713,7 +1782,7 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
                             # Walk the combatants; any dead NPC is a
                             # potential Anchor candidate. The handler
                             # is a no-op for non-Anchor NPCs (cheap).
-                            for _oc in combat.combatants.values():
+                            for _oc in _beaten_opponents:
                                 if (_oc.is_npc and _oc.char
                                         and _oc.char.wound_level.value >= 5):
                                     await on_npc_killed_in_combat(
@@ -1732,7 +1801,7 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
                         try:
                             from engine.dsp_hunter_runtime import (
                                 on_dsp_hunter_killed)
-                            for _oc in combat.combatants.values():
+                            for _oc in _beaten_opponents:
                                 if (_oc.is_npc and _oc.char
                                         and _oc.char.wound_level.value >= 5):
                                     await on_dsp_hunter_killed(
@@ -1754,7 +1823,7 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
                         try:
                             from engine.wilderness_encounter_runtime import (
                                 on_wild_creature_killed)
-                            for _oc in combat.combatants.values():
+                            for _oc in _beaten_opponents:
                                 if (_oc.is_npc and _oc.char
                                         and _oc.char.wound_level.value >= 5):
                                     await on_wild_creature_killed(
@@ -2849,6 +2918,10 @@ class ResolveCommand(BaseCommand):
         _wave_ids = await _apply_combat_wear(combat, ctx, _pre_npcs)
         await _award_mob_grind_rewards(combat, ctx, _pre_npcs)
         await _award_early_combat_cp(combat, ctx, _pre_npcs)
+        # Audit F11 (2026-07-03): accumulate chain-tagged defeats EVERY
+        # round on the admin/builder force-resolve path too — see
+        # _accumulate_chain_defeated_this_round's docstring.
+        await _accumulate_chain_defeated_this_round(combat, ctx.db, _pre_npcs)
 
         # EVENT.wave_reengage (2026-07-03): if a multi-phase combat anomaly
         # just advanced a wave (its kill hook spawned the next wave into the
@@ -2870,6 +2943,11 @@ class ResolveCommand(BaseCommand):
                                           combat.room_id, source_char=_src)
             await _send_combat_ended(combat.room_id, ctx.session_mgr,
                                      source_char=_src)
+            # Audit F11 (2026-07-03): fire chain combat_won credit on the
+            # admin force-resolve path too — previously this path never
+            # fired the hook at all (parser/combat_commands.py:2892-2899
+            # pre-fix jumped straight to _remove_combat).
+            await _fire_chain_combat_won(combat, ctx)
             _remove_combat(combat)
             return
 

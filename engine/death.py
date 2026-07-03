@@ -421,6 +421,35 @@ async def on_pc_death(
         log.warning("[death] anti-grief step failed for char %d", char_id,
                     exc_info=True)
 
+    # ── 1c. Audit F2 (2026-07-03): PvP territory influence ──
+    # Wire the flagship contest action (consent-free faction-vs-faction PvP
+    # inside a contested wilderness region, per design §2.4) into the
+    # territory-influence funnel. `on_pvp_kill` already routes through
+    # `adjust_territory_influence` and self-gates to wilderness rooms /
+    # non-independent orgs — this call site only needs killer attribution,
+    # which is exactly what `_record_pvp_death_and_loot_factor` above just
+    # used. killer_id is a PC only when db.get_character resolves it (an
+    # NPC or environmental death leaves it None or non-PC and this no-ops).
+    # No-throw, mirrors the on_npc_kill hook's graceful-drop pattern
+    # (parser/combat_commands.py) so a failure here can never break death
+    # resolution.
+    if killer_id:
+        try:
+            _killer_char = await db.get_character(killer_id)
+            _victim_char = await db.get_character(char_id)
+            if _killer_char and _victim_char:
+                from engine.territory import on_pvp_kill
+                await on_pvp_kill(
+                    db, winner=_killer_char, loser=_victim_char,
+                    room_id=room_id,
+                )
+        except Exception:
+            log.debug(
+                "[death] PvP territory-influence hook failed for "
+                "killer %s / victim %d", killer_id, char_id,
+                exc_info=True,
+            )
+
     # ── 2. Create corpse ──
     try:
         corpse_id = await db.create_corpse(

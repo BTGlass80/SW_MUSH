@@ -10,8 +10,9 @@ tests/test_qa_bounty_2026_06_23.py — QA break-it regression (bounty sweep).
 
 #2 [SWALLOW] reward_alive_bonus advertised on the board but never paid — every
    collect/total_reward call hardcoded alive=False. Fix: the manual +bounty/collect
-   now detects a CAPTURED-alive target (wound_level == 5, mortally wounded but not
-   dead) and passes alive=True, so the bonus is actually awarded.
+   now detects a CAPTURED-alive target (wound_level < DEAD, i.e. INCAPACITATED or
+   MORTALLY_WOUNDED, per the audit F5 gate move — see TestAliveBonusWired) and
+   passes alive=True, so the bonus is actually awarded.
 
 #3 [SWALLOW] +pcbounty cancel with a corrupt/empty contributors_json silently
    refunded $0 (refunds=[] -> no credit, no error -> escrow swallowed). Fix: a
@@ -45,7 +46,13 @@ class TestOfflineHunterCredit(unittest.TestCase):
 
 class TestAliveBonusWired(unittest.TestCase):
     def test_collect_passes_captured_alive(self):
-        self.assertIn("captured_alive = (wound == 5)", BCMD)
+        # audit F5 (2026-07-03, drop audit-fix-combat-victory) moved the
+        # payout gate from wound>=MORTALLY_WOUNDED(5) to wound>=
+        # INCAPACITATED(4) per Brian's ruling — captured_alive now covers
+        # BOTH 4 and 5 (only DEAD=6 is a kill, not a capture). This was
+        # pinning the pre-fix >=5-only gate; flipped WITH the drop.
+        self.assertIn("captured_alive = (wound < WoundLevel.DEAD.value)", BCMD)
+        self.assertIn("wound >= WoundLevel.INCAPACITATED.value", BCMD)
         self.assertIn("board.collect(contract.id, captured_alive, ctx.db)", BCMD)
         self.assertIn("board.total_reward(collected, alive=captured_alive)", BCMD)
 
