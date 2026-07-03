@@ -72,6 +72,13 @@ ALLOWED_COMPLETION_TYPES = frozenset({
     # ship in real ship-vs-ship combat (see engine/chain_events.py
     # on_space_combat_won + DESIGN_capital_ship_combat_2026-07-03.md).
     "space_combat_won",
+    # Staged-questline archetype (2026-07-03): "go to this room, clear the
+    # multi-phase scenario anomaly armed there on step entry." Bridges the
+    # chain engine to the wilderness-anomaly substrate (engine.chain_missions
+    # .maybe_arm_site_for_step arms it; engine.chain_events.on_site_cleared
+    # advances the step on the anomaly's final-phase clear). Completion
+    # dict carries `scenario_template` (a SCENARIO_TEMPLATES key) + `tier`.
+    "site_cleared",
 })
 
 ALLOWED_NPC_ROLES = frozenset({"instructor", "contact", "antagonist"})
@@ -734,6 +741,10 @@ def advance_step(char_attrs: dict,
     # advance for the same reason — a later combat_won step must not
     # inherit the prior step's running kill count.
     state.pop(_COMBAT_TALLY_KEY, None)
+    # Staged-questline archetype (2026-07-03): drop the armed-site stamp
+    # on advance — a later site_cleared step must not inherit the prior
+    # step's anomaly id.
+    state.pop(_SITE_ANOMALY_KEY, None)
 
     next_step_num = current_step_num + 1
     if next_step_num > len(chain.steps):
@@ -940,6 +951,47 @@ def get_combat_kills(char_attrs: dict, template: str,
         return int(tally.get(template, 0))
     except (TypeError, ValueError):
         return 0
+
+
+# ── Staged-questline site anomaly stamp (2026-07-03) ──────────────────
+#
+# A `site_cleared` step arms a scenario anomaly (engine.chain_missions.
+# maybe_arm_site_for_step, on step entry) at the step's authored `location`
+# room. The armed anomaly's id is stamped here so the clear-hook
+# (engine.chain_events.on_site_cleared) can confirm a resolving/
+# contributing character's OWN armed instance is the one that cleared —
+# not a same-template anomaly armed for a different chain or a different
+# character's playthrough. Same lifecycle as _STEP_PROGRESS_KEY /
+# _COMBAT_TALLY_KEY: per-step, dropped on advance.
+
+_SITE_ANOMALY_KEY = "step_scenario_anomaly_id"
+
+
+def record_site_anomaly(char_attrs: dict, anomaly_id: int,
+                        state_key: str = _TUTORIAL_CHAIN_KEY) -> bool:
+    """Stamp the armed scenario anomaly's id onto the active step's
+    state. Returns True iff there is an active chain to stamp against
+    (mirrors record_prereq_satisfied's active-chain guard)."""
+    state = char_attrs.get(state_key)
+    if not state or state.get("completion_state") != "active":
+        return False
+    state[_SITE_ANOMALY_KEY] = int(anomaly_id)
+    return True
+
+
+def get_site_anomaly_id(char_attrs: dict,
+                        state_key: str = _TUTORIAL_CHAIN_KEY,
+                        ) -> Optional[int]:
+    """Return the armed scenario anomaly id stamped for the active
+    step, or None if unset/malformed. Read-only."""
+    state = char_attrs.get(state_key) or {}
+    val = state.get(_SITE_ANOMALY_KEY)
+    if val is None:
+        return None
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        return None
 
 
 # ── Skip starter kit loader (Drop 2b) ────────────────────────────────────

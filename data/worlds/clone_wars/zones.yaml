@@ -555,6 +555,24 @@ zones:
       security: secured
       threat_band: contested_marches     # DIFF.2 (2026-06-13): zoned difficulty band
 
+  kamino_flooded_understructure:
+    name_match: "flooded understructure"
+    narrative_tone: >
+      Below the last emergency light, the pylon corridor's steady order
+      gives way to rusted catwalks and standing water. A skimming crew
+      has claimed this pocket to bleed a cut off the supply runs that
+      cross the ocean platforms — off any log Tipoca City keeps.
+    # staged-questline-archetype-slice1 (2026-07-03): zone for the new
+    # Flooded Understructure coordinate-grid wilderness region
+    # (wilderness/kamino_flooded_understructure.yaml) and its on-foot edge
+    # room (the existing kamino_pylon_access). A dedicated zone (not a
+    # reuse of kamino_ocean_platform) because this pocket sits explicitly
+    # off the platforms' own security perimeter — the skim crew's claim,
+    # not KSF/Kaminoan-patrolled ground.
+    properties:
+      security: contested
+      threat_band: contested_marches     # DIFF.2 (2026-06-13): zoned difficulty band
+
   # ── Geonosis (Drop 4) ────────────────────────────────────────────────────
 
   geonosis_petranaki:
