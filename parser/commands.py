@@ -535,7 +535,24 @@ class CommandParser:
             # giving up.
             if session.character:
                 from parser.combat_commands import try_nl_combat_action
-                handled = await try_nl_combat_action(ctx, raw_input)
+                # QA break-it (2026-07-02): this was the only dispatch
+                # call in parse_and_dispatch NOT guarded — an AI-layer
+                # fault (SceneContext.build DB hiccup, NPC despawned
+                # mid-combat) propagated out of this coroutine and
+                # killed the session's _game_loop task (permanent
+                # zero-output session). Guard + log like every other
+                # dispatch surface in this function.
+                try:
+                    handled = await try_nl_combat_action(ctx, raw_input)
+                except Exception:
+                    log.exception(
+                        "NL combat intercept error for session %s", session)
+                    await session.send_line(
+                        "An error occurred processing your command. "
+                        "If this persists, please report it."
+                    )
+                    await session.send_prompt()
+                    return
                 if handled:
                     return
 
@@ -588,6 +605,14 @@ class CommandParser:
         "who", "+who", "quit", "@quit", "logout",
     }
 
+    # Commands allowed when the character is INCAPACITATED or
+    # MORTALLY_WOUNDED (alive but combat.declare_action already refuses
+    # them at >= INCAPACITATED with "You can't act in your current
+    # condition."). Mirrors DEAD_ALLOWED's passive/status-only shape:
+    # OOC + a minimal info set, so a downed player isn't cut off from
+    # `who`/`help`/`look`/OOC chatter, but can't move or act IC.
+    INCAPACITATED_ALLOWED = DEAD_ALLOWED | {"ooc", "+ooc"}
+
     async def _execute(self, cmd: BaseCommand, ctx: CommandContext):
         """Check access, dead-state, and run the command with timeout."""
         # T3.19 telemetry: command-frequency histogram at the single resolved
@@ -622,6 +647,29 @@ class CommandParser:
                     ansi.combat_msg(
                         "You are DEAD. Type 'respawn' to return to life, "
                         "or 'look' to see your surroundings."
+                    )
+                )
+                await ctx.session.send_prompt()
+                return
+
+        # ── Incapacitated-state intercept (QA break-it 2026-07-02) ──
+        # An INCAPACITATED or MORTALLY_WOUNDED character is alive but
+        # can't act (combat.declare_action already refuses them at
+        # >= INCAPACITATED with "You can't act in your current
+        # condition."). General dispatch had no matching gate, so a
+        # downed-but-alive character could freely move/talk/look
+        # outside combat. Mirrors the DEAD-gate shape one rung down the
+        # wound ladder; excludes DEAD (>= 6), which the block above
+        # already owns.
+        from engine.character import WoundLevel
+        if (char and WoundLevel.INCAPACITATED <= char.get("wound_level", 0)
+                < WoundLevel.DEAD):
+            cmd_key = cmd.key.lower()
+            if cmd_key not in self.INCAPACITATED_ALLOWED:
+                from server import ansi
+                await ctx.session.send_line(
+                    ansi.combat_msg(
+                        "You can't act in your current condition."
                     )
                 )
                 await ctx.session.send_prompt()
