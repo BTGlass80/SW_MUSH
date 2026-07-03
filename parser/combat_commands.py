@@ -395,9 +395,17 @@ async def _try_auto_resolve(combat, ctx):
         events = combat.resolve_round()
         # Don't broadcast events to room yet — they go in the Action Log
         # But we DO need to apply wear and persist wounds immediately
-        await _apply_combat_wear(combat, ctx, _pre_npcs)
+        _wave_ids = await _apply_combat_wear(combat, ctx, _pre_npcs)
         await _award_mob_grind_rewards(combat, ctx, _pre_npcs)
         await _award_early_combat_cp(combat, ctx, _pre_npcs)
+
+        # EVENT.wave_reengage (2026-07-03): if a multi-phase combat anomaly
+        # just advanced a wave (its kill hook spawned the next wave into the
+        # room), pull those fresh hostiles into THIS combat so the fight chains
+        # wave -> wave without the player having to re-`attack`. Runs BEFORE the
+        # _combat_finished check so the freshly-armed wave keeps combat alive.
+        if _wave_ids:
+            await _reengage_anomaly_wave(combat, ctx, _wave_ids)
 
         # Phase 7c (May 23 2026): city-guard combat-round triggers.
         # Check if any city guards in this room should now join
@@ -1125,6 +1133,11 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
     from engine.character import WoundLevel as _WLdead
     import json as _json
 
+    # EVENT.wave_reengage (2026-07-03): collects the NPC ids of any next
+    # combat wave the anomaly kill-hook spawns when it advances a phase, so
+    # the caller can add them to THIS live combat (see _reengage_anomaly_wave).
+    _wave_reengage_ids: list = []
+
     _newly_dead = [
         c for c in (pre_npcs or [])
         if getattr(c, "is_npc", False) and c.char
@@ -1254,6 +1267,7 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
                                 _payout = await award_combat_anomaly_reward(
                                     ctx.db, int(_anom_killer_id), c.id,
                                     session_mgr=ctx.session_mgr,
+                                    wave_reengage_sink=_wave_reengage_ids,
                                 )
                                 if _payout:
                                     _tier = _payout.get("tier", 1)
@@ -1799,6 +1813,65 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
             await sess.send_line(
                 f"  {ansi.BRIGHT_RED}Your weapon has BROKEN! "
                 f"Type '+repair' to fix it.{ansi.RESET}")
+
+    # EVENT.wave_reengage (2026-07-03): the ids of any next combat wave the
+    # anomaly kill-hook spawned mid-resolution. The caller feeds these to
+    # _reengage_anomaly_wave BEFORE the combat-finished check so the fight
+    # chains wave -> wave. Empty in the overwhelming common case (no anomaly,
+    # or a phase that did not advance / a skill_gate advance).
+    return _wave_reengage_ids
+
+
+async def _reengage_anomaly_wave(combat, ctx, npc_ids):
+    """Pull a just-spawned next combat wave into an ACTIVE CombatInstance.
+
+    When a multi-phase (tier>=2) combat anomaly clears a phase, its kill hook
+    (``award_combat_anomaly_reward`` -> ``_advance_to_next_phase``) spawns the
+    next phase's hostiles into the anchor room and reports their ids back
+    through ``_apply_combat_wear``. Without this, ``_combat_finished`` would see
+    no live hostiles in the instance and END the fight — the player would have
+    to ``attack`` again to engage the fresh wave (the stutter this fixes).
+    Instead we add the new hostiles to the SAME combat so the encounter chains
+    wave -> wave; the next ``resolve_round`` re-rolls initiative for the
+    arrivals. Mirrors ``_check_city_guard_engagement``'s mid-combat NPC
+    injection (build_npc_character + add_combatant + is_npc + behavior).
+
+    Fail-soft: any error logs at warning and combat proceeds as before (the
+    player can still re-``attack`` the wave — the pre-fix behavior).
+    """
+    if not npc_ids:
+        return
+    try:
+        from engine.npc_combat_ai import build_npc_character, get_npc_behavior
+        added = 0
+        for nid in npc_ids:
+            try:
+                _nid = int(nid)
+            except (TypeError, ValueError):
+                continue
+            if combat.get_combatant(_nid):
+                continue  # already in this fight (defensive)
+            npc_row = await ctx.db.get_npc(_nid)
+            if not npc_row:
+                continue
+            npc_char = build_npc_character(npc_row)
+            if npc_char is None:
+                continue  # no combat stats — can't fight
+            combatant = combat.add_combatant(npc_char)
+            combatant.is_npc = True
+            _npc_behaviors[_nid] = get_npc_behavior(npc_row)
+            added += 1
+        if added:
+            log.info(
+                "[anomaly] re-engaged %d next-wave hostile(s) into live "
+                "combat at room %s (round %s)",
+                added, combat.room_id, combat.round_num,
+            )
+    except Exception:
+        log.warning(
+            "[anomaly] wave re-engage failed; player can re-attack the "
+            "wave manually", exc_info=True,
+        )
 
 
 class AttackCommand(BaseCommand):
@@ -2773,9 +2846,17 @@ class ResolveCommand(BaseCommand):
         events = combat.resolve_round()
 
         # Admin resolve skips posing — auto-generate all poses and flush
-        await _apply_combat_wear(combat, ctx, _pre_npcs)
+        _wave_ids = await _apply_combat_wear(combat, ctx, _pre_npcs)
         await _award_mob_grind_rewards(combat, ctx, _pre_npcs)
         await _award_early_combat_cp(combat, ctx, _pre_npcs)
+
+        # EVENT.wave_reengage (2026-07-03): if a multi-phase combat anomaly
+        # just advanced a wave (its kill hook spawned the next wave into the
+        # room), pull those fresh hostiles into THIS combat so the fight chains
+        # wave -> wave without the player having to re-`attack`. Runs BEFORE the
+        # _combat_finished check so the freshly-armed wave keeps combat alive.
+        if _wave_ids:
+            await _reengage_anomaly_wave(combat, ctx, _wave_ids)
 
         # Phase 7c: city-guard combat-round triggers (also fires
         # on admin resolve so the behavior is consistent across

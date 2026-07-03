@@ -4457,6 +4457,7 @@ async def award_combat_anomaly_reward(
     rng: Optional[random.Random] = None,
     now: Optional[float] = None,
     session_mgr=None,
+    wave_reengage_sink: Optional[list] = None,
 ) -> Optional[dict]:
     """Called from ``parser/combat_commands.py`` when an NPC tagged
     with ``is_anomaly_target`` dies.
@@ -4473,6 +4474,15 @@ async def award_combat_anomaly_reward(
     Returns the reward summary dict on payout (final clear), None if
     the kill was for a non-final NPC (still hostiles up, or phase
     advanced).
+
+    EVENT.wave_reengage (2026-07-03): ``wave_reengage_sink`` is an
+    optional caller-owned list. When a Tier 2/3 phase ADVANCES (spawns
+    the next wave), the freshly-created hostile NPC ids are appended to
+    it so the parser can pull them into the SAME live ``CombatInstance``
+    — the fight chains wave -> wave without the player re-issuing
+    ``attack``. Left None by the engine-only test callers (no combat
+    instance to feed); a ``skill_gate`` advance leaves ``spawned_npc_ids``
+    empty, so nothing is injected there.
     """
     if rng is None:
         rng = random.Random()
@@ -4543,6 +4553,20 @@ async def award_combat_anomaly_reward(
             db, anomaly, session_mgr=session_mgr,
         )
         if advanced:
+            # EVENT.wave_reengage (2026-07-03): report the just-spawned
+            # next-wave hostiles back to the combat layer so it can add them
+            # to the live CombatInstance (waves chain without a re-`attack`).
+            # A skill_gate advance leaves spawned_npc_ids empty -> no-op.
+            if wave_reengage_sink is not None:
+                try:
+                    wave_reengage_sink.extend(
+                        int(n) for n in anomaly.spawned_npc_ids
+                    )
+                except Exception:
+                    log.warning(
+                        "[anomaly] wave_reengage_sink populate failed",
+                        exc_info=True,
+                    )
             return None  # No payout yet — next phase active.
         # advance failed; fall through and treat as final clear so
         # players don't get stuck without a payout.
