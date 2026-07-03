@@ -1012,13 +1012,41 @@ async def _pick_door_direction(db, entry_room_id: int) -> str:
 
 async def rent_room(db, char: dict, lot_id: int) -> dict:
     char_id = char["id"]
-    existing = await get_housing(db, char_id)
-    if existing:
-        return {"ok": False, "msg": "You already have a place to stay. Use 'housing checkout' first."}
+
+    # Multi-home (Brian 2026-06-23, "4 homes is good"): purchase_home dropped
+    # its hard single-home block for the same MAX_TIER3_TOTAL cap. rent_room
+    # still had the stale single-home block, which told the player to
+    # 'housing checkout' first -- funneling an owned Tier-3 home into 0cr
+    # destruction pre-Bug-2-fix. Mirror purchase_home's cap here instead
+    # (housing-engine-hardening 2026-07-02, Bug 3). Counts ALL housing
+    # records (not just tier 3) since this cap is the overall "own up to
+    # MAX_TIER3_TOTAL homes" limit referenced by 'housing list'.
+    owned_rows = await db.fetchall(
+        "SELECT COUNT(*) AS cnt FROM player_housing WHERE char_id = ?",
+        (char_id,),
+    )
+    owned_total = int(owned_rows[0]["cnt"]) if owned_rows else 0
+    if owned_total >= MAX_TIER3_TOTAL:
+        return {"ok": False,
+                "msg": f"You already own the maximum of {MAX_TIER3_TOTAL} homes. "
+                       f"Use 'housing sell' or 'housing checkout' first."}
 
     lot = await get_lot(db, lot_id)
     if not lot:
         return {"ok": False, "msg": "Invalid location."}
+    # Cross-tier lot-ID validation (housing-engine-hardening 2026-07-02, Bug 4):
+    # housing_lots is one flat table shared by every tier; only reject a lot
+    # AFFIRMATIVELY known to belong to a different tier (rather than requiring
+    # it be affirmatively listed as tier-1), so ad hoc/test-fabricated lots
+    # that aren't in any era's provider corpus are unaffected.
+    from engine.housing_lots_provider import get_tier3_lots, get_tier4_lots, get_tier5_lots
+    _other_tier_rooms = (
+        {r for r, *_ in get_tier3_lots()}
+        | {r for r, *_ in get_tier4_lots()}
+        | {r for r, *_ in get_tier5_lots()}
+    )
+    if lot["room_id"] in _other_tier_rooms:
+        return {"ok": False, "msg": "That lot is not a rental location."}
     if lot["current_homes"] >= lot["max_homes"]:
         return {"ok": False, "msg": f"{lot['label']} is full. Try another location."}
 
@@ -1103,13 +1131,31 @@ async def rent_room(db, char: dict, lot_id: int) -> dict:
     }
 
 
-async def checkout_room(db, char: dict) -> dict:
+async def checkout_room(db, char: dict, *, force: bool = False) -> dict:
+    """Vacate a rental (or faction quarters). NOT for purchased homes.
+
+    Housing hardening (2026-07-02, Bug 2): checkout is for RENTALS. A
+    purchased `private_residence` has a real 50%-of-purchase-price refund
+    path (`sell_home`) -- checkout only ever refunds the (always-0 for owned
+    homes) `deposit` field, so letting a careless `housing checkout` fall
+    through to an owned home destroyed it for nothing. `force=True` lets the
+    internal repossession paths that legitimately need to tear an owned home
+    down anyway -- `sell_home`'s own teardown call, the rent-default
+    foreclosure in `tick_housing_rent`, and `@housing evict` -- still do so;
+    the player-facing `housing checkout` command does not pass it, so it
+    gets refused and pointed at `housing sell` instead.
+    """
     char_id = char["id"]
     h = await resolve_active_home(db, char)
     if not h:
         return {"ok": False, "msg": "You don't have a rented room."}
     if h["housing_type"] not in ("rented_room", "faction_quarters", "private_residence"):
         return {"ok": False, "msg": "Use 'housing sell' to sell a purchased home."}
+    if h["housing_type"] == "private_residence" and not force:
+        return {"ok": False,
+                "msg": "You own this home outright -- 'housing checkout' would "
+                       "destroy it for no refund. Use 'housing sell' instead "
+                       "(refunds 50% of the purchase price)."}
 
     room_ids = _room_ids(h)
     storage  = _storage(h)
@@ -1289,8 +1335,17 @@ async def tick_housing_rent(db, session_mgr) -> None:
                 continue
             char = dict(char_rows[0])
 
+            # Credit-integrity (weekly-tick sink): the ``credits`` pre-check reads
+            # a per-row fetch that can go stale before the debit, and the default
+            # ``allow_negative=True`` would drive rent negative on a concurrent
+            # drain. ``allow_negative=False`` refuses the overdraw atomically
+            # (None) so a broke tenant falls to the overdue branch instead.
+            new_credits = None
             if char.get("credits", 0) >= h["weekly_rent"]:
-                new_credits = await db.adjust_credits(char["id"], -h["weekly_rent"], "housing_rent")
+                new_credits = await db.adjust_credits(
+                    char["id"], -h["weekly_rent"], "housing_rent",
+                    allow_negative=False)
+            if new_credits is not None:
                 await db.execute(
                     "UPDATE player_housing SET rent_paid_until = ?, rent_overdue = 0, last_activity = ? WHERE id = ?",
                     (now + RENT_TICK_INTERVAL, now, h["id"]),
@@ -1329,7 +1384,11 @@ async def tick_housing_rent(db, session_mgr) -> None:
                             f"{TIER1_EVICT_WEEKS - overdue} week(s).\033[0m"
                         )
                 if overdue >= TIER1_EVICT_WEEKS:
-                    await checkout_room(db, dict(char_rows[0]))
+                    # force=True: this is a rent-default repossession, not a
+                    # player-initiated checkout, so it must still be able to
+                    # tear down an owned Tier-3 home whose rent lapsed
+                    # (housing-engine-hardening 2026-07-02, Bug 2 follow-on).
+                    await checkout_room(db, dict(char_rows[0]), force=True)
 
         await db.commit()
     except Exception as e:
@@ -2077,6 +2136,20 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
     if not lot:
         return {"ok": False, "msg": "Invalid lot."}
 
+    # Cross-tier lot-ID validation (housing-engine-hardening 2026-07-02, Bug 4):
+    # housing_lots is one flat table shared by every tier; only reject a lot
+    # AFFIRMATIVELY known to belong to a different tier (rather than requiring
+    # it be affirmatively listed as tier-3), so ad hoc/test-fabricated lots
+    # that aren't in any era's provider corpus are unaffected.
+    from engine.housing_lots_provider import get_tier1_lots, get_tier4_lots, get_tier5_lots
+    _other_tier_rooms = (
+        {r for r, *_ in get_tier1_lots()}
+        | {r for r, *_ in get_tier4_lots()}
+        | {r for r, *_ in get_tier5_lots()}
+    )
+    if lot["room_id"] in _other_tier_rooms:
+        return {"ok": False, "msg": "Invalid lot."}
+
     # F.5b.2.x: rep_gate enforcement (cw_housing_design_v1.md §7.1).
     # If the character can't see this lot, return the same "Invalid lot."
     # message rather than leaking the rep gate's existence. Per design,
@@ -2254,10 +2327,25 @@ async def sell_home(db, char: dict) -> dict:
 
     refund = h.get("purchase_price", 0) // 2
 
-    # Checkout returns items and deletes rooms
-    result = await checkout_room(db, char)
+    # Checkout returns items and deletes rooms. force=True: this IS the sell
+    # lifecycle's own teardown call, not a player mistakenly typing
+    # 'checkout' -- checkout_room otherwise refuses an owned private_residence
+    # (housing-engine-hardening 2026-07-02, Bug 2).
+    result = await checkout_room(db, char, force=True)
     if not result["ok"]:
         return result
+
+    # Free the lot slot the sold home was occupying. sell_shopfront and
+    # sell_hq both do this ("UPDATE housing_lots SET current_homes = ...");
+    # sell_home was the one sibling missing it, which let every sold Tier-3
+    # home permanently consume a lot slot (housing-engine-hardening
+    # 2026-07-02, Bug 1).
+    await db.execute(
+        "UPDATE housing_lots SET current_homes = MAX(0, current_homes - 1) "
+        "WHERE room_id = ?",
+        (h["entry_room_id"],),
+    )
+    await db.commit()
 
     # Add refund
     if refund > 0:
@@ -2369,17 +2457,19 @@ async def get_tier3_listing_lines(db, char: dict) -> list[str]:
         "\033[1;37m── Available Lots ──\033[0m",
         "",
     ]
+    # Housing hardening (2026-07-02, Bug 5): this listing used to append a
+    # "(-50% rent)" / "(-25% rent)" hint for lawless/contested lots, mirroring
+    # Tier 4's REAL _TIER4_SECURITY_DISCOUNT mechanic -- but purchase_home has
+    # never applied any security-based discount to weekly_rent (it's always
+    # the flat TIER3_TYPES[...]["weekly_rent"]). The string was stale/never
+    # backed by a real discount; removed rather than inventing a new pricing
+    # mechanic in a bug-fix drop.
     for lot in lots:
         avail = lot["max_homes"] - lot["current_homes"]
         sec = lot["security"].upper()
-        discount = ""
-        if lot["security"] == "lawless":
-            discount = " \033[1;33m(-50% rent)\033[0m"
-        elif lot["security"] == "contested":
-            discount = " \033[2m(-25% rent)\033[0m"
         lines.append(
             f"    [{lot['id']}] {lot['label']:<40} "
-            f"{avail} slots  [{sec}]{discount}"
+            f"{avail} slots  [{sec}]"
         )
 
     lines.append("")
@@ -3700,6 +3790,19 @@ async def purchase_hq(db, char: dict, org_code: str, hq_type: str,
 
     lot = await get_lot(db, lot_id)
     if not lot:
+        return {"ok": False, "msg": f"Invalid lot ID '{lot_id}'."}
+    # Cross-tier lot-ID validation (housing-engine-hardening 2026-07-02, Bug 4):
+    # housing_lots is one flat table shared by every tier; only reject a lot
+    # AFFIRMATIVELY known to belong to a different tier (rather than requiring
+    # it be affirmatively listed as tier-5), so ad hoc/test-fabricated lots
+    # that aren't in any era's provider corpus are unaffected.
+    from engine.housing_lots_provider import get_tier1_lots, get_tier3_lots, get_tier4_lots
+    _other_tier_rooms = (
+        {r for r, *_ in get_tier1_lots()}
+        | {r for r, *_ in get_tier3_lots()}
+        | {r for r, *_ in get_tier4_lots()}
+    )
+    if lot["room_id"] in _other_tier_rooms:
         return {"ok": False, "msg": f"Invalid lot ID '{lot_id}'."}
     if lot["current_homes"] >= lot["max_homes"]:
         return {"ok": False, "msg": f"{lot['label']} is full."}

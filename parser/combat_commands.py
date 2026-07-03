@@ -445,45 +445,18 @@ async def _try_auto_resolve(combat, ctx):
             # ai_config row available.
             try:
                 from engine.chain_events import on_combat_won
-                import json as _ccj
-                # Collect defeated NPC templates (incapacitated/dead)
-                _defeated_templates: list = []
-                for c in combat.combatants.values():
-                    if not c.is_npc or not c.char:
-                        continue
-                    # "Defeated" = OUT OF THE FIGHT, using combat's own
-                    # elimination predicate (active_combatants filters on
-                    # can_act_now). can_act_now() is False for Incapacitated+
-                    # (wound_level >= 4) AND for a STUN-KO (unconscious_until
-                    # set while wound_level stays STUNNED, per R&E p83). The old
-                    # `wound_level.value < 4` check missed the stun case — so
-                    # capturing a target by STUN, which the Bounty Hunter chain
-                    # EXPLICITLY recommends ("attack <t> stun pays more"), never
-                    # fired combat_won and stranded the player on the capture
-                    # step. (QA live finding 2026-06-20.)
-                    if c.char.can_act_now():
-                        continue
-                    try:
-                        _npc_row = await ctx.db.get_npc(c.id)
-                    except Exception:
-                        _npc_row = None
-                    if not _npc_row:
-                        continue
-                    _ai_raw = _npc_row.get("ai_config_json", "{}") or "{}"
-                    if isinstance(_ai_raw, str):
-                        try:
-                            _ai = _ccj.loads(_ai_raw)
-                        except Exception:
-                            _ai = {}
-                    else:
-                        _ai = _ai_raw or {}
-                    _tpl = (_ai.get("chain_enemy_template") or "").strip()
-                    if _tpl:
-                        _defeated_templates.append(_tpl)
+                # Collect defeated chain foils from the PRE-resolution snapshot
+                # (_pre_npcs). resolve_round()'s _cleanup() has ALREADY popped
+                # every combatant that reached DEAD this round from
+                # combat.combatants, so collecting off the live dict silently
+                # loses a foil finished with a straight-to-DEAD blow — credit
+                # lost, and a hard soft-lock on a single-foil questline step.
+                # (DEAD-side twin of the 2026-07-02 anomaly-defeat fix; the
+                # can_act_now predicate below still captures the stun-KO path.)
+                _tpl_counts = await _collect_defeated_chain_templates(
+                    ctx.db, _pre_npcs)
                 # Fire one hook per (surviving PC, template) pair
-                if _defeated_templates:
-                    from collections import Counter
-                    _tpl_counts = Counter(_defeated_templates)
+                if _tpl_counts:
                     for c in combat.combatants.values():
                         if c.is_npc or not c.char:
                             continue
@@ -977,6 +950,43 @@ async def _auto_declare_npc_actions(combat, ctx):
         if char and char["id"] in notified:
             continue
         await sess.send_line(generic_line)
+
+
+async def _collect_defeated_chain_templates(db, npc_combatants):
+    """Return a Counter of chain_enemy_template strings for the NPCs DEFEATED
+    this round. Must be fed the PRE-resolution snapshot (_pre_npcs): resolve_round()'s
+    _cleanup() pops any DEAD combatant from combat.combatants, so iterating the
+    live dict silently loses a foil finished with a straight-to-DEAD blow — the
+    F1 P0 (chain credit lost / single-foil questline soft-lock). Defeat predicate
+    = can_act_now() False (Incapacitated+ AND the stun-KO capture the Bounty
+    Hunter chain relies on). Missing/malformed NPC rows are skipped, never raised.
+    """
+    import json as _ccj
+    from collections import Counter
+    out = Counter()
+    for c in npc_combatants or []:
+        if not c.is_npc or not c.char:
+            continue
+        if c.char.can_act_now():
+            continue  # still in the fight — not defeated
+        try:
+            _npc_row = await db.get_npc(c.id)
+        except Exception:
+            _npc_row = None
+        if not _npc_row:
+            continue
+        _ai_raw = _npc_row.get("ai_config_json", "{}") or "{}"
+        if isinstance(_ai_raw, str):
+            try:
+                _ai = _ccj.loads(_ai_raw)
+            except Exception:
+                _ai = {}
+        else:
+            _ai = _ai_raw or {}
+        _tpl = (_ai.get("chain_enemy_template") or "").strip()
+        if _tpl:
+            out[_tpl] += 1
+    return out
 
 
 async def _award_mob_grind_rewards(combat, ctx, pre_npcs):

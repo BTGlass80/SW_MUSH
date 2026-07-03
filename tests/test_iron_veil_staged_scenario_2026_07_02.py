@@ -128,8 +128,13 @@ def test_era_clean_new_scenario_strings():
 
 
 def test_reward_bands_match_ember_court_same_tier_templates():
-    """Reward bands copied EXACTLY from the Ember Court's same-tier templates
-    (conservative, balance-neutral — per the drop brief)."""
+    """Credit + influence bands match the Ember Court's same-tier templates
+    (conservative, balance-neutral — per the drop brief). Resource drops are
+    intentionally re-themed to energy for this shipyard/blackout cult (equal
+    quantity+value, not equal composition) EXCEPT the skill stage
+    (iron_veil_power_relay), whose success_reward and fail_reward are fully
+    identical to ember_court_relay_slice's — the only template pair that's
+    byte-for-byte, not just credits/influence."""
     ember_combat1 = WA.SCENARIO_TEMPLATES["ember_court_forge_assault"]
     ember_skill = WA.SCENARIO_TEMPLATES["ember_court_relay_slice"]
     ember_boss = WA.SCENARIO_TEMPLATES["ember_court_forgemaster"]
@@ -139,10 +144,14 @@ def test_reward_bands_match_ember_court_same_tier_templates():
 
     assert iron_combat1["success_reward"]["credits"] == ember_combat1["success_reward"]["credits"]
     assert iron_combat1["success_reward"]["influence"] == ember_combat1["success_reward"]["influence"]
-    assert iron_skill["success_reward"]["credits"] == ember_skill["success_reward"]["credits"]
-    assert iron_skill["fail_reward"]["credits"] == ember_skill["fail_reward"]["credits"]
     assert iron_boss["success_reward"]["credits"] == ember_boss["success_reward"]["credits"]
     assert iron_boss["success_reward"]["influence"] == ember_boss["success_reward"]["influence"]
+
+    # The skill stage is the one template pair that's fully identical,
+    # not just credits/influence — pin that explicitly so the prose can't
+    # drift back to claiming full-drop byte-for-byte parity.
+    assert iron_skill["success_reward"] == ember_skill["success_reward"]
+    assert iron_skill["fail_reward"] == ember_skill["fail_reward"]
 
 
 # ════════════════════════════════════════════════════════════════════════════

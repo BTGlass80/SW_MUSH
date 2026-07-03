@@ -336,12 +336,21 @@ class SabaccCommand(BaseCommand):
             cooldown_ts = now - (WIN_COOLDOWN_S - LOSS_COOLDOWN_S)
 
         # ── Persist ───────────────────────────────────────────────────────────
-        char["credits"] = new_credits
         new_attrs = _set_last_sabacc(char, cooldown_ts)
         char["attributes"] = new_attrs
-        # Ledger chokepoint (F1): the sabacc result as a logged faucet/sink
-        # (delta = net change; the loss branch already clamps at 0 above).
-        await ctx.db.adjust_credits(char["id"], new_credits - credits, "sabacc")
+        # Ledger chokepoint (F1): apply the hand as a logged faucet/sink.
+        # A WIN is a plain faucet (delta > 0). A LOSS/TIE/FUMBLE debits the
+        # bet against the LIVE balance — the session `credits` snapshot can be
+        # stale (an out-of-band weekly-debt / housing-rent tick since load), so
+        # deriving the delta from it with allow_negative=True overdraws the
+        # column. debit_capped floors the charge at what's actually there.
+        if outcome in ("win", "critical"):
+            _post = await ctx.db.adjust_credits(char["id"], net_win, "sabacc")
+        else:
+            _post = await ctx.db.debit_capped(char["id"], bet, "sabacc")
+        # Reflect the authoritative post-balance in the session cache; fall back
+        # to the computed value if the ledger returned nothing (never in prod).
+        char["credits"] = _post if _post is not None else new_credits
         await ctx.db.save_character(char["id"], attributes=new_attrs)
 
         # ── T3.19 telemetry: the gambling outcome distribution + house edge ───
@@ -395,7 +404,7 @@ class SabaccCommand(BaseCommand):
         await ctx.session.send_line(f"  {ansi.DIM}{flavour}{ansi.RESET}")
         await ctx.session.send_line(result_line)
         await ctx.session.send_line(
-            f"  Balance: {new_credits:,}cr\n"
+            f"  Balance: {char['credits']:,}cr\n"
         )
 
         # Room broadcast (brief, no credits shown to bystanders)
