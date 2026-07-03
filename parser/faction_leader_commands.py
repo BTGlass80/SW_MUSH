@@ -668,12 +668,20 @@ class AdminFactionLeaderCommand(BaseCommand):
                     "  Usage: @faction treasury <add|remove> <code> <amount>"
                 )
                 return
+            org = await ctx.db.get_organization(code)
+            if org is None:
+                valid = ", ".join(
+                    sorted(o["code"] for o in await ctx.db.get_all_organizations())
+                )
+                await ctx.session.send_line(
+                    f"  Unknown faction code '{code}'.\n"
+                    f"  Valid codes: {valid}"
+                )
+                return
             delta = int(amount_str)
             if action == "remove":
                 delta = -delta
-            new_bal = await ctx.db.adjust_org_treasury(
-                (await ctx.db.get_organization(code) or {}).get("id", 0), delta
-            )
+            new_bal = await ctx.db.adjust_org_treasury(org["id"], delta)
             await ctx.session.send_line(
                 f"  Treasury for '{code}' adjusted. New balance: {new_bal:,} cr."
             )
