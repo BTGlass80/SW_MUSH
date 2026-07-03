@@ -97,6 +97,13 @@ remember to invoke them. Current set:
 - **`world-yaml`** — safe-editing procedure for `data/worlds/**` (additive-only,
   comment-preserving string-replacement, pinned coords, post-edit validators).
   Proactive partner to the deletion-blocking `world_yaml_additive_guard` hook.
+- **`lane-partition`** — carve a known backlog into conflict-minimized PARALLEL
+  lanes before fanning work out (authoring a Workflow over many tasks, or
+  dividing work across parallel sessions/worktrees). Predicts each task's
+  file-touch set (cited symbols + git-history proxy), builds a contention graph,
+  and emits disjoint lanes + owners + the shared-file protocol for
+  CHANGELOG/TODO + a plain "serialize instead" verdict when overlap is high.
+  Fires at a decomposition point; NOT a standing task-discovery agent.
 
 `tests/test_claude_skills_integrity.py` guards skill frontmatter + reference
 integrity (no phantom file pointers). Add a skill = new `.claude/skills/<name>/SKILL.md`.
