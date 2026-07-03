@@ -263,10 +263,16 @@ def test_parity_with_engine_wound_level_enum() -> None:
     content = char_py.read_text(encoding="utf-8")
     # Find WoundLevel(IntEnum) block — accept either spelling.
     # Look for `class WoundLevel(IntEnum):` then read assignments until
-    # we hit a blank line followed by something else.
+    # we hit a blank line followed by something else. The class carries
+    # a one-line docstring before the enum members at HEAD, so the
+    # optional docstring group must be skipped over — a bare
+    # `class WoundLevel\(IntEnum\):\s*\n` immediately followed by the
+    # assignment group never matched it, silently skipping this test.
     import re
     m = re.search(
-        r"class WoundLevel\(IntEnum\):\s*\n((?:\s+[A-Z_]+\s*=\s*\d+\s*\n)+)",
+        r"class WoundLevel\(IntEnum\):\s*\n"
+        r'(?:\s*"""[\s\S]*?"""\s*\n)?'
+        r"((?:\s+[A-Z_]+\s*=\s*\d+\s*\n)+)",
         content,
     )
     if not m:

@@ -27,6 +27,16 @@ import yaml
 
 log = logging.getLogger(__name__)
 
+# Top-level keys owned by a SIBLING loader pass (load_wilderness_npcs(),
+# load_jedi_village_npcs()) rather than this generic `npcs:` sweep. A file
+# can legitimately appear in content_refs.npcs for documentation/grouping
+# purposes while actually being keyed for one of these — that's not an
+# authoring error, so load_npcs_from_yaml() skips it silently instead of
+# warning on every boot (F.6 hygiene: npcs_drop_mob_grind_coruscant_underworld
+# .yaml is wilderness_npcs:-keyed and loaded via its own pass, but is also
+# listed under content_refs.npcs).
+_SIBLING_SCHEMA_KEYS = frozenset({"wilderness_npcs", "jedi_village_npcs"})
+
 
 # Tuple shape produced by every loader path:
 #   (name, room_idx, species, description, char_sheet_dict, ai_config_dict)
@@ -154,7 +164,14 @@ def load_npcs_from_yaml(
         data = yaml.safe_load(f)
 
     if not data or "npcs" not in data:
-        log.warning("NPC data file has no 'npcs' key: %s", path)
+        if data and _SIBLING_SCHEMA_KEYS & data.keys():
+            log.debug(
+                "NPC data file is keyed for a sibling loader (%s), not "
+                "'npcs' — skipping generic sweep: %s",
+                sorted(_SIBLING_SCHEMA_KEYS & data.keys()), path,
+            )
+        else:
+            log.warning("NPC data file has no 'npcs' key: %s", path)
         return []
 
     results = []
