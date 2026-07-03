@@ -59,7 +59,7 @@ region:
   slug: tatooine_dune_sea
   name: "The Dune Sea"
   planet: tatooine
-  zone: jundland_wastes              # inherits security from this zone
+  zone: tatooine_dune_sea             # inherits security from this zone (its own zone, lawless)
   default_security: lawless           # per security_model_design_v1.md §4
   narrative_tone_key: tatooine_wastes
 

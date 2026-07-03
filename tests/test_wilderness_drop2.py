@@ -244,7 +244,12 @@ class TestSentinelAndRegistryWrite:
         r = rows[0]
         assert r["name"] == "The Dune Sea"
         assert r["planet"] == "tatooine"
-        assert r["zone_slug"] == "jundland_wastes"
+        # wilderness-zone-integrity (2026-07-03): dune_sea.yaml's
+        # region.zone now points at its own zone slug (tatooine_dune_sea)
+        # rather than the nonexistent "jundland_wastes", so landmarks
+        # resolve a real zone_id instead of NULL. This assertion pins
+        # the (now-correct) resolvable value.
+        assert r["zone_slug"] == "tatooine_dune_sea"
         assert r["width"] == 40
         assert r["height"] == 40
         assert r["tile_scale_km"] == 2
