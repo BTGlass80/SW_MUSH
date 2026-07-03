@@ -573,3 +573,34 @@ dsp_hunter.stage_at_heels: 100             # progress entering `at_heels` (clima
 # Gate `+city found` off at launch; set true when city founding opens.
 # Brian decision #7 (2026-06-16): T3.14 cities are OPTIONAL at launch.
 cities.found_enabled: false
+
+# ── Local LLM generation (ai/providers.py, engine/idle_queue.py, ai/npc_brain.py) ──
+# Qwen3.5-9B swap, 2026-07-03. Sampling + per-lane context caps are threaded
+# through OllamaProvider.generate(options=…, keep_alive=…). Defaults are Qwen's
+# recommended non-thinking sampling; the num_ctx caps keep the vision-projector-
+# laden official Ollama tag inside the RTX 3070's 8GB. Retune live, no code drop.
+#
+# Sampling (JSON bark lanes). Qwen3.5-9B loops/repeats without a presence penalty,
+# and Mistral's flat 0.85 temperature does NOT carry over:
+ai.bark_temperature: 0.7             # was 0.85 (Mistral-tuned)
+ai.bark_top_p: 0.8                   # nucleus sampling
+ai.bark_top_k: 20                    # top-k
+ai.bark_presence_penalty: 1.5        # anti-repetition (Qwen3.5 tends to loop at 0)
+#
+# Per-lane context window (num_ctx). Bigger = more VRAM; keep steady-state under
+# ~7.8GB (watch nvidia-smi with the talk lane warm). Design caps keep real
+# prompts well under these — headroom, not the model's 32K ceiling.
+ai.num_ctx_bark: 2048                # ambient barks / ambient room lines
+ai.num_ctx_talk: 4096                # live player talk (npc_brain)
+ai.num_ctx_scene: 8192               # scene summaries (pose input ~3000 tok)
+ai.num_ctx_default: 2048             # director rewrites, housing desc, intent parse
+#
+# Keep the model resident between idle-queue ticks so the 9B doesn't cold-load
+# (Ollama duration string; "0" unloads immediately, "-1" pins it forever).
+ai.ollama_keep_alive: "30m"
+#
+# Startup warmup (server boot): preload the configured model so the first player
+# `talk` isn't a multi-second cold load. autostart tries to spawn `ollama serve`
+# if the daemon isn't reachable (best-effort; harmless if it's already running).
+ai.warmup_on_startup: true
+ai.autostart_ollama: true

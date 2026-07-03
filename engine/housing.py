@@ -18,6 +18,7 @@ Drop 4: Tier 3 private residences (purchase/sell, multi-room, guest list)
 """
 
 from __future__ import annotations
+import asyncio
 import json
 import logging
 import time
@@ -92,6 +93,70 @@ def _emit_housing(action: str, char_id, amount: int, **extra) -> None:
         _tele_emit("housing", fields, sample=sample)
     except Exception:
         log.debug("housing telemetry emit failed", exc_info=True)
+
+
+# ── Concurrency guards (launch-critical, 2026-07-03) ──────────────────────────
+# Two check-then-act races, the same class the vendor-droid fix already closed
+# (engine/vendor_droids.py: _droid_locks / _get_droid_lock).
+#
+#   Bug 3 (per-CHARACTER): sell_home reads the active home, awaits an item
+#   return + refund + several room/table deletes, then deletes the
+#   player_housing row -- with no lock. Two concurrent `housing sell` calls
+#   for the SAME character both pass the "you own a home" check before either
+#   DELETE lands, so both run the full sale and the 50% purchase-price refund
+#   is minted twice for one home. checkout_room is the shared teardown
+#   chokepoint sell_home / player-facing checkout / @housing evict /
+#   tick_housing_rent's rent-default foreclosure all route through -- and the
+#   actual DELETE site -- so the lock lives there, guarding every teardown
+#   entry point (not just sell_home) with a single fix.
+#
+#   Bug 4 (per-LOT): purchase_home / rent_room / purchase_shopfront /
+#   purchase_hq each check `lot["current_homes"] >= lot["max_homes"]` and,
+#   many awaits later (credit debit, room creation, INSERT), increment
+#   `housing_lots.current_homes` -- two unguarded statements with a wide
+#   window between them. Two players racing the last slot on the SAME lot
+#   both pass the stale check and the lot oversells (current_homes ends up >
+#   max_homes). Keyed per-lot: buyers of different lots never contend.
+#
+# Module-level dicts are safe here for the same reason as vendor_droids: the
+# game server is single-process/single-event-loop, so there is exactly one
+# asyncio loop creating/using these locks.
+_home_txn_locks: dict[int, asyncio.Lock] = {}
+_lot_locks: dict[int, asyncio.Lock] = {}
+
+
+def _get_home_txn_lock(char_id: int) -> asyncio.Lock:
+    """Get-or-create the asyncio.Lock guarding one character's home teardown."""
+    lock = _home_txn_locks.get(char_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _home_txn_locks[char_id] = lock
+    return lock
+
+
+def _get_lot_lock(lot_id: int) -> asyncio.Lock:
+    """Get-or-create the asyncio.Lock guarding one housing lot's occupancy."""
+    lock = _lot_locks.get(lot_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _lot_locks[lot_id] = lock
+    return lock
+
+
+def reset_housing_locks() -> None:
+    """Test-isolation helper: clear the per-char and per-lot lock registries.
+
+    Same event-loop-collision gotcha as
+    ``engine.vendor_droids.reset_droid_locks()``: these dicts persist for the
+    life of the *process*, keyed by ``char_id`` / ``lot_id``. The in-process
+    test harness boots a fresh temp DB (autoincrement restarts at 1) plus a
+    fresh event loop per class-scoped harness while reusing the same Python
+    process -- so a Lock left over from a previous harness's now-closed event
+    loop can collide with a same-numbered char/lot in the next one, raising
+    "bound to a different event loop". Call this from test/harness boot.
+    """
+    _home_txn_locks.clear()
+    _lot_locks.clear()
 
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -1047,62 +1112,76 @@ async def rent_room(db, char: dict, lot_id: int) -> dict:
     )
     if lot["room_id"] in _other_tier_rooms:
         return {"ok": False, "msg": "That lot is not a rental location."}
-    if lot["current_homes"] >= lot["max_homes"]:
-        return {"ok": False, "msg": f"{lot['label']} is full. Try another location."}
 
-    total_cost = TIER1_DEPOSIT + TIER1_WEEKLY_RENT
-    if char.get("credits", 0) < total_cost:
-        return {"ok": False,
-                "msg": f"You need {total_cost:,}cr ({TIER1_DEPOSIT:,}cr deposit + {TIER1_WEEKLY_RENT:,}cr first week)."}
+    # Concurrency (housing-concurrency-locks, 2026-07-03): the capacity
+    # check and the occupancy increment below are two statements with many
+    # awaits (credit debit, room/exit creation, INSERT) between them. Two
+    # players racing the last slot on the SAME lot could otherwise both
+    # pass this check before either's increment lands, overselling it.
+    # Per-lot lock (see module header) serializes the whole span -- and
+    # `lot` is RE-FETCHED fresh immediately after acquiring the lock, so a
+    # waiter that queued behind the winner sees the post-increment count
+    # instead of the stale row it fetched before the lock existed.
+    async with _get_lot_lock(lot_id):
+        lot = await get_lot(db, lot_id)
+        if not lot:
+            return {"ok": False, "msg": "Invalid location."}
+        if lot["current_homes"] >= lot["max_homes"]:
+            return {"ok": False, "msg": f"{lot['label']} is full. Try another location."}
 
-    # Debit FIRST against the live DB balance (the cache check above is advisory).
-    # allow_negative=False refuses the overdraw atomically and returns None, so a
-    # concurrent drain can't drive credits negative and we never create orphan
-    # rooms for a sale that didn't fund. (QA 2026-06-21, housing credit-integrity.)
-    new_balance = await db.adjust_credits(char_id, -total_cost, "housing_purchase",
-                                          allow_negative=False)
-    if new_balance is None:
-        return {"ok": False,
-                "msg": f"You need {total_cost:,}cr ({TIER1_DEPOSIT:,}cr deposit + {TIER1_WEEKLY_RENT:,}cr first week)."}
-    char["credits"] = new_balance
+        total_cost = TIER1_DEPOSIT + TIER1_WEEKLY_RENT
+        if char.get("credits", 0) < total_cost:
+            return {"ok": False,
+                    "msg": f"You need {total_cost:,}cr ({TIER1_DEPOSIT:,}cr deposit + {TIER1_WEEKLY_RENT:,}cr first week)."}
 
-    entry_room = lot["room_id"]
-    planet_label = lot["label"]
-    room_name = f"{char['name']}'s Room"
-    desc = (f"A modest rented room in {planet_label}. "
-            f"A bunk, a small locker, and a view of {_planet_view(lot['planet'])}.")
+        # Debit FIRST against the live DB balance (the cache check above is advisory).
+        # allow_negative=False refuses the overdraw atomically and returns None, so a
+        # concurrent drain can't drive credits negative and we never create orphan
+        # rooms for a sale that didn't fund. (QA 2026-06-21, housing credit-integrity.)
+        new_balance = await db.adjust_credits(char_id, -total_cost, "housing_purchase",
+                                              allow_negative=False)
+        if new_balance is None:
+            return {"ok": False,
+                    "msg": f"You need {total_cost:,}cr ({TIER1_DEPOSIT:,}cr deposit + {TIER1_WEEKLY_RENT:,}cr first week)."}
+        char["credits"] = new_balance
 
-    new_room_id = await db.create_room(
-        name=room_name, desc_short=desc, desc_long=desc, zone_id=None,
-        properties=json.dumps({"security": lot["security"], "private": True}),
-    )
+        entry_room = lot["room_id"]
+        planet_label = lot["label"]
+        room_name = f"{char['name']}'s Room"
+        desc = (f"A modest rented room in {planet_label}. "
+                f"A bunk, a small locker, and a view of {_planet_view(lot['planet'])}.")
 
-    door_dir = await _pick_door_direction(db, entry_room)
-    exit_in_id  = await db.create_exit(entry_room, new_room_id, door_dir,
-                                        f"{char['name']}'s room")
-    exit_out_id = await db.create_exit(new_room_id, entry_room, "out", "Exit")
+        new_room_id = await db.create_room(
+            name=room_name, desc_short=desc, desc_long=desc, zone_id=None,
+            properties=json.dumps({"security": lot["security"], "private": True}),
+        )
 
-    now = time.time()
-    cursor = await db.execute(
-        """INSERT INTO player_housing
-           (char_id, tier, housing_type, entry_room_id, room_ids, storage,
-            storage_max, weekly_rent, deposit, rent_paid_until, door_direction,
-            exit_id_in, exit_id_out, created_at, last_activity)
-           VALUES (?, 1, 'rented_room', ?, ?, '[]', ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (char_id, entry_room, json.dumps([new_room_id]), TIER1_STORAGE_MAX,
-         TIER1_WEEKLY_RENT, TIER1_DEPOSIT,
-         now + RENT_TICK_INTERVAL, door_dir, exit_in_id, exit_out_id, now, now),
-    )
-    housing_id = cursor.lastrowid
+        door_dir = await _pick_door_direction(db, entry_room)
+        exit_in_id  = await db.create_exit(entry_room, new_room_id, door_dir,
+                                            f"{char['name']}'s room")
+        exit_out_id = await db.create_exit(new_room_id, entry_room, "out", "Exit")
 
-    await db.execute(
-        "UPDATE rooms SET housing_id = ? WHERE id = ?", (housing_id, new_room_id)
-    )
-    await db.execute(
-        "UPDATE housing_lots SET current_homes = current_homes + 1 WHERE id = ?",
-        (lot_id,),
-    )
-    await db.commit()
+        now = time.time()
+        cursor = await db.execute(
+            """INSERT INTO player_housing
+               (char_id, tier, housing_type, entry_room_id, room_ids, storage,
+                storage_max, weekly_rent, deposit, rent_paid_until, door_direction,
+                exit_id_in, exit_id_out, created_at, last_activity)
+               VALUES (?, 1, 'rented_room', ?, ?, '[]', ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (char_id, entry_room, json.dumps([new_room_id]), TIER1_STORAGE_MAX,
+             TIER1_WEEKLY_RENT, TIER1_DEPOSIT,
+             now + RENT_TICK_INTERVAL, door_dir, exit_in_id, exit_out_id, now, now),
+        )
+        housing_id = cursor.lastrowid
+
+        await db.execute(
+            "UPDATE rooms SET housing_id = ? WHERE id = ?", (housing_id, new_room_id)
+        )
+        await db.execute(
+            "UPDATE housing_lots SET current_homes = current_homes + 1 WHERE id = ?",
+            (lot_id,),
+        )
+        await db.commit()
 
     try:
         await db.execute(
@@ -1144,100 +1223,111 @@ async def checkout_room(db, char: dict, *, force: bool = False) -> dict:
     foreclosure in `tick_housing_rent`, and `@housing evict` -- still do so;
     the player-facing `housing checkout` command does not pass it, so it
     gets refused and pointed at `housing sell` instead.
+
+    Concurrency (housing-concurrency-locks, 2026-07-03): the whole read
+    (resolve_active_home) -> item-return/refund -> room-teardown -> DELETE
+    span is serialized per-character via `_get_home_txn_lock`. This is the
+    single chokepoint every teardown path routes through (sell_home,
+    player-facing checkout, @housing evict, rent-default foreclosure), so
+    locking it here closes the double-refund race for all of them at once:
+    a second concurrent call re-reads the POST-delete state (no housing
+    found) once it acquires the lock, instead of acting on a stale
+    pre-delete snapshot.
     """
     char_id = char["id"]
-    h = await resolve_active_home(db, char)
-    if not h:
-        return {"ok": False, "msg": "You don't have a rented room."}
-    if h["housing_type"] not in ("rented_room", "faction_quarters", "private_residence"):
-        return {"ok": False, "msg": "Use 'housing sell' to sell a purchased home."}
-    if h["housing_type"] == "private_residence" and not force:
-        return {"ok": False,
-                "msg": "You own this home outright -- 'housing checkout' would "
-                       "destroy it for no refund. Use 'housing sell' instead "
-                       "(refunds 50% of the purchase price)."}
+    async with _get_home_txn_lock(char_id):
+        h = await resolve_active_home(db, char)
+        if not h:
+            return {"ok": False, "msg": "You don't have a rented room."}
+        if h["housing_type"] not in ("rented_room", "faction_quarters", "private_residence"):
+            return {"ok": False, "msg": "Use 'housing sell' to sell a purchased home."}
+        if h["housing_type"] == "private_residence" and not force:
+            return {"ok": False,
+                    "msg": "You own this home outright -- 'housing checkout' would "
+                           "destroy it for no refund. Use 'housing sell' instead "
+                           "(refunds 50% of the purchase price)."}
 
-    room_ids = _room_ids(h)
-    storage  = _storage(h)
-    trophies = _trophies(h)
+        room_ids = _room_ids(h)
+        storage  = _storage(h)
+        trophies = _trophies(h)
 
-    # Return all items to inventory
-    returned_count = 0
-    all_items = storage + trophies
-    if all_items:
-        try:
-            inv_raw = char.get("inventory", "{}")
-            inv = json.loads(inv_raw) if isinstance(inv_raw, str) else (inv_raw or {})
-            items = inv.get("items", [])
-            items.extend(all_items)
-            inv["items"] = items
-            await db.save_character(char_id, inventory=json.dumps(inv))
-            returned_count = len(all_items)
-        except Exception as e:
-            log.warning("[housing] checkout item return error: %s", e)
+        # Return all items to inventory
+        returned_count = 0
+        all_items = storage + trophies
+        if all_items:
+            try:
+                inv_raw = char.get("inventory", "{}")
+                inv = json.loads(inv_raw) if isinstance(inv_raw, str) else (inv_raw or {})
+                items = inv.get("items", [])
+                items.extend(all_items)
+                inv["items"] = items
+                await db.save_character(char_id, inventory=json.dumps(inv))
+                returned_count = len(all_items)
+            except Exception as e:
+                log.warning("[housing] checkout item return error: %s", e)
 
-    # Refund deposit (faction quarters have 0)
-    refund = h["deposit"] if h["rent_overdue"] == 0 else 0
-    if refund > 0:
-        char["credits"] = await db.adjust_credits(char_id, refund, "housing_deposit_refund")
+        # Refund deposit (faction quarters have 0)
+        refund = h["deposit"] if h["rent_overdue"] == 0 else 0
+        if refund > 0:
+            char["credits"] = await db.adjust_credits(char_id, refund, "housing_deposit_refund")
 
-    # Telemetry rides the economic outcome (the refund is now committed), not
-    # the room teardown below — so a teardown hiccup can't suppress the signal.
-    _emit_housing("checkout", char_id, refund,
-                  housing_type=h.get("housing_type"), refund=refund,
-                  forfeited=bool(h["rent_overdue"] > 0))
+        # Telemetry rides the economic outcome (the refund is now committed), not
+        # the room teardown below — so a teardown hiccup can't suppress the signal.
+        _emit_housing("checkout", char_id, refund,
+                      housing_type=h.get("housing_type"), refund=refund,
+                      forfeited=bool(h["rent_overdue"] > 0))
 
-    # FK SAFETY + multi-home (QA housing 2026-06-23): clear characters.home_room_id
-    # BEFORE the room teardown -- but ONLY pointers INTO the rooms being deleted, so
-    # a multi-home owner who sells home #2 keeps a recall pointer aimed at home #1.
-    # (home_room_id -> rooms.id; deleting a still-referenced room FK-fails under
-    # PRAGMA foreign_keys=ON. delete_room below is the canonical FK-safe teardown --
-    # it removes every exit referencing the room, then the room.)
-    if room_ids:
-        try:
+        # FK SAFETY + multi-home (QA housing 2026-06-23): clear characters.home_room_id
+        # BEFORE the room teardown -- but ONLY pointers INTO the rooms being deleted, so
+        # a multi-home owner who sells home #2 keeps a recall pointer aimed at home #1.
+        # (home_room_id -> rooms.id; deleting a still-referenced room FK-fails under
+        # PRAGMA foreign_keys=ON. delete_room below is the canonical FK-safe teardown --
+        # it removes every exit referencing the room, then the room.)
+        if room_ids:
+            try:
+                await db.execute(
+                    "UPDATE characters SET home_room_id = NULL WHERE home_room_id IN (%s)"
+                    % ",".join("?" * len(room_ids)),
+                    room_ids,
+                )
+            except Exception:
+                log.warning("checkout_room: home_room_id clear failed", exc_info=True)
+
+        # Tear the housing rooms down via the canonical delete_room (FK-safe).
+        for rid in room_ids:
+            try:
+                await db.delete_room(rid)
+            except Exception as e:
+                log.warning("[housing] checkout room delete error: %s", e)
+
+        # Decrement lot occupancy for EVERY housing type checkout_room tears down
+        # (rented_room, faction_quarters, private_residence) -- not just Tier 1.
+        # housing-teardown-completeness (2026-07-03): the prior gate here only
+        # fired for 'rented_room', so the two OTHER callers of
+        # checkout_room(force=True) on an owned Tier-3 home -- `@housing evict`
+        # and tick_housing_rent's rent-default foreclosure -- tore the home down
+        # but never freed its lot, permanently leaking the slot. faction_quarters
+        # has no backing housing_lots row, so get_lot_by_room naturally returns
+        # None for it and this is a no-op -- safe to run unconditionally.
+        # sell_home routes its own teardown through this function (force=True)
+        # and used to ALSO decrement the lot itself after calling us; that
+        # duplicate decrement has been removed there so this is the single,
+        # exactly-once decrement point for every checkout_room-mediated teardown.
+        lot = await get_lot_by_room(db, h["entry_room_id"])
+        if lot:
             await db.execute(
-                "UPDATE characters SET home_room_id = NULL WHERE home_room_id IN (%s)"
-                % ",".join("?" * len(room_ids)),
-                room_ids,
+                "UPDATE housing_lots SET current_homes = MAX(0, current_homes - 1) WHERE id = ?",
+                (lot["id"],),
             )
-        except Exception:
-            log.warning("checkout_room: home_room_id clear failed", exc_info=True)
 
-    # Tear the housing rooms down via the canonical delete_room (FK-safe).
-    for rid in room_ids:
-        try:
-            await db.delete_room(rid)
-        except Exception as e:
-            log.warning("[housing] checkout room delete error: %s", e)
+        await db.execute("DELETE FROM player_housing WHERE id = ?", (h["id"],))
 
-    # Decrement lot occupancy for EVERY housing type checkout_room tears down
-    # (rented_room, faction_quarters, private_residence) -- not just Tier 1.
-    # housing-teardown-completeness (2026-07-03): the prior gate here only
-    # fired for 'rented_room', so the two OTHER callers of
-    # checkout_room(force=True) on an owned Tier-3 home -- `@housing evict`
-    # and tick_housing_rent's rent-default foreclosure -- tore the home down
-    # but never freed its lot, permanently leaking the slot. faction_quarters
-    # has no backing housing_lots row, so get_lot_by_room naturally returns
-    # None for it and this is a no-op -- safe to run unconditionally.
-    # sell_home routes its own teardown through this function (force=True)
-    # and used to ALSO decrement the lot itself after calling us; that
-    # duplicate decrement has been removed there so this is the single,
-    # exactly-once decrement point for every checkout_room-mediated teardown.
-    lot = await get_lot_by_room(db, h["entry_room_id"])
-    if lot:
-        await db.execute(
-            "UPDATE housing_lots SET current_homes = MAX(0, current_homes - 1) WHERE id = ?",
-            (lot["id"],),
-        )
+        # (home_room_id was cleared CONDITIONALLY above -- only pointers into the
+        # deleted rooms -- so do NOT null it unconditionally here: with multi-home that
+        # would wipe a recall pointer aimed at a home the player still owns.)
 
-    await db.execute("DELETE FROM player_housing WHERE id = ?", (h["id"],))
-
-    # (home_room_id was cleared CONDITIONALLY above -- only pointers into the
-    # deleted rooms -- so do NOT null it unconditionally here: with multi-home that
-    # would wipe a recall pointer aimed at a home the player still owns.)
-
-    await db.commit()
-    log.info("[housing] char %d checked out of housing %d", char_id, h["id"])
+        await db.commit()
+        log.info("[housing] char %d checked out of housing %d", char_id, h["id"])
 
     msg = "Room vacated."
     if refund > 0:
@@ -2187,127 +2277,140 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
                 "msg": f"You already own the maximum of {MAX_TIER3_TOTAL} homes. "
                        f"Use 'housing sell' first."}
 
-    # Check lot availability
-    if lot["current_homes"] >= lot["max_homes"]:
-        return {"ok": False, "msg": f"{lot['label']} is full. Try another location."}
+    # Check lot availability. Concurrency (housing-concurrency-locks,
+    # 2026-07-03): this check and the occupancy increment far below are two
+    # unguarded statements with room creation, a credit debit, and an
+    # INSERT between them. Per-lot lock (see module header) serializes the
+    # whole span -- and `lot` is RE-FETCHED fresh immediately after
+    # acquiring the lock, so a waiter that queued behind the winner sees
+    # the post-increment count instead of the stale row it fetched before
+    # the lock existed.
+    async with _get_lot_lock(lot_id):
+        lot = await get_lot(db, lot_id)
+        if not lot:
+            return {"ok": False, "msg": "Invalid lot."}
+        if lot["current_homes"] >= lot["max_homes"]:
+            return {"ok": False, "msg": f"{lot['label']} is full. Try another location."}
 
-    # Credit check
-    if char.get("credits", 0) < cfg["cost"]:
-        return {"ok": False,
-                "msg": f"A {cfg['label']} costs {cfg['cost']:,}cr. You have {char.get('credits', 0):,}cr."}
+        # Credit check
+        if char.get("credits", 0) < cfg["cost"]:
+            return {"ok": False,
+                    "msg": f"A {cfg['label']} costs {cfg['cost']:,}cr. You have {char.get('credits', 0):,}cr."}
 
-    entry_room_id = lot["room_id"]
-    entry_room = await db.get_room(entry_room_id)
-    if not entry_room:
-        return {"ok": False, "msg": "Lot room not found."}
+        entry_room_id = lot["room_id"]
+        entry_room = await db.get_room(entry_room_id)
+        if not entry_room:
+            return {"ok": False, "msg": "Lot room not found."}
 
-    # Get security from entry room
-    entry_security = "contested"
-    try:
-        props_raw = entry_room.get("properties", "{}")
-        props = json.loads(props_raw) if isinstance(props_raw, str) else (props_raw or {})
-        entry_security = props.get("security", "contested")
-    except Exception:
-        log.warning("purchase_home: unhandled exception", exc_info=True)
-        pass
+        # Get security from entry room
+        entry_security = "contested"
+        try:
+            props_raw = entry_room.get("properties", "{}")
+            props = json.loads(props_raw) if isinstance(props_raw, str) else (props_raw or {})
+            entry_security = props.get("security", "contested")
+        except Exception:
+            log.warning("purchase_home: unhandled exception", exc_info=True)
+            pass
 
-    # Get planet room descs
-    planet_descs = _TIER3_ROOM_DESCS.get(lot_planet, _TIER3_ROOM_DESCS["tatooine"])
-    char_name = char.get("name", "Unknown")
+        # Get planet room descs
+        planet_descs = _TIER3_ROOM_DESCS.get(lot_planet, _TIER3_ROOM_DESCS["tatooine"])
+        char_name = char.get("name", "Unknown")
 
-    # Debit FIRST against the live DB balance (the cache check above is advisory).
-    # allow_negative=False refuses the overdraw atomically and returns None, so a
-    # concurrent drain can't drive credits negative and we never create orphan
-    # rooms for a home that didn't fund. (QA 2026-06-21, housing credit-integrity.)
-    new_balance = await db.adjust_credits(char_id, -cfg["cost"], "housing_upgrade",
-                                          allow_negative=False)
-    if new_balance is None:
-        return {"ok": False,
-                "msg": f"A {cfg['label']} costs {cfg['cost']:,}cr. You have {char.get('credits', 0):,}cr."}
-    char["credits"] = new_balance
+        # Debit FIRST against the live DB balance (the cache check above is advisory).
+        # allow_negative=False refuses the overdraw atomically and returns None, so a
+        # concurrent drain can't drive credits negative and we never create orphan
+        # rooms for a home that didn't fund. (QA 2026-06-21, housing credit-integrity.)
+        new_balance = await db.adjust_credits(char_id, -cfg["cost"], "housing_upgrade",
+                                              allow_negative=False)
+        if new_balance is None:
+            return {"ok": False,
+                    "msg": f"A {cfg['label']} costs {cfg['cost']:,}cr. You have {char.get('credits', 0):,}cr."}
+        char["credits"] = new_balance
 
-    # Create rooms
-    room_ids = []
-    for i in range(cfg["rooms"]):
-        r_name, r_desc = planet_descs[min(i, len(planet_descs) - 1)]
-        if i == 0:
-            r_name = f"{char_name}'s {cfg['label']}"
-        else:
-            r_name = f"{char_name}'s {r_name}"
+        # Create rooms
+        room_ids = []
+        for i in range(cfg["rooms"]):
+            r_name, r_desc = planet_descs[min(i, len(planet_descs) - 1)]
+            if i == 0:
+                r_name = f"{char_name}'s {cfg['label']}"
+            else:
+                r_name = f"{char_name}'s {r_name}"
 
-        rid = await db.create_room(
-            name=r_name, desc_short=r_desc, desc_long=r_desc,
-            zone_id=None,
-            properties=json.dumps({
-                "security": entry_security, "private": True,
-                "owned_home": True,
-            }),
+            rid = await db.create_room(
+                name=r_name, desc_short=r_desc, desc_long=r_desc,
+                zone_id=None,
+                properties=json.dumps({
+                    "security": entry_security, "private": True,
+                    "owned_home": True,
+                }),
+            )
+            room_ids.append(rid)
+
+        # Link rooms: entry → room 0, then chain room 0 → room 1 → room 2
+        door_dir = await _pick_door_direction(db, entry_room_id)
+        exit_in_id = await db.create_exit(
+            entry_room_id, room_ids[0], door_dir, f"{char_name}'s {cfg['label']}")
+        exit_out_id = await db.create_exit(
+            room_ids[0], entry_room_id, "out", entry_room.get("name", "Exit"))
+
+        # Internal room exits
+        for i in range(len(room_ids) - 1):
+            r_name_next = planet_descs[min(i + 1, len(planet_descs) - 1)][0]
+            await db.create_exit(room_ids[i], room_ids[i + 1], "in",
+                                 r_name_next)
+            await db.create_exit(room_ids[i + 1], room_ids[i], "out",
+                                 planet_descs[min(i, len(planet_descs) - 1)][0])
+
+        # (Credits already debited above, before room creation.)
+
+        # If they have an existing Tier 1/2 RENTAL, roll it up first (the upgrade
+        # path). A multi-home owner's existing Tier-3 homes are NOT evicted when
+        # buying another -- only the low-tier rental is consumed. (checkout_room
+        # takes its OWN per-char lock, a different lock family than the per-lot
+        # lock held here -- no reentrancy/deadlock risk.)
+        if existing and existing["tier"] < 3:
+            await checkout_room(db, char)
+
+        # Create housing record
+        now = time.time()
+        cursor = await db.execute(
+            """INSERT INTO player_housing
+               (char_id, tier, housing_type, entry_room_id, room_ids, storage,
+                storage_max, weekly_rent, deposit, purchase_price,
+                rent_paid_until, door_direction,
+                exit_id_in, exit_id_out, created_at, last_activity)
+               VALUES (?, 3, 'private_residence', ?, ?, '[]', ?,
+                       ?, 0, ?, ?, ?, ?, ?, ?, ?)""",
+            (char_id, entry_room_id, json.dumps(room_ids), cfg["storage_max"],
+             cfg["weekly_rent"], cfg["cost"],
+             now + RENT_TICK_INTERVAL, door_dir,
+             exit_in_id, exit_out_id, now, now),
         )
-        room_ids.append(rid)
+        housing_id = cursor.lastrowid
 
-    # Link rooms: entry → room 0, then chain room 0 → room 1 → room 2
-    door_dir = await _pick_door_direction(db, entry_room_id)
-    exit_in_id = await db.create_exit(
-        entry_room_id, room_ids[0], door_dir, f"{char_name}'s {cfg['label']}")
-    exit_out_id = await db.create_exit(
-        room_ids[0], entry_room_id, "out", entry_room.get("name", "Exit"))
+        # Mark all rooms as housing-owned
+        for rid in room_ids:
+            await db.execute(
+                "UPDATE rooms SET housing_id = ? WHERE id = ?", (housing_id, rid)
+            )
 
-    # Internal room exits
-    for i in range(len(room_ids) - 1):
-        r_name_next = planet_descs[min(i + 1, len(planet_descs) - 1)][0]
-        await db.create_exit(room_ids[i], room_ids[i + 1], "in",
-                             r_name_next)
-        await db.create_exit(room_ids[i + 1], room_ids[i], "out",
-                             planet_descs[min(i, len(planet_descs) - 1)][0])
-
-    # (Credits already debited above, before room creation.)
-
-    # If they have an existing Tier 1/2 RENTAL, roll it up first (the upgrade
-    # path). A multi-home owner's existing Tier-3 homes are NOT evicted when
-    # buying another -- only the low-tier rental is consumed.
-    if existing and existing["tier"] < 3:
-        await checkout_room(db, char)
-
-    # Create housing record
-    now = time.time()
-    cursor = await db.execute(
-        """INSERT INTO player_housing
-           (char_id, tier, housing_type, entry_room_id, room_ids, storage,
-            storage_max, weekly_rent, deposit, purchase_price,
-            rent_paid_until, door_direction,
-            exit_id_in, exit_id_out, created_at, last_activity)
-           VALUES (?, 3, 'private_residence', ?, ?, '[]', ?,
-                   ?, 0, ?, ?, ?, ?, ?, ?, ?)""",
-        (char_id, entry_room_id, json.dumps(room_ids), cfg["storage_max"],
-         cfg["weekly_rent"], cfg["cost"],
-         now + RENT_TICK_INTERVAL, door_dir,
-         exit_in_id, exit_out_id, now, now),
-    )
-    housing_id = cursor.lastrowid
-
-    # Mark all rooms as housing-owned
-    for rid in room_ids:
+        # Update lot occupancy
         await db.execute(
-            "UPDATE rooms SET housing_id = ? WHERE id = ?", (housing_id, rid)
+            "UPDATE housing_lots SET current_homes = current_homes + 1 WHERE id = ?",
+            (lot_id,),
         )
 
-    # Update lot occupancy
-    await db.execute(
-        "UPDATE housing_lots SET current_homes = current_homes + 1 WHERE id = ?",
-        (lot_id,),
-    )
+        # Set as home
+        try:
+            await db.execute(
+                "UPDATE characters SET home_room_id = ? WHERE id = ?",
+                (room_ids[0], char_id),
+            )
+        except Exception:
+            log.warning("purchase_home: unhandled exception", exc_info=True)
+            pass
 
-    # Set as home
-    try:
-        await db.execute(
-            "UPDATE characters SET home_room_id = ? WHERE id = ?",
-            (room_ids[0], char_id),
-        )
-    except Exception:
-        log.warning("purchase_home: unhandled exception", exc_info=True)
-        pass
-
-    await db.commit()
+        await db.commit()
 
     log.info("[housing] char %d purchased %s at lot %d (%s), rooms %s",
              char_id, home_type, lot_id, lot["label"], room_ids)
@@ -2328,6 +2431,17 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
 async def sell_home(db, char: dict) -> dict:
     """Sell a Tier 3 private residence. 50% refund, contents returned."""
     char_id = char["id"]
+    # Concurrency (housing-concurrency-locks, 2026-07-03): this initial read
+    # is deliberately UNLOCKED -- the mutual exclusion lives inside
+    # checkout_room's own `_get_home_txn_lock` critical section below. Two
+    # concurrent sell_home calls can both read the same pre-sale snapshot
+    # here (a stale `h`/`refund` is harmless in isolation), but only ONE of
+    # their checkout_room(force=True) calls below can win the lock and
+    # actually delete the player_housing row; the other's checkout_room call
+    # re-reads (inside the lock) and finds nothing, returns ok=False, and
+    # `if not result["ok"]: return result` below refuses the loser BEFORE it
+    # ever reaches the refund credit -- so the 50% refund is paid exactly
+    # once no matter how the two calls interleave.
     h = await resolve_active_home(db, char)
     if not h:
         return {"ok": False, "msg": "You don't own a home."}
@@ -2687,165 +2801,176 @@ async def purchase_shopfront(db, char: dict, lot_id: int,
         return {"ok": False,
                 "msg": f"You already own {MAX_TIER4_PER_CHAR} shopfronts (maximum)."}
 
-    if lot["current_homes"] >= lot["max_homes"]:
-        return {"ok": False, "msg": f"{lot['label']} is full. Try another location."}
+    # Concurrency (housing-concurrency-locks, 2026-07-03): the capacity
+    # check and the occupancy increment far below are two unguarded
+    # statements with room creation, a credit debit, and an INSERT between
+    # them. Per-lot lock (see module header) serializes the whole span --
+    # and `lot` is RE-FETCHED fresh immediately after acquiring the lock,
+    # so a waiter that queued behind the winner sees the post-increment
+    # count instead of the stale row it fetched before the lock existed.
+    async with _get_lot_lock(lot_id):
+        lot = await get_lot(db, lot_id)
+        if not lot:
+            return {"ok": False, "msg": "Invalid lot ID."}
+        if lot["current_homes"] >= lot["max_homes"]:
+            return {"ok": False, "msg": f"{lot['label']} is full. Try another location."}
 
-    if char.get("credits", 0) < cfg["cost"]:
-        return {"ok": False,
-                "msg": f"A {cfg['label']} costs {cfg['cost']:,}cr. "
-                       f"You have {char.get('credits', 0):,}cr."}
+        if char.get("credits", 0) < cfg["cost"]:
+            return {"ok": False,
+                    "msg": f"A {cfg['label']} costs {cfg['cost']:,}cr. "
+                           f"You have {char.get('credits', 0):,}cr."}
 
-    entry_room = await db.get_room(lot["room_id"])
-    if not entry_room:
-        return {"ok": False, "msg": "Lot room not found."}
+        entry_room = await db.get_room(lot["room_id"])
+        if not entry_room:
+            return {"ok": False, "msg": "Lot room not found."}
 
-    # Determine effective security + rent discount
-    try:
-        props_raw = entry_room.get("properties", "{}")
-        props = json.loads(props_raw) if isinstance(props_raw, str) else (props_raw or {})
-        entry_security = props.get("security", "contested")
-    except Exception:
-        entry_security = "contested"
-    discount = _TIER4_SECURITY_DISCOUNT.get(entry_security, 1.0)
-    effective_rent = max(50, int(cfg["weekly_rent"] * discount))
+        # Determine effective security + rent discount
+        try:
+            props_raw = entry_room.get("properties", "{}")
+            props = json.loads(props_raw) if isinstance(props_raw, str) else (props_raw or {})
+            entry_security = props.get("security", "contested")
+        except Exception:
+            entry_security = "contested"
+        discount = _TIER4_SECURITY_DISCOUNT.get(entry_security, 1.0)
+        effective_rent = max(50, int(cfg["weekly_rent"] * discount))
 
-    char_name = char.get("name", "Unknown")
-    shop_descs    = _TIER4_SHOP_DESCS.get(lot_planet, _TIER4_SHOP_DESCS["tatooine"])
-    private_descs = _TIER4_PRIVATE_DESCS.get(lot_planet, _TIER4_PRIVATE_DESCS["tatooine"])
+        char_name = char.get("name", "Unknown")
+        shop_descs    = _TIER4_SHOP_DESCS.get(lot_planet, _TIER4_SHOP_DESCS["tatooine"])
+        private_descs = _TIER4_PRIVATE_DESCS.get(lot_planet, _TIER4_PRIVATE_DESCS["tatooine"])
 
-    # Debit FIRST against the live DB balance (the cache check above is advisory).
-    # allow_negative=False refuses the overdraw atomically and returns None, so a
-    # concurrent drain can't drive credits negative and we never create orphan
-    # rooms for a shopfront that didn't fund. (QA 2026-06-21, housing credit-integrity.)
-    new_balance = await db.adjust_credits(char_id, -cfg["cost"], "shopfront_purchase",
-                                          allow_negative=False)
-    if new_balance is None:
-        return {"ok": False,
-                "msg": f"A {cfg['label']} costs {cfg['cost']:,}cr. "
-                       f"You have {char.get('credits', 0):,}cr."}
-    char["credits"] = new_balance
+        # Debit FIRST against the live DB balance (the cache check above is advisory).
+        # allow_negative=False refuses the overdraw atomically and returns None, so a
+        # concurrent drain can't drive credits negative and we never create orphan
+        # rooms for a shopfront that didn't fund. (QA 2026-06-21, housing credit-integrity.)
+        new_balance = await db.adjust_credits(char_id, -cfg["cost"], "shopfront_purchase",
+                                              allow_negative=False)
+        if new_balance is None:
+            return {"ok": False,
+                    "msg": f"A {cfg['label']} costs {cfg['cost']:,}cr. "
+                           f"You have {char.get('credits', 0):,}cr."}
+        char["credits"] = new_balance
 
-    all_room_ids = []
-    shop_room_ids    = []
-    private_room_ids = []
+        all_room_ids = []
+        shop_room_ids    = []
+        private_room_ids = []
 
-    # Create shop rooms (publicly accessible)
-    for i in range(cfg["shop_rooms"]):
-        desc_pair = shop_descs[min(i, len(shop_descs) - 1)]
-        r_name = f"{char_name}'s {desc_pair[0]}"
-        rid = await db.create_room(
-            name=r_name, desc_short=desc_pair[1], desc_long=desc_pair[1],
-            zone_id=None,
-            properties=json.dumps({
-                "security": entry_security,
-                "private": False,        # shop rooms are PUBLIC
-                "owned_home": True,
-                "is_shopfront": True,
-                "shopfront_owner_id": char_id,
-                "droid_slots": cfg["droid_slots"],
-            }),
-        )
-        all_room_ids.append(rid)
-        shop_room_ids.append(rid)
-
-    # Create private rooms (owner/guest-only)
-    for i in range(cfg["private_rooms"]):
-        desc_pair = private_descs[min(i, len(private_descs) - 1)]
-        r_name = f"{char_name}'s {desc_pair[0]}"
-        rid = await db.create_room(
-            name=r_name, desc_short=desc_pair[1], desc_long=desc_pair[1],
-            zone_id=None,
-            properties=json.dumps({
-                "security": entry_security,
-                "private": True,
-                "owned_home": True,
-                "is_shopfront": False,
-            }),
-        )
-        all_room_ids.append(rid)
-        private_room_ids.append(rid)
-
-    # Wire exits: public street → first shop room
-    door_dir = await _pick_door_direction(db, lot["room_id"])
-    exit_in_id = await db.create_exit(
-        lot["room_id"], shop_room_ids[0], door_dir,
-        f"{char_name}'s {cfg['label']}"
-    )
-    exit_out_id = await db.create_exit(
-        shop_room_ids[0], lot["room_id"], "out",
-        entry_room.get("name", "Exit")
-    )
-
-    # Chain shop rooms together (if Trading House with 2 shop rooms)
-    for i in range(len(shop_room_ids) - 1):
-        await db.create_exit(shop_room_ids[i], shop_room_ids[i + 1],
-                              "in", "Back of Shop")
-        await db.create_exit(shop_room_ids[i + 1], shop_room_ids[i],
-                              "out", "Shop Floor")
-
-    # Shop → private transition (locked private door)
-    if private_room_ids:
-        last_shop = shop_room_ids[-1]
-        await db.create_exit(last_shop, private_room_ids[0],
-                              "northwest", "Private Quarters")
-        await db.create_exit(private_room_ids[0], last_shop,
-                              "out", "Shop Floor")
-
-    # Chain private rooms together
-    for i in range(len(private_room_ids) - 1):
-        pdesc_a = private_descs[min(i,     len(private_descs) - 1)][0]
-        pdesc_b = private_descs[min(i + 1, len(private_descs) - 1)][0]
-        await db.create_exit(private_room_ids[i],     private_room_ids[i + 1],
-                              "in",  pdesc_b)
-        await db.create_exit(private_room_ids[i + 1], private_room_ids[i],
-                              "out", pdesc_a)
-
-    # (Credits already debited above, before room creation.)
-
-    # Create housing record
-    now = time.time()
-    cursor = await db.execute(
-        """INSERT INTO player_housing
-           (char_id, tier, housing_type, entry_room_id, room_ids, storage,
-            storage_max, weekly_rent, deposit, purchase_price,
-            rent_paid_until, door_direction,
-            exit_id_in, exit_id_out, created_at, last_activity)
-           VALUES (?, 4, 'shopfront', ?, ?, '[]', ?,
-                   ?, 0, ?, ?, ?, ?, ?, ?, ?)""",
-        (char_id, lot["room_id"], json.dumps(all_room_ids),
-         cfg["storage_max"], effective_rent, cfg["cost"],
-         now + RENT_TICK_INTERVAL, door_dir,
-         exit_in_id, exit_out_id, now, now),
-    )
-    housing_id = cursor.lastrowid
-
-    # Mark all rooms as housing-owned
-    for rid in all_room_ids:
-        await db.execute(
-            "UPDATE rooms SET housing_id = ? WHERE id = ?", (housing_id, rid)
-        )
-
-    # Update lot occupancy
-    await db.execute(
-        "UPDATE housing_lots SET current_homes = current_homes + 1 WHERE id = ?",
-        (lot_id,),
-    )
-
-    # Set as home if they don't have one
-    try:
-        char_row = await db.fetchall(
-            "SELECT home_room_id FROM characters WHERE id = ?", (char_id,)
-        )
-        if char_row and not char_row[0]["home_room_id"]:
-            await db.execute(
-                "UPDATE characters SET home_room_id = ? WHERE id = ?",
-                (private_room_ids[0] if private_room_ids else shop_room_ids[0], char_id),
+        # Create shop rooms (publicly accessible)
+        for i in range(cfg["shop_rooms"]):
+            desc_pair = shop_descs[min(i, len(shop_descs) - 1)]
+            r_name = f"{char_name}'s {desc_pair[0]}"
+            rid = await db.create_room(
+                name=r_name, desc_short=desc_pair[1], desc_long=desc_pair[1],
+                zone_id=None,
+                properties=json.dumps({
+                    "security": entry_security,
+                    "private": False,        # shop rooms are PUBLIC
+                    "owned_home": True,
+                    "is_shopfront": True,
+                    "shopfront_owner_id": char_id,
+                    "droid_slots": cfg["droid_slots"],
+                }),
             )
-    except Exception:
-        log.warning("purchase_shopfront: unhandled exception", exc_info=True)
-        pass
+            all_room_ids.append(rid)
+            shop_room_ids.append(rid)
 
-    await db.commit()
+        # Create private rooms (owner/guest-only)
+        for i in range(cfg["private_rooms"]):
+            desc_pair = private_descs[min(i, len(private_descs) - 1)]
+            r_name = f"{char_name}'s {desc_pair[0]}"
+            rid = await db.create_room(
+                name=r_name, desc_short=desc_pair[1], desc_long=desc_pair[1],
+                zone_id=None,
+                properties=json.dumps({
+                    "security": entry_security,
+                    "private": True,
+                    "owned_home": True,
+                    "is_shopfront": False,
+                }),
+            )
+            all_room_ids.append(rid)
+            private_room_ids.append(rid)
+
+        # Wire exits: public street → first shop room
+        door_dir = await _pick_door_direction(db, lot["room_id"])
+        exit_in_id = await db.create_exit(
+            lot["room_id"], shop_room_ids[0], door_dir,
+            f"{char_name}'s {cfg['label']}"
+        )
+        exit_out_id = await db.create_exit(
+            shop_room_ids[0], lot["room_id"], "out",
+            entry_room.get("name", "Exit")
+        )
+
+        # Chain shop rooms together (if Trading House with 2 shop rooms)
+        for i in range(len(shop_room_ids) - 1):
+            await db.create_exit(shop_room_ids[i], shop_room_ids[i + 1],
+                                  "in", "Back of Shop")
+            await db.create_exit(shop_room_ids[i + 1], shop_room_ids[i],
+                                  "out", "Shop Floor")
+
+        # Shop → private transition (locked private door)
+        if private_room_ids:
+            last_shop = shop_room_ids[-1]
+            await db.create_exit(last_shop, private_room_ids[0],
+                                  "northwest", "Private Quarters")
+            await db.create_exit(private_room_ids[0], last_shop,
+                                  "out", "Shop Floor")
+
+        # Chain private rooms together
+        for i in range(len(private_room_ids) - 1):
+            pdesc_a = private_descs[min(i,     len(private_descs) - 1)][0]
+            pdesc_b = private_descs[min(i + 1, len(private_descs) - 1)][0]
+            await db.create_exit(private_room_ids[i],     private_room_ids[i + 1],
+                                  "in",  pdesc_b)
+            await db.create_exit(private_room_ids[i + 1], private_room_ids[i],
+                                  "out", pdesc_a)
+
+        # (Credits already debited above, before room creation.)
+
+        # Create housing record
+        now = time.time()
+        cursor = await db.execute(
+            """INSERT INTO player_housing
+               (char_id, tier, housing_type, entry_room_id, room_ids, storage,
+                storage_max, weekly_rent, deposit, purchase_price,
+                rent_paid_until, door_direction,
+                exit_id_in, exit_id_out, created_at, last_activity)
+               VALUES (?, 4, 'shopfront', ?, ?, '[]', ?,
+                       ?, 0, ?, ?, ?, ?, ?, ?, ?)""",
+            (char_id, lot["room_id"], json.dumps(all_room_ids),
+             cfg["storage_max"], effective_rent, cfg["cost"],
+             now + RENT_TICK_INTERVAL, door_dir,
+             exit_in_id, exit_out_id, now, now),
+        )
+        housing_id = cursor.lastrowid
+
+        # Mark all rooms as housing-owned
+        for rid in all_room_ids:
+            await db.execute(
+                "UPDATE rooms SET housing_id = ? WHERE id = ?", (housing_id, rid)
+            )
+
+        # Update lot occupancy
+        await db.execute(
+            "UPDATE housing_lots SET current_homes = current_homes + 1 WHERE id = ?",
+            (lot_id,),
+        )
+
+        # Set as home if they don't have one
+        try:
+            char_row = await db.fetchall(
+                "SELECT home_room_id FROM characters WHERE id = ?", (char_id,)
+            )
+            if char_row and not char_row[0]["home_room_id"]:
+                await db.execute(
+                    "UPDATE characters SET home_room_id = ? WHERE id = ?",
+                    (private_room_ids[0] if private_room_ids else shop_room_ids[0], char_id),
+                )
+        except Exception:
+            log.warning("purchase_shopfront: unhandled exception", exc_info=True)
+            pass
+
+        await db.commit()
 
     log.info("[housing] char %d purchased shopfront '%s' at lot %d (%s), rooms %s",
              char_id, sf_type, lot_id, lot["label"], all_room_ids)
@@ -3819,102 +3944,114 @@ async def purchase_hq(db, char: dict, org_code: str, hq_type: str,
     )
     if lot["room_id"] in _other_tier_rooms:
         return {"ok": False, "msg": f"Invalid lot ID '{lot_id}'."}
-    if lot["current_homes"] >= lot["max_homes"]:
-        return {"ok": False, "msg": f"{lot['label']} is full."}
 
-    entry_room_id = lot["room_id"]
-    entry_room = await db.get_room(entry_room_id)
-    if not entry_room:
-        return {"ok": False, "msg": "Lot room not found."}
+    # Concurrency (housing-concurrency-locks, 2026-07-03): the capacity
+    # check and the occupancy increment far below are two unguarded
+    # statements with room creation and a treasury debit between them.
+    # Per-lot lock (see module header) serializes the whole span -- and
+    # `lot` is RE-FETCHED fresh immediately after acquiring the lock, so a
+    # waiter that queued behind the winner sees the post-increment count
+    # instead of the stale row it fetched before the lock existed.
+    async with _get_lot_lock(lot_id):
+        lot = await get_lot(db, lot_id)
+        if not lot:
+            return {"ok": False, "msg": f"Invalid lot ID '{lot_id}'."}
+        if lot["current_homes"] >= lot["max_homes"]:
+            return {"ok": False, "msg": f"{lot['label']} is full."}
 
-    entry_security = "contested"
-    try:
-        props = json.loads(entry_room.get("properties", "{}") or "{}")
-        entry_security = props.get("security", "contested")
-    except Exception as _e:
-        log.debug("silent except in engine/housing.py:2898: %s", _e, exc_info=True)
+        entry_room_id = lot["room_id"]
+        entry_room = await db.get_room(entry_room_id)
+        if not entry_room:
+            return {"ok": False, "msg": "Lot room not found."}
 
-    org_name = org.get("name", org_code.title())
+        entry_security = "contested"
+        try:
+            props = json.loads(entry_room.get("properties", "{}") or "{}")
+            entry_security = props.get("security", "contested")
+        except Exception as _e:
+            log.debug("silent except in engine/housing.py:2898: %s", _e, exc_info=True)
 
-    # Create rooms
-    room_ids = []
-    room_plan = cfg["room_plan"]
-    for room_key, _label in room_plan:
-        r_name, r_desc = _get_hq_room_desc(org_code, room_key)
-        room_props = {"security": entry_security, "private": True,
-                      "org_hq": True, "org_code": org_code, "hq_room_type": room_key}
-        if room_key == "armory":
-            room_props["is_armory"] = True
-        rid = await db.create_room(
-            name=f"{org_name} — {r_name}", desc_short=r_desc, desc_long=r_desc,
-            zone_id=None, properties=json.dumps(room_props))
-        room_ids.append(rid)
+        org_name = org.get("name", org_code.title())
 
-    # Link: entry → entrance, then hub-and-spoke from entrance
-    door_dir = await _pick_door_direction(db, entry_room_id)
-    exit_in_id = await db.create_exit(
-        entry_room_id, room_ids[0], door_dir, f"{org_name} HQ")
-    exit_out_id = await db.create_exit(
-        room_ids[0], entry_room_id, "out", entry_room.get("name", "Exit"))
-    for i in range(1, len(room_ids)):
-        r_name, _ = _get_hq_room_desc(org_code, room_plan[i][0])
-        inner_dir = _HOUSING_DIRS[i % len(_HOUSING_DIRS)]
-        await db.create_exit(room_ids[0], room_ids[i], inner_dir, r_name)
-        await db.create_exit(room_ids[i], room_ids[0], "out", "Entrance Hall")
+        # Create rooms
+        room_ids = []
+        room_plan = cfg["room_plan"]
+        for room_key, _label in room_plan:
+            r_name, r_desc = _get_hq_room_desc(org_code, room_key)
+            room_props = {"security": entry_security, "private": True,
+                          "org_hq": True, "org_code": org_code, "hq_room_type": room_key}
+            if room_key == "armory":
+                room_props["is_armory"] = True
+            rid = await db.create_room(
+                name=f"{org_name} — {r_name}", desc_short=r_desc, desc_long=r_desc,
+                zone_id=None, properties=json.dumps(room_props))
+            room_ids.append(rid)
 
-    new_treasury = await db.adjust_org_treasury(org["id"], -cfg["cost"])
+        # Link: entry → entrance, then hub-and-spoke from entrance
+        door_dir = await _pick_door_direction(db, entry_room_id)
+        exit_in_id = await db.create_exit(
+            entry_room_id, room_ids[0], door_dir, f"{org_name} HQ")
+        exit_out_id = await db.create_exit(
+            room_ids[0], entry_room_id, "out", entry_room.get("name", "Exit"))
+        for i in range(1, len(room_ids)):
+            r_name, _ = _get_hq_room_desc(org_code, room_plan[i][0])
+            inner_dir = _HOUSING_DIRS[i % len(_HOUSING_DIRS)]
+            await db.create_exit(room_ids[0], room_ids[i], inner_dir, r_name)
+            await db.create_exit(room_ids[i], room_ids[0], "out", "Entrance Hall")
 
-    now = time.time()
-    hq_meta = json.dumps({"guard_slots": cfg["guard_slots"],
-                           "guard_npcs": [], "maint_overdue": 0})
-    cursor = await db.execute(
-        """INSERT INTO player_housing
-           (char_id, tier, housing_type, entry_room_id, room_ids, storage,
-            storage_max, weekly_rent, deposit, purchase_price,
-            rent_paid_until, door_direction,
-            exit_id_in, exit_id_out, faction_code, guest_list,
-            created_at, last_activity)
-           VALUES (?, 5, 'org_hq', ?, ?, '[]', ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (char["id"], entry_room_id, json.dumps(room_ids), cfg["storage_max"],
-         cfg["weekly_maint"], cfg["cost"],
-         now + RENT_TICK_INTERVAL, door_dir,
-         exit_in_id, exit_out_id, org_code, hq_meta, now, now))
-    housing_id = cursor.lastrowid
+        new_treasury = await db.adjust_org_treasury(org["id"], -cfg["cost"])
 
-    for rid in room_ids:
-        await db.execute("UPDATE rooms SET housing_id = ? WHERE id = ?",
-                             (housing_id, rid))
-    await db.execute(
-        "UPDATE housing_lots SET current_homes = current_homes + 1 WHERE id = ?",
-        (lot_id,))
-    await db.execute(
-        "UPDATE organizations SET hq_room_id = ? WHERE id = ?",
-        (room_ids[0], org["id"]))
+        now = time.time()
+        hq_meta = json.dumps({"guard_slots": cfg["guard_slots"],
+                               "guard_npcs": [], "maint_overdue": 0})
+        cursor = await db.execute(
+            """INSERT INTO player_housing
+               (char_id, tier, housing_type, entry_room_id, room_ids, storage,
+                storage_max, weekly_rent, deposit, purchase_price,
+                rent_paid_until, door_direction,
+                exit_id_in, exit_id_out, faction_code, guest_list,
+                created_at, last_activity)
+               VALUES (?, 5, 'org_hq', ?, ?, '[]', ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (char["id"], entry_room_id, json.dumps(room_ids), cfg["storage_max"],
+             cfg["weekly_maint"], cfg["cost"],
+             now + RENT_TICK_INTERVAL, door_dir,
+             exit_in_id, exit_out_id, org_code, hq_meta, now, now))
+        housing_id = cursor.lastrowid
 
-    # T2.DEF.handler_npcs — dynamic-HQ hook (arch §10.6 / §8.18): place a
-    # faction-coded covert intel-contact in the HQ entrance so the org's own
-    # members can redeem espionage intel at their HQ, mirroring the 5
-    # pre-seeded static-HQ canonical-faction handlers. The static handlers
-    # are YAML-seeded; player orgs get theirs when they establish an HQ.
-    # Non-fatal — an HQ purchase must still succeed if the spawn fails.
-    try:
-        await db.create_npc(
-            name=f"{org_name} Covert Contact",
-            room_id=room_ids[0],
-            species="Human",
-            description=("A discreet intelligence liaison who quietly accepts "
-                         "field reports on the organization's behalf."),
-            ai_config_json=json.dumps({
-                "is_intel_handler": True,
-                "faction": org_code.strip().lower(),
-                "hostile": False,
-            }),
-        )
-    except Exception:
-        log.warning("[housing] HQ intel-contact spawn failed for org %s",
-                    org_code, exc_info=True)
+        for rid in room_ids:
+            await db.execute("UPDATE rooms SET housing_id = ? WHERE id = ?",
+                                 (housing_id, rid))
+        await db.execute(
+            "UPDATE housing_lots SET current_homes = current_homes + 1 WHERE id = ?",
+            (lot_id,))
+        await db.execute(
+            "UPDATE organizations SET hq_room_id = ? WHERE id = ?",
+            (room_ids[0], org["id"]))
 
-    await db.commit()
+        # T2.DEF.handler_npcs — dynamic-HQ hook (arch §10.6 / §8.18): place a
+        # faction-coded covert intel-contact in the HQ entrance so the org's own
+        # members can redeem espionage intel at their HQ, mirroring the 5
+        # pre-seeded static-HQ canonical-faction handlers. The static handlers
+        # are YAML-seeded; player orgs get theirs when they establish an HQ.
+        # Non-fatal — an HQ purchase must still succeed if the spawn fails.
+        try:
+            await db.create_npc(
+                name=f"{org_name} Covert Contact",
+                room_id=room_ids[0],
+                species="Human",
+                description=("A discreet intelligence liaison who quietly accepts "
+                             "field reports on the organization's behalf."),
+                ai_config_json=json.dumps({
+                    "is_intel_handler": True,
+                    "faction": org_code.strip().lower(),
+                    "hostile": False,
+                }),
+            )
+        except Exception:
+            log.warning("[housing] HQ intel-contact spawn failed for org %s",
+                        org_code, exc_info=True)
+
+        await db.commit()
 
     log.info("[housing] org %s purchased %s HQ at lot %d, rooms %s",
              org_code, hq_type, lot_id, room_ids)

@@ -115,9 +115,14 @@ class ClaudeProvider:
         temperature: float = 0.7,
         json_mode: bool = False,
         model: str = "",
+        options: "dict | None" = None,
+        keep_alive: str = "",
     ) -> str:
         """
         Send a request to the Anthropic Messages API.
+
+        `options`/`keep_alive` are Ollama-only knobs; accepted and ignored here
+        so the provider signatures stay interchangeable.
 
         Returns generated text, or empty string on failure/over-budget.
         """

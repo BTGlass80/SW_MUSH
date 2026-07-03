@@ -120,6 +120,7 @@ class IntentParser:
         dynamic = _build_dynamic_suffix(raw_text, scene_ctx)
 
         try:
+            from engine.tunables import get_tunable
             raw_json = await self.ai_manager.generate(
                 system_prompt=_STATIC_PREFIX,
                 messages=[{"role": "user", "content": dynamic}],
@@ -128,6 +129,8 @@ class IntentParser:
                 temperature=0.0,    # deterministic — this is parsing, not creativity
                 json_mode=True,
                 fallback_text="",
+                options={"num_ctx": int(get_tunable("ai.num_ctx_default", 2048))},
+                keep_alive=str(get_tunable("ai.ollama_keep_alive", "30m")),
             )
         except Exception as e:
             log.warning("IntentParser: AI call failed: %s", e)
@@ -220,6 +223,10 @@ def _extract_json(text: str) -> Optional[dict]:
     Handles: bare JSON, JSON wrapped in ```...```, leading/trailing prose.
     """
     text = text.strip()
+
+    # Strip a <think>…</think> preamble (future-proofs thinking-enabled tags;
+    # qwen3.5 Small ships thinking-off, but a config could flip it on)
+    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
 
     # Strip markdown fences
     text = re.sub(r'^```(?:json)?\s*', '', text, flags=re.I)
