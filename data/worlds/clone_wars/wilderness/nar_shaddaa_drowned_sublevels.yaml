@@ -1,0 +1,219 @@
+# data/worlds/clone_wars/wilderness/nar_shaddaa_drowned_sublevels.yaml
+#
+# The Drowned Choir scenario site (2026-07-02) — converts the Cult of the
+# Drowned Choir (CULT_ROSTER key `drowned_choir`, engine/communal_objective.py)
+# from the legacy menace-counter path into a 3-stage playable site scenario,
+# mirroring the Hollow Sun / Ember Court / Ashen Hand conversions EXACTLY
+# (engine/staged_event.py DROWNED_CHOIR_STAGES + the three drowned_choir_*
+# templates in engine/wilderness_anomalies.py SCENARIO_TEMPLATES).
+#
+# Modeled on wilderness/ey_akh.yaml (single-file region: metadata + terrains +
+# inline landmarks + one edge, no landmark_includes — the lighter pattern for
+# a small, purpose-built venue rather than a sprawling open region).
+#
+# ── PROVENANCE / DISCIPLINE ─────────────────────────────────────────────────
+# Original content — no sourcebook lore beyond "Nar Shaddaa undercity" (era-
+# agnostic). The cult itself (CultDef "drowned_choir") is an invented, era-
+# clean Nar Shaddaa cult; blurb: "an undercity choir that drowns initiates to
+# 'hear the dark below'"; rally_hook: "raid their flooded sub-levels, expose
+# their patrons, and pull the desperate back out of the runoff." B3 era-clean
+# (no Imperial/Empire/Rebel/TIE); Q1 — no canon Clone Wars figures; references
+# to off-world financiers use institutional framing ("a Hutt kajidic"), never
+# a named canon Hutt.
+#
+# ── ZONE CHOICE (design note) ────────────────────────────────────────────────
+# Reuses the EXISTING `nar_shaddaa_undercity` zone (declared in zones.yaml)
+# rather than declaring a new dedicated zone. The sibling regions each got
+# their own dedicated zone, but this venue is explicitly framed as the
+# undercity's OWN flooded sub-levels (not a distinct district), and reusing
+# the zone keeps this drop's touched-file set disjoint from zones.yaml (a
+# high-traffic shared file another lane may be editing concurrently). Security
+# (lawless) and threat_band (contested_marches) are inherited from the
+# existing nar_shaddaa_undercity zone properties.
+#
+# ── REACHABILITY ─────────────────────────────────────────────────────────────
+# The `edges:` block below connects this region's entry landmark to the
+# EXISTING `undercity_depths` room (data/worlds/clone_wars/planets/
+# nar_shaddaa.yaml, id 65). That room's only authored exits are `up` (to
+# Undercity Market), `east` (to the Fighting Pits) and `southeast` (to the
+# Warrens entry shaft) — `down` is free, so it falls through to the
+# wilderness-entry check in parser/builtin_commands.py::_try_wilderness_entry
+# cleanly. NO EDIT to nar_shaddaa.yaml was needed or made (purely additive —
+# this file only REFERENCES the existing room_slug).
+#
+# ── SCOPE ─────────────────────────────────────────────────────────────────
+# Small (4-landmark) venue sized for its one job: anchoring the Drowned
+# Choir's 3-stage scenario (engine.wilderness_anomalies._pick_anchor_room
+# picks any room row with wilderness_region_id = this slug — landmark or not
+# — so any of the 4 rooms below can host any stage's anomaly). No encounter
+# pool is authored (out of scope for this drop; the region's only job is to
+# exist as a reachable, described site for the staged scenario).
+
+schema_version: 1
+
+region:
+  slug: nar_shaddaa_drowned_sublevels
+  name: "The Drowned Sub-Levels"
+  planet: nar_shaddaa
+  zone: nar_shaddaa_undercity          # reuses the existing undercity zone (see note above)
+  default_security: lawless
+  narrative_tone_key: nar_shaddaa_undercity
+
+grid:
+  width: 12                           # x-coords 0..11 — small, purpose-built venue
+  height: 12                          # y-coords 0..11
+  tile_scale_km: 1                    # dense flooded sub-level corridors
+  default_terrain: flooded_corridor
+
+terrains:
+  flooded_corridor:
+    # The bulk of the venue — ankle-to-knee-deep runoff in collapsed
+    # maintenance corridors, the Choir's outer warrens.
+    move_cost: 2
+    sight_radius: 1
+    ambient_hazard: none
+    hazard_severity: 0
+    variants:
+      - "Runoff sheets down the walls and pools ankle-deep on the corridor floor. Somewhere below, a chant carries up through the standing water."
+      - "Collapsed maintenance corridor, half-flooded. Rusted pipe stubs jut from the walls where something was torn out long ago."
+      - "The water here is still and black, disturbed only by your own wake. Whatever light exists comes from a failing strip two levels up."
+    time_overlays:
+      night: "Without even the failing strip-light, the flooded corridor is total dark. The chanting, when it comes, sounds closer than it is."
+
+  drowned_hall:
+    # The Choir's inner chambers — deeper, fouler water, chemical runoff
+    # from the levels above concentrated by decades of leaks.
+    move_cost: 3
+    sight_radius: 1
+    ambient_hazard: toxic_atmosphere
+    hazard_severity: 2
+    variants:
+      - "The water is waist-deep here and wrong-colored, an oily sheen catching what little light reaches this far down. The air tastes of it too."
+      - "A drowned hall, ceiling lost in runoff-mist. Chains hang from fixtures overhead — old cargo rigging, repurposed for something else."
+    time_overlays:
+      night: "The chemical mist thickens after the upper levels go quiet. Down here, day and night stopped mattering generations ago."
+
+# ─── Landmarks ────────────────────────────────────────────────────────────
+landmarks:
+
+  - id: choir_ingress
+    name: "The Choir's Ingress"
+    coordinates: [2, 2]
+    terrain: flooded_corridor
+    short_desc: "The bottom of a jury-rigged pipe-ladder, where Undercity runoff first pools deep enough to matter."
+    description: |
+      The ladder from the Undercity Depths ends at a landing bolted over
+      standing water, the metal gone soft with rust at every joint. From
+      here the flooded sub-levels open out in three directions, corridors
+      that used to carry waste and now carry something else entirely. A
+      chant echoes up from somewhere below — not loud, not close, but
+      constant, the same handful of syllables over and over. Scratched
+      into the landing's rail, in a dozen different hands: a tally of
+      names, none of them explained, all of them crossed through.
+
+      This is the only way down that doesn't require knowing the Choir's
+      own routes, which is exactly why they let it stand. Newcomers come
+      down here on their own power at least once — the ones who come
+      back up are the ones the Choir wanted to keep.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+    adjacency:
+      - runoff_warrens
+
+  - id: runoff_warrens
+    name: "The Runoff Warrens"
+    coordinates: [2, 5]
+    terrain: flooded_corridor
+    short_desc: "A flooded maze of collapsed maintenance corridors — the Drowned Choir's outer ring, held by armed converts."
+    description: |
+      The corridors here fork and rejoin without any logic a surface
+      dweller would recognize, half-submerged in runoff that never fully
+      drains. The Drowned Choir holds this ring the way a body holds
+      scar tissue — thickened, watchful, unwilling to let anything through
+      cleanly. Robed converts wade the flooded junctions in pairs, listening
+      for footsteps that aren't the chant's rhythm. Strips of cloth, tied to
+      the pipework at odd intervals, mark routes only the initiated can
+      read.
+
+      Deeper in, the water carries a current that has no business existing
+      in a sealed sub-level — pulled, the Choir teaches its initiates,
+      by whatever is listening from below. Most who reach this deep were
+      brought, not walked.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+    adjacency:
+      - choir_ingress
+      - patrons_cistern
+
+  - id: patrons_cistern
+    name: "The Patrons' Cistern"
+    coordinates: [2, 8]
+    terrain: drowned_hall
+    short_desc: "A gutted water-reclamation cistern, repurposed as the Choir's ledger-hall for its off-world patrons."
+    description: |
+      What was once a district reclamation cistern has been drained to
+      waist height and lined with salvaged shelving, every surface stacked
+      with data-slates, sealed credit chits, and hand-written ledgers. This
+      is where the Drowned Choir keeps the accounting that actually matters
+      — which desperate initiates were sold their "hearing," which
+      Undercity brokers steer the hopeless this way for a cut, and which
+      off-world backers (a Hutt kajidic's counting-house among them, by the
+      look of the sealed chits) keep the whole operation solvent. The Choir
+      preaches drowning as revelation; the ledgers make clear it is also,
+      simply, a business.
+
+      A pair of robed record-keepers work the shelving by lamplight,
+      cross-referencing names against payments. Neither looks up quickly.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+    adjacency:
+      - runoff_warrens
+      - drowned_sanctum
+
+  - id: drowned_sanctum
+    name: "The Drowned Sanctum"
+    coordinates: [2, 11]
+    terrain: drowned_hall
+    short_desc: "The Choir's deepest chamber — a submerged shrine where the Choirmaster leads the drowning rite."
+    description: |
+      The lowest chamber the Drowned Choir controls is also its oldest —
+      a flooded vault, water black and still to the chest, ringed by
+      cargo-chain rigging hung with waterlogged robes like votive
+      offerings. This is where the Choirmaster brings initiates to "hear
+      the dark below": a held breath, a controlled drowning, and whatever
+      the initiate reports seeing afterward becomes scripture, whether or
+      not the Choirmaster believes a word of it.
+
+      The faithful who are not conducting a rite stand along the chamber's
+      edge in the flooded dark, listening for the chant's next line. They
+      do not welcome an audience, and the Choirmaster does not tolerate
+      an interruption.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+    adjacency:
+      - patrons_cistern
+
+# ─── Edges ───────────────────────────────────────────────────────────────
+# The on-foot gateway from the Undercity. `undercity_depths` is an EXISTING
+# room (data/worlds/clone_wars/planets/nar_shaddaa.yaml, id 65) whose only
+# authored exits are up/east/southeast — `down` is free, so this is a clean,
+# zero-edit addition (see the REACHABILITY note above).
+edges:
+  - room_slug: undercity_depths
+    coords: [2, 2]
+    direction_from_room: down
+    direction_back_to_room: climb
+    enter_message: |
+      You swing onto the rusted pipe-ladder and climb down past the last
+      working light strip. The Undercity's noise fades above you, replaced
+      by dripping water and, faint but constant, a chant that isn't quite
+      in Basic.
+    exit_message: |
+      You climb back up the pipe-ladder, the chant fading below you until
+      the ordinary racket of the Undercity Depths swallows it entirely.
+
+unwalkable_tiles: []
