@@ -276,6 +276,133 @@ class TestHelpDupKeysDeduped(unittest.TestCase):
         self.assertIsNotNone(entry)
         self.assertEqual(entry.key, "the_force")
 
+    def test_alias_scan_resolves_to_the_sensors_rules_topic(self):
+        """Fable addendum §4: 'scan' was ALSO claimed by both
+        data/help/commands/+sensors.md and data/help/topics/sensors.md
+        (the same cross-platform os.walk-order flake as deepscan).
+        +sensors.md dropped it from its aliases — the Rules: Space
+        'sensors' topic is now the sole owner, deterministic on every OS."""
+        from data.help_topics import HelpManager
+        mgr = HelpManager()
+        mgr.load_markdown_files(str(PROJECT_ROOT / "data" / "help"))
+        entry = mgr.get("scan")
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry.key, "sensors")
+
+
+# ──────────────────────────────────────────────────────────────────────
+# 3b. Fable addendum §4 — alias-dedup guard (extends the F6.2 key-dedup
+#     check one layer down) + loader-determinism proof
+# ──────────────────────────────────────────────────────────────────────
+
+class TestHelpLoaderDeterministicAndAliasDedupGuarded(unittest.TestCase):
+    """engine.help_loader.iter_help_files must traverse data/help in a
+    fully OS-independent order (sorted dirnames, not just sorted
+    filenames) — that's what made deepscan/scan flip winners between
+    Windows and Linux. And load_help_directory must now warn on a
+    duplicate ALIAS the same way it already warns on a duplicate KEY.
+
+    The live corpus has other pre-existing alias collisions (mostly a
+    command doc and its own lore-topic sibling both listing the same
+    verb, e.g. force.md/+powers.md both claiming "powers") that are
+    NOT this drop's scope. Those are frozen into BASELINE_ALIAS_
+    COLLISIONS as a ratchet (same shape as
+    tests/test_command_convention_invariant.py's registry-collision
+    ratchet): the baseline may only shrink as those get individually
+    resolved, and scan/deepscan must have dropped OUT of it here.
+    """
+
+    # Known-accepted alias collisions as of 2026-07-03 — frozen. Do NOT
+    # add a new alias here to silence a fresh collision; give the alias
+    # a single deliberate owner instead (drop it from the file that
+    # doesn't own it, as this drop did for scan/deepscan).
+    BASELINE_ALIAS_COLLISIONS = frozenset({
+        "+pq", "+rep", "accept", "city", "comms", "course", "forcepoint",
+        "forcepowers", "fp", "fulldodge", "healrate", "home", "hrate",
+        "hunting", "hyper", "hyperspace", "intel", "jump", "listpowers",
+        "navigate", "order", "orders", "personalquests", "power", "powers",
+        "quest", "quests", "reputation", "roster", "smuggle", "soak",
+        "stats",
+    })
+
+    def _live_alias_collisions(self):
+        from engine.help_loader import iter_help_files, load_help_file
+        from data.help_topics import HelpEntry
+        root = str(PROJECT_ROOT / "data" / "help")
+        alias_owners: dict[str, str] = {}
+        collisions: set[str] = set()
+        for path in iter_help_files(root):
+            entry = load_help_file(path, HelpEntry)
+            if entry is None:
+                continue
+            for alias in entry.aliases:
+                prior = alias_owners.get(alias)
+                if prior is not None and prior != entry.key:
+                    collisions.add(alias)
+                alias_owners[alias] = entry.key
+        return collisions
+
+    def test_dirnames_sorted_for_deterministic_traversal(self):
+        """Anchor against silent regression: iter_help_files must sort
+        dirnames in place (the standard os.walk steering trick), not
+        just filenames within a directory."""
+        src = inspect.getsource(
+            __import__("engine.help_loader", fromlist=["iter_help_files"])
+            .iter_help_files
+        )
+        self.assertIn("dirnames.sort()", src)
+
+    def test_scan_and_deepscan_no_longer_collide(self):
+        collisions = self._live_alias_collisions()
+        self.assertNotIn("scan", collisions)
+        self.assertNotIn("deepscan", collisions)
+
+    def test_no_new_alias_collisions_beyond_frozen_baseline(self):
+        collisions = self._live_alias_collisions()
+        introduced = collisions - self.BASELINE_ALIAS_COLLISIONS
+        self.assertEqual(
+            introduced, set(),
+            f"New help-alias collision(s) not in the frozen baseline: "
+            f"{sorted(introduced)}. Give the alias a single owner "
+            f"(remove it from the file that doesn't own it) instead of "
+            f"adding it to BASELINE_ALIAS_COLLISIONS.",
+        )
+
+    def test_loader_warns_on_a_synthetic_alias_collision(self):
+        """Mechanism check, independent of the live corpus: two files
+        claiming the same alias under different keys must produce a
+        'duplicate alias' warning, distinct from the 'duplicate key'
+        message so it doesn't get swept into that other zero-count
+        test by accident."""
+        import tempfile
+        from data.help_topics import HelpEntry
+        from engine.help_loader import load_help_directory
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "a.md").write_text(
+                "---\nkey: a\naliases: [shared]\n---\nBody A\n",
+                encoding="utf-8")
+            (Path(d) / "b.md").write_text(
+                "---\nkey: b\naliases: [shared]\n---\nBody B\n",
+                encoding="utf-8")
+            logger = logging.getLogger("engine.help_loader")
+            records = []
+            handler = logging.Handler()
+            handler.emit = lambda r: records.append(r)
+            logger.addHandler(handler)
+            try:
+                load_help_directory(d, HelpEntry)
+            finally:
+                logger.removeHandler(handler)
+        warnings = [r for r in records if r.levelno >= logging.WARNING]
+        alias_warnings = [r for r in warnings if "duplicate alias" in r.getMessage()]
+        self.assertTrue(
+            alias_warnings,
+            f"expected a 'duplicate alias' warning, got: "
+            f"{[r.getMessage() for r in warnings]}",
+        )
+        key_warnings = [r for r in warnings if "duplicate key" in r.getMessage()]
+        self.assertEqual(key_warnings, [], "synthetic fixture has no key collision")
+
 
 # ──────────────────────────────────────────────────────────────────────
 # 4. F6.3 — spa WoundLevel locator regex actually matches

@@ -19,8 +19,16 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from spa_dom_harness import run_with_dom
+
+# Fable addendum §5 (2026-07-03): this module's 4 tests each spawn a Node
+# subprocess loading 8 SPA scripts — reliable alone/under the serial full
+# gate, but flake under `pytest -n auto` xdist contention. See
+# tests/conftest.py's pytest_collection_modifyitems for the skip mechanism.
+pytestmark = pytest.mark.serial
 
 SPA_DIR = Path(__file__).resolve().parent.parent.parent / "static" / "spa"
 

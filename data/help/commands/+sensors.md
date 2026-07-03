@@ -3,7 +3,7 @@ key: +sensors
 title: Sensors — Sensor Station, Scanning, and Deep Analysis
 category: "Commands: Ships"
 summary: All sensor verbs live under +sensors/<switch>. Take the sensor seat, scan the zone for contacts, or run deep-scan analysis on a specific target. Every sensor verb is a switch here.
-aliases: [sensors, sensor, scan]
+aliases: [sensors, sensor]
 see_also: [+pilot, +gunner, +bridge, +ship, contacts, anomalies, space_anomalies, transponder]
 tags: [ships, sensors, command]
 access_level: 0

@@ -258,22 +258,13 @@ def iter_help_files(root: str) -> Iterable[str]:
     notes, not help entries. Any other markdown file is fair game.
 
     Deterministic order is useful for reproducible boots and for the
-    portal's category listing being stable.
-
-    ``os.walk`` only guarantees the order of files *within* a directory
-    if we sort them ourselves (done below) — it does NOT guarantee the
-    order subdirectories are visited in. That order comes straight from
-    the OS's raw directory-entry (readdir) order, which differs between
-    filesystems (e.g. Windows NTFS vs Linux ext4/xfs). Two files in
-    different subdirectories (e.g. ``commands/+sensors.md`` and
-    ``topics/anomalies.md``) that legally register the *same alias*
-    resolve to "whichever loads last wins" (see ``load_help_directory``
-    below) — if subdirectory order isn't pinned, that winner flips
-    between platforms, which is exactly the ``deepscan`` alias
-    collision found cross-platform in the F6 hygiene batch. Sorting
-    ``dirnames`` in place (``os.walk`` recurses using that same list
-    object when ``topdown=True``, the default) makes the whole walk,
-    and therefore every last-wins resolution, identical on every OS.
+    portal's category listing being stable. ``os.walk`` only guarantees
+    sorted *filenames* if we sort them ourselves (done below) — it does
+    NOT guarantee sibling-*directory* traversal order across platforms
+    (Windows vs Linux can walk ``commands/`` and ``topics/`` in different
+    order). Sorting ``dirnames`` in place (the documented way to steer
+    os.walk) makes the whole traversal — and therefore which file "wins"
+    a same-key or same-alias collision — identical on every OS.
     """
     if not os.path.isdir(root):
         return
@@ -294,17 +285,17 @@ def load_help_directory(root: str, HelpEntryCls) -> list["HelpEntry"]:
     files: the last one wins and a warning is emitted — this is
     almost always an authoring mistake, not an intentional override.
 
-    Duplicate ALIASES are checked the same way. ``HelpManager.register``
-    (in ``data/help_topics.py``) resolves an alias claimed by two
-    entries the same "last registration wins" way it resolves a
-    duplicate key — that resolution is invisible unless something
-    warns, and (pre-fix) it depended on filesystem walk order, which is
-    not the same on every OS. This is the alias-level companion to the
-    key-dedup warning above: it makes the winner-take-all resolution
-    loud instead of silent, on every OS, every boot.
+    The same check runs one layer down for **aliases**: two entries
+    with different keys claiming the same alias means whichever loads
+    last silently wins the ``+help <alias>`` lookup (via
+    ``HelpManager._alias_map``). That used to depend on ``os.walk``'s
+    unsorted directory order and could flip between OSes; now that
+    ``iter_help_files`` is fully deterministic, the "winner" is stable
+    — but the collision itself is still almost always an authoring
+    mistake, so it's still worth a loud warning rather than silence.
     """
     entries: dict[str, "HelpEntry"] = {}
-    alias_owners: dict[str, str] = {}  # alias -> key of the entry currently claiming it
+    alias_owners: dict[str, str] = {}  # alias -> key currently holding it
     count_loaded = 0
     count_skipped = 0
     for path in iter_help_files(root):
@@ -317,17 +308,16 @@ def load_help_directory(root: str, HelpEntryCls) -> list["HelpEntry"]:
                 "Help loader: duplicate key %r — later file %s overrides earlier",
                 entry.key, path,
             )
+        entries[entry.key] = entry
         for alias in entry.aliases:
-            owner = alias_owners.get(alias)
-            if owner is not None and owner != entry.key:
+            prior_key = alias_owners.get(alias)
+            if prior_key is not None and prior_key != entry.key:
                 log.warning(
-                    "Help loader: duplicate alias %r — key %r (file %s) also "
-                    "claims an alias already owned by key %r; last "
-                    "registration wins",
-                    alias, entry.key, path, owner,
+                    "Help loader: duplicate alias %r — key %r's file %s "
+                    "overrides key %r's earlier claim",
+                    alias, entry.key, path, prior_key,
                 )
             alias_owners[alias] = entry.key
-        entries[entry.key] = entry
         count_loaded += 1
     if count_skipped:
         log.warning(

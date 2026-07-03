@@ -30,67 +30,62 @@ its own ``node`` subprocess bounded by a fixed timeout
 spawning Node concurrently, a handful of calls can get CPU-starved past
 that bound on a busy box, even though nothing is actually hung.
 
-No single test file names the specific flaky trio anywhere in the repo's
-history (checked: CHANGELOG.md, TODO.json, the qwen-default-hardening and
-hygiene-batch-f6 commit messages/gate notes) — the flake is inherently
-box-contention-dependent, not a property of 3 fixed test IDs. Rather than
-guess, this was measured directly: a real ``pytest tests/spa -n auto
---dist loadscope --durations=0`` run (this box, 2026-07-03) summed
-per-test durations by FILE. The three files with the highest total
-Node-subprocess CPU-time — i.e. the three that generate the most
-concurrent Node-spawn load on the box, and are therefore statistically
-the most likely to have a call tip over ``spa_dom_harness.run_with_dom``'s
-20s timeout under real cross-worker contention — were, by a clear margin
-over the rest of the ~55-file directory:
+That gap was closed in drop ``fable-addendum-hygiene`` with the ``serial``
+pytest marker (registered in ``pytest.ini``) + the skip-under-xdist-worker
+hook in the top-level ``tests/conftest.py`` (checks ``PYTEST_XDIST_WORKER``
+and skips ``serial``-marked items only when running as an xdist worker —
+they still execute, and must pass, under the real serial
+``run_all_tests.bat`` gate). Three modules were marked directly via
+``pytestmark = pytest.mark.serial``.
 
-  test_m3_assembled_client.py           73.5s / 28 tests (avg 2.62s)
-  test_m3_sheet.py                      69.0s / 28 tests (avg 2.47s)
+This file EXTENDS that same mechanism (not a parallel one) to a second,
+independently-measured set: a real ``pytest tests/spa -n auto --dist
+loadscope --durations=0`` run (this box, 2026-07-03) summed per-test
+durations by file. The three highest-total-duration files — the ones
+generating the most concurrent Node-spawn CPU load, and therefore
+statistically the ones most likely to tip a call over the 20s ceiling under
+contention — were, by a clear margin over the rest of the ~55-file
+directory:
+
+  test_m3_assembled_client.py             73.5s / 28 tests (avg 2.62s)
+  test_m3_sheet.py                        69.0s / 28 tests (avg 2.47s)
   test_combat_inspector_d_prime_client.py 61.6s / 29 tests (avg 2.12s)
 
 (next-highest, test_m3_cockpit.py, was 59.3s — a real gap below these
-three.) All three build/exercise a substantial rendered UI structure
-per call (buildAssembledClient's full shell, buildCharacterSheet's tabs,
-the D' combat-inspector block) rather than one cheap module load, which
-is the actual cost driver — not simply "how many .js files get loaded"
-(the original, weaker hypothesis this file started with; the number of
-files loaded turned out to correlate poorly with measured cost).
+three.) Auto-applying ``pytest.mark.serial`` to these here (rather than
+adding another ``pytestmark`` line to each file) reuses the SAME
+filename-driven auto-tag pattern this conftest already uses for ``slow``,
+and reuses the top-level ``tests/conftest.py`` skip-hook verbatim — no new
+marker, no new skip mechanism, no new xdist behavior. (An earlier version
+of this fix tried pytest-xdist's own ``xdist_group`` marker instead;
+verified against the installed xdist 3.8.0 source
+(``xdist/scheduler/loadscope.py::LoadScopeScheduling._split_scope``) that
+``xdist_group`` is honoured ONLY under ``--dist loadgroup`` — this repo's
+actual ``--dist loadscope`` gate ignores it for cross-file grouping
+(confirmed empirically with a worker-id probe). The ``serial``-marker +
+skip-under-xdist-worker approach above doesn't have that limitation, which
+is why it's the one this file extends.)
 
-We tag them with pytest-xdist's own ``xdist_group`` marker (an existing
-xdist mechanism, not a new one). **Verified limitation, checked against
-the installed xdist 3.8.0 source
-(``xdist/scheduler/loadscope.py::LoadScopeScheduling._split_scope``):**
-``xdist_group`` is honoured ONLY by the ``--dist loadgroup`` scheduler —
-``--dist loadscope`` (this repo's actual full-gate invocation, see
-``pytest.ini``/HANDOFF docs) derives its scope purely from the nodeid
-string (module, or module::class) and never consults markers, so under
-``loadscope`` the marker is a documented no-op for cross-FILE grouping
-(confirmed empirically: tagging these three still scheduled them onto
-three different workers). We keep the marker anyway — it's harmless,
-correctly wired (unit-pinned in
-``tests/test_fable_addendum_hygiene_2026_07_03.py``), self-documenting,
-and becomes fully effective the day the gate ever runs under ``--dist
-loadgroup`` — but the mechanism that ACTUALLY fixes the flake under
-``loadscope`` is the one-retry-on-``TimeoutExpired`` wrapper added to both
-shared Node-subprocess call sites (``spa_dom_harness.
-_run_node_with_one_retry``, reused by ``m3_combat_inspector_harness``):
-it absorbs one transient CPU-starved spawn regardless of which tests are
-unlucky or which scheduler is in play, so a "genuine trio" identity
-doesn't even need to be right for the flake to go away. If a future gate
-run still shows a DIFFERENT set of files flaking, that's expected —
-extend ``_JSDOM_SERIAL_FILES`` below for documentation purposes; the
-retry wrapper is what's actually load-bearing.
+As additional, independent defense-in-depth (not a replacement — belt and
+suspenders), both shared Node-subprocess call sites
+(``spa_dom_harness.run_with_dom`` / ``m3_combat_inspector_harness.
+run_with_d_prime_block``) now retry once on ``subprocess.TimeoutExpired``
+via ``spa_dom_harness._run_node_with_one_retry`` — this protects every
+jsdom test in the directory, not just the ``serial``-marked ones, and still
+lets a genuine hang fail (only ONE retry).
 """
 
 import pytest
 
 _SPA_DIR = __file__.replace("\\", "/").rsplit("/", 1)[0]  # .../tests/spa
 
-# Fable addendum 2026-07-03 §5b: the three highest-measured-cost jsdom
-# files (see module docstring for the actual duration data). Filenames
-# only (matched against the collected item's basename), so this stays
-# correct regardless of OS path separators.
-_JSDOM_SERIAL_GROUP = "spa_jsdom_heaviest"
-_JSDOM_SERIAL_FILES = {
+# Fable addendum 2026-07-03 §5b: the three highest-measured-duration jsdom
+# files not already covered by the `serial` pytestmark applied directly to
+# test_fun2_onboard_checklist.py / test_m3_asset_catalog_after_41c.py /
+# test_m3_asset_catalog_after_41d.py (see module docstring for the actual
+# duration data). Filenames only (matched against the collected item's
+# basename), so this stays correct regardless of OS path separators.
+_SERIAL_MARKED_FILES = {
     "test_m3_assembled_client.py",
     "test_m3_sheet.py",
     "test_combat_inspector_d_prime_client.py",
@@ -101,14 +96,15 @@ _JSDOM_SERIAL_FILES = {
 def pytest_collection_modifyitems(config, items):
     """Tag every test collected under tests/spa/ with the ``slow`` marker.
 
-    Also xdist-group-serializes the three full-SPA-bundle jsdom files
-    (see module docstring) so they never contend with each other for
-    Node-subprocess CPU across workers under ``-n auto``.
+    Also applies the ``serial`` marker (defined in pytest.ini, honored by
+    tests/conftest.py's skip-under-xdist-worker hook) to the additional
+    heaviest-measured jsdom files (see module docstring) — same marker,
+    same skip mechanism as the three files marked directly via
+    ``pytestmark``, just applied here instead of duplicated per-file.
     """
     for item in items:
         path = str(getattr(item, "fspath", "")).replace("\\", "/")
         if path.startswith(_SPA_DIR):
             item.add_marker(pytest.mark.slow)
-            if path.rsplit("/", 1)[-1] in _JSDOM_SERIAL_FILES:
-                item.add_marker(pytest.mark.spa_jsdom_serial)
-                item.add_marker(pytest.mark.xdist_group(name=_JSDOM_SERIAL_GROUP))
+            if path.rsplit("/", 1)[-1] in _SERIAL_MARKED_FILES:
+                item.add_marker(pytest.mark.serial)

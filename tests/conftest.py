@@ -62,6 +62,35 @@ except Exception:
 
 
 # ───────────────────────────────────────────────────────────────────────────
+# `serial` marker — auto-skip under xdist workers (Fable addendum §5,
+# 2026-07-03 hygiene fix)
+# ───────────────────────────────────────────────────────────────────────────
+#
+# A handful of SPA DOM tests (tests/spa/spa_dom_harness.py) spawn a Node
+# subprocess per test with a fixed 20s timeout. They pass reliably alone
+# or under the serial full-suite gate (run_all_tests.bat has no -n flag),
+# but under `pytest -n auto` many workers spawning Node concurrently can
+# starve one enough to blow the 20s ceiling — a parallel-contention flake,
+# not a real regression. Rather than silently accept them as "known red"
+# forever, mark them `@pytest.mark.serial`/`pytestmark = pytest.mark.serial`
+# and skip them here specifically when running AS an xdist worker
+# (pytest-xdist sets PYTEST_XDIST_WORKER in every worker's environment —
+# xdist/remote.py — absent when there's no -n flag at all). This keeps
+# them exercised on the real gate and out of the parallel-triage noise.
+def pytest_collection_modifyitems(config, items):
+    if not os.environ.get("PYTEST_XDIST_WORKER"):
+        return  # not running under an xdist worker — never skip
+    skip_serial = pytest.mark.skip(
+        reason="serial-marked: jsdom/Node subprocess test skipped under "
+               "xdist parallel workers (contention flake) — runs under "
+               "run_all_tests.bat's serial gate"
+    )
+    for item in items:
+        if item.get_closest_marker("serial") is not None:
+            item.add_marker(skip_serial)
+
+
+# ───────────────────────────────────────────────────────────────────────────
 # CLI options
 # ───────────────────────────────────────────────────────────────────────────
 
