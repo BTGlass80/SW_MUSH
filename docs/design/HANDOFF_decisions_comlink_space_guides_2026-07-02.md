@@ -1,6 +1,23 @@
 # HANDOFF — Decisions + Comlink + Space-Anomaly Rework + Guide Accuracy (2026-07-02)
 
-Unattended session. Branch **`drop/decisions-comlink-hazard-anomaly-2026-07-02`** (worktree `C:/SW_MUSH_fix`), 4 commits on top of `b0485b0`. Everything below is committed, verified, and **integration-ready** — but NOT merged to main (main moved to `8a8b3ac` under the parallel session and is checked out in the primary worktree; see §Integration).
+Unattended session. Branch **`drop/decisions-comlink-hazard-anomaly-2026-07-02`** (worktree `C:/SW_MUSH_fix`). **The sections below (§What landed = 4 commits, FORK-1 awaiting, deferred guides) are a MID-SESSION checkpoint — see the ⭐FINAL UPDATE immediately below for the close-out: Brian answered FORK-1, the two missing guides were published, and everything is merged + pushed to `origin/main`.**
+
+## ⭐ FINAL UPDATE — session close-out (8 commits, all verified, pushed to `origin/main`)
+
+Beyond the 4 commits in the checkpoint below (Drops A/B/C + this doc):
+
+- **Drop D — Anomaly combat is LIVE-interactive (FORK-1 = A, Brian's call)** (`66b0c2a` + review fixes `ba16f41`). Pirate-nests + dead-drop patrols spawn REAL hostiles into interactive cockpit combat. I verified the tick's blast radius is SCOPED *first* (all 4 pre-existing `promote_to_combat` callers are dead — encounter handler registry unwired), then registered the dormant `NpcSpaceCombatManager.tick`, added `spawn_for_encounter` (replacing the phantom `spawn_pirate_for_encounter`), and DIRECT-promote from the live `course anomaly <id>` command. Era-clean patrol (Republic Navy / Separatist / sector — never Imperial); rewards via the existing fire-kill bounty + wreck. Code-review caught **2 blockers** — all raiders un-targetable (collapsed to one "Unregistered fighter"); promoted ships still tailed/extorted by the ambient traffic tick — **both fixed** (distinct callsigns + a `combat` transponder; an `in_live_combat` flag that the ambient tick + extortion skip). Invariant CLEAN · smoke boots clean + tick no-ops on empty combatants · 20 anomaly + 16 ambient-traffic green. `SPACE.anomaly_combat_live_tick_vs_skirmish` resolved.
+- **Guides 13 + 15 PUBLISHED** (`203d78c`). Brian: they "really should exist" — a full sweep (all worktrees, git history, guides index) confirmed they never did (only design docs + live code), so authored both HEAD-verified: **Guide_13 Housing** (5 tiers, storage, security) + **Guide_15 Wilderness** (regions + the full landmark roster incl. the Anchor Stones / Ruined Obelisk that Guide_18 points at). Resolves ~7 dead #13/#15 refs. `test_guides_reorganization` counts 25→27; 43 green.
+- **Merge/push:** `origin/main` was actively moving under the parallel session (Events + Hollow Sun + cult-social). Only CHANGELOG/TODO overlapped (union-resolvable) — no code/guide conflicts. Merged `origin/main` in, ran the gate, pushed `HEAD:main`.
+
+### Follow-ups surfaced (engine/data — outside this session's scope, flagged by the guide authors)
+- **Housing:** a cross-tier lot-ID validation gap (rent/purchase paths trust the caller's tier; the shared `housing_lots` table has no tier discriminator) + a stale T3 rent-discount *display* string (charges flat rent).
+- **Wilderness:** landmark rooms are structurally disconnected from the open coordinate grid (only the Jedi Village cluster has a scripted entry); `dune_sea.yaml` `region.zone` mismatches `zones.yaml` → its landmark rooms get `zone_id` NULL; `bantha_graveyard` isn't pulled into `tatooine_jundland`.
+- **Space anomaly (non-blocking):** on a rare `promote_to_combat` exception the orphaned traffic ship isn't cleaned up.
+
+---
+
+*(Mid-session checkpoint below, retained for detail — note its "NOT merged / FORK-1 awaiting" framing is superseded by the above.)*
 
 ## What landed (4 commits)
 
