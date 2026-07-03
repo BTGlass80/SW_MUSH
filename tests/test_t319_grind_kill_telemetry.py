@@ -59,6 +59,11 @@ class _FakeDB:
         self._credits = credits
         self.saved = {}
 
+    async def get_character(self, cid):
+        # F12: on_huntable_kill reads the pre-award balance via this same
+        # handle immediately before adjust_credits — must reflect live state.
+        return {"id": cid, "credits": self._credits}
+
     async def adjust_credits(self, cid, delta, tag, *, allow_negative=True):
         self._credits += delta
         return self._credits
