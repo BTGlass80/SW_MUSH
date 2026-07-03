@@ -258,11 +258,18 @@ def iter_help_files(root: str) -> Iterable[str]:
     notes, not help entries. Any other markdown file is fair game.
 
     Deterministic order is useful for reproducible boots and for the
-    portal's category listing being stable.
+    portal's category listing being stable. ``os.walk`` only guarantees
+    sorted *filenames* if we sort them ourselves (done below) — it does
+    NOT guarantee sibling-*directory* traversal order across platforms
+    (Windows vs Linux can walk ``commands/`` and ``topics/`` in different
+    order). Sorting ``dirnames`` in place (the documented way to steer
+    os.walk) makes the whole traversal — and therefore which file "wins"
+    a same-key or same-alias collision — identical on every OS.
     """
     if not os.path.isdir(root):
         return
-    for dirpath, _dirnames, filenames in os.walk(root):
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames.sort()
         for fname in sorted(filenames):
             if not fname.endswith(".md"):
                 continue
@@ -277,8 +284,18 @@ def load_help_directory(root: str, HelpEntryCls) -> list["HelpEntry"]:
     Broken files are skipped (with a warning). Duplicate keys across
     files: the last one wins and a warning is emitted — this is
     almost always an authoring mistake, not an intentional override.
+
+    The same check runs one layer down for **aliases**: two entries
+    with different keys claiming the same alias means whichever loads
+    last silently wins the ``+help <alias>`` lookup (via
+    ``HelpManager._alias_map``). That used to depend on ``os.walk``'s
+    unsorted directory order and could flip between OSes; now that
+    ``iter_help_files`` is fully deterministic, the "winner" is stable
+    — but the collision itself is still almost always an authoring
+    mistake, so it's still worth a loud warning rather than silence.
     """
     entries: dict[str, "HelpEntry"] = {}
+    alias_owners: dict[str, str] = {}  # alias -> key currently holding it
     count_loaded = 0
     count_skipped = 0
     for path in iter_help_files(root):
@@ -292,6 +309,15 @@ def load_help_directory(root: str, HelpEntryCls) -> list["HelpEntry"]:
                 entry.key, path,
             )
         entries[entry.key] = entry
+        for alias in entry.aliases:
+            prior_key = alias_owners.get(alias)
+            if prior_key is not None and prior_key != entry.key:
+                log.warning(
+                    "Help loader: duplicate alias %r — key %r's file %s "
+                    "overrides key %r's earlier claim",
+                    alias, entry.key, path, prior_key,
+                )
+            alias_owners[alias] = entry.key
         count_loaded += 1
     if count_skipped:
         log.warning(

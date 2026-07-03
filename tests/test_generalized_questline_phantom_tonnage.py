@@ -29,6 +29,24 @@ a ship-vs-ship mechanic. A TRUE ship-vs-ship capital combat step has no
 seam and is a separate, non-blocking future design+build (see the arc's
 NPC-file header comment and CHANGELOG).
 
+SKILL-UNIQUENESS RELAXATION (Fable addendum §5, 2026-07-03 — record, not a
+new rule): every one of the 35 prior accessible questlines documents its
+own skill spread in its module docstring as distinct from every other
+arc's ("neither of which any prior accessible questline uses" — see e.g.
+test_generalized_questline_rigged_issue.py). THIS arc — the 36th, resolving
+the very design fork (QUEST.t3_24_36th_arc_skill_pool_exhausted) that
+recorded EVERY clean skill pool as spent — deliberately BREAKS that
+convention: EXPECTED_SKILLS = ["sensors", "computer programming"] reuses
+"sensors" from The Sabotaged Run (tests/test_generalized_questline_
+sabotaged_run.py) and "computer programming" from The Sealed Ledger
+(tests/test_generalized_questline_sealed_ledger.py). This is Brian's
+Fork-B choice ("you pick the concept") superseding the uniqueness
+convention for THIS arc alone, because the pool really was exhausted — it
+is a SANCTIONED ONE-OFF for the generalized-questline lane's 36th (and, at
+present, final accessible) slice, NOT a lifted rule. A hypothetical arc 37+
+may NOT cite this file as silent precedent for reusing a skill pair; that
+would require its own explicit design call, the same way this one did.
+
 This test complements (does not replace) the generic data-driven walkability
 test (test_t5_questline_content.TestAllQuestlinesWalkable, which auto-covers
 THIS questline too), the static reachability invariant, the reward-tier

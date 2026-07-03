@@ -7,7 +7,15 @@ SEES the gate instead of the talk silently stalling.
 """
 from __future__ import annotations
 
+import pytest
+
 from tests.spa.spa_dom_harness import run_with_dom
+
+# Fable addendum §5 (2026-07-03): this module's 4 tests each spawn a Node
+# subprocess — reliable alone/under the serial full gate, but flake under
+# `pytest -n auto` xdist contention. See tests/conftest.py's
+# pytest_collection_modifyitems for the skip mechanism.
+pytestmark = pytest.mark.serial
 
 _SCRIPTS = ["static/spa/m3_onboard.js"]
 
