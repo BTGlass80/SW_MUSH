@@ -24,11 +24,13 @@ cooperative play the doc calls for.
 PURE: no DB / IO (the runtime owns persistence). The Hollow Sun proved the
 pattern; events_more_scenarios (2026-06-24) extends it to the Ember Court
 (Geonosis) and the Ashen Hand (Coruscant) — the cults whose world already has a
-wilderness region to anchor a site. iron_veil_kuat_staged_scenario (2026-07-02)
-extends it again to the Iron Veil (Kuat), authoring a new small wilderness
-region (kuat_sabotaged_yards) to anchor its site. Only the Drowned Choir
-(Nar Shaddaa) still keeps the menace path (its world lacks a wilderness
-substrate). All staged cults flow through the SAME orchestrator
+wilderness region to anchor a site. Two 2026-07-02 follow-ups complete the
+set: the Drowned Choir (Nar Shaddaa, on its own new small wilderness venue
+wilderness/nar_shaddaa_drowned_sublevels.yaml) and the Iron Veil (Kuat, on a
+new small wilderness region kuat_sabotaged_yards reached via a new edge room
+off Kuat Drive Yards - Ring Warehouse District). All 5 cults are now staged
+site scenarios; none remain on the legacy menace path. All staged cults flow
+through the SAME orchestrator
 (engine.communal_objective_runtime); this drop adds only DATA (stage
 descriptors + their authored anomaly templates), no orchestration.
 See docs/design/event_rework_staged_scenarios_2026-06-22.md and
@@ -125,14 +127,16 @@ ASHEN_HAND_STAGES = [
 ]
 
 # iron_veil_kuat_staged_scenario (2026-07-02): the Iron Veil (Kuat) converts
-# LAST — it was deferred at events_more_scenarios time because Kuat had no
-# wilderness substrate to anchor a site. This drop authors one:
+# on the same pattern — it was deferred at events_more_scenarios time because
+# Kuat had no wilderness substrate to anchor a site. This drop authors one:
 #   iron_veil → kuat_sabotaged_yards (a new small blacked-out shipyard region,
 #               wilderness/kuat_sabotaged_yards.yaml, reached via a new edge
 #               room off Kuat Drive Yards - Ring Warehouse District).
 # Mirrors the Ember Court/Ashen Hand pattern exactly (combat wave → live
 # resolution:"skill" middle → boss). Era-clean (B3/Q1): invented orbital-
-# saboteur cult, no Imperial/Rebel strings, no canon figures.
+# saboteur cult, no Imperial/Rebel strings, no canon figures. Landed alongside
+# the sibling Drowned Choir conversion below — together these two complete the
+# set: all 5 cults are now staged site scenarios, 0 remain on the menace path.
 
 IRON_VEIL_STAGES = [
     {"key": "cells", "kind": KIND_COMBAT, "need": 4,
@@ -154,11 +158,39 @@ IRON_VEIL_STAGES = [
      "anomaly_template": "iron_veil_veilmaster", "anomaly_tier": 2},
 ]
 
+# Drowned Choir (Nar Shaddaa) follow-up (2026-07-02): the fifth and final
+# communal objective converted to a playable site scenario, mirroring the
+# Hollow Sun / Ember Court / Ashen Hand conversions exactly. Its world
+# (nar_shaddaa) now has a wilderness region to anchor the site
+# (wilderness/nar_shaddaa_drowned_sublevels.yaml, a small 4-landmark venue
+# reached from the existing Undercity Depths room). Landed alongside the
+# sibling Iron Veil conversion above.
+DROWNED_CHOIR_STAGES = [
+    {"key": "sublevels", "kind": KIND_COMBAT, "need": 4,
+     "name": "Raid the Flooded Sub-Levels",
+     "objective": "Fight through the Drowned Choir's drowning-cultists in the flooded runoff warrens.",
+     "skills": ["brawling", "blaster", "melee_combat", "dodge", "blaster_artillery"],
+     "anomaly_template": "drowned_choir_runoff_assault", "anomaly_tier": 2},
+    {"key": "patrons", "kind": KIND_SKILL, "need": 3,
+     "name": "Expose the Patrons",
+     "objective": "Trace the Choir's off-world patrons through the sublevel ledgers "
+                  "(security / investigation) or talk the desperate initiates back out "
+                  "of the runoff (persuasion / con / bargain).",
+     "skills": ["security", "investigation", "persuasion", "con", "bargain"],
+     "anomaly_template": "drowned_choir_patron_exposure", "anomaly_tier": 1},
+    {"key": "choirmaster", "kind": KIND_BOSS, "need": 5,
+     "name": "Silence the Choirmaster",
+     "objective": "Bring down the Drowned Choir's Choirmaster and empty the sub-levels.",
+     "skills": ["brawling", "blaster", "melee_combat", "dodge", "lightsaber"],
+     "anomaly_template": "drowned_choir_choirmaster", "anomaly_tier": 2},
+]
+
 STAGED_CULTS = {
     "hollow_sun": HOLLOW_SUN_STAGES,
     "ember_court": EMBER_COURT_STAGES,
     "ashen_hand": ASHEN_HAND_STAGES,
     "iron_veil": IRON_VEIL_STAGES,
+    "drowned_choir": DROWNED_CHOIR_STAGES,
 }
 
 # The wilderness region each staged cult's scenario site anchors in. Mirrors the
@@ -168,6 +200,7 @@ STAGED_CULT_REGION = {
     "ember_court": "geonosis_ey_akh",
     "ashen_hand": "coruscant_underworld",
     "iron_veil": "kuat_sabotaged_yards",
+    "drowned_choir": "nar_shaddaa_drowned_sublevels",
 }
 
 
