@@ -92,11 +92,11 @@ class TestGuideFrontmatterAudit(unittest.TestCase):
         )
 
     def test_expected_guide_count(self):
-        """25 guides currently ship (24 player + Guide_27 Administration,
+        """27 guides currently ship (26 player + Guide_27 Administration,
         admin-only). The number is asserted exactly so adding or removing a
         guide is a deliberate test edit."""
         self.assertEqual(
-            len(self.files), 25,
+            len(self.files), 27,
             f"expected 25 guides in {GUIDES_DIR}, found {len(self.files)}: "
             f"{self.files}"
         )
@@ -218,7 +218,7 @@ class TestLoaderBehaviour(unittest.TestCase):
         self.wp = wp
 
     def test_all_25_guides_loaded(self):
-        self.assertEqual(len(self.wp._GUIDE_INDEX), 25)
+        self.assertEqual(len(self.wp._GUIDE_INDEX), 27)
 
     def test_all_present_categories_in_payload(self):
         """Every category that has at least one guide is in
@@ -319,7 +319,7 @@ class TestGuideEndpoints(unittest.TestCase):
         self.assertIn("categories", body)
         self.assertIsInstance(body["guides"], list)
         self.assertIsInstance(body["categories"], list)
-        self.assertEqual(len(body["guides"]), 24)
+        self.assertEqual(len(body["guides"]), 26)
         # Categories are objects with key/label/blurb.
         for c in body["categories"]:
             self.assertIn("key", c)
@@ -393,7 +393,7 @@ class TestGuideAccessGating(unittest.TestCase):
         body = json.loads(_run(self.api.handle_guides(_FakeReq())).body)
         slugs = [g["slug"] for g in body["guides"]]
         self.assertNotIn(self.ADMIN_SLUG, slugs)
-        self.assertEqual(len(body["guides"]), 24)
+        self.assertEqual(len(body["guides"]), 26)
         # The admin category header must not appear for a player either.
         self.assertNotIn("admin", [c["key"] for c in body["categories"]])
 
@@ -402,7 +402,7 @@ class TestGuideAccessGating(unittest.TestCase):
         body = json.loads(_run(self.api.handle_guides(_FakeReq())).body)
         slugs = [g["slug"] for g in body["guides"]]
         self.assertIn(self.ADMIN_SLUG, slugs)
-        self.assertEqual(len(body["guides"]), 25)
+        self.assertEqual(len(body["guides"]), 27)
         self.assertIn("admin", [c["key"] for c in body["categories"]])
 
     def test_player_direct_slug_access_404s(self):
