@@ -182,6 +182,11 @@ SKILL_GATE_RETRY_COOLDOWN_SECS = 12
 #   long_desc        — narrative on resolution.
 #   primary_skill /  — only used when resolution == "skill".
 #     secondary_skill
+#   alt_skills       — OPTIONAL (resolution == "skill"). Extra role-
+#                      substitution skills the stage advertises (e.g. a face
+#                      turning the farmers instead of a slicer). The resolver
+#                      rolls the first of primary → secondary → alt_skills the
+#                      character has trained. Omit for a strict two-skill stage.
 #   combat_npcs      — only used when resolution == "combat". List of
 #                      dicts: {archetype, tier, species, name_pool}.
 #                      One NPC is spawned per entry; the kill hook
@@ -1941,6 +1946,11 @@ SCENARIO_TEMPLATES = {
         ),
         "primary_skill": "security",
         "secondary_skill": "computer_programming",
+        # The long_desc + staged_event pool also advertise a "turn the
+        # farmers" social route — honor it so a face character can resolve
+        # the stage they were told they could (role substitution, not
+        # dice min-maxing: _pick_best_of_skills takes the first trained).
+        "alt_skills": ["persuasion", "con", "bargain"],
         "success_reward": {
             "credits": (250, 500),
             "resources": [
@@ -2159,6 +2169,9 @@ SCENARIO_TEMPLATES = {
         ),
         "primary_skill": "security",
         "secondary_skill": "computer_programming",
+        # Advertised "rally the conscripted laborers" social route — see
+        # hollow_sun_cistern_slice's alt_skills note.
+        "alt_skills": ["persuasion", "con", "bargain"],
         "success_reward": {
             "credits": (250, 500),
             "resources": [
@@ -2380,6 +2393,10 @@ SCENARIO_TEMPLATES = {
         ),
         "primary_skill": "persuasion",
         "secondary_skill": "investigation",
+        # The staged_event pool also lets a fast-talker (con/bargain) or a
+        # slicer (security, tracing the dead-drops) cover this stage — see
+        # hollow_sun_cistern_slice's alt_skills note.
+        "alt_skills": ["con", "bargain", "security"],
         "success_reward": {
             "credits": (250, 500),
             "resources": [
@@ -2472,6 +2489,246 @@ SCENARIO_TEMPLATES = {
         "news_text": (
             "The Ashfather of the Ashen Hand has been cornered in the deepest "
             "warren of {region}. End the prophet and the order breaks."
+        ),
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # Drowned Choir (Nar Shaddaa / nar_shaddaa_drowned_sublevels) — an undercity
+    # choir that drowns initiates to "hear the dark below." events_more_scenarios
+    # follow-up (2026-07-02): the fourth communal objective converted to a
+    # playable site scenario, mirroring the Hollow Sun / Ember Court / Ashen
+    # Hand conversions exactly (wave → skill → boss). Era-clean (B3/Q1):
+    # invented dark-side undercity cult, no Imperial/Rebel strings, no canon
+    # figures; off-world backers are referenced institutionally ("a Hutt
+    # kajidic"), never a named canon Hutt. Its skill stage leans investigative
+    # (trace the patrons through the ledgers) with a social alt-path (talk the
+    # desperate initiates back out), matching the cult's rally hook ("raid
+    # their flooded sub-levels, expose their patrons, and pull the desperate
+    # back out of the runoff"). Reward bands are copied EXACTLY from the Ashen
+    # Hand's three templates (balance-neutral — no new magnitudes invented).
+    # ══════════════════════════════════════════════════════════════════════════
+
+    # ── Stage 1: wave combat — Raid the Flooded Sub-Levels ────────────────────
+    "drowned_choir_runoff_assault": {
+        "tier": 2,
+        "scenario": "drowned_choir",
+        "regions": [],
+        "resolution": "combat",
+        "display_name": "Drowned Choir Runoff Assault",
+        "short_desc": (
+            "Robed enforcers hold the Drowned Choir's flooded outer warrens, "
+            "wading the junctions in pairs."
+        ),
+        "long_desc": (
+            "Deep below the Undercity the Drowned Choir has claimed a tangle "
+            "of flooded maintenance corridors as its outer ring — runoff "
+            "standing ankle to knee deep, chants echoing off wet ferrocrete. "
+            "Robed enforcers called Drenchers hold the junctions, vibroblades "
+            "low, listening for any footstep that doesn't match the chant's "
+            "rhythm. They do not let outsiders wade in and wade back out."
+        ),
+        "phases": [
+            {
+                "name": "The Runoff Drenchers",
+                "intro": (
+                    "Three figures wade out of the flooded dark — Drenchers, "
+                    "the Choir's hands in the outer ring, closing the "
+                    "junction behind you."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Human",
+                        "name_pool": ["Choir Drencher", "Runoff Enforcer"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "A Drowned Choir Drencher, holding the flooded junction with cold, wading patience.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Human",
+                        "name_pool": ["Choir Drencher", "Runoff Enforcer"],
+                        "weapon": "blaster_pistol", "behavior": "aggressive",
+                        "personality": "A Drowned Choir Drencher, holding the flooded junction with cold, wading patience.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "novice",
+                        "species": "Human",
+                        "name_pool": ["Runoff Convert", "Half-Drowned Initiate"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "A desperate initiate bound to the Drowned Choir, throwing herself at the intruders.",
+                    },
+                ],
+            },
+            {
+                "name": "The Warren Cantor",
+                "intro": (
+                    "From the flooded dark ahead comes a Cantor, chant never "
+                    "breaking rhythm, two armed Drenchers wading at her "
+                    "shoulders — colder, surer, deadlier."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "thug", "tier": "veteran",
+                        "species": "Human",
+                        "name_pool": ["Drowned Choir Cantor", "Warren Cantor"],
+                        "weapon": "blaster_rifle", "behavior": "tactical",
+                        "personality": "A Drowned Choir Cantor — a chant-leader rallying the faithful through the flooded warrens.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Human",
+                        "name_pool": ["Choir Drencher", "Warren Guard"],
+                        "weapon": "blaster_rifle", "behavior": "aggressive",
+                        "personality": "A Drowned Choir Drencher guarding the Cantor.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Human",
+                        "name_pool": ["Choir Drencher", "Warren Guard"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "A Drowned Choir Drencher guarding the Cantor.",
+                    },
+                ],
+            },
+        ],
+        "success_reward": {
+            "credits": (400, 800),
+            "resources": [
+                ("composite", 2, 55),
+                ("energy", 2, 50),
+            ],
+            "influence": TIER2_INFLUENCE_DELTA,
+        },
+        "news_text": (
+            "The Drowned Choir has dug into the flooded sub-levels of "
+            "{region}. Their Drenchers are turning back anyone who comes "
+            "down looking."
+        ),
+    },
+
+    # ── Stage 2: skill gate — Expose the Patrons ──────────────────────────────
+    "drowned_choir_patron_exposure": {
+        "tier": 1,
+        "scenario": "drowned_choir",
+        "regions": [],
+        "resolution": "skill",
+        "display_name": "Drowned Choir Patrons",
+        "short_desc": (
+            "The Choir's ledger-hall names its off-world patrons — trace the "
+            "records, or talk the desperate back out."
+        ),
+        "long_desc": (
+            "The Drowned Choir's real leverage isn't the chant — it's the "
+            "ledger-hall in the Patrons' Cistern, where sealed credit chits "
+            "and hand-written records name every backer keeping the "
+            "operation solvent, a Hutt kajidic's counting-house among them. "
+            "A careful investigator can trace the patrons through the "
+            "records and burn the funding from outside; a persuasive voice "
+            "can talk the desperate initiates the Choir preys on back out "
+            "of the runoff before they're drowned for scripture. Either "
+            "way, the Choir goes broke down here."
+        ),
+        "primary_skill": "security",
+        "secondary_skill": "investigation",
+        # The staged_event pool also lets a face (persuasion/con/bargain)
+        # cover this stage by talking the desperate initiates back out —
+        # see ashen_hand_informant_turn's alt_skills note.
+        "alt_skills": ["persuasion", "con", "bargain"],
+        "success_reward": {
+            "credits": (250, 500),
+            "resources": [
+                ("energy", 2, 55),
+                ("composite", 1, 50),
+            ],
+            "influence": TIER1_INFLUENCE_DELTA,
+        },
+        "fail_reward": {
+            "credits": (60, 120),
+            "resources": [],
+            "influence": 0,
+        },
+        "news_text": (
+            "Desperate initiates in {region} are being drowned for "
+            "'revelation' by the Drowned Choir. Investigators and "
+            "negotiators are needed to expose the cult's patrons."
+        ),
+    },
+
+    # ── Stage 3: boss — Silence the Choirmaster ───────────────────────────────
+    "drowned_choir_choirmaster": {
+        "tier": 2,
+        "scenario": "drowned_choir",
+        "regions": [],
+        "resolution": "combat",
+        "display_name": "The Drowned Choir's Choirmaster",
+        "short_desc": (
+            "The Choirmaster of the Drowned Choir makes a last stand in the "
+            "flooded sanctum."
+        ),
+        "long_desc": (
+            "In the Drowned Sanctum's chest-deep water waits the Choirmaster "
+            "of the Drowned Choir — gaunt, waterlogged robes hung with "
+            "votive chains, a ritual blade in one hand and a heavy blaster "
+            "in the other. The last of the faithful press in around the "
+            "chamber's edge, chant never breaking. Silence the Choirmaster "
+            "and the sub-levels empty out into the light."
+        ),
+        "phases": [
+            {
+                "name": "The Faithful Close Ranks",
+                "intro": (
+                    "The Choirmaster's chosen wade forward first — two "
+                    "armed faithful buying their prophet time in the "
+                    "flooded chokepoint."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "thug", "tier": "veteran",
+                        "species": "Human",
+                        "name_pool": ["Drowned Choir Faithful", "Choirmaster's Chosen"],
+                        "weapon": "blaster_rifle", "behavior": "tactical",
+                        "personality": "A Drowned Choir chosen, shielding the Choirmaster with his life.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "veteran",
+                        "species": "Human",
+                        "name_pool": ["Drowned Choir Faithful", "Choirmaster's Chosen"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "A Drowned Choir chosen, shielding the Choirmaster with his life.",
+                    },
+                ],
+            },
+            {
+                "name": "The Choirmaster",
+                "intro": (
+                    "The chosen fall and the Choirmaster steps forward "
+                    "alone through the chest-deep water, blade raised. "
+                    "This is the end of the Choir — or of you."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "bounty_hunter", "tier": "superior",
+                        "species": "Human",
+                        "name_pool": ["The Choirmaster of the Drowned Choir", "The Drowned Prophet"],
+                        "weapon": "blaster_rifle", "behavior": "tactical",
+                        "personality": "The Choirmaster of the Drowned Choir — the cult's prophet, fanatical and lethal, making a last stand in the flooded sanctum.",
+                    },
+                ],
+            },
+        ],
+        "success_reward": {
+            "credits": (700, 1400),
+            "resources": [
+                ("composite", 3, 60),
+                ("energy", 2, 55),
+                ("metal", 1, 55),
+            ],
+            "influence": TIER2_INFLUENCE_DELTA,
+        },
+        "news_text": (
+            "The Choirmaster of the Drowned Choir has been cornered in the "
+            "flooded sanctum of {region}. Silence the prophet and the cult "
+            "breaks."
         ),
     },
 }
@@ -3322,7 +3579,14 @@ async def _resolve_anomaly_skill(
     tmpl = anomaly.template
     primary = tmpl.get("primary_skill", "survival")
     secondary = tmpl.get("secondary_skill")
-    skill_to_use = _pick_better_skill(char, primary, secondary)
+    # A skill template MAY advertise extra role-substitution routes via
+    # alt_skills (e.g. a face turning the farmers instead of a slicer cutting
+    # the cistern). Honor primary → secondary → alt in order, using the first
+    # the character has trained. With no alt_skills this is byte-identical to
+    # the old _pick_better_skill(primary, secondary) behavior.
+    candidate_skills = [primary, secondary, *(tmpl.get("alt_skills") or [])]
+    candidate_skills = [s for s in candidate_skills if s]
+    skill_to_use = _pick_best_of_skills(char, candidate_skills)
 
     from engine.skill_checks import perform_skill_check
     try:

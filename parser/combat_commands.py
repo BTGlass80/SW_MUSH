@@ -1209,7 +1209,26 @@ async def _apply_combat_wear(combat, ctx, pre_npcs=None):
                     # credit below.
                     try:
                         from engine.character import WoundLevel as _WL_ANOM
-                        if c.char.wound_level.value >= _WL_ANOM.DEAD.value:
+                        # EVENT.anomaly_clear_on_defeat (2026-07-02): a
+                        # wilderness/scenario anomaly clears when its last hostile
+                        # is DEFEATED — not only when literally DEAD. combat.is_over
+                        # fires at "can't act" (>= INCAPACITATED, see
+                        # CombatInstance.active_combatants), and BOTH _cleanup's
+                        # dead-removal is DEAD-only while the room cleanup
+                        # (this file, is-over branch) vanishes the NPC at
+                        # >= INCAPACITATED — so a DEAD-only gate here left the
+                        # anomaly unresolvable through the normal `attack` loop
+                        # (you rarely one-shot to DEAD): the last zealot was
+                        # incapacitated, vanished from the room, and the staged
+                        # scenario stuck forever (Break-it 2026-07-02, blocked all
+                        # 3 staged cults + every combat anomaly). Align with the
+                        # game's own victory semantics — the bounty capture-chain
+                        # and combat achievements already treat incapacitation as a
+                        # win. The bounty / WoW.3a kill hooks intentionally STAY
+                        # DEAD-gated (capture and not-yet-killed have distinct
+                        # meaning there); only the anomaly clear, whose sole
+                        # completion path is this hook, moves to defeat.
+                        if c.char.wound_level.value >= _WL_ANOM.INCAPACITATED.value:
                             _anom_killer_id = c.last_attacker_id
                             try:
                                 _ai_cfg_anom = _json.loads(

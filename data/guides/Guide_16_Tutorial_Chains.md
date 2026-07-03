@@ -9,7 +9,7 @@ tags: ["tutorial", "onboarding", "new player", "chain", "first character"]
 
 **Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
-**Guide Version 1.7**
+**Guide Version 1.8**
 
 ---
 
@@ -279,11 +279,11 @@ The Training Grounds are a separate space from the live world — a tutorial zon
 
 Chains are forgiving but not bulletproof — and the game tries to catch you before you even notice you're stuck.
 
-**You don't have to know the exact command — and you can't dead-end on one.** Once you're in the world, *anything* the game doesn't recognize gets a hand instead of a brick wall. A fat-fingered command (`atatck`), a reflexive word a newcomer reaches for (`inventory`, `situation`, `list`), or a plain-English question (`what do i do`, `how do i fight?`) all get the same soft answer — *"I didn't catch that,"* followed by your current objective, the exact command to type next (whenever you're in a chain), and a pointer to `help`, `look`, and the Ctrl/Cmd+K command search. There's no curt `Huh? Unknown command` waiting to stonewall you in-game; that blunt line is reserved for the login screen, before your character exists.
+**You don't have to know the exact command — and you can't dead-end on one.** Two safety nets catch you. **First,** most of the words a newcomer reflexively reaches for are now *real commands that simply answer you:* `inventory` (or `inv`/`i`) shows your gear, `goals` your current objectives, `situation` what's happening across the galaxy, `list` an in-room shop's stock, `presence` who's online. Each prints, as plain text, the same information the web sidebars show — so telnet and web players alike get an answer, not a shrug (they're spelled out in the recovery paths below). **Second,** for input the game genuinely can't parse — a fat-fingered command (`atatck`) or a plain-English question (`what do i do`, `how do i fight?`) — you still get a hand instead of a brick wall: the soft answer *"I didn't catch that,"* followed by your current objective, the exact command to type next (whenever you're in a chain), and a pointer to `help`, `look`, and the Ctrl/Cmd+K command search. There's no curt `Huh? Unknown command` waiting to stonewall you in-game; that blunt line is reserved for the login screen, before your character exists.
 
 If that nudge isn't enough, here are the deliberate recovery paths:
 
-**1. Check the chain status.** `chain` shows you the current step, objective, and completion type. The objective sentence tells you what to do.
+**1. Check your status — the reflex words are real commands.** `chain` shows your current tutorial step, objective, and completion type; the objective sentence tells you what to do. The words a newcomer instinctively types work too and need no exact syntax: `goals` lists your active questline step, accepted mission, and claimed bounty; `situation` shows the current galactic events; `list` shows an in-room vendor's stock (for player-run shops, `browse`); `inventory` (or `inv`/`i`) shows your gear; `presence` shows who's online. Each prints the same data the web sidebars show, so nothing here is web-only.
 
 **2. Talk to the step's NPC.** The NPC almost always has a hint line for "what to do next" — if you `talk <NPC>` they'll either repeat the briefing or give you the next-action hint.
 
@@ -400,6 +400,11 @@ Two ways, and you'll use both.
 | (chargen) pick a chain by number | Select your tutorial chain during character creation (alts may also skip) |
 | `chain` (or `chain status`) | Show current chain progress |
 | `chain attempt` | Trigger a skill-check step's roll (works for chains *and* questlines) |
+| `goals` | Your active questline step, accepted mission, and claimed bounty (text of the web GOALS panel) |
+| `situation` | The current galactic events (text of the web SITUATION panel) |
+| `list` | An in-room vendor's stock (player-run shops: use `browse`) |
+| `inventory` (or `inv`/`i`) | Your carried gear |
+| `presence` | Who's online, with location and status (alias of `+who`) |
 | `mastery` | Show your active mid-game questline, or offers from an NPC here (§15) |
 | `mastery browse` | Galaxy-wide directory of every questline — open / locked / done (§15) |
 | `mastery start <id>` | Begin an offered questline |

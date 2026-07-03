@@ -581,7 +581,18 @@ async def advance_and_resolve(db, session_mgr,
                         won=(pre_state == CO.STATE_WON), now_ms=now)
         return pre_state
 
-    menace = CO.advance_menace(cur_menace, minutes)
+    # EVENT.staged_menace_window: a staged site scenario escalates on its own
+    # slower one-way clock (~6h to auto-loss) so a group can travel + clear the
+    # three stages; the legacy strike-path cults keep the faster 0.35/min pace.
+    try:
+        from engine import staged_event as _SE2
+        _staged_pace = _SE2.is_staged(cult.key)
+    except Exception:
+        _staged_pace = False
+    menace = CO.advance_menace(
+        cur_menace, minutes,
+        per_minute=(CO.staged_menace_per_minute() if _staged_pace else None),
+    )
     state = CO.resolve_state(menace, now, deadline)
 
     if state == CO.STATE_ACTIVE:
@@ -707,8 +718,53 @@ async def _finalize(db, session_mgr, active: dict, contribs: dict,
         await _distribute_rewards(db, session_mgr, cult, contribs)
 
 
+# EVENT win-capstone relics (2026-07-02): one invented relic per cult, granted to
+# the top contributor on a rout. Era-clean (no canon / Imperial / Rebel strings);
+# purely commemorative flavor items.
+_CAPSTONE_LOOT = {
+    "hollow_sun": {"key": "hollow_sun_reliquary", "name": "Hollow Sun Reliquary",
+        "description": "A sun-shard reliquary pried from the Hierophant's altar -- "
+                       "proof you broke the Cult of the Hollow Sun."},
+    "ember_court": {"key": "ember_court_cinder_seal", "name": "Ember Court Cinder-Seal",
+        "description": "The Ash Forgemaster's cinder-seal, gone cold at last -- "
+                       "proof you collapsed the Ember Court."},
+    "ashen_hand": {"key": "ashen_hand_grey_ledger", "name": "Ashen Hand Grey Ledger",
+        "description": "The Ashfather's ledger of owned informants -- proof you "
+                       "broke the Ashen Hand's grip on the warrens."},
+    "drowned_choir": {"key": "drowned_choir_tide_bell", "name": "Drowned Choir Tide-Bell",
+        "description": "The choir's silenced tide-bell -- proof you pulled the "
+                       "desperate back out of the runoff."},
+    "iron_veil": {"key": "iron_veil_dark_lantern", "name": "Iron Veil Dark-Lantern",
+        "description": "A saboteur's dark-lantern, its blackout coils burned out -- "
+                       "proof you lifted the Iron Veil from the yards."},
+}
+_CAPSTONE_LOOT_DEFAULT = {"key": "cult_rout_token", "name": "Cult-Rout Token",
+    "description": "A token struck to mark a dark-side cult broken by a shared effort."}
+
+
+async def _grant_capstone_item(db, cid: int, loot: dict) -> None:
+    """Append a one-off commemorative cult relic to a contributor's inventory
+    items. Best-effort; a bad row/parse never blocks the rest of the payout."""
+    char = await db.get_character(int(cid))
+    if not char:
+        return
+    inv = _parse_json(char.get("inventory"), {})
+    if not isinstance(inv, dict):
+        inv = {}
+    items = inv.get("items")
+    if not isinstance(items, list):
+        items = []
+    items.append({"key": loot["key"], "name": loot["name"],
+                  "description": loot.get("description", ""),
+                  "is_capstone_loot": True})
+    inv["items"] = items
+    await db.save_character(int(cid), inventory=json.dumps(inv))
+
+
 async def _distribute_rewards(db, session_mgr, cult, contribs: dict) -> None:
-    """Pay Republic rep + the commemorative status flag to contributors. No credits."""
+    """Pay Republic rep + the commemorative title, and (on win) a credit capstone
+    to each title-earning contributor + a one-off cult relic to the single top
+    contributor (Brian 2026-07-02: the headline win used to pay 0 credits)."""
     if not contribs:
         return
     total = sum(int((v or {}).get("points") or 0) for v in contribs.values())
@@ -764,6 +820,53 @@ async def _distribute_rewards(db, session_mgr, cult, contribs: dict) -> None:
             except Exception:
                 log.debug("[communal_rt] title flag write failed for %s", cid,
                           exc_info=True)
+
+    # 3) EVENT win capstone (Brian 2026-07-02): the headline WIN now pays real
+    # credits + a relic. Credits go to every meaningful participant (title-earner)
+    # through the metered adjust_credits faucet; the single top contributor also
+    # gets a one-off cult relic. Bounded (one uprising per ~6h) — general-economy
+    # sink, same as the anomaly / questline reward faucets.
+    capstone = CO.win_capstone_credits()
+    top_cid, top_pts = None, -1
+    for cid_str, rec in contribs.items():
+        pts = int((rec or {}).get("points") or 0)
+        if pts <= 0:
+            continue
+        try:
+            cid = int(cid_str)
+        except (TypeError, ValueError):
+            continue
+        if pts > top_pts:
+            top_cid, top_pts = cid, pts
+        if capstone > 0 and CO.earns_title(pts, total, won=True):
+            try:
+                await db.adjust_credits(cid, capstone, "communal_win_capstone")
+                sess = session_mgr.find_by_character(cid) if session_mgr else None
+                if sess and getattr(sess, "character", None) is not None:
+                    try:
+                        sess.character["credits"] = (
+                            int(sess.character.get("credits", 0)) + capstone)
+                    except Exception:
+                        log.debug("[communal_rt] capstone session-credit sync "
+                                  "failed for %s", cid, exc_info=True)
+                    await sess.send_line(
+                        f"  \033[1;32m[CULT ROUTED]\033[0m Your part in breaking "
+                        f"{cult_name} earns a +{capstone:,} credit bounty.")
+            except Exception:
+                log.debug("[communal_rt] capstone credit failed for %s", cid,
+                          exc_info=True)
+    if top_cid is not None:
+        loot = _CAPSTONE_LOOT.get(cult.key if cult else "", _CAPSTONE_LOOT_DEFAULT)
+        try:
+            await _grant_capstone_item(db, top_cid, loot)
+            sess = session_mgr.find_by_character(top_cid) if session_mgr else None
+            if sess:
+                await sess.send_line(
+                    f"  \033[1;36m[RELIC]\033[0m {loot['name']} -- "
+                    f"{loot['description']}")
+        except Exception:
+            log.debug("[communal_rt] capstone relic failed for %s", top_cid,
+                      exc_info=True)
 
 
 # ── board rendering helper (for the +rally view) ─────────────────────────────

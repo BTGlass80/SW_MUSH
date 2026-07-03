@@ -59,6 +59,16 @@ DEADLINE_HOURS = 48        # a 2-day "weekly rhythm" beat (design: weekly exciti
 # strikes per hour keeps pace, so a small RP community can win without grinding.
 MENACE_PER_MINUTE = 0.35
 
+# EVENT.staged_menace_window (2026-07-02, Brian's call): a STAGED cult is a
+# PLAYABLE SITE SCENARIO (travel there, fight waves, slice, boss) whose menace is
+# a ONE-WAY FAILURE TIMER — staged strikes never push it down (see
+# communal_objective_runtime.record_strike, the `_staged` branch). At the legacy
+# +0.35/min a staged uprising auto-loses in ~3.1h and the 48h deadline never
+# binds. Brian chose a "one session" ~6h window: from START=35 to MAX=100 that is
+# (100-35)/360min = 0.18/min. The legacy strike-path cults (players push menace
+# DOWN) keep 0.35 — this rate governs ONLY the staged failure clock.
+STAGED_MENACE_PER_MINUTE = 0.18
+
 # Anti-spam: a single character may land one counted strike per this window, so
 # wins come from the COMMUNITY accumulating contributions, not one person macroing.
 STRIKE_COOLDOWN_S = 600    # 10 minutes
@@ -108,6 +118,36 @@ def menace_per_minute() -> float:
     return max(0.0, _safe_float(
         get_tunable("communal.menace_per_minute", MENACE_PER_MINUTE),
         MENACE_PER_MINUTE))
+
+
+def staged_menace_per_minute() -> float:
+    """Menace/min for a STAGED site scenario — its one-way failure clock. At
+    0.18/min a staged uprising (START..MAX = 35..100) reaches auto-loss in ~6h
+    (Brian's "one session" window). Legacy strike-path cults use
+    menace_per_minute() instead. Tunable via ``communal.staged_menace_per_minute``;
+    clamped >= 0 so it can never self-route the scenario."""
+    from engine.tunables import get_tunable
+    return max(0.0, _safe_float(
+        get_tunable("communal.staged_menace_per_minute", STAGED_MENACE_PER_MINUTE),
+        STAGED_MENACE_PER_MINUTE))
+
+
+# EVENT win capstone (Brian 2026-07-02): the headline cult-rout WIN pays a bigger
+# credit bounty (+ a one-off relic) on top of rep/title. Per-stage anomaly loot
+# ran LOWER than a standalone anomaly and the win itself paid 0cr, so the rare
+# multi-stage rout never felt worth it. Bounded + rare (one uprising per ~6h),
+# metered through adjust_credits — the general economy is its sink, exactly as for
+# the anomaly / questline reward faucets. Tunable via communal.win_capstone_credits.
+WIN_CAPSTONE_CREDITS = 1000
+
+
+def win_capstone_credits() -> int:
+    """Credit bounty paid to each title-earning contributor on a cult-rout win.
+    Clamped >= 0 (0 disables the capstone)."""
+    from engine.tunables import get_tunable
+    return max(0, _safe_int(
+        get_tunable("communal.win_capstone_credits", WIN_CAPSTONE_CREDITS),
+        WIN_CAPSTONE_CREDITS))
 
 
 def deadline_hours() -> int:
@@ -205,9 +245,14 @@ def clamp_menace(menace: float) -> float:
     return float(max(0.0, min(float(MENACE_MAX), float(menace))))
 
 
-def advance_menace(menace: float, minutes_elapsed: float) -> float:
-    """Escalate the cult over `minutes_elapsed`. Deterministic, clamped."""
-    m = float(menace) + (menace_per_minute() * max(0.0, float(minutes_elapsed)))
+def advance_menace(menace: float, minutes_elapsed: float,
+                   per_minute: "float | None" = None) -> float:
+    """Escalate the cult over `minutes_elapsed`. Deterministic, clamped. The rate
+    defaults to menace_per_minute() (the legacy strike-path pace); a STAGED
+    scenario passes staged_menace_per_minute() so its one-way failure clock runs
+    to the ~6h window instead of ~3.1h."""
+    rate = menace_per_minute() if per_minute is None else max(0.0, float(per_minute))
+    m = float(menace) + (rate * max(0.0, float(minutes_elapsed)))
     return clamp_menace(m)
 
 

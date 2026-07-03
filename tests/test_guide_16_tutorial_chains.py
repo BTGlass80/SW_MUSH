@@ -491,10 +491,13 @@ class TestCombatSimSafeSandbox:
 # drop NL-confusion-redirect (`19c5765`) made a confused newcomer's most natural
 # instinct WORK: typing a plain-English question ("what do i do") got the soft
 # "I didn't catch that" recovery instead of a bare "Huh? Unknown command".  fun12
-# (`ddef084`) BROADENED that — EVERY in-game unknown command (a typo, a reflexive
-# word like inventory/situation/list, OR a question) now routes through the same
-# recovery; the curt "Huh? Unknown command" survives only PRE-LOGIN (before a
-# character exists).  Guide_16 §12 teaches this no-dead-end safety net.  These
+# (`ddef084`) BROADENED that — EVERY in-game unknown command (a typo OR a
+# question) now routes through the same recovery; the curt "Huh? Unknown command"
+# survives only PRE-LOGIN (before a character exists).  (fun15/`9a3f083` later
+# turned the reflex words a newcomer types — goals/situation/list — into REAL
+# commands, and `e0dbcfb` made inventory/inv/i a real +inv alias, so those words
+# NO LONGER hit the recovery; that half is pinned by TestReflexStatusCommandTeaching
+# below.)  Guide_16 §12 teaches this no-dead-end safety net.  These
 # pin the prose to the live dispatcher behavior + the onboarding-state ABI both
 # the recovery and the guide rely on, so a regression (re-gating the recovery to
 # question-shaped input, or dropping objective/command_to_type) fails here.
@@ -525,9 +528,15 @@ class TestNLConfusionRedirectTeaching:
         # The post-fun12 truth: any in-game unknown gets a hand, not a dead end;
         # the curt Huh? line is reserved for the login screen.
         lowered = guide_text.lower()
-        assert "reflexive word" in lowered or "inventory" in lowered, (
-            "Guide_16 §12 should name the reflexive words a newcomer types "
-            "(inventory/situation/list) as inputs the recovery now catches"
+        # post-fun15: the reflex words (inventory/situation/list) are now REAL
+        # commands (see TestReflexStatusCommandTeaching), so the recovery's own
+        # examples must be GENUINELY-unrecognized input — a typo or an English
+        # question — NOT those reflex words.
+        assert "atatck" in lowered or "plain-english question" in lowered, (
+            "Guide_16 §12 should name a genuinely-unrecognized example the "
+            "recovery still catches (a typo like `atatck`, or a plain-English "
+            "question) — the reflex words inventory/situation/list are real "
+            "commands now, not unknown input"
         )
         assert "login screen" in lowered, (
             "Guide_16 §12 should note the curt `Huh? Unknown command` is now "
@@ -573,6 +582,73 @@ class TestNLConfusionRedirectTeaching:
             "build_onboarding_state no longer surfaces objective/command_to_type "
             "— Guide_16 §12's 'your current objective + the exact command to "
             "type next' promise is unbacked"
+        )
+
+
+# ── §12/§16: the fun15 reflex-status commands are REAL now (not unknown input) ─
+# drop fun15 (`9a3f083`) turned the words a newcomer reflexively types at the
+# prompt — `goals` / `situation` / `list` — into first-class commands that render
+# the same data the web sidebars show as plain text (GoalsCommand mirrors the
+# GOALS panel, SituationCommand the SITUATION panel, ListCommand a vendor's stock);
+# `presence` became a +who alias, and inventory/inv/i a real +inv alias (`e0dbcfb`).
+# So Guide_16 §12's old framing — which lumped inventory/situation/list in with
+# typos + questions as "input the game doesn't recognize" — went stale: those words
+# now RESOLVE and answer you.  §12 (and the §16 quick-ref) now teach them as real
+# status tools and reserve the "I didn't catch that" recovery for genuinely-
+# unrecognized input.  Pin the corrected teaching + the live producers so a revert
+# (dropping the commands, or the guide drifting back to "unrecognized") fails here.
+class TestReflexStatusCommandTeaching:
+    def test_guide_teaches_reflex_words_are_real_commands(self, guide_text):
+        # §12/§16 must present goals/situation/list as commands that answer you.
+        for form in ("`goals`", "`situation`", "`list`"):
+            assert form in guide_text, (
+                f"Guide_16 §12/§16 should teach {form} as a real reflex-status "
+                "command (fun15 made it first-class), not as unrecognized input"
+            )
+
+    def test_guide_no_longer_calls_reflex_words_unrecognized(self, guide_text):
+        # The exact stale framing that bundled the reflex words with typos as
+        # input "the game doesn't recognize" must stay dead.
+        assert "reflexive word a newcomer reaches for (`inventory`, " \
+            "`situation`, `list`)" not in guide_text, (
+            "Guide_16 §12 still lists inventory/situation/list as a 'reflexive "
+            "word the game doesn't recognize' — fun15/e0dbcfb made them real "
+            "commands; the recovery no longer catches them"
+        )
+
+    def test_reflex_status_commands_resolve(self, reg):
+        """The teaching is only true while the fun15 producers resolve against
+        the SAME registry GameServer builds."""
+        for form in ("goals", "situation", "list"):
+            assert reg.get(form) is not None, (
+                f"Guide_16 teaches the reflex command `{form}` but it no longer "
+                f"resolves against the live registry (fun15 producer gone)"
+            )
+
+    def test_inventory_and_presence_reflexes_are_real_aliases(self, reg):
+        """inventory/inv/i -> +inv (`e0dbcfb`); presence -> +who (fun15)."""
+        for form in ("inventory", "inv", "i", "presence"):
+            assert reg.get(form) is not None, (
+                f"the `{form}` reflex no longer resolves — Guide_16 §12/§16 "
+                f"teaches it as a real command"
+            )
+
+    def test_reflex_commands_read_the_web_sidebar_data(self):
+        """§12/§16 claim these print the same data the web sidebars show.  Pin
+        the producer link so the 'nothing is web-only' claim isn't phantom:
+        GoalsCommand mirrors _hud_sidebar_goals, SituationCommand reuses the
+        world-event manager the SITUATION digest consumes."""
+        import inspect
+        from parser import builtin_commands
+        goals_src = inspect.getsource(builtin_commands.GoalsCommand)
+        assert "_hud_sidebar_goals" in goals_src, (
+            "GoalsCommand no longer documents mirroring the GOALS sidebar — "
+            "Guide_16's 'same data the web sidebars show' claim is drifting"
+        )
+        sit_src = inspect.getsource(builtin_commands.SituationCommand)
+        assert "get_world_event_manager" in sit_src, (
+            "SituationCommand no longer reads the world-event manager — Guide_16's "
+            "SITUATION-panel-as-text claim is drifting"
         )
 
 
