@@ -2493,11 +2493,247 @@ SCENARIO_TEMPLATES = {
     },
 
     # ══════════════════════════════════════════════════════════════════════════
+    # Iron Veil (Kuat / kuat_sabotaged_yards) — orbital saboteurs who veil the
+    # shipyards in engineered blackouts. iron_veil_kuat_staged_scenario
+    # (2026-07-02): the fourth communal objective converted to a playable site
+    # scenario, mirroring the Ember Court/Ashen Hand pattern exactly (wave →
+    # skill → boss). Kuat had no wilderness substrate at events_more_scenarios
+    # time (2026-06-24); this drop authors a new small region
+    # (wilderness/kuat_sabotaged_yards.yaml) to anchor it. Its skill stage
+    # leans technical/social (splice the relays or talk down the dock crews),
+    # matching the cult's rally_hook "restore the cut power, trace their cells
+    # through the yards, and keep the dock crews calm in the dark". Era-clean
+    # (B3/Q1): invented orbital-saboteur cult, no Imperial/Rebel strings, no
+    # canon figures. Reward bands copied EXACTLY from the Ember Court's
+    # same-tier templates — conservative, balance-neutral.
+    # ══════════════════════════════════════════════════════════════════════════
+
+    # ── Stage 1: wave combat — Break the Saboteur Cells ───────────────────────
+    "iron_veil_cell_assault": {
+        "tier": 2,
+        "scenario": "iron_veil",
+        "regions": [],                       # orchestrator-spawned only
+        "resolution": "combat",
+        "display_name": "Iron Veil Cell Assault",
+        "short_desc": (
+            "Iron Veil saboteurs hold a blacked-out cargo bay, cutting power "
+            "conduits by hand-torch light."
+        ),
+        "long_desc": (
+            "The Ring Warehouse District's lit corridors give way here to a "
+            "sub-level the duty rosters stopped assigning anyone to. The Iron "
+            "Veil has claimed it — masked saboteurs working by hand-torch, "
+            "cutting conduit after conduit dark. They take your approach as an "
+            "attempt to relight the yards, and they are not willing to let "
+            "that happen."
+        ),
+        "phases": [
+            {
+                "name": "The Blackout Pickets",
+                "intro": (
+                    "Three shapes peel off from the dark at the edge of a "
+                    "hand-torch's glow, tools traded for weapons."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Human",
+                        "name_pool": ["Iron Veil Picket", "Blackout Saboteur"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "An Iron Veil picket, defending the blacked-out bay in the dark.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Twi'lek",
+                        "name_pool": ["Iron Veil Picket", "Blackout Saboteur"],
+                        "weapon": "blaster_pistol", "behavior": "aggressive",
+                        "personality": "An Iron Veil picket, defending the blacked-out bay in the dark.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "novice",
+                        "species": "Human",
+                        "name_pool": ["Iron Veil Conscript", "Cell Lookout"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "A rattled dock-crew conscript pressed into the Iron Veil's cells, throwing himself at the intruders.",
+                    },
+                ],
+            },
+            {
+                "name": "The Cell Handler",
+                "intro": (
+                    "From behind a dead relay bank steps a Cell Handler, two "
+                    "armed pickets at her back — surer, harder, deadlier."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "thug", "tier": "veteran",
+                        "species": "Human",
+                        "name_pool": ["Iron Veil Cell Handler", "Blackout Overseer"],
+                        "weapon": "blaster_rifle", "behavior": "tactical",
+                        "personality": "An Iron Veil Cell Handler — running the local blackout cell with cold precision.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Rodian",
+                        "name_pool": ["Iron Veil Picket", "Cell Guard"],
+                        "weapon": "blaster_rifle", "behavior": "aggressive",
+                        "personality": "An Iron Veil picket guarding the Cell Handler.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Human",
+                        "name_pool": ["Iron Veil Picket", "Cell Guard"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "An Iron Veil picket guarding the Cell Handler.",
+                    },
+                ],
+            },
+        ],
+        "success_reward": {
+            "credits": (400, 800),
+            "resources": [
+                ("metal", 2, 55),
+                ("energy", 2, 50),
+            ],
+            "influence": TIER2_INFLUENCE_DELTA,
+        },
+        "news_text": (
+            "The Iron Veil has gone to ground in a blacked-out cargo bay in "
+            "{region}. Their pickets are turning back every repair crew that "
+            "gets close."
+        ),
+    },
+
+    # ── Stage 2: skill gate — Restore the Cut Power ────────────────────────────
+    "iron_veil_power_relay": {
+        "tier": 1,
+        "scenario": "iron_veil",
+        "regions": [],
+        "resolution": "skill",
+        "display_name": "Iron Veil Power Relay",
+        "short_desc": (
+            "The Iron Veil severed the yard's relay feeds by hand — splice "
+            "them back, or talk the dock crews back to their posts."
+        ),
+        "long_desc": (
+            "The Iron Veil didn't blow the yard's power grid — they cut it, "
+            "conduit by conduit, by hand, leaving splice-points a technician "
+            "could close in minutes if the dock crews weren't too rattled to "
+            "try. A steady set of hands can re-splice the severed relay feeds "
+            "directly; a steady voice can talk the crews back to their posts "
+            "to do it themselves. Either way, the lights come back on."
+        ),
+        "primary_skill": "technical",
+        "secondary_skill": "computer_programming",
+        # The long_desc + staged_event pool also advertise a "talk the crews
+        # back" social route — honor it so a face character can resolve the
+        # stage they were told they could (role substitution, not dice
+        # min-maxing — mirrors the other 3 staged-cult skill stages' alt_skills,
+        # 8e5a53e).
+        "alt_skills": ["persuasion", "con", "bargain"],
+        "success_reward": {
+            "credits": (250, 500),
+            "resources": [
+                ("energy", 2, 55),
+                ("metal", 1, 50),
+            ],
+            "influence": TIER1_INFLUENCE_DELTA,
+        },
+        "fail_reward": {
+            "credits": (60, 120),
+            "resources": [],
+            "influence": 0,
+        },
+        "news_text": (
+            "Dock crews in {region} report the Iron Veil severed the relay "
+            "feeds by hand. Technicians and steady voices are needed to bring "
+            "the yards back online."
+        ),
+    },
+
+    # ── Stage 3: boss — Unmask the Veilmaster ──────────────────────────────────
+    "iron_veil_veilmaster": {
+        "tier": 2,
+        "scenario": "iron_veil",
+        "regions": [],
+        "resolution": "combat",
+        "display_name": "The Iron Veil's Veilmaster",
+        "short_desc": (
+            "The Veilmaster of the Iron Veil makes a last stand at the dead "
+            "relay hub."
+        ),
+        "long_desc": (
+            "At the heart of the sabotaged sub-level waits the Veilmaster of "
+            "the Iron Veil — a masked, wire-scarred figure in a scavenged KSF "
+            "duty coat, a cutting torch in one hand and a heavy blaster in the "
+            "other. The last of the blackout cells close ranks around their "
+            "handler at the dead relay hub. Break the Veilmaster and the yards "
+            "come back into the light."
+        ),
+        "phases": [
+            {
+                "name": "The Cells Close Ranks",
+                "intro": (
+                    "The Veilmaster's handlers move first — two armed pickets "
+                    "buying their leader time at the relay hub's edge."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "thug", "tier": "veteran",
+                        "species": "Human",
+                        "name_pool": ["Iron Veil Handler", "Veilmaster's Guard"],
+                        "weapon": "blaster_rifle", "behavior": "tactical",
+                        "personality": "An Iron Veil handler, shielding the Veilmaster with his life.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "veteran",
+                        "species": "Human",
+                        "name_pool": ["Iron Veil Handler", "Veilmaster's Guard"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "An Iron Veil handler, shielding the Veilmaster with his life.",
+                    },
+                ],
+            },
+            {
+                "name": "The Veilmaster",
+                "intro": (
+                    "The handlers fall and the Veilmaster steps out of the "
+                    "dark alone, cutting torch raised at the dead relay hub. "
+                    "This is the end of the cell — or of you."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "bounty_hunter", "tier": "superior",
+                        "species": "Human",
+                        "name_pool": ["The Veilmaster", "Iron Veil Cell-Master"],
+                        "weapon": "blaster_rifle", "behavior": "tactical",
+                        "personality": "The Veilmaster of the Iron Veil — the cult's cell-master, cold and methodical, making a last stand at the dead relay hub.",
+                    },
+                ],
+            },
+        ],
+        "success_reward": {
+            "credits": (700, 1400),
+            "resources": [
+                ("metal", 3, 60),
+                ("energy", 2, 55),
+                ("composite", 1, 55),
+            ],
+            "influence": TIER2_INFLUENCE_DELTA,
+        },
+        "news_text": (
+            "The Veilmaster of the Iron Veil has been cornered at a dead "
+            "relay hub in {region}. End the cell-master and the blackout "
+            "breaks."
+        ),
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
     # Drowned Choir (Nar Shaddaa / nar_shaddaa_drowned_sublevels) — an undercity
     # choir that drowns initiates to "hear the dark below." events_more_scenarios
-    # follow-up (2026-07-02): the fourth communal objective converted to a
-    # playable site scenario, mirroring the Hollow Sun / Ember Court / Ashen
-    # Hand conversions exactly (wave → skill → boss). Era-clean (B3/Q1):
+    # follow-up (2026-07-02): the fifth and final communal objective converted
+    # to a playable site scenario, mirroring the Hollow Sun / Ember Court / Ashen
+    # Hand / Iron Veil conversions exactly (wave → skill → boss). Era-clean (B3/Q1):
     # invented dark-side undercity cult, no Imperial/Rebel strings, no canon
     # figures; off-world backers are referenced institutionally ("a Hutt
     # kajidic"), never a named canon Hutt. Its skill stage leans investigative

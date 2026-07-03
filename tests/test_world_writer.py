@@ -327,12 +327,14 @@ class TestRoomsManifest:
     def test_manifest_room_count(self, write_result):
         _, result = write_result
         manifest = build_rooms_manifest(result)
-        # 292 = 287 (280 pre-Lane-D + 7 Geonosis arc rooms: Gladiator Barracks
-        # interior zone + E'Y-Akh anchors, 2026-06-07 drop) + 5 space-zone
-        # anchor rooms (QA L7, commit c0798e6: one *_system_ship_approach
-        # anchor per previously-empty space zone).
-        assert len(manifest["rooms"]) == 292
-        assert len(manifest["by_id"]) == 292
+        # 293 = 292 (287 pre-Lane-D-arc + 7 Geonosis arc rooms: Gladiator
+        # Barracks interior zone + E'Y-Akh anchors, 2026-06-07 drop; + 5
+        # space-zone anchor rooms, QA L7 commit c0798e6) + 1
+        # (iron_veil_kuat_staged_scenario, 2026-07-02: kuat_sabotaged_yards_edge,
+        # the new on-foot edge room off Kuat Drive Yards - Ring Warehouse
+        # District into the new kuat_sabotaged_yards wilderness region).
+        assert len(manifest["rooms"]) == 293
+        assert len(manifest["by_id"]) == 293
 
     def test_manifest_round_trips(self, write_result):
         _, result = write_result

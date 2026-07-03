@@ -477,6 +477,23 @@ zones:
       security: secured
       threat_band: frontier     # DIFF.2 (2026-06-13): zoned difficulty band
 
+  kuat_sabotaged_yards:
+    name_match: "sabotaged yards"
+    narrative_tone: >
+      The lit, orderly Drive Yards end abruptly here. The Iron Veil has
+      taken a warehouse sub-level dark — power conduits cut by hand, patrol
+      logs falsified, dock crews too rattled to push back. KSF calls it a
+      standing maintenance fault. It is a cult's staging ground, and it is
+      not under anyone's control but theirs.
+    # iron_veil_kuat_staged_scenario (2026-07-02): zone for the new Sabotaged
+    # Yards coordinate-grid wilderness region
+    # (wilderness/kuat_sabotaged_yards.yaml) and its on-foot edge room
+    # (kuat_sabotaged_yards_edge). Contested — nominally KDY territory, in
+    # practice a saboteur-held pocket.
+    properties:
+      security: contested
+      threat_band: contested_marches     # DIFF.2 (2026-06-13): zoned difficulty band
+
   # ── Kamino (Drop 3) ──────────────────────────────────────────────────────
 
   kamino_tipoca_city:

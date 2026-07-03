@@ -1,6 +1,7 @@
 # data/worlds/clone_wars/planets/kuat.yaml
 # Clone Wars Era — Kuat
-# 30 rooms, 3 zones
+# 31 rooms, 4 zones (iron_veil_kuat_staged_scenario, 2026-07-02: +1 edge room
+#   into the new kuat_sabotaged_yards wilderness region)
 # Sources: Coruscant and the Core Worlds (WotC d20, 2003) pp.104-117
 #
 # Era context (~20 BBY):
@@ -16,9 +17,12 @@
 #   cardinals for zone-to-zone. All exits validate round-trip.
 #
 # Zone layout:
-#   kuat_main_spaceport — arrival ring, customs, KSF checkpoint (6 rooms)
-#   kdy_orbital_ring    — the shipyards — drydocks, warehouses, factories (18 rooms)
-#   kuat_city_embassy   — planetary surface; merchant houses, Republic liaison (6 rooms)
+#   kuat_main_spaceport   — arrival ring, customs, KSF checkpoint (6 rooms)
+#   kdy_orbital_ring      — the shipyards — drydocks, warehouses, factories (18 rooms)
+#   kuat_city_embassy     — planetary surface; merchant houses, Republic liaison (6 rooms)
+#   kuat_sabotaged_yards  — Iron Veil wilderness edge room only (1 room); the
+#                           blacked-out yards themselves are the wilderness
+#                           region wilderness/kuat_sabotaged_yards.yaml
 
 planet: kuat
 planet_display_name: "Kuat"
@@ -282,6 +286,7 @@ rooms:
     exits:
       hub: kuat_ring_transit_hub
       east: kuat_ring_machine_shops
+      maintenance: kuat_sabotaged_yards_edge  # zone-to-zone (ring warehouses → Iron Veil-sabotaged sub-level, wilderness tier)
 
   - id: 311
     slug: kuat_ring_machine_shops
@@ -771,3 +776,33 @@ rooms:
     housing: true
     exits:
       out: kuat_city_main_street
+
+  # ══════════════════════════════════════════════════════════════════════
+  # IRON VEIL WILDERNESS EDGE (contested) — 1 room
+  # iron_veil_kuat_staged_scenario (2026-07-02). The on-foot gateway from
+  # the Ring Warehouse District into the Sabotaged Yards coordinate-grid
+  # wilderness region (wilderness/kuat_sabotaged_yards.yaml) — the Iron
+  # Veil's blacked-out staged-cult scenario site. Own zone
+  # (kuat_sabotaged_yards). The wilderness loader wires the descent from
+  # this room's `edges:` block (room_slug: kuat_sabotaged_yards_edge); this
+  # room only needs its return exit to the warehouse district.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 334
+    slug: kuat_sabotaged_yards_edge
+    name: "Kuat Drive Yards - Blackout Access Hatch"
+    short_desc: "A maintenance hatch off the warehouse district, where the ring's power conduits die into darkness."
+    description: >
+      A heavy maintenance hatch, propped open, marks where the Ring
+      Warehouse District's lit corridors give way to a sub-level the duty
+      rosters have stopped assigning anyone to. KSF's patrol log calls it
+      a "conduit fault, under repair" — it has said that for three tendays
+      running. Past the hatch, the emergency strips gutter and die out
+      entirely a few dozen meters down. Cargo crews who have to go that
+      way go in pairs, and go fast.
+    zone: kuat_sabotaged_yards
+    map_x: 32
+    map_y: 10
+    security_level: contested
+    exits:
+      out: kuat_ring_warehouses

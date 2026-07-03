@@ -2,13 +2,14 @@
 (`rally` / `rally strike` -> staged location scenarios), and its facts match HEAD.
 
 The events-as-playable-scenarios rework (2026-06-24, drops `events-playable-scenarios`
-+ `events-more-scenarios`; extended 2026-07-02 to a fourth cult, the Drowned
-Choir) turned the dark-side cult events from a global menace counter into a
-real, fightable system: a visible menace meter, a `rally` threat board, and
-for FOUR cults a staged location scenario you travel to and `investigate`.
-That shipped *after* Guide_26's last pass, and §3 had treated all dark-side
-beats as pure Director narration ("don't surface as a tracked number"), while
-the guide corpus documented the live `rally` loop NOWHERE.
++ `events-more-scenarios`; completed 2026-07-02 by the sibling `iron_veil_kuat_staged_scenario`
++ Drowned Choir conversions, landed together) turned the dark-side cult events
+from a global menace counter into a real, fightable system: a visible menace
+meter, a `rally` threat board, and for ALL FIVE cults a staged location
+scenario you travel to and `investigate` — none remain on the legacy menace
+path. That shipped *after* Guide_26's last pass, and §3 had treated all
+dark-side beats as pure Director narration ("don't surface as a tracked
+number"), while the guide corpus documented the live `rally` loop NOWHERE.
 
 This re-verify pins the new §3 subsection + the §11 `rally` row against the live
 engine — the cult roster, the staged-vs-menace split, the reputation-only reward
@@ -91,21 +92,23 @@ class TestStagedVsMenaceTaught:
     def test_three_staged_cults_match_engine(self, guide_text):
         from engine import staged_event as SE
 
-        # 2026-07-02: the Drowned Choir joined the staged roster (a fourth
-        # cult, its own Nar Shaddaa wilderness site) — see
+        # 2026-07-02: the Iron Veil (its own new Kuat wilderness region) and
+        # the Drowned Choir (its own new Nar Shaddaa wilderness region)
+        # landed together, completing the staged roster — see
+        # tests/test_iron_veil_staged_scenario_2026_07_02.py and
         # tests/test_drowned_choir_staged_scenario_2026_07_02.py.
         assert set(SE.STAGED_CULTS.keys()) == {
-            "hollow_sun", "ember_court", "ashen_hand", "drowned_choir"
+            "hollow_sun", "ember_court", "ashen_hand", "iron_veil",
+            "drowned_choir",
         }, "STAGED_CULTS changed — reconcile Guide_26 §3"
-        # Each staged cult is is_staged True; a menace cult is False.
-        for key in ("hollow_sun", "ember_court", "ashen_hand", "drowned_choir"):
+        # All 5 cults are staged today; there is no menace-path cult left.
+        for key in ("hollow_sun", "ember_court", "ashen_hand", "iron_veil",
+                    "drowned_choir"):
             assert SE.is_staged(key)
-        for key in ("iron_veil",):
-            assert not SE.is_staged(key)
 
     @pytest.mark.parametrize("name", [
-        "Hollow Sun", "Ember Court", "Ashen Hand", "Drowned Choir",  # staged
-        "Iron Veil",                                                 # menace
+        "Hollow Sun", "Ember Court", "Ashen Hand", "Iron Veil",
+        "Drowned Choir",
     ])
     def test_prose_names_every_cult(self, guide_text, name):
         assert name in guide_text, (

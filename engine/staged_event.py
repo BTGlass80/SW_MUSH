@@ -24,11 +24,13 @@ cooperative play the doc calls for.
 PURE: no DB / IO (the runtime owns persistence). The Hollow Sun proved the
 pattern; events_more_scenarios (2026-06-24) extends it to the Ember Court
 (Geonosis) and the Ashen Hand (Coruscant) — the cults whose world already has a
-wilderness region to anchor a site. A 2026-07-02 follow-up adds the Drowned
-Choir (Nar Shaddaa) on the same pattern, now that nar_shaddaa has its own
-small wilderness venue (wilderness/nar_shaddaa_drowned_sublevels.yaml). The
-Iron Veil (Kuat) remains on the menace path (its world still lacks a
-wilderness substrate). All staged cults flow through the SAME orchestrator
+wilderness region to anchor a site. Two 2026-07-02 follow-ups complete the
+set: the Drowned Choir (Nar Shaddaa, on its own new small wilderness venue
+wilderness/nar_shaddaa_drowned_sublevels.yaml) and the Iron Veil (Kuat, on a
+new small wilderness region kuat_sabotaged_yards reached via a new edge room
+off Kuat Drive Yards - Ring Warehouse District). All 5 cults are now staged
+site scenarios; none remain on the legacy menace path. All staged cults flow
+through the SAME orchestrator
 (engine.communal_objective_runtime); this drop adds only DATA (stage
 descriptors + their authored anomaly templates), no orchestration.
 See docs/design/event_rework_staged_scenarios_2026-06-22.md and
@@ -83,8 +85,8 @@ HOLLOW_SUN_STAGES = [
 # rooms to anchor the site — the same prerequisite the Hollow Sun relies on:
 #   ember_court  → geonosis_ey_akh   (the foundry-cult of the Geonosis wastes)
 #   ashen_hand   → coruscant_underworld (the deep-level undercity order)
-# (drowned_choir/nar_shaddaa + iron_veil/kuat are left on the menace path — their
-#  worlds have no wilderness substrate to anchor a site without new map content.)
+# (drowned_choir/nar_shaddaa is left on the menace path — its world has no
+#  wilderness substrate to anchor a site without new map content.)
 
 EMBER_COURT_STAGES = [
     {"key": "forge_tunnels", "kind": KIND_COMBAT, "need": 4,
@@ -124,13 +126,45 @@ ASHEN_HAND_STAGES = [
      "anomaly_template": "ashen_hand_ashfather", "anomaly_tier": 2},
 ]
 
-# Drowned Choir (Nar Shaddaa) follow-up (2026-07-02): the fourth communal
-# objective converted to a playable site scenario, mirroring the Hollow Sun /
-# Ember Court / Ashen Hand conversions exactly. Its world (nar_shaddaa) now
-# has a wilderness region to anchor the site
+# iron_veil_kuat_staged_scenario (2026-07-02): the Iron Veil (Kuat) converts
+# on the same pattern — it was deferred at events_more_scenarios time because
+# Kuat had no wilderness substrate to anchor a site. This drop authors one:
+#   iron_veil → kuat_sabotaged_yards (a new small blacked-out shipyard region,
+#               wilderness/kuat_sabotaged_yards.yaml, reached via a new edge
+#               room off Kuat Drive Yards - Ring Warehouse District).
+# Mirrors the Ember Court/Ashen Hand pattern exactly (combat wave → live
+# resolution:"skill" middle → boss). Era-clean (B3/Q1): invented orbital-
+# saboteur cult, no Imperial/Rebel strings, no canon figures. Landed alongside
+# the sibling Drowned Choir conversion below — together these two complete the
+# set: all 5 cults are now staged site scenarios, 0 remain on the menace path.
+
+IRON_VEIL_STAGES = [
+    {"key": "cells", "kind": KIND_COMBAT, "need": 4,
+     "name": "Break the Saboteur Cells",
+     "objective": "Fight through the Iron Veil saboteur cells holding the blacked-out yards.",
+     "skills": ["brawling", "blaster", "melee_combat", "dodge", "blaster_artillery"],
+     "anomaly_template": "iron_veil_cell_assault", "anomaly_tier": 2},
+    {"key": "power", "kind": KIND_SKILL, "need": 3,
+     "name": "Restore the Cut Power",
+     "objective": "Splice the severed relay feeds (technical / computer programming) or "
+                  "talk the rattled dock crews back to their stations (persuasion / con / "
+                  "bargain) to bring the yards back online.",
+     "skills": ["technical", "computer_programming", "persuasion", "con", "bargain"],
+     "anomaly_template": "iron_veil_power_relay", "anomaly_tier": 1},
+    {"key": "veilmaster", "kind": KIND_BOSS, "need": 5,
+     "name": "Unmask the Veilmaster",
+     "objective": "Bring down the Iron Veil's Veilmaster and break the blackout cells.",
+     "skills": ["brawling", "blaster", "melee_combat", "dodge", "lightsaber"],
+     "anomaly_template": "iron_veil_veilmaster", "anomaly_tier": 2},
+]
+
+# Drowned Choir (Nar Shaddaa) follow-up (2026-07-02): the fifth and final
+# communal objective converted to a playable site scenario, mirroring the
+# Hollow Sun / Ember Court / Ashen Hand conversions exactly. Its world
+# (nar_shaddaa) now has a wilderness region to anchor the site
 # (wilderness/nar_shaddaa_drowned_sublevels.yaml, a small 4-landmark venue
-# reached from the existing Undercity Depths room). iron_veil/kuat remains on
-# the menace path — its world still lacks a wilderness substrate.
+# reached from the existing Undercity Depths room). Landed alongside the
+# sibling Iron Veil conversion above.
 DROWNED_CHOIR_STAGES = [
     {"key": "sublevels", "kind": KIND_COMBAT, "need": 4,
      "name": "Raid the Flooded Sub-Levels",
@@ -155,6 +189,7 @@ STAGED_CULTS = {
     "hollow_sun": HOLLOW_SUN_STAGES,
     "ember_court": EMBER_COURT_STAGES,
     "ashen_hand": ASHEN_HAND_STAGES,
+    "iron_veil": IRON_VEIL_STAGES,
     "drowned_choir": DROWNED_CHOIR_STAGES,
 }
 
@@ -164,6 +199,7 @@ STAGED_CULT_REGION = {
     "hollow_sun": "tatooine_dune_sea",
     "ember_court": "geonosis_ey_akh",
     "ashen_hand": "coruscant_underworld",
+    "iron_veil": "kuat_sabotaged_yards",
     "drowned_choir": "nar_shaddaa_drowned_sublevels",
 }
 

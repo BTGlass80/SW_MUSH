@@ -23,16 +23,18 @@ class TestStagedRoster(unittest.TestCase):
     def test_staged_roster_is_the_deliberate_wilderness_subset(self):
         # events_more_scenarios (2026-06-24): the Hollow Sun proved the pattern;
         # the Ember Court (Geonosis) + Ashen Hand (Coruscant) were converted next
-        # because their world has a wilderness region to anchor the site. The
-        # Drowned Choir (Nar Shaddaa) followed on 2026-07-02 once its world got
-        # its own small wilderness region. The cults whose world still lacks
-        # wilderness substrate (iron_veil/kuat) stay on the menace path.
+        # because their world has a wilderness region to anchor the site. Two
+        # 2026-07-02 follow-ups completed the set: the Iron Veil (Kuat, a new
+        # wilderness region kuat_sabotaged_yards) and the Drowned Choir (Nar
+        # Shaddaa, its own new small wilderness region). All 5 cults are now
+        # staged site scenarios — 0 remain on the legacy menace path.
         self.assertTrue(SE.is_staged("hollow_sun"))
         self.assertTrue(SE.is_staged("ember_court"))
         self.assertTrue(SE.is_staged("ashen_hand"))
-        self.assertTrue(SE.is_staged("drowned_choir"))   # nar_shaddaa_drowned_sublevels
-        self.assertFalse(SE.is_staged("iron_veil"))      # kuat: no wilderness
-        for staged in ("hollow_sun", "ember_court", "ashen_hand", "drowned_choir"):
+        self.assertTrue(SE.is_staged("iron_veil"))
+        self.assertTrue(SE.is_staged("drowned_choir"))
+        for staged in ("hollow_sun", "ember_court", "ashen_hand", "iron_veil",
+                       "drowned_choir"):
             self.assertEqual(len(SE.stages_for(staged)), 3)
 
     def test_stage_kinds_are_combat_skill_boss(self):

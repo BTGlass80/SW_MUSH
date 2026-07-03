@@ -174,10 +174,11 @@ class TestStagedSkillStagesRollable(unittest.TestCase):
                     f"{cult_key}/{stage.get('key')} advertises skills that "
                     f"{tmpl_key} cannot roll: {sorted(missing)}")
                 checked += 1
-        # All staged cults have exactly one KIND_SKILL stage today (4 as of
-        # the 2026-07-02 Drowned Choir conversion).
-        self.assertEqual(checked, 4,
-                         f"expected 4 staged skill stages, checked {checked}")
+        # All 5 staged cults have exactly one KIND_SKILL stage today (both
+        # the 2026-07-02 Iron Veil and Drowned Choir conversions landed
+        # together, completing the set: 0 cults remain on the menace path).
+        self.assertEqual(checked, 5,
+                         f"expected 5 staged skill stages, checked {checked}")
 
 
 if __name__ == "__main__":
