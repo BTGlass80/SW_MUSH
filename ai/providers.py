@@ -13,6 +13,7 @@ Fallback hierarchy:
 import asyncio
 import json
 import logging
+import os
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -39,6 +40,28 @@ except ImportError:
 # ── Claude provider (optional, requires ANTHROPIC_API_KEY) ──
 from ai.claude_provider import make_claude_provider
 
+# ── Local model selection (env-driven) ──
+#
+# The local Ollama model for NPC dialogue / JSON barks / scene summaries. Set the
+# OLLAMA_MODEL env var to your EXACT `ollama list` tag to swap models with zero
+# code change (the provider abstraction was built for exactly this one-liner).
+# Default targets Qwen3.5-9B per the Fable 2026-07-03 review: every current 7-9B
+# model beats the Sep-2023 Mistral 7B at the same ~5GB Q4 footprint on an RTX
+# 3070. NOTE: a sub-1B model (e.g. qwen3.5:0.8b) is a QUALITY DOWNGRADE from
+# Mistral 7B for in-character text — use a ~7-9B tag for the real swap.
+_DEFAULT_OLLAMA_MODEL = "qwen3.5:9b"
+
+
+def _ollama_model() -> str:
+    return (os.environ.get("OLLAMA_MODEL") or "").strip() or _DEFAULT_OLLAMA_MODEL
+
+
+def _ollama_tier2_model() -> str:
+    # Premium story NPCs can point at a bigger tag if you have the VRAM;
+    # falls back to the primary model.
+    return (os.environ.get("OLLAMA_TIER2_MODEL") or "").strip() or _ollama_model()
+
+
 # ── Configuration ──
 
 @dataclass
@@ -46,7 +69,7 @@ class AIConfig:
     """Global AI configuration."""
     enabled: bool = True
     default_provider: str = "ollama"       # "ollama", "mock"
-    default_model: str = "mistral:latest"  # Match ollama pull name exactly
+    default_model: str = field(default_factory=_ollama_model)  # env OLLAMA_MODEL; default Qwen3.5-9B
 
     # Ollama settings
     ollama_host: str = "http://localhost:11434"
@@ -56,9 +79,9 @@ class AIConfig:
     max_requests_per_minute: int = 10      # per player
     npc_thinking_emote: bool = True        # show "NPC ponders..." while waiting
 
-    # Model tiers
-    tier1_model: str = "mistral:latest"    # Fast, most NPCs
-    tier2_model: str = "mistral:latest"    # Premium story NPCs (upgrade if you have a bigger model)
+    # Model tiers (both env-driven via OLLAMA_MODEL / OLLAMA_TIER2_MODEL)
+    tier1_model: str = field(default_factory=_ollama_model)         # Fast, most NPCs
+    tier2_model: str = field(default_factory=_ollama_tier2_model)   # Premium story NPCs
     tier3_provider: str = ""               # Cloud provider name (empty = disabled)
     tier3_model: str = ""                  # Cloud model name
 
@@ -111,7 +134,7 @@ class OllamaProvider(AIProvider):
     """Local LLM via Ollama REST API."""
 
     def __init__(self, host: str = "http://localhost:11434",
-             default_model: str = "mistral:7b",
+             default_model: str = _DEFAULT_OLLAMA_MODEL,
              timeout: float = 25.0):
         self.host = host.rstrip("/")
         self.default_model = default_model

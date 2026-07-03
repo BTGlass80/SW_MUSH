@@ -528,7 +528,7 @@ The following sections should be added/modified in the architecture document for
 **Modified: §17 Key Architecture Invariants**
 - Add: "AI model (Director): Claude Haiku 4.5 via API. $20/month budget cap. Graceful fallback to timer events."
 - Add: "Zone influence: DB-backed (zone_influence table). Persists across restarts."
-- Modify AI model line: "AI model (NPC): Mistral 7B only. RTX 3070 8GB VRAM. No 24B." (clarify scope)
+- Modify AI model line: "AI model (NPC): local Ollama model, chosen by the `OLLAMA_MODEL` env var (default Qwen3.5-9B). A 7–9B Q4 model fits the RTX 3070 8GB VRAM; skip 14B+ tags." — the old "Mistral 7B only / No 24B" invariant was **lifted 2026-07-03** per the Fable review (Mistral 7B is a Sep-2023 model; current 7–9B models beat it at the same footprint), and model choice is now a one-line env swap via the provider abstraction rather than a hard code constraint.
 
 **New: §18 Data Files update**
 - Add `data/ambient_events.yaml` to the data files table

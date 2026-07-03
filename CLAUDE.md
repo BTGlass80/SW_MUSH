@@ -1,7 +1,7 @@
 # SW_MUSH — Claude Code Project Memory
 
 Star Wars D6 MUSH, Clone Wars era (~20 BBY), WEG Revised & Expanded ruleset.
-Stack: Python 3.14 / aiohttp / aiosqlite / SQLite, vanilla-JS SPA web client, Ollama Mistral 7B (NPC dialogue), Claude Haiku via API (Director AI, ~$20/mo circuit breaker).
+Stack: Python 3.14 / aiohttp / aiosqlite / SQLite, vanilla-JS SPA web client, Ollama local LLM for NPC dialogue — model set by the `OLLAMA_MODEL` env var (default **Qwen3.5-9B**; was Mistral 7B, swapped 2026-07-03 per the Fable review — a 7–9B Q4 model fits the RTX 3070 8GB and the provider abstraction makes it a one-line env change), Claude Haiku via API (Director AI, ~$20/mo circuit breaker).
 Sole developer: Brian. Web-first design policy — new features target the web client; Telnet gets graceful degradation ("requires web client") and exists for admins/purists only.
 
 ## Authority order
