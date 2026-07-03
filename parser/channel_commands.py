@@ -81,7 +81,7 @@ class ComlinkCommand(BaseCommand):
     key = "comlink"
     aliases = ["cl", "clink"]
     help_text = (
-        "Planet-wide in-character comlink. Broadcasts to all online players.\n"
+        "Planet-wide in-character comlink. Broadcasts to every player on your planet.\n"
         "  Note: 'comm'/'comms' are ship-to-ship space comms. This is the ground channel.\n"
         "  Usage: comlink <message>"
     )
@@ -97,9 +97,16 @@ class ComlinkCommand(BaseCommand):
             await ctx.session.send_line("  Example: comlink Anyone in the spaceport district?")
             return
         cm = get_channel_manager()
-        count = await cm.broadcast_comlink(ctx.session_mgr, char["name"], message)
+        # Planet-scoped: comlink rides the planetary comm net, so it only
+        # reaches characters on the sender's current planet (None = off-planet
+        # / in space → sender-only echo).
+        from engine.housing import _planet_for_room
+        sender_planet = await _planet_for_room(ctx.db, char.get("room_id") or 0)
+        count = await cm.broadcast_comlink(
+            ctx.session_mgr, char["name"], message,
+            db=ctx.db, sender_planet=sender_planet)
         if count == 1:
-            await ctx.session.send_line(ansi.dim("  (No other players online to hear you.)"))
+            await ctx.session.send_line(ansi.dim("  (No other players on your planet to hear you.)"))
 
 
 # ── Faction Chat ──────────────────────────────────────────────────────────────

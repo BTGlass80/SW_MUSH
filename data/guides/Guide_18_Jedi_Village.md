@@ -385,7 +385,7 @@ The Village is also where the **Director AI** (Guide #26, forthcoming) tends to 
 | `trial spirit` | Begin the Spirit confrontation with your dark-future self |
 | `trial spirit 1\|2\|3` | Commit a Spirit response (1 reject / 2 waver / 3 lean in) |
 | `talk Saro` (at Council Hut) | Insight Trial — presents the three holocron fragments |
-| `examine fragment_<N>` (or `listen fragment_<N>`) | Play a specific holocron fragment |
+| `examine fragment_<N>` | Play a specific holocron fragment |
 | `accuse fragment_<N>` | Identify the forgery (Insight completion) |
 | `path` | Show the final-choice menu |
 | `path a` (or `a`) | Commit to Path A — Order |

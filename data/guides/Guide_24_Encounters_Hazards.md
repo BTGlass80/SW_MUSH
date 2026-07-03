@@ -188,7 +188,7 @@ A deep-space sweep can surface any of these. The scan readout names the type and
 | **Hidden Cache** | A cold, armored container — small, not a ship. Concealed cargo or credits. |
 | **Pirate Nest** | Two or three vessels running silent, watching traffic. Expect a fight if you close. |
 | **Asteroid Mineral Vein** | High-grade ore exposed by a recent impact — raw resources to extract. |
-| **Republic Dead Drop** | An encrypted dead-letter cache. Decoding it is a Slicing check (Difficult, diff 20); failure triggers a Republic patrol. |
+| **Republic Dead Drop** | An encrypted dead-letter cache. Decoding it is a Slicing check (Difficult, diff 20); failure triggers a sector patrol. |
 | **Mynock Colony** | A swarm of hull parasites that attach on proximity (system damage; an Easy piloting roll shakes them). |
 
 ### Discovery
@@ -203,6 +203,26 @@ deepscan <id>              — Focus-scan one anomaly to resolve its details fur
 
 A fresh contact reads as a vague signal. Each successful `deepscan <id>` advances its resolution — one step per scan, two on a critical Sensors roll — until it's fully identified (most types need two or three focus-scans; a faint Republic Dead Drop takes four, a mynock colony just one). Botch a deepscan badly and the sensor backscatter scrambles your array for a 60-second cooldown. A Sensors crew member rolls this at a bonus, so a crewed ship resolves anomalies faster than a solo pilot.
 
+### Engaging an anomaly
+
+Once a contact is **fully resolved**, you close and work it with `course anomaly <id>` — the scan readout tells you when it's ready. Each type plays differently, so the skill that matters and the risk you take depend on what you found:
+
+```
+course anomaly <id>        — engage a fully-resolved anomaly
+```
+
+| Type | What `course anomaly <id>` does |
+|---|---|
+| **Derelict Ship** | Brings you alongside — then `salvage` (below) strips it. |
+| **Asteroid Mineral Vein** | Moves you into extraction range — then `mine` pulls the ore. |
+| **Distress Signal** | A **Perception** read (Easy) to tell a real mayday from bait. Read it true and you stabilize the crew for a grateful reward; misread it and you break off before the ambush springs. |
+| **Hidden Cache** | **Two steps, both must land** — hold the approach vector (**Space Transports**, Easy), then crack the security seal (**Security** bypass, Moderate). Miss either and you re-set and try again. |
+| **Pirate Nest** | **Real combat** — you commit and 2–3 raiders break formation and open fire. Fight with `fire <target>` (or `fleeship` to break away); each kill pays a bounty and leaves a **salvageable wreck**. |
+| **Republic Dead Drop** | A **Slicing** decode (**Computer Programming/Repair**, Difficult 20). Crack it and you lift the intel package; **fail and a sector patrol jumps you** — `fire`/`fleeship` to fight or run, and the drop is blown. |
+| **Mynock Colony** | An Easy piloting burn (**Space Transports**) to shake the swarm and skim the nest material. Botch it and a mynock chews into a working ship system — repair it at a spacedock or with `+ship/repair`. |
+
+A crewed ship shines on the two-step contacts: the pilot can hold the approach while an engineer works the bypass. Solo, you simply roll both yourself.
+
 ### Salvaging a derelict
 
 Salvage is the live payout path. Once a **derelict** (or a fresh combat wreck) is fully resolved, anyone aboard can work it — no crew station required:
@@ -215,7 +235,7 @@ A Technical check — Easy (8) for a quiet derelict, Moderate (15) for a battle 
 
 ### When it's worth it
 
-Anomalies are **risk-and-reward**, and resolving one costs real-time minutes of scanning. A derelict is reliable income; a Republic Dead Drop gambles a Republic patrol against the intel; a pirate nest or mynock colony is a threat to weigh, not free loot. If you're carrying valuable cargo and can't afford a delay or a fight, note the contact and move on. For a dedicated salvager, working the derelicts in a busy transit zone is a steady credit stream.
+Anomalies are **risk-and-reward**, and resolving one costs real-time minutes of scanning. A derelict is reliable income; a Republic Dead Drop gambles a sector patrol against the intel; a pirate nest is a real fight and a mynock colony a threat to weigh, not free loot. If you're carrying valuable cargo and can't afford a delay or a fight, note the contact and move on. For a dedicated salvager, working the derelicts in a busy transit zone is a steady credit stream.
 
 ---
 
@@ -267,14 +287,14 @@ On the ground, certain rooms carry **environmental hazards** that periodically t
 **Extreme Heat.**
 - **Tested by:** Stamina vs. base difficulty 10 (rolls harder in more severe zones). On a desert tile the difficulty also tracks the twin-sun clock — worst under the noon suns, eased after dark (and floored at a Very Easy 5 so a cool night never makes the check trivial).
 - **Mitigation items:** Water canteen or cooling unit, carried in your inventory. Both are **durable** — once crafted they never wear out.
-- **Debuff applied:** **Dehydration** — −1 pip to *both* Strength and Dexterity per stack, stacking up to 3× (so a fully-stacked −1D Strength **and** −1D Dexterity). It does not tick away on its own; carrying water prevents new stacks but does not clear ones you already have, so treat it as prevention-first.
+- **Debuff applied:** **Dehydration** — −1 pip to *both* Strength and Dexterity per stack, stacking up to 3× (so a fully-stacked −1D Strength **and** −1D Dexterity). It doesn't clear the instant you have water in hand — but you're never permanently stuck with it: `drink` (alias `hydrate`) clears it on the spot if you're carrying a water canteen, and even with no canteen it decays on its own **~20 minutes** after you leave the heat.
 - **Environments:** Desert wilderness, barren zones, desert fringe.
 - **Found in:** Tatooine Dune Sea, Jundland Wastes, certain desert outposts.
 
 **Toxic Atmosphere.**
 - **Tested by:** Stamina vs. base difficulty 12 (harder in more severe zones).
 - **Mitigation items:** Breath mask, carried in inventory (**durable**).
-- **Debuff applied:** **Toxic Exposure** — a flat −1D Strength (it does not stack). Like dehydration, it sticks once it lands; the mask prevents new exposure rather than curing what you've taken, so carry it *before* you enter.
+- **Debuff applied:** **Toxic Exposure** — a flat −1D Strength (it does not stack). The mask prevents new exposure rather than curing what you've taken, so carry it *before* you enter — but the debuff isn't permanent either way: it decays on its own **~20 minutes** after you leave the toxic air.
 - **Environments:** Deep underground zones.
 - **Found in:** Coruscant underworld levels, certain industrial zones, the deep Kessel mines.
 
@@ -288,7 +308,7 @@ On the ground, certain rooms carry **environmental hazards** that periodically t
 **Radiation.**
 - **Tested by:** Stamina vs. base difficulty **15 (Difficult)**, rising in more severe zones.
 - **Mitigation items:** Radiation suit — a **consumable** that averts up to **10** hazard ticks before it falls apart. Unlike the canteen and mask, the suit wears out, so pack a spare for long irradiated jobs.
-- **Debuff applied:** **Toxic Exposure** — radiation applies the *same* −1D Strength debuff as toxic atmosphere; there is no separate "radiation sickness" effect. It persists the same way (prevention over cure).
+- **Debuff applied:** **Toxic Exposure** — radiation applies the *same* −1D Strength debuff as toxic atmosphere; there is no separate "radiation sickness" effect. It clears the same way too — no instant cure for it, but it decays on its own **~20 minutes** after you leave the irradiated zone.
 - **Environments:** Manually tagged rooms only (e.g., reactor cores, irradiated wreckage, certain Kessel areas).
 
 ### How hazards work
@@ -300,7 +320,7 @@ On the ground, certain rooms carry **environmental hazards** that periodically t
 3. If they have mitigation: the check is bypassed. No roll. No debuff. (Consumable gear — the radiation suit and anti-theft alarm — spends a use each time it averts a tick; durable gear does not.)
 4. If they don't: a skill check is rolled. Pass = no debuff. Fail = the relevant debuff applies (or stacks).
 
-**Mitigation prevents; it does not cure.** Carrying the right item makes step 3 fire — the hazard skips your check entirely — but it does *not* clear a debuff you picked up earlier while unprotected. Dehydration and toxic exposure stick once they land, so the gear is a shield to carry *before* you enter, not a remedy to grab after.
+**Mitigation prevents new checks; recovery is a separate step.** Carrying the right item makes step 3 fire — the hazard skips your check entirely — but it does not instantly clear a debuff you already picked up while unprotected. To recover: `drink` (alias `hydrate`) clears dehydration on the spot if you're carrying a water canteen, and both dehydration and toxic exposure decay on their own **~20 minutes** after you leave the hazard zone. So the gear is still worth carrying *before* you enter — it's the difference between never taking the debuff and having to drink it off or wait it out.
 
 The 5-minute cadence means hazards are **slow attrition**, not instant damage. You can spend 5-10 minutes in extreme heat without consequence if your Stamina rolls hot. Stay 30+ minutes without water, and the dehydration stacks add up.
 
@@ -364,7 +384,7 @@ Six concrete pictures.
 
 **Scenario 3 — Distress signal investigation.** You're in deep space. Sensors ping: "Distress signal, unknown source." You `respond investigate`. You arrive at the signal — a damaged freighter, captain pleading for help with supplies. You give him 200 cr worth of medpacs. He thanks you, gives you a contact name in Coronet. Two weeks later that contact pays out a 5,000 cr smuggling job. The investigation paid off in indirect ways.
 
-**Scenario 4 — Wilderness heat death.** You're tracking bandits through the Dune Sea at midday. No canteen. After 30 minutes of real-time, you've failed three Stamina checks at 5-minute intervals — Dehydration is now 3-stacked: −1D Strength *and* −1D Dexterity. Your soak and your blaster rolls have both sagged a full die. The next bandit fight goes badly; you're Wounded Twice and barely escape — and because the dehydration doesn't lift just because you left the sand, you limp home still penalized until you can shake it. Lesson: carry the canteen *before* you set out — prevention, not cure.
+**Scenario 4 — Wilderness heat death.** You're tracking bandits through the Dune Sea at midday. No canteen. After 30 minutes of real-time, you've failed three Stamina checks at 5-minute intervals — Dehydration is now 3-stacked: −1D Strength *and* −1D Dexterity. Your soak and your blaster rolls have both sagged a full die. The next bandit fight goes badly; you're Wounded Twice and barely escape. Back at base you finally find a canteen and `drink` — the dehydration clears on the spot; if you'd had no water at all it would've faded on its own **~20 minutes** after you left the sand. Lesson: carry the canteen *before* you set out — it's the difference between never taking the hit and having to drink or wait it off afterward.
 
 **Scenario 5 — Hunter encounter.** A PC bounty was posted on your character (you're worth 25,000 cr to the right hunter). You're transiting Kessel Approach. The encounter fires: "Bounty Hunter — Boba Vinn intercepts your ship." You see the choices. You `respond fight`. The hunter is a Veteran-tier — better-equipped than a pirate. You take significant damage but survive; the hunter's ship is destroyed. The bounty doesn't pay (you didn't kill the hunter cleanly), but you're alive. Lesson: PC bounty Hunter encounters carry real stakes. Travel armed.
 
@@ -396,9 +416,11 @@ Six concrete pictures.
 | `scan` | Quick read of the current zone, including detected anomalies |
 | `deepscan` | Sensor sweep that detects a hidden anomaly |
 | `deepscan <id>` | Focus-scan one anomaly to resolve its details |
+| `course anomaly <id>` | Engage a fully-resolved space anomaly — per-type: decode / two-step bypass / gunfight / detach |
 | `salvage` | Strip a fully-resolved derelict or wreck for resources |
 | `anomalies` | List active **wilderness** anomalies in your current region (alias `anom`) |
 | `investigate <id>` | Act on a wilderness anomaly at its anchor site — skill check, combat engage, or skill-gate phase |
+| `drink` (alias `hydrate`) | Clear dehydration on the spot if you're carrying a water canteen |
 
 ---
 
@@ -425,9 +447,10 @@ Six concrete pictures.
 | Pirate negotiate | Moderate (15); success = ½ demand, critical = ¼ |
 | Deepscan check | Sensors vs. Moderate (15) |
 | Anomaly types | 7 (derelict, distress, cache, pirates, mineral vein, republic dead drop, mynock) |
-| Republic Dead Drop decode | Slicing vs. Difficult (20); failure → Republic patrol |
+| Republic Dead Drop decode | Slicing vs. Difficult (20); failure → sector patrol (combat) |
 | Dehydration | −1 pip STR + −1 pip DEX per stack, max 3 (→ −1D / −1D) |
 | Toxic exposure / radiation debuff | −1D STR, single stack |
+| Env-hazard debuff decay (dehydration / toxic exposure) | ~20 minutes (1,200 seconds) after you leave the hazard |
 | Wilderness anomaly lifetime — Tier 1 / 2 / 3 | ~30 min / ~2 hr / ~8 hr |
 | Wilderness skill-anomaly check | Better of two skills vs. Moderate–Difficult (13) |
 | Wilderness skill-gate retry cooldown | ~12 seconds between attempts |

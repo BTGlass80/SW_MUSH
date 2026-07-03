@@ -94,19 +94,20 @@ def test_pirate_surge_triples_spawns():
 
 # ── Comlink is all-online, not planet-scoped ────────────────────────────────────
 
-def test_comlink_has_no_planet_filter():
-    """broadcast_comlink iterates every in-game session with no planet/zone filter,
-    so the guide must NOT claim comlink is 'planet-wide'."""
+def test_comlink_is_planet_scoped():
+    """broadcast_comlink filters recipients to the sender's planet (Brian's
+    2026-07-02 call, COMM.comlink_not_planet_scoped), so the guide labels
+    comlink 'planet-wide'."""
     from server.channels import ChannelManager
     src = inspect.getsource(ChannelManager.broadcast_comlink)
     assert "session_mgr.all" in src, "broadcast_comlink no longer iterates session_mgr.all"
-    # Scan the CODE only — the method docstring legitimately says "planet-wide".
+    # Scan the CODE only (the docstring also names these tokens).
     parts = src.split('"""')
     body = parts[2] if len(parts) >= 3 else src
-    for token in ("planet", "zone", "room_id", "current_zone"):
-        assert token not in body, (
-            f"broadcast_comlink now filters on '{token}' — comlink may be planet-scoped; "
-            "the guide's 'all online characters' claim may need revisiting."
+    for token in ("sender_planet", "_planet_for_room", "room_id"):
+        assert token in body, (
+            f"broadcast_comlink no longer references '{token}' — the planet "
+            "filter appears to be gone; comlink must stay planet-scoped."
         )
 
 
@@ -203,11 +204,14 @@ def test_guide_no_sabacc_brawl_claim():
     )
 
 
-def test_guide_no_planet_wide_comlink():
+def test_guide_comlink_is_planet_wide():
     text = _read_guide()
-    assert "Planet-wide IC" not in text, (
-        "Guide_21 still labels comlink 'Planet-wide IC' — it reaches all online "
-        "characters (galaxy-wide)."
+    assert "Planet-wide IC" in text, (
+        "Guide_21 must label comlink 'Planet-wide IC' — comlink is planet-scoped "
+        "(reaches characters on the sender's planet, COMM.comlink_not_planet_scoped)."
+    )
+    assert "Galaxy-wide" not in text, (
+        "Guide_21 still calls comlink 'Galaxy-wide' — it is now planet-scoped."
     )
 
 
@@ -228,4 +232,7 @@ def test_guide_era_clean_no_coronet():
 
 def test_guide_version_bumped():
     text = _read_guide()
-    assert "Guide Version 1.1" in text, "Guide_21 version should be 1.1 after this pass"
+    # 2026-07-02 accuracy pass: the header was left at 1.1 while the
+    # reconciliation note (§ How to Read This Guide) already called out a
+    # 1.2-level change (comlink going planet-scoped) — header now matches.
+    assert "Guide Version 1.2" in text, "Guide_21 version should be 1.2 after this pass"

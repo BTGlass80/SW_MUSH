@@ -9,7 +9,7 @@ tags: ["channels", "mail", "news", "communication", "chat", "message"]
 
 **Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
-**Guide Version 1.1**
+**Guide Version 1.2**
 
 ---
 
@@ -19,7 +19,7 @@ This guide covers the **communication infrastructure** of the game — how playe
 
 These are the social plumbing. You'll touch all three regularly. If you only have ten minutes, read **§1 The Communication Layers** and **§3 Channels in Practice**. Channels are how most cross-room communication happens; the rest is structural depth.
 
-*Version 1.1 — every command, syntax, and number reconciled against the live engine: `page` requires `=`, custom frequencies are whole numbers 1–9999, `comlink` reaches all online characters, mail recipients are space-separated, and the world-event effects are stated as the engine actually applies them.*
+*Version 1.2 — every command, syntax, and number reconciled against the live engine: `page` requires `=`, custom frequencies are whole numbers 1–9999, `comlink` is planet-scoped (reaches characters on your current planet), mail recipients are space-separated, and the world-event effects are stated as the engine actually applies them.*
 
 ---
 
@@ -32,14 +32,14 @@ Nine communication layers, from intimate to galactic:
 | **`say`** | Same room | Instant | Scene log only |
 | **`tt`** (table-talk) | Same place within room (Guide #20) | Instant | Scene log only |
 | **`page`** | Specific player | Instant | None (ephemeral) |
-| **`comlink`** | Galaxy-wide IC | Instant | None |
+| **`comlink`** | Planet-wide IC | Instant | None |
 | **`fcomm`** | Faction-wide IC | Instant | None |
 | **`commfreq`** | Custom frequency | Instant | None |
 | **`ooc`** | Server-wide OOC | Instant | None |
 | **`@mail`** | One or more players | Asynchronous | Persistent |
 | **`+news`** | World bulletin | Asynchronous | Persistent |
 
-Each has its purpose. **`say`** is in-person conversation. **`page`** is one-on-one whisper (always private). **`comlink`** is in-character comlink voice — your character speaking into their comlink for *every online character* to hear; treat it as an open galaxy-wide frequency (it is not planet-scoped). **`fcomm`** is your faction's internal channel. **`ooc`** is server-wide chitchat between players (not characters). **`@mail`** is asynchronous letters that persist until the recipient reads them. **`+news`** is the world bulletin showing recent Director-driven events.
+Each has its purpose. **`say`** is in-person conversation. **`page`** is one-on-one whisper (always private). **`comlink`** is in-character comlink voice — your character speaking into their comlink for *every character on your planet* to hear; treat it as an open planetary frequency. **`fcomm`** is your faction's internal channel. **`ooc`** is server-wide chitchat between players (not characters). **`@mail`** is asynchronous letters that persist until the recipient reads them. **`+news`** is the world bulletin showing recent Director-driven events.
 
 The right choice depends on **who you want to reach** and **whether it should be IC or OOC**.
 
@@ -91,7 +91,7 @@ The channel system handles **real-time IC and OOC chat across distance**. Five n
 |---|---|---|---|
 | **`ooc`** | OOC | Server-wide | All player chitchat |
 | **`newbie`** | OOC | Server-wide | New-player help (alias for ooc) |
-| **`comlink`** (`cl`) | IC | Galaxy-wide (all online) | Cross-room comlink conversation |
+| **`comlink`** (`cl`) | IC | Planet-wide (same planet) | Cross-room comlink conversation |
 | **`fcomm`** (`fc`) | IC | Faction-wide | Faction internal channel |
 | **`commfreq`** (`cf`) | IC | Custom frequency | Tuned-frequency comm |
 
@@ -117,24 +117,24 @@ OOC speech is bracketed clearly in display:
 
 The brackets and prefix make OOC unambiguous from in-character speech.
 
-### `comlink` — Galaxy-wide IC
+### `comlink` — Planet-wide IC
 
 ```
 comlink <message>      (alias: cl)
 ```
 
-Your character speaks into their comlink. **Every online character** hears the transmission — comlink is the in-character broadcast channel. Cross-room (and currently cross-planet): you don't have to be anywhere near your conversation partner.
+Your character speaks into their comlink. **Every character on your planet** hears the transmission — comlink is the in-character planetary broadcast channel. Cross-room: you don't have to be anywhere near your conversation partner, as long as you're both on the same planet.
 
 Common uses:
-- Coordinating with allies in different rooms.
-- Asking around the galaxy for someone.
+- Coordinating with allies in different rooms on the same planet.
+- Asking around the planet for someone.
 - IC "broadcast" announcements that aren't faction-secret.
 
 ```
 [Comlink] Trill: Anyone seen Mara recently? I need to talk to her about the convoy.
 ```
 
-The comlink transmission is **public** — Republic, CIS, Hutt, neutral, everyone online hears it, and an enemy slicer running an intercept (Guide #22) can catch fragments. Treat it as the IC equivalent of an open radio frequency. Sensitive operational chatter shouldn't go here.
+The comlink transmission is **public** — Republic, CIS, Hutt, neutral, everyone on your planet hears it, and an enemy slicer running an intercept (Guide #22) can catch fragments. Treat it as the IC equivalent of an open radio frequency. Sensitive operational chatter shouldn't go here.
 
 ### `fcomm` — Faction-internal IC
 
@@ -390,7 +390,7 @@ Some norms that emerge across active servers.
 
 ### Comlink etiquette
 
-- Comlink is **galaxy-wide and IC**. Treat it like an open broadcast channel.
+- Comlink is **planet-wide and IC**. Treat it like an open broadcast channel.
 - Don't use comlink to RP intimate scenes — comlink is public.
 - Don't spam comlink. The channel has limited attention.
 - Sensitive operational coordination should go to `fcomm` or `commfreq`, not `comlink`.
@@ -435,7 +435,7 @@ Five concrete pictures.
 | `tt <msg>` | Place-only IC speech; room hears a muffled version (Guide #20) |
 | `page <player> = <msg>` (alias: p) | Private whisper; use `=`, space-separate multiple targets |
 | `ooc <msg>` (aliases: newbie, oocsay) | Server-wide OOC |
-| `comlink <msg>` (alias: cl) | Galaxy-wide IC (all online) |
+| `comlink <msg>` (alias: cl) | Planet-wide IC (same planet) |
 | `fcomm <msg>` (alias: fc) | Faction-wide IC |
 | `commfreq <freq> <msg>` (alias: cf) | Custom frequency IC |
 | `tune <freq>` | Tune into a custom frequency |
@@ -475,7 +475,7 @@ Five concrete pictures.
 | Communication layers | 9 (`say`, `tt`, `page`, `comlink`, `fcomm`, `commfreq`, `ooc`, `@mail`, `+news`) |
 | Channel scope — `say` | Same room |
 | Channel scope — `tt` | Same place within room |
-| Channel scope — `comlink` | All online characters (galaxy-wide IC) |
+| Channel scope — `comlink` | Characters on the same planet (planet-wide IC) |
 | Channel scope — `fcomm` | Faction-wide |
 | Channel scope — `commfreq` | Tuned-frequency listeners |
 | Channel scope — `ooc` | Server-wide |
@@ -494,7 +494,7 @@ Five concrete pictures.
 
 ## 11. Common Pitfalls
 
-**1. Using `comlink` for sensitive operational chatter.** Everyone online hears it — and enemy spies can intercept it. Sensitive coordination belongs on `fcomm` (faction-only) or `commfreq` (tuned-only).
+**1. Using `comlink` for sensitive operational chatter.** Everyone on your planet hears it — and enemy spies can intercept it. Sensitive coordination belongs on `fcomm` (faction-only) or `commfreq` (tuned-only).
 
 **2. Treating `page` as persistent.** Pages disappear from the screen. If you need a message to stick, use `@mail`. If you need it logged, RP it in a scene.
 
@@ -512,7 +512,7 @@ The communication infrastructure of Parsec is what turns the room-graph into a *
 
 For most players, the communication layers become **invisible infrastructure** — you use `ooc` to chat, `comlink` to coordinate, `@mail` to follow up, `+news` to check the world. The commands are second nature within a few sessions.
 
-For social roleplayers, comms become **the medium of relationship** — long-distance RP through mail, galaxy-wide presence through comlink, faction belonging through fcomm. Characters whose lives play out partly across distance use these systems heavily.
+For social roleplayers, comms become **the medium of relationship** — long-distance RP through mail, planet-wide presence through comlink, faction belonging through fcomm. Characters whose lives play out partly across distance use these systems heavily.
 
 For plotrunners and faction leaders, comms are **the organizational layer** — the fcomm channel where you coordinate, the mail you send to assemble teams, the news bulletin that shapes the world your plot operates in.
 

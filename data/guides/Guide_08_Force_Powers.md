@@ -79,7 +79,7 @@ Most powers require only one discipline. The two **combination powers** — Affe
 - Target: Character
 - *Reach out to another mind. Between a bonded Master and Padawan it carries across any distance and you feel their condition (see Guide #14); otherwise it is a wordless mind-touch offered to another player to answer, or a skim of an NPC's surface thoughts.*
 
-**Sense Deception** — Weigh another's sincerity.
+**Sense Deception** (`sense_lie`) — Weigh another's sincerity.
 - Discipline: Sense
 - Difficulty: Moderate (15)
 - Target: Character

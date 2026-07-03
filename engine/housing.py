@@ -911,14 +911,34 @@ def _trophies(h: dict) -> list:
 
 # ── Lot helpers ───────────────────────────────────────────────────────────────
 
+# Zones whose slug does NOT carry the planet prefix _planet_for_room keys on.
+# Sourced from each planet YAML's `planet:` declaration: Coruscant names its
+# districts by function (senate_district, jedi_temple, …) rather than
+# `coruscant_*`, and Kuat's shipyard ring is a bare slug.  Without this map
+# these rooms resolve to None and fall in with deep space — which would, e.g.,
+# fragment planet-scoped comlink across Coruscant.  Additive: only affects
+# zones that previously returned None.
+_NONPREFIXED_ZONE_PLANET = {
+    "senate_district": "coruscant",
+    "jedi_temple": "coruscant",
+    "monumental_district": "coruscant",
+    "commercial_district": "coruscant",
+    "southern_underground": "coruscant",
+    "entertainment_district": "coruscant",
+    "kdy_orbital_ring": "kuat",
+}
+
+
 async def _planet_for_room(db, room_id: int) -> Optional[str]:
-    """Derive planet from a room's zone name prefix.
+    """Derive planet from a room's zone name.
 
     Zone slugs are stored verbatim as zones.name (world_writer.py uses the
     slug when no explicit name: key is set).  The slug prefix identifies the
     planet (e.g. "tatooine_mos_eisley" → "tatooine", "nar_shaddaa_landing"
-    → "nar_shaddaa").  Returns None for space zones, wilderness tiles, or
-    any room not in the live DB.
+    → "nar_shaddaa").  Zones whose slug omits the planet prefix (the Coruscant
+    districts and Kuat's ring) are resolved via _NONPREFIXED_ZONE_PLANET.
+    Returns None for space zones, wilderness tiles, or any room not in the
+    live DB.
     """
     rows = await db.fetchall(
         "SELECT z.name FROM rooms r "
@@ -929,6 +949,9 @@ async def _planet_for_room(db, room_id: int) -> Optional[str]:
     if not rows:
         return None
     zone_name = rows[0]["name"] or ""
+    explicit = _NONPREFIXED_ZONE_PLANET.get(zone_name)
+    if explicit:
+        return explicit
     # nar_shaddaa must be checked before the generic "na" prefix to avoid
     # a false match if a future planet starts with "nar_".
     for planet in ("nar_shaddaa", "tatooine", "coruscant",
