@@ -957,3 +957,11 @@ achievements:
     icon: "📦"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "kuat_phantom_tonnage"}
+
+  - key: undertow_skim_cleared
+    name: "The Undertow Skim"
+    description: "Rooted a skimming crew out of the flooded understructure beneath Kamino's ocean-platform pylons: fought through the crew's flood-lock watch, forced (or talked down) the rigged flood-lock guarding their mooring-shelf cache, and brought down the crew's foreman — the first staged site-clearance favor, ending with the supply chain's shortfall back on the books."
+    category: profession
+    icon: "🌊"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "kamino_undertow_skim"}

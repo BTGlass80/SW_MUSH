@@ -192,7 +192,7 @@ class TestAllQuestlinesWalkable(_RealCorpusBase):
         from engine.chain_events import (
             start_questline, on_talk_to_npc, on_command_executed,
             on_skill_check_passed, on_combat_won, on_mission_accepted,
-            on_mission_completed, on_bounty_accepted,
+            on_mission_completed, on_bounty_accepted, on_site_cleared,
         )
         from engine.tutorial_chains import (
             get_current_step, load_tutorial_chains, _QUESTLINE_KEY,
@@ -230,6 +230,18 @@ class TestAllQuestlinesWalkable(_RealCorpusBase):
                 await on_mission_completed(db, char, comp.get("mission_id", ""))
             elif ctype == "bounty_accepted":
                 await on_bounty_accepted(db, char, comp.get("bounty_id", ""))
+            elif ctype == "site_cleared":
+                # Staged-questline archetype (2026-07-03): bypasses the
+                # wilderness-anomaly substrate entirely and calls the
+                # chain-side dispatcher directly, same style as the
+                # combat_won branch above (which bypasses real NPC
+                # kills too) — this generic corpus-wide walker's job is
+                # "is the declared completion type dispatchable," not a
+                # full mechanic simulation (that's the archetype's own
+                # dedicated walkthrough test, which DOES drive the real
+                # investigate/combat-kill seam).
+                await on_site_cleared(
+                    db, char, comp.get("scenario_template", ""), 0)
             else:
                 raise AssertionError(
                     f"{chain.chain_id} step {before}: unhandled completion "

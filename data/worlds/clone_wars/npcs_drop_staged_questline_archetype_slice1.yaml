@@ -1,0 +1,102 @@
+# Staged-Questline Archetype Drop — first slice (2026-07-03)
+#
+# The FIRST authored instance of the STAGED-QUESTLINE ARCHETYPE
+# (DESIGN_staged_questline_archetype_2026-07-03.md): an ordinary
+# `kind: questline` chain whose middle step is the NEW `site_cleared`
+# completion type — "go to this room, clear the multi-phase scenario
+# anomaly armed there on step entry." Brian's fork stack (2026-07-03):
+# Fork 1A (bridge the chain engine) + Fork 2A (one multi-phase anomaly,
+# wave -> skill_gate -> boss, inside the SAME template's phases[]) +
+# Fork 5A (fixed named-room anchor) + Fork 6B (communal/STAGED_CULTS
+# untouched — this is a STANDALONE site, not a staged-cult conversion).
+#
+# "The Undertow Skim" (kamino_undertow_skim, data/worlds/clone_wars/
+# tutorials/chains.yaml): a smuggling crew has rigged the flooded
+# understructure beneath Kamino's ocean-platform pylons to skim a cut off
+# every supply shipment crossing the platforms. Quartermaster Rensa Dahl —
+# who runs Tipoca City's supply chain through the pylon access corridor —
+# has noticed the shortfall and wants a neutral hand to root the crew out.
+#
+# This NPC file carries only the questline's GIVER/report-in NPC — the
+# step-2 site_cleared encounter's wave/skill_gate/boss NPCs are
+# procedurally spawned by engine/wilderness_anomalies.py's
+# kamino_undertow_purge SCENARIO_TEMPLATES entry (armed at the
+# understructure_cistern landmark by engine.chain_missions.
+# maybe_arm_site_for_step), exactly mirroring how every staged-cult
+# scenario splits a hand-placed giver from an orchestrator-spawned site.
+#
+# Original character, era-clean ~20 BBY (no Imperial/Empire/Rebel/TIE
+# strings; no canon Clone Wars figures — Kamino's canonical Kaminoan
+# leadership never appears). The skimming crew is a generic smuggling
+# outfit, not a war faction; independent / faction-neutral, matching the
+# freelance-questline convention.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Quartermaster Rensa Dahl (questline GIVER + report-in)
+  # Questline: kamino_undertow_skim ("The Undertow Skim")
+  # Placement: Kamino - Pylon Access Corridor (kamino_pylon_access, zone
+  #            kamino_ocean_platform). Step-1 AND step-3 npc (the arc's
+  #            starting_room and drop_room are both her room).
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Quartermaster Rensa Dahl
+    room: "Kamino - Pylon Access Corridor"
+    species: Human
+    description: >-
+      A wiry woman in a supply-corps duty vest, a manifest slate never far
+      from her hand, running Tipoca City's pylon-corridor supply chain the
+      way she has for three seasons running — every crate that crosses the
+      ocean platforms logged twice, once at the dock and once at the
+      depot. The two logs have stopped matching, a little more each
+      delivery, and she has a good idea which stretch of unlit
+      understructure the difference is bleeding into.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 3D
+        mechanical: 2D+1
+        perception: 3D
+        strength: 2D
+        technical: 2D+1
+      skills:
+        bureaucracy: 4D
+        streetwise: 3D
+        bargain: 3D+1
+        blaster: 2D+1
+        dodge: 2D+2
+        value: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 1
+      character_points: 4
+      dark_side_points: 0
+    ai_config:
+      vendor: false
+      personality: >-
+        A quartermaster's exact, ledger-driven patience — she trusts a
+        manifest count over anyone's word, and a shortfall that repeats
+        for three deliveries running stops being a rounding error and
+        starts being a pattern she can point to. Level and unhurried
+        about the danger of the understructure itself; brisk and specific
+        about what she needs done: root the crew out, clear the rigged
+        flood-lock, and get the mooring shelf's cache back on the books.
+      knowledge:
+        - "She is Quartermaster Rensa Dahl, running Tipoca City's pylon-corridor supply chain — every crate crossing the ocean platforms logged at the dock and again at the depot."
+        - "For a season the two logs have stopped matching. A skimming crew has claimed a stretch of the flooded understructure below the pylon access corridor, bleeding a cut off supply runs before they're ever logged at the depot."
+        - "She can't spare a duty roster to clear it herself — the depot can't run short-handed — so she needs a neutral hand to go down through the access corridor's free maintenance hatch, root the crew out of the mooring shelf they've claimed, and get the cache back on the books."
+        - "The crew has rigged the mooring shelf's own flood-lock to flood the corridor rather than give up the cache clean — whoever goes down will have to force it, or talk down whichever rattled hand is still minding the valve."
+      faction: independent
+      dialogue_style: >-
+        Brisk, exact, ledger-driven — names the shortfall by the crate
+        count before she names a suspicion, and gives directions like a
+        duty roster, not a plea.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'You want to know why a supply-corps quartermaster is running her own numbers instead of trusting the depot's count? Because for three deliveries running, what I log at the dock and what lands at the depot don't match — and I know exactly which stretch of dark understructure the difference is disappearing into.'"
+        - "*Rensa Dahl turns her manifest slate face-up, a dock count sitting stubbornly above the depot count beside it, the same gap three deliveries running.* 'Nobody's stealing a crate at either end — I've checked both logs myself. It's disappearing between them, down through the maintenance hatch, where a skim crew's rigged themselves a mooring shelf to work from. I can't spare a duty roster to clear it; the depot can't run short-handed. I need someone who can.'"
+        - "'The hatch past the last emergency light is free — head down and you'll find their mooring shelf. They've rigged the flood-lock to drown the corridor sooner than lose the cache clean, so whoever goes down will have to force the valve, or talk down whichever rattled hand is still minding it. Clear the crew, get the cache back on the books, and Tipoca City's supply chain runs honest again.'"
