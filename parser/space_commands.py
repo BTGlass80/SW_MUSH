@@ -2833,6 +2833,11 @@ class FireCommand(BaseCommand):
             target_ship["id"], ctx.session.character,
             ctx.db, ctx.session_mgr,
         )
+        if awarded is None:
+            # A concurrent kill resolution (multi-gunner race on the same
+            # target) already consumed this destroy — it owns the wreck +
+            # achievement below too.
+            return
         if awarded:
             await ctx.session.send_line(
                 f"  {ansi.BRIGHT_GREEN}[BOUNTY]{ansi.RESET} "
@@ -3445,6 +3450,21 @@ _ANOMALY_ENGAGE = {
 }
 
 
+# ── space-combat-bridge (2026-07-03) ────────────────────────────────────────
+# The deterministic chain-tagged capital target for `course intercept`, wired
+# to the `kuat_capital_intercept` questline's step B (space_combat_won). Keep
+# these three literals in lockstep with `enemy_ship_template` in
+# data/worlds/clone_wars/tutorials/chains.yaml. `_CHAIN_INTERCEPT_SHIP_
+# TEMPLATE` is the ShipTemplate registry key (the hull's mechanical stats,
+# data/worlds/clone_wars/starships.yaml); `_CHAIN_INTERCEPT_TAG` is the
+# free-form quest-identity tag TrafficShip.chain_enemy_ship_template carries
+# (a hull can be reused by future targets without colliding with this one --
+# see DESIGN_capital_ship_combat_2026-07-03.md §3.2).
+_CHAIN_INTERCEPT_SHIP_TEMPLATE = "rogue_customs_cutter"
+_CHAIN_INTERCEPT_TAG = "kuat_intercept_rogue_cutter"
+_CHAIN_INTERCEPT_DISPLAY_NAME = "Rogue Cutter"
+
+
 class CourseCommand(BaseCommand):
     """
     course                  -- show current zone and adjacent zones
@@ -3471,6 +3491,9 @@ class CourseCommand(BaseCommand):
         _raw = (ctx.args or "").strip()
         if _raw.lower().split()[:1] == ["anomaly"]:
             await self._engage_anomaly(ctx, _raw)
+            return
+        if _raw.lower().split()[:1] == ["intercept"]:
+            await self._engage_intercept(ctx, _raw)
             return
         ship, systems, zone, arg = await self._validate_helm(ctx)
         if ship is None:
@@ -3771,6 +3794,100 @@ class CourseCommand(BaseCommand):
             await ctx.session.send_hud_update(db=ctx.db, session_mgr=ctx.session_mgr)
         except Exception:
             log.debug("anomaly combat: HUD refresh failed", exc_info=True)
+
+    async def _engage_intercept(self, ctx, raw):
+        """`course intercept` -- deterministic, chain-tagged capital-target
+        spawn for the space-combat-bridge questline step
+        (`space_combat_won`, DESIGN_capital_ship_combat_2026-07-03.md).
+
+        Requires scale parity: a solo starfighter cannot meaningfully
+        damage a capital (-6D damage absorption, design doc §6.1), so this
+        refuses unless the player is at the helm of a capital-scale hull.
+        Reuses the existing `+shipyard` purchase path (e.g. the
+        Consular-class cruiser) rather than granting a new, temporary
+        command -- the simplest, zero-new-plumbing way to satisfy scale
+        parity. Mirrors `_engage_anomaly`'s pilot/hyperspace/ion gates and
+        `_engage_combat`'s promote-to-live-combat pattern.
+        """
+        ship, systems, _zone, _arg = await self._validate_helm(ctx)
+        if ship is None:
+            return
+        if systems.get("sublight_transit"):
+            await ctx.session.send_line(
+                "  Already in transit. Use 'course cancel' to abort.")
+            return
+        reg = get_ship_registry()
+        template = reg.get(ship["template"])
+        if not template or template.scale != "capital":
+            await ctx.session.send_line(
+                "  Your ship isn't capital-scale -- a hostile this size "
+                "would shrug off anything smaller. You need to be at the "
+                "helm of a capital-class hull (Kuat's shipyards broker "
+                "sells the Consular-class cruiser: `+shipyard`)."
+            )
+            return
+        zone_id = systems.get("current_zone", "")
+        mgr = get_traffic_manager()
+        for existing in mgr.get_zone_ships(zone_id):
+            if existing.chain_enemy_ship_template == _CHAIN_INTERCEPT_TAG:
+                await ctx.session.send_line(
+                    f"  {existing.display_name} is already inbound -- "
+                    f"`fire {existing.display_name.lower()}` when ready."
+                )
+                return
+        ts = await mgr.spawn_chain_capital(
+            ctx.db, ctx.session_mgr, zone_id,
+            template_key=_CHAIN_INTERCEPT_SHIP_TEMPLATE,
+            chain_tag=_CHAIN_INTERCEPT_TAG,
+            display_name=_CHAIN_INTERCEPT_DISPLAY_NAME,
+            crew_skill="3D+1",
+        )
+        if ts is None:
+            await ctx.session.send_line(
+                "  Sensors show nothing to intercept out here.")
+            return
+        from engine.npc_space_combat_ai import get_npc_combat_manager
+        combat = get_npc_combat_manager()
+        promoted = False
+        try:
+            combat.promote_to_combat(
+                npc_ship_id=ts.ship_id,
+                target_ship_id=ship["id"],
+                target_bridge_room=ship.get("bridge_room_id"),
+                zone_id=zone_id,
+                template_key=_CHAIN_INTERCEPT_SHIP_TEMPLATE,
+                display_name=ts.display_name,
+                crew_skill="3D+1",
+                profile="aggressive",
+                starting_range=SpaceRange.SHORT,
+            )
+            # The combat manager now owns this ship — keep the ambient
+            # traffic tick off it (mirrors _engage_combat).
+            ts.in_live_combat = True
+            promoted = True
+        except Exception:
+            log.warning("chain intercept: promote_to_combat failed",
+                        exc_info=True)
+        if promoted:
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_RED}[COMBAT]{ansi.RESET} {ts.display_name} drops "
+                f"out of the debris field, weapons hot -- your intercept is made. "
+                f"`fire {ts.display_name.lower()}` to engage; `fleeship` to break off."
+            )
+        else:
+            # promote_to_combat failed: the hull is real and killable, but it
+            # never became a live combatant (no return fire) — don't claim
+            # "weapons hot" (mirrors _engage_combat's spawned==0 gating).
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_RED}[SENSORS]{ansi.RESET} {ts.display_name} drops "
+                f"out of the debris field -- contact made, but she's running dark "
+                f"and holding fire. "
+                f"`fire {ts.display_name.lower()}` to engage; `fleeship` to break off."
+            )
+        try:
+            await ctx.session.send_hud_update(db=ctx.db, session_mgr=ctx.session_mgr)
+        except Exception:
+            log.debug("chain intercept: HUD refresh failed", exc_info=True)
 
     async def _validate_helm(self, ctx):
         """Check ship, pilot seat, hyperspace, ion — return (ship, systems, zone, arg) or (None,)*4."""

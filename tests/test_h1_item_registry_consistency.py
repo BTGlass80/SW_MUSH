@@ -66,6 +66,9 @@ _NARRATIVE_EXEMPT = frozenset({
     "shipwright_toolkit",
     "diagnostic_scanner",
     "capacitor_coil_t1",
+    # staged-questline archetype relic (2026-07-03) — a graduation trophy
+    # item, not combat gear
+    "skimmers_sealed_strongbox",
 })
 
 

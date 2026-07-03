@@ -626,6 +626,63 @@ class TestCombatWonEnemyTemplatesResolve(unittest.TestCase):
 
 
 # ──────────────────────────────────────────────────────────────────────
+# Class 6 — every site_cleared scenario_template resolves (staged-
+# questline archetype, 2026-07-03)
+# ──────────────────────────────────────────────────────────────────────
+
+class TestSiteClearedScenarioTemplatesResolve(unittest.TestCase):
+    """Every `site_cleared` completion's `scenario_template` must resolve
+    to a real `SCENARIO_TEMPLATES` key — otherwise
+    chain_missions.maybe_arm_site_for_step arms nothing at the step's
+    room, and the player has no anomaly to `investigate`, stranding them
+    on the site (the site_cleared analogue of Class 5's combat_won
+    enemy_template guard). `step.location` is already covered generically
+    by Class 1 (TestChainRoomsResolve) since it walks every step's
+    location regardless of completion type."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.chains = _load_chains_yaml()
+        from engine.wilderness_anomalies import SCENARIO_TEMPLATES
+        cls.templates = SCENARIO_TEMPLATES
+
+    def _walk_site_cleared(self):
+        for c in _unlocked_chains(self.chains):
+            cid = c.get("chain_id", "?")
+            for step in c.get("steps") or []:
+                comp = step.get("completion") or {}
+                if comp.get("type") == "site_cleared":
+                    yield (cid, f"step{step.get('step')}.completion."
+                           f"scenario_template",
+                           comp.get("scenario_template"))
+
+    def test_every_site_cleared_scenario_template_resolves(self):
+        unresolved = []
+        checked = 0
+        for cid, where, tmpl in self._walk_site_cleared():
+            checked += 1
+            if not tmpl or str(tmpl).strip() not in self.templates:
+                unresolved.append((cid, where, tmpl))
+        # Anti-vacuous: this drop's own arc guarantees >=1 site_cleared
+        # step exists; zero would mean the walk broke.
+        self.assertGreater(
+            checked, 0,
+            "no site_cleared completion found in any unlocked chain — "
+            "the guard is vacuous (the walk or corpus changed shape)",
+        )
+        if unresolved:
+            lines = [f"  {cid:<24} {where:<48} -> {t!r}"
+                     for cid, where, t in unresolved]
+            self.fail(
+                f"{len(unresolved)} site_cleared scenario_template(s) do "
+                f"NOT resolve to a real SCENARIO_TEMPLATES key — arming "
+                f"the step's site spawns nothing, stranding the player "
+                f"with no anomaly to investigate. Author the template or "
+                f"fix the corpus value:\n" + "\n".join(lines)
+            )
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Registry-parity sentinel — keep the test's registration in sync with
 # the server's
 # ──────────────────────────────────────────────────────────────────────

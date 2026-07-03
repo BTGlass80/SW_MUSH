@@ -210,6 +210,18 @@ class NpcSpaceCombatManager:
         c = self._combatants.pop(npc_ship_id, None)
         if c:
             get_space_grid().remove_ship(npc_ship_id)
+            # Release the ambient traffic tick's live-combat hold (set at
+            # promote time). A fled / target-destroyed end previously left
+            # in_live_combat stuck True — harmless before, but _tick_ship
+            # now DEFERS lifetime expiry while the hold is set, so a stuck
+            # flag would leak the ambient ship forever.
+            try:
+                from engine.npc_space_traffic import get_traffic_manager
+                ts = get_traffic_manager().get_ship(npc_ship_id)
+                if ts is not None:
+                    ts.in_live_combat = False
+            except Exception:
+                pass
         return c
 
     def apply_damage_to_npc(self, npc_ship_id: int, hull_damage: int) -> bool:

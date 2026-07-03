@@ -12738,6 +12738,257 @@ chains:
           core against its own papers.
 
   # ═══════════════════════════════════════════════════════════════════════
+  # STAGED-QUESTLINE ARCHETYPE — first slice (2026-07-03)
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  # "The Undertow Skim" — the archetype's proof arc (DESIGN_staged_
+  # questline_archetype_2026-07-03.md; Brian's fork stack). An ordinary
+  # `kind: questline` chain whose middle step uses the NEW `site_cleared`
+  # completion type: "go to this room, clear the multi-phase scenario
+  # anomaly armed there on step entry." The wave -> skill_gate -> boss
+  # shape lives entirely inside ONE `SCENARIO_TEMPLATES` entry
+  # (kamino_undertow_purge, engine/wilderness_anomalies.py) — Fork 2A. The
+  # anomaly's own faucet is suppressed (Fork 3A); the questline pays a
+  # single RICHER "staged" capstone reward instead (Fork 9A: 900cr + a
+  # relic + rep, distinct-and-higher than the 450cr freelance tier —
+  # tests/test_questline_reward_tier_consistency.py's staged-tier guard).
+  # STAGED_CULTS/communal_objective are untouched (Fork 6B) — this is a
+  # standalone site, not a cult conversion.
+  - chain_id: kamino_undertow_skim
+    chain_name: "The Undertow Skim"
+    description: >
+      Beneath Kamino's storm-battered ocean platforms, past the last working light in the pylon access
+      corridor's maintenance run, a skimming crew has claimed a stretch of flooded understructure and
+      turned it into a staging ground. Quartermaster Rensa Dahl, who runs Tipoca City's pylon-corridor
+      supply chain, has watched her dock count and her depot count drift apart a little more every
+      delivery for a season running — a cut skimmed off every supply run that crosses the ocean
+      platforms before it's ever logged at the depot. She can't spare a duty roster to clear it herself;
+      the depot can't run short-handed. She needs a neutral hand to go down through the corridor's free
+      maintenance hatch, break the crew's flood-lock watch guarding the mooring shelf where they've
+      staged their cache, force (or talk down) the rigged valve they've wired to flood the corridor
+      sooner than give up the cache clean, and bring down the crew's foreman before the season's skim
+      becomes a habit nobody can prove. A freelance favor — open to anyone, no faction required.
+    archetype_label: "Staged Site Clearance"
+    faction_alignment: independent
+    starting_zone: kamino_ocean_platform
+    starting_room: kamino_pylon_access
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 30
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 900
+      faction_rep:
+        independent: 15
+      items: ["skimmers_sealed_strongbox"]
+      achievements: ["undertow_skim_cleared"]
+      drop_room: kamino_pylon_access
+      follow_up_hint: >
+        The flood-lock watch broken, the rigged valve forced, and the crew's foreman brought down over
+        his own mooring-shelf cache, the season's skim is over — Quartermaster Rensa Dahl's dock count
+        and depot count finally match again, and the flooded understructure beneath the pylons goes back
+        to being an unlit maintenance run nobody has a reason to claim. Word travels the ocean platforms
+        the way it travels every honest ledger: there is a hand who will go down through a free
+        maintenance hatch, break a skim crew's watch, force a rigged flood-lock, and bring a foreman down
+        over the cache he thought was safe — and a supply chain that had learned to write off a season's
+        shortfall as the cost of doing business starts asking where its cargo actually goes instead.
+
+    steps:
+      - step: 1
+        title: "The Shortfall"
+        location: kamino_pylon_access
+        npc: "Quartermaster Rensa Dahl"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Quartermaster Rensa Dahl at the Pylon Access Corridor, who has traced a supply shortfall to a skimming crew working the flooded understructure below."
+        npc_intro: >
+          [A wiry woman in a supply-corps duty vest works a manifest slate against the crates rolling
+          past on a loader sled, off to one side of the pylon access corridor's steady traffic.] "You
+          looking for work, or just lost? Either way, you'll do. I'm Quartermaster Rensa Dahl — I run
+          this corridor's supply chain, every crate logged at the dock and again at the depot. For a
+          season running, the two logs have stopped matching. `talk` to me and I'll show you the count."
+        completion:
+          type: talk_to_npc
+          npc: "Quartermaster Rensa Dahl"
+        npc_complete: >
+          [She turns the manifest slate face-up, a dock count sitting stubbornly above the depot count
+          beside it, the same gap three deliveries running.] "Nobody's stealing a crate at either end —
+          I've checked both logs myself. It's disappearing between them, down through the maintenance
+          hatch, where a skim crew's rigged themselves a mooring shelf to work from. The hatch past the
+          last emergency light is free. Head down, clear the crew out, and get my cache back on the
+          books."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Head down through the pylon access corridor's free maintenance hatch into the flooded understructure, find the skim crew's mooring shelf, and clear it out — `investigate` the site once you reach it."
+
+      - step: 2
+        title: "The Mooring Shelf"
+        location: understructure_cistern
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["investigate"]
+        objective: "At the skim crew's mooring shelf in the flooded understructure, break the flood-lock watch, force the rigged valve, and bring down the crew's foreman."
+        npc_intro: >
+          [The mooring shelf sits ankle-deep in standing water, cargo crates stacked well above the
+          waterline on a rusted cache rack, a jury-rigged flood-lock controller cable-tied to the
+          bulkhead. Watch lamps swing across the water — the skim crew has seen you coming.] This is the
+          crew's staging point: break their watch, force the flood-lock they've rigged to drown the
+          corridor sooner than lose the cache clean, and bring down whoever's left holding it.
+          `investigate` the site to engage.
+        completion:
+          type: site_cleared
+          scenario_template: kamino_undertow_purge
+          tier: 2
+        npc_complete: >
+          The mooring shelf falls quiet — the watch broken, the flood-lock's valve dead, the crew's
+          foreman down over the cache he was staging. The crates on the rack are exactly what Rensa
+          Dahl's manifest said should have crossed the platforms honest.
+        reward: {}
+        next_hint: "The mooring shelf is cleared — climb back up to the Pylon Access Corridor and report the shortfall to Quartermaster Rensa Dahl."
+        command_to_type: "investigate"
+
+      - step: 3
+        title: "The Books Squared"
+        location: kamino_pylon_access
+        npc: "Quartermaster Rensa Dahl"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Report back to Quartermaster Rensa Dahl at the Pylon Access Corridor — the mooring shelf is cleared and the cache recovered."
+        npc_intro: >
+          [Rensa Dahl looks up from her manifest slate as you come back up through the maintenance
+          hatch, dock grime and standing water still on you.] "The corridor's been quiet since you went
+          down — first time in a season I haven't had to explain a shortfall to the depot. `talk` to me
+          and let's square the books."
+        completion:
+          type: talk_to_npc
+          npc: "Quartermaster Rensa Dahl"
+        npc_complete: >
+          "Watch broken, flood-lock forced, foreman down, cache recovered — that's every line of my
+          shortfall accounted for. Take this for the trouble, and my thanks besides. Tipoca City's supply
+          chain runs honest again because of it."
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: >
+          The season's skim is over — Rensa Dahl's dock count and depot count match again, and the
+          flooded understructure beneath the pylons goes back to being an unlit maintenance run nobody
+          has a reason to claim.
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # kuat_capital_intercept — "The Rogue Cutter" (space-combat-bridge, 2026-07-03)
+  # ═══════════════════════════════════════════════════════════════════════
+  # The FIRST slice of the real ship-vs-ship capital combat bridge
+  # (DESIGN_capital_ship_combat_2026-07-03.md): a `space_combat_won` step,
+  # bridged from the live fire-kill seam
+  # (engine.npc_space_traffic.handle_traffic_ship_destroyed ->
+  # engine.chain_events.on_space_combat_won), NOT person-scale ground
+  # combat aboard a venue (that's the complementary 36th-arc pattern,
+  # kuat_phantom_tonnage, just above). Step A (`course intercept`) spawns
+  # + promotes the tagged capital hostile (mirrors `course anomaly`'s
+  # promote-to-live-combat pattern); step B (`space_combat_won`) advances
+  # the instant the player destroys it in a real ship-to-ship duel.
+  # Scale parity (a solo starfighter cannot meaningfully damage a capital)
+  # is enforced by `course intercept` itself: it refuses unless the player
+  # is at the helm of a capital-scale hull, reusing the existing
+  # `+shipyard` purchase path rather than granting a new, temporary
+  # command. DESTROY-only for this slice; disable/board and a richer
+  # crewed multi-gunner tier are deferred (logged in TODO.json).
+  - chain_id: kuat_capital_intercept
+    chain_name: "The Rogue Cutter"
+    description: >
+      A hijacked Sector Customs cutter has gone rogue in the deep space beyond the Kuat Drive Yards,
+      running escort for a smuggling syndicate slipping cargo past the picket line. KSF has no capital
+      hull to spare from the checkpoint queue. Anyone flying a capital-scale command can pick up the
+      intercept — find it, fight it ship-to-ship, and put it down.
+    archetype_label: "Freelance Capital Escort"
+    faction_alignment: independent
+    starting_zone: kuat_main_spaceport
+    starting_room: kuat_arrivals
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 10
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 450
+      faction_rep:
+        independent: 17
+      items: []
+      achievements: ["kuat_intercept_cleared"]
+      drop_room: kuat_arrivals
+      follow_up_hint: >
+        The Rogue Cutter's hull gave out under sustained turbolaser fire — the syndicate's smuggling
+        escort is gone, and the picket line beyond the Drive Yards is clear again. KSF has no bounty
+        ledger for a favor like this, but the berths remember a hand who answers a capital-scale
+        distress call when the sector has no warship to spare.
+
+    steps:
+      - step: 1
+        title: "No Hull to Spare"
+        location: kuat_arrivals
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["course"]
+        objective: "A KSF dispatch channel is asking for any capital-scale command to intercept a rogue customs cutter running escort for smugglers in Kuat's deep space. Launch, reach deep space, and `course intercept`."
+        command_to_type: "course intercept"
+        npc_intro: >
+          [A KSF dispatch burst cuts into the general channel, addressed to any capital-scale hull in
+          range.] "All stations, Kuat Sector Customs — we have a hijacked cutter running dark in the
+          deep-space approach, now flying escort for a smuggling run past the picket line. Every warship
+          we have is committed to the checkpoint queue. If you're at the helm of a capital-class command
+          and you can hear this, we're asking you to intercept. Reach deep space and lock a course on it
+          yourself — we can't spare the escort to hold your hand out there." [The channel goes quiet,
+          waiting on whoever answers.]
+        completion:
+          type: command_executed
+          command: "course"
+          target_contains: "intercept"
+        npc_complete: >
+          [Sensors resolve a contact dropping out of the debris field ahead — a former Sector Customs
+          cutter, transponder spoofed, running hot on an intercept vector of its own. It's made you.
+          There's no dispatch channel out here to back you up; whatever happens next is a ship-to-ship
+          duel, turbolasers to turbolasers.]
+        reward: {}
+        next_hint: "The Rogue Cutter has broken formation and opened fire — `fire rogue cutter` to return fire; `fleeship` to break off."
+
+      - step: 2
+        title: "Turbolasers to Turbolasers"
+        location: ""
+        npc: "(none)"
+        npc_role: antagonist
+        teaches: ["fire"]
+        objective: "Destroy the Rogue Cutter in ship-to-ship combat — `fire rogue cutter` from a gunner station until its hull gives out."
+        command_to_type: "fire rogue cutter"
+        npc_intro: >
+          [The Rogue Cutter holds its line and answers fire for fire — a light hull, but not a helpless
+          one, its lone turbolaser turret tracking your approach. Scale-for-scale this is a fair fight:
+          your hull and shields against its own, no fleet, no ambush, just two capital-scale hulls
+          trading turbolaser fire until one of them stops answering.] `fire rogue cutter` from your
+          gunner station, round after round, until the hull damage crosses the threshold and the cutter's
+          escort run ends for good.
+        completion:
+          type: space_combat_won
+          enemy_ship_template: "kuat_intercept_rogue_cutter"
+          enemy_count: 1
+        npc_complete: >
+          [The Rogue Cutter's hull finally gives out under the sustained fire — a last flare across its
+          turbolaser turret, then the hull breaches and the escort run is over. No fleet needed, no
+          ambush, just a capital-scale duel won turbolaser for turbolaser. Salvage is yours if you want
+          it; KSF's picket line is clear again either way.]
+        reward: {}
+        next_hint: >
+          The Rogue Cutter is gone — its hull breached, its escort run ended, and the smuggling
+          convoy it was covering left without a warship at its back. KSF has no capital hull to spare
+          for a thank-you, but Kuat's berths remember who answers a distress call when the sector's
+          own navy is stretched thin over a checkpoint queue. A real ship-to-ship duel, won the way a
+          fleet action never is — one hull against one hull, turbolasers to turbolasers, until only one
+          of them was still answering fire.
+
+  # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════
 # When the CW tutorial engine session lands:

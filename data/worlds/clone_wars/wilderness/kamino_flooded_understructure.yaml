@@ -1,0 +1,149 @@
+# data/worlds/clone_wars/wilderness/kamino_flooded_understructure.yaml
+#
+# staged-questline-archetype-slice1 (2026-07-03): the first-slice site for
+# the STAGED-QUESTLINE ARCHETYPE (DESIGN_staged_questline_archetype_2026-07-03
+# .md) — "The Undertow Skim" (kamino_undertow_skim,
+# data/worlds/clone_wars/tutorials/chains.yaml). A brand-new, standalone
+# venue — NOT a staged-cult conversion; `STAGED_CULTS` / `communal_objective`
+# are untouched (Fork 6B). The wave/skill-gate/boss content itself lives in
+# engine/wilderness_anomalies.py's `kamino_undertow_purge` SCENARIO_TEMPLATES
+# entry, armed at this region's `understructure_cistern` landmark by the
+# chain's `site_cleared` step (engine.chain_missions.maybe_arm_site_for_step).
+#
+# ── PROVENANCE / DISCIPLINE ─────────────────────────────────────────────────
+# Wholly original content — no sourcebook extraction. The "skim crew" is an
+# invented, era-clean smuggling outfit (B3: no Imperial/Empire/Rebel/TIE
+# strings; Q1: no canon Clone Wars figures — Kamino's canonical Kaminoan
+# leadership never appears here or anywhere in this file). Modeled on
+# wilderness/kuat_sabotaged_yards.yaml (the reference small, site-purpose
+# region shape: inline landmarks, one on-foot edge, no landmark_includes
+# split, no encounter pool).
+#
+# ── ZONE CHOICE ──────────────────────────────────────────────────────────────
+# A new dedicated zone (`kamino_flooded_understructure`, declared in
+# zones.yaml) rather than reusing `kamino_ocean_platform` — this pocket is
+# explicitly framed as OFF the platforms' own security perimeter (the skim
+# crew's claim, not KSF/Kaminoan-patrolled ground), matching how the Iron
+# Veil's Sabotaged Yards got its own zone rather than reusing Kuat Drive
+# Yards'.
+#
+# ── REACHABILITY ─────────────────────────────────────────────────────────────
+# The `edges:` block below connects this region's entry landmark to the
+# EXISTING `kamino_pylon_access` room (data/worlds/clone_wars/planets/
+# kamino.yaml, id 371). That room's authored exits are `up` (Landing Platform
+# Alpha), `west` (Lower Platform), and `deeper` (the Unauthorized Docking
+# Point) — `down` is free, so it falls through to the wilderness-entry check
+# in parser/builtin_commands.py::_try_wilderness_entry cleanly. NO EDIT to
+# kamino.yaml was needed or made (purely additive — this file only
+# REFERENCES the existing room_slug).
+#
+# ── SCOPE ─────────────────────────────────────────────────────────────────
+# Small (2-landmark), SITE-PURPOSE region sized for its one job: anchoring
+# the questline's `site_cleared` step. The whole wave->skill_gate->boss
+# encounter plays out at ONE anchor room (`understructure_cistern`) via the
+# anomaly's own phase machine — no room-to-room movement is needed mid-
+# encounter (Fork 2A: one multi-phase anomaly, not the cults' N-templates-
+# across-N-rooms shape). No `encounters:` pool is authored (deliberately
+# minimal, mirrors kuat_sabotaged_yards.yaml) — this venue exists to anchor
+# the questline site, not to be an open explorable wilderness.
+
+schema_version: 1
+
+region:
+  slug: kamino_flooded_understructure
+  name: "The Flooded Understructure"
+  planet: kamino
+  zone: kamino_flooded_understructure   # inherits security from this zone
+  default_security: contested           # a skim crew's claim, not KSF ground
+  narrative_tone_key: kamino_flooded_understructure
+
+grid:
+  width: 8                              # x-coords 0..7 — small, purpose-built venue
+  height: 8                             # y-coords 0..7
+  tile_scale_km: 1                      # dense flooded sub-pylon understructure
+  default_terrain: understructure_dark
+
+terrains:
+  understructure_dark:
+    # The approach — dark maintenance catwalks below the pylon corridor's
+    # last emergency light.
+    move_cost: 1
+    sight_radius: 1
+    ambient_hazard: none
+    hazard_severity: 0
+    variants:
+      - "A rusted catwalk runs on into the dark below the pylons, the ocean's noise carrying up through the deck plating."
+      - "The understructure's emergency lighting gave out here long ago. Whatever light there is comes from a hand-torch, or none at all."
+      - "Cargo netting hangs slack from old mooring cleats, salt-rotted and forgotten by whoever last logged this level."
+
+  flooded_cistern:
+    # The mooring shelf / cache room — deeper, standing water, the skim
+    # crew's actual staging point.
+    move_cost: 2
+    sight_radius: 1
+    ambient_hazard: none
+    hazard_severity: 0
+    variants:
+      - "The mooring shelf sits ankle-deep in standing water, cargo crates stacked well above the waterline on a rusted cache rack."
+      - "A jury-rigged flood-lock controller squats against one wall, cable-tied and hand-wired — nothing about it was ever on a KSF maintenance log."
+
+# ─── Landmarks ────────────────────────────────────────────────────────────
+landmarks:
+
+  - id: understructure_access
+    name: "The Understructure Access"
+    coordinates: [1, 1]
+    terrain: understructure_dark
+    short_desc: "The dark catwalk stretch just past the pylon corridor's last emergency light."
+    description: |
+      The pylon access corridor's sickly-yellow emergency lighting gives
+      out a few dozen meters past the maintenance hatch, and the
+      understructure opens out below — rusted catwalks, cargo netting gone
+      slack with age, the ocean's constant motion transmitted up through
+      every strut. Whoever still logs maintenance faults up in Tipoca City
+      has stopped logging this stretch. A worn path through the grime says
+      someone else hasn't.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+    adjacency:
+      - understructure_cistern
+
+  - id: understructure_cistern
+    name: "The Mooring Shelf"
+    coordinates: [1, 4]
+    terrain: flooded_cistern
+    short_desc: "A flooded mooring shelf the skim crew has claimed as a cache and staging point."
+    description: |
+      A disused mooring shelf, ankle-deep in standing water, stacked with
+      cargo crates that never came off any Tipoca City manifest. A
+      jury-rigged flood-lock controller is cable-tied to the bulkhead —
+      cut to flood the corridor rather than let the cache be taken clean.
+      This is where the skim crew works: every supply run that crosses
+      the ocean platforms bleeds a cut here before it's ever missed above.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+    adjacency:
+      - understructure_access
+
+# ─── Edges ───────────────────────────────────────────────────────────────
+# The on-foot gateway from the pylon access corridor. kamino_pylon_access is
+# an EXISTING room (data/worlds/clone_wars/planets/kamino.yaml, id 371)
+# whose authored exits are up/west/deeper — "down" is free, so this is a
+# clean, zero-edit addition (see the REACHABILITY note above).
+edges:
+  - room_slug: kamino_pylon_access
+    coords: [1, 1]
+    direction_from_room: down
+    direction_back_to_room: up
+    enter_message: |
+      You drop past the last working emergency light and the pylon
+      corridor's steady hum gives way to something colder — rusted
+      catwalks, standing water, and the ocean's weight pressing up
+      through every strut.
+    exit_message: |
+      You climb back up into the pylon access corridor's sickly-yellow
+      light, the flooded understructure's cold falling away behind you.
+
+unwalkable_tiles: []

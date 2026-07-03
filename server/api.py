@@ -541,13 +541,32 @@ class ChargenAPI:
         if char_errors:
             all_errors["validation"] = char_errors
 
+        # 3. Pre-check character-name availability BEFORE the account is
+        # created. Bug fix (chargen-hardening 2026-07-03): this used to run
+        # AFTER account creation (inside the try/except below), and that
+        # except block never rolled the account back on a name collision —
+        # a taken name left a 0-character account squatting the username,
+        # so the player's retry hit "Username already taken" with no way
+        # to recover. Checking here means the common case (name already
+        # taken) never touches the accounts table at all. The except
+        # block below still guards the rare TOCTOU race (name taken
+        # between this check and the INSERT) by deleting the orphaned
+        # account row it just created.
+        char_name = char_data.get("name", "") if isinstance(char_data, dict) else ""
+        if isinstance(char_name, str) and char_name.strip():
+            existing_char = await self.db.get_character_by_name(char_name.strip())
+            if existing_char is not None:
+                all_errors.setdefault("character", []).append(
+                    f"The name '{char_name.strip()}' is already taken."
+                )
+
         # Return early if validation fails
         if all_errors:
             return web.json_response(
                 {"success": False, "errors": all_errors}, status=400
             )
 
-        # 3. Create account atomically
+        # 4. Create account atomically
         account_id = await self.db.create_account(username, password)
         if account_id is None:
             return web.json_response(
@@ -558,7 +577,7 @@ class ChargenAPI:
                 status=409,
             )
 
-        # 4. Build Character object and save
+        # 5. Build Character object and save
         try:
             char_obj = Character()
             char_obj.name = char_data["name"].strip()
@@ -581,19 +600,16 @@ class ChargenAPI:
                 if bonus.total_pips() > 0:
                     char_obj.skills[skill_name.lower()] = bonus
 
-            # Force sensitivity
-            force_sensitive = char_data.get("force_sensitive", False)
-            char_obj.force_sensitive = force_sensitive
-            if force_sensitive:
-                char_obj.force_points = 2
-                # WEG R&E: a Force-sensitive character starts at 1D in each
-                # Force skill ("Ana receives control at 1D and learns one
-                # power"). 0D means you do NOT have the skill — the
-                # from_db_dict derivation (pool.is_zero() check) will not
-                # reconstruct force_sensitive=True from 0D entries.
-                char_obj.set_attribute("control", DicePool(1, 0))
-                char_obj.set_attribute("sense", DicePool(1, 0))
-                char_obj.set_attribute("alter", DicePool(1, 0))
+            # Force sensitivity is DERIVED state (from control/sense/alter
+            # presence in the attributes JSON) — never player-settable at
+            # chargen. validate_chargen_submission() above already rejects
+            # a submission carrying force_sensitive=true or control/sense/
+            # alter attribute dice; this hard-codes the non-sensitive
+            # default as defense-in-depth so a validator bypass still
+            # can't mint a free Jedi-track character. Every character
+            # starts non-Force-sensitive; the flag flips ONLY during
+            # Village-quest completion (engine/village_choice.py).
+            char_obj.force_sensitive = False
 
             # Background → description (coerce + cap to bound the DB write;
             # an unauthenticated POST could otherwise store a 256 KiB blob).
@@ -628,7 +644,11 @@ class ChargenAPI:
                                 {
                                     "chargen_complete": True,
                                     "faction_intent": "__chargen_any__",
-                                    "force_sensitive": bool(force_sensitive),
+                                    # force_sensitive is always False at
+                                    # chargen (derived state, never
+                                    # player-set — see char_obj.force_sensitive
+                                    # above).
+                                    "force_sensitive": False,
                                     "jedi_path_unlocked": False,
                                 },
                             )
@@ -717,6 +737,26 @@ class ChargenAPI:
             })
 
         except Exception as e:
+            # Bug fix (chargen-hardening 2026-07-03): the account row was
+            # already committed above (step 4) before we knew whether
+            # character creation would succeed. ANY failure past that
+            # point must not leave a 0-character account squatting the
+            # username — delete it so the player's retry (same username)
+            # succeeds instead of hitting "Username already taken" with
+            # no recovery. This is the TOCTOU backstop for the pre-check
+            # above (step 3); the common case (name already taken) never
+            # reaches here at all. Best-effort: a rollback failure must
+            # not mask the original error reported to the client.
+            try:
+                await self.db.execute_commit(
+                    "DELETE FROM accounts WHERE id = ?", (account_id,)
+                )
+            except Exception:
+                log.error(
+                    "Chargen submit: failed to roll back orphaned "
+                    "account id=%d after character-creation failure.",
+                    account_id, exc_info=True,
+                )
             err_str = str(e)
             if "UNIQUE constraint" in err_str and "name" in err_str.lower():
                 return web.json_response(
@@ -1028,14 +1068,16 @@ class ChargenAPI:
             # Re-check lock status with the chargen sentinel — this
             # mirrors creation_wizard._select_chain_by_id's defense
             # against direct-id input bypassing the menu filter.
-            _cb = data.get("character")
-            _char_body = _cb if isinstance(_cb, dict) else {}
             chargen_attrs = {
                 "chargen_complete": True,
                 "faction_intent": "__chargen_any__",
-                "force_sensitive": bool(
-                    _char_body.get("force_sensitive", False)
-                ),
+                # force_sensitive is always False at chargen — it is
+                # derived state (control/sense/alter presence), never
+                # player-set. A client-submitted force_sensitive=true is
+                # rejected outright by validate_chargen_submission below;
+                # it must not be honored here either (a Force-gated chain
+                # like jedi_path stays locked at chargen regardless).
+                "force_sensitive": False,
                 "jedi_path_unlocked": False,
             }
             is_locked, reason = is_chain_locked_for_character(
@@ -1084,14 +1126,12 @@ class ChargenAPI:
                 if bonus.total_pips() > 0:
                     char_obj.skills[skill_name.lower()] = bonus
 
-            force_sensitive = char_data.get("force_sensitive", False)
-            char_obj.force_sensitive = force_sensitive
-            if force_sensitive:
-                char_obj.force_points = 2
-                # WEG R&E: 1D starting pool (see handle_submit comment above).
-                char_obj.set_attribute("control", DicePool(1, 0))
-                char_obj.set_attribute("sense", DicePool(1, 0))
-                char_obj.set_attribute("alter", DicePool(1, 0))
+            # Force sensitivity is DERIVED state — never player-settable at
+            # chargen (see handle_submit comment above). validate_chargen_
+            # submission() below already rejects force_sensitive=true or
+            # control/sense/alter attribute dice; hard-code the non-
+            # sensitive default here too as defense-in-depth.
+            char_obj.force_sensitive = False
 
             # Background → description (coerce + cap; mirrors handle_submit).
             background = char_data.get("background", "") or ""

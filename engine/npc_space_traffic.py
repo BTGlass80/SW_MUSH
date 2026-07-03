@@ -714,6 +714,19 @@ class TrafficShip:
     display_name:             str = "Unknown Ship"
     transponder_type:         str = "registered"
     captain_name:             str = "Unknown"
+    # space-combat-bridge (2026-07-03): non-empty => destroying this ship
+    # credits a `space_combat_won` chain step (see handle_traffic_ship_
+    # destroyed). The space analog of a ground NPC's
+    # ai_config.chain_enemy_template -- a free-form quest tag, NOT the
+    # ShipTemplate registry key (a hull can be reused across many quest
+    # targets). Set only by the dedicated spawn_chain_capital seed.
+    chain_enemy_ship_template: str = ""
+    # space-combat-bridge hardening (2026-07-03): set-once latch consumed by
+    # handle_traffic_ship_destroyed. Two kill-confirming `fire` resolutions
+    # can interleave at that handler's awaits (multi-gunner capitals) before
+    # _despawn pops the ship -- the latch makes exactly one caller the
+    # consumer (bounty + chain credit + wreck/achievement); the rest no-op.
+    destroy_consumed:          bool = False
 
     def age(self) -> float:
         return time.time() - self.spawned_at
@@ -776,6 +789,7 @@ class TrafficShip:
             "display_name":          self.display_name,
             "transponder_type":      self.transponder_type,
             "captain_name":          self.captain_name,
+            "chain_enemy_ship_template": self.chain_enemy_ship_template,
         }
 
     @classmethod
@@ -806,6 +820,8 @@ class TrafficShip:
             display_name=data.get("display_name", "Unknown Ship"),
             transponder_type=data.get("transponder_type", "registered"),
             captain_name=data.get("captain_name", "Unknown"),
+            chain_enemy_ship_template=data.get(
+                "chain_enemy_ship_template", ""),
         )
 
 
@@ -1104,6 +1120,56 @@ class NpcSpaceTrafficManager:
                  f"'{ship_name}' in {zone_id}")
         return ts, tmpl
 
+    async def spawn_chain_capital(self, db, session_mgr, zone_id: str,
+                                  template_key: str, chain_tag: str,
+                                  display_name: str,
+                                  crew_skill: str = "3D") -> Optional["TrafficShip"]:
+        """Deterministic, chain-tagged capital spawn for a questline battle
+        step (space-combat-bridge, 2026-07-03).
+
+        Unlike ``spawn_for_encounter`` (which picks a template at random
+        from ``TRAFFIC_SHIP_TEMPLATES``/``_pick_patrol_template``, keyed on
+        ``archetype`` + zone authority), the caller supplies the EXACT ship
+        template and a ``chain_tag`` that ``handle_traffic_ship_destroyed``'s
+        hook reads to credit the kill to a ``space_combat_won`` chain step.
+        Archetype is fixed to PATROL (not PIRATE) so the traffic manager's
+        own kill payout — PIRATE-only — never double-pays alongside the
+        chain step's own `reward`/`graduation` credits; the caller is
+        expected to set the transponder to "combat" and give a distinct
+        ``display_name`` so ``fire <name>`` can target it (mirrors
+        ``CourseCommand._engage_combat``'s pirate-callsign pattern).
+
+        Returns the spawned ``TrafficShip``, or ``None`` on DB failure.
+        """
+        try:
+            ship_id = await db.create_traffic_ship(
+                name=display_name, template=template_key)
+        except Exception as e:
+            log.error(f"[traffic] spawn_chain_capital: create ship failed: {e}")
+            return None
+        try:
+            await db.create_traffic_npc(
+                name="Escort Captain", ship_id=ship_id, skill=crew_skill)
+        except Exception as e:
+            log.warning(f"[traffic] spawn_chain_capital: captain NPC failed: {e}")
+        ts = TrafficShip(
+            ship_id=ship_id,
+            archetype=TrafficArchetype.PATROL,
+            state=TrafficState.IDLE,
+            current_zone=zone_id,
+            spawned_at=time.time(),
+            max_lifetime=random.uniform(BASE_LIFETIME_MIN, BASE_LIFETIME_MAX),
+            display_name=display_name,
+            transponder_type="combat",
+            captain_name="Escort Captain",
+            chain_enemy_ship_template=chain_tag,
+        )
+        self._ships[ship_id] = ts
+        await self._persist_ship(ts, db)
+        log.info(f"[traffic] spawn_chain_capital: tagged '{display_name}' "
+                 f"(template={template_key}, chain_tag={chain_tag}) in {zone_id}")
+        return ts
+
     def _set_initial_route(self, ts: TrafficShip):
         """Set the initial route for a newly spawned ship based on archetype."""
         if ts.archetype == TrafficArchetype.TRADER:
@@ -1142,8 +1208,13 @@ class NpcSpaceTrafficManager:
         """
         Evaluate one ship for one tick. Returns True if the ship should despawn.
         """
-        # Lifetime check
-        if ship.is_expired():
+        # Lifetime check. Deferred (not skipped) while NpcSpaceCombatManager
+        # owns the ship: winding an expired ship into TRANSIT/FLEEING lets
+        # the ambient tick despawn a live-combat target mid-fight — a path
+        # that never reaches handle_traffic_ship_destroyed, silently voiding
+        # a chain-tagged kill (kuat_capital_intercept). Expiry resumes after
+        # remove_combatant() releases the in_live_combat hold.
+        if ship.is_expired() and not getattr(ship, "in_live_combat", False):
             await self._begin_wind_down(ship, db, session_mgr)
 
         if ship.state == TrafficState.TRANSIT:
@@ -1827,19 +1898,42 @@ class NpcSpaceTrafficManager:
         return True, f"You transfer {demand:,} credits. {ts.sensors_name()} breaks off."
 
     async def handle_traffic_ship_destroyed(self, traffic_ship_id: int,
-                                             player_char, db, session_mgr) -> int:
+                                             player_char, db, session_mgr) -> Optional[int]:
         """
         Called when a player kills a traffic ship. Awards credit bounty for pirates.
-        Returns credits awarded (0 if not a pirate).
+        Returns credits awarded (0 if not a pirate), or None when this kill
+        was already consumed by a concurrent/duplicate call — callers must
+        treat None as "another resolution owns the wreck/achievement too".
         """
         ts = self._ships.get(traffic_ship_id)
-        if ts is None:
-            return 0
+        if ts is None or ts.destroy_consumed:
+            return None
+        # Latch BEFORE the first await: the check-and-set is atomic under
+        # cooperative scheduling, so a second `fire` resolution interleaving
+        # at the awaits below (adjust_credits / chain hook) sees the latch
+        # instead of double-paying the bounty / double-crediting the chain
+        # step off a single kill (multi-gunner capital race).
+        ts.destroy_consumed = True
         awarded = 0
         if ts.archetype == TrafficArchetype.PIRATE:
             awarded = random.randint(PIRATE_CREDIT_MIN, PIRATE_CREDIT_MAX)
             player_char["credits"] = await db.adjust_credits(player_char["id"], awarded, "npc_pirate_bounty")
             log.info(f"[traffic] player destroyed pirate '{ts.display_name}' — awarded {awarded} cr")
+        # space-combat-bridge (2026-07-03): a chain-tagged capital target
+        # credits a `space_combat_won` questline step. MUST run before
+        # _despawn below -- the tag lives on this in-memory TrafficShip,
+        # not the DB row _despawn is about to delete. Mirrors the
+        # `on_ship_destroyed` achievement hook's try/except shape: a
+        # broken chain corpus or a non-PC caller must never block the
+        # kill/despawn that follows.
+        if ts.chain_enemy_ship_template:
+            try:
+                from engine.chain_events import on_space_combat_won
+                await on_space_combat_won(
+                    db, player_char, ts.chain_enemy_ship_template, 1)
+            except Exception:
+                log.warning("[traffic] space_combat_won chain hook failed",
+                            exc_info=True)
         await self._despawn(traffic_ship_id, db, session_mgr)
         return awarded
 

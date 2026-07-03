@@ -49,15 +49,17 @@
 #      NO map coordinate or world exit graph — the rooms already exist and are
 #      loaded (planets/kuat.yaml); only NPCs + a chains.yaml entry + an
 #      achievement are added.
-#   3. The FIRST MELEE-ARMED combat foil across all thirteen arcs: the prior
-#      eleven combat foils all carry blaster_pistol; Bohrus Kang is a Houk
-#      hull-stripper with a vibroaxe. He is stat-OFFSET to stay in the proven
-#      beatable band (see his block) — high per-hit but modest to-hit and weak
-#      at range, so a fresh post-chargen character who keeps distance keeps the
-#      edge. ⚠ BALANCE FLAG: vibroaxe (STR+3D+1) is higher per-hit than the
-#      prior foils' blaster_pistol (4D); if telemetry/playtest shows the melee
-#      climax is too lethal for a fresh character, swap his weapon to vibroblade
-#      (STR+3D) or blaster_pistol — a one-line change, no other edit needed.
+#   3. ORIGINALLY the first melee-armed combat foil across all thirteen arcs
+#      (Bohrus Kang, a Houk hull-stripper, carried a vibroaxe). ⚠ RESOLVED
+#      2026-07-03 (BAL.condemned_hull_melee_foil_band, Fable review F2 /
+#      quick-decisions-f4-f2): the "kite" rationale that justified the
+#      higher per-hit vibroaxe doesn't hold for melee — dodge only defends
+#      ranged attacks, so a fresh post-chargen character couldn't actually
+#      keep distance from a closing melee foil. Weapon swapped to
+#      blaster_pistol (4D, ranged) and his blaster skill raised to 4D to
+#      match the same proven band as the other twelve foils, so the
+#      dodge-and-kite premise now genuinely applies. He is now a
+#      ranged-armed foil like the rest of the corpus, not a melee outlier.
 #
 # It is also a new STORY SHAPE: breaking a ship-condemnation / certification-
 # fraud racket — not a smuggling-trace, a racket-bust-by-investigation, a
@@ -210,10 +212,12 @@ npcs:
   # ── Questline antagonist: Bohrus Kang (combat step 4) ───────────────
   # Single hostile instance at the chop-crew's leased Ileu strip-berth.
   # Matches the kuat_condemned_hull step-4 combat_won enemy_template.
-  # FIRST melee-armed foil across all 13 arcs (vibroaxe); stat-offset to the
-  # proven beatable band — high per-hit, modest to-hit, weak at range — so a
-  # fresh post-chargen character who keeps distance keeps the edge. See the
-  # header BALANCE FLAG: swap weapon to vibroblade/blaster_pistol if too lethal.
+  # RESOLVED 2026-07-03 (BAL.condemned_hull_melee_foil_band): originally the
+  # first melee-armed foil across all 13 arcs (vibroaxe) — the "kite"
+  # rationale doesn't hold for melee (dodge defends ranged only), so a fresh
+  # character couldn't actually keep distance. Weapon is now blaster_pistol
+  # (4D, ranged) with blaster raised to 4D — the same proven ranged-foil
+  # band as the other twelve arcs — so the dodge-and-kite premise holds.
 
   - name: Bohrus Kang
     room: "Kuat Drive Yards - Ileu Shipyards"
@@ -248,8 +252,8 @@ npcs:
         lifting: 4D
         dodge: 3D
         intimidation: 3D+2
-        blaster: 2D+2
-      weapon: vibroaxe
+        blaster: 4D
+      weapon: blaster_pistol
       move: 10
       force_points: 0
       character_points: 3

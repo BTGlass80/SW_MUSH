@@ -439,15 +439,22 @@ class CreationEngine:
                     self.state.attributes[attr] = DicePool(r.min_pool.dice, r.min_pool.pips)
 
     def _match_attribute(self, text):
-        """Match an attribute name by prefix (dex -> dexterity)."""
+        """Match an attribute name by prefix (dex -> dexterity).
+
+        chargen-hardening (2026-07-03): control/sense/alter are NOT
+        settable core attributes at chargen — force_sensitive is derived
+        state (from their presence in the attributes JSON), never
+        player-set. Matching them here let `set control 3D` silently
+        smuggle Force dice into the flat attributes dict that
+        _attr_pips_spent()/_attr_pips_total() sum, corrupting the core
+        18D attribute budget and soft-locking next/done with a message
+        that never named Control. Every character starts non-Force-
+        sensitive; Force is earned in the Village quest.
+        """
         text = text.lower()
         for attr in ATTRIBUTE_NAMES:
             if attr.startswith(text):
                 return attr
-        # Also match force attrs
-        for fa in ("control", "sense", "alter"):
-            if fa.startswith(text):
-                return fa
         return None
 
     def _attr_pips_spent(self):

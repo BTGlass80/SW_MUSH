@@ -540,3 +540,158 @@ def filter_visible_bounties(contracts: list, char_attrs: dict) -> list:
     """Convenience: filter bounties for visibility."""
     return [c for c in contracts
             if is_chain_bounty_visible_to(c, char_attrs)]
+
+
+# ── Staged-questline archetype (2026-07-03) — arm-on-entry sibling ──────
+#
+# The `site_cleared` completion type's arm-on-step-entry hook. Sibling to
+# `maybe_spawn_for_step` above (same call site, same failure-tolerant
+# shape), but its data lives in the CHAIN CORPUS's own step.completion
+# dict (scenario_template/tier), not a separate YAML file — so it takes
+# the already-resolved TutorialStep rather than re-deriving one from
+# (chain_id, step_num), which would mean a second chain-corpus load for
+# data engine.chain_events._try_advance already holds.
+
+
+def _load_char_attrs(char: dict) -> dict:
+    """Tiny local JSON-load helper (mirrors chain_events._load_attrs).
+    Duplicated rather than cross-imported: both are private, and this
+    module's own DB-facing helpers already handle their own (de)serial-
+    ization inline (e.g. _spawn_bounty)."""
+    raw = char.get("attributes", "{}")
+    if isinstance(raw, dict):
+        return raw
+    if not raw:
+        return {}
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError) as e:
+        log.warning("[chain_missions] attributes JSON parse failed for "
+                    "char %s: %s", char.get("id"), e)
+        return {}
+
+
+async def _persist_char_attrs(db, char: dict, attrs: dict) -> None:
+    """Tiny local JSON-save helper (mirrors chain_events._persist_attrs)."""
+    serialized = json.dumps(attrs)
+    char["attributes"] = serialized
+    await db.save_character(char["id"], attributes=serialized)
+
+
+async def maybe_arm_site_for_step(
+    db, char: dict, chain_id: str, step,
+    *, state_key: Optional[str] = None,
+) -> Optional[int]:
+    """Arm the multi-phase scenario anomaly a `site_cleared` step expects,
+    at the step's authored `location` room.
+
+    `step` is the TutorialStep already resolved by the caller's
+    `advance_step()` call (chain_events.py's `_try_advance` has it in
+    scope right where this is called from — the same seam as
+    `maybe_spawn_for_step`).
+
+    No-op (returns None) if the step's completion isn't `site_cleared`,
+    or if arming fails for any reason: missing `scenario_template`, an
+    unresolvable `location` slug, or a room with no
+    `wilderness_region_id` (the `investigate` region-gate requires one —
+    see `_gate_investigate` in wilderness_anomalies.py).
+
+    Idempotent: if an unresolved anomaly of the SAME template is already
+    armed at the SAME anchor room (e.g. the player re-entered the step
+    after a chain reset), that instance is reused rather than stacking a
+    duplicate on the site.
+
+    Failure-tolerant: any exception is logged and swallowed — arming a
+    site must NOT prevent the chain from advancing into the step; the
+    player can still walk there even if this stamp failed (they would
+    just find no anomaly to investigate — a data problem to fix, not a
+    stranding one).
+    """
+    try:
+        completion = getattr(step, "completion", None) or {}
+        if completion.get("type") != "site_cleared":
+            return None
+
+        step_num = getattr(step, "step", "?")
+        template_key = str(completion.get("scenario_template") or "").strip()
+        if not template_key:
+            log.warning(
+                "[chain_missions] chain %s step %s: site_cleared "
+                "completion missing scenario_template",
+                chain_id, step_num,
+            )
+            return None
+        tier = int(completion.get("tier") or 2)
+
+        location_slug = getattr(step, "location", "") or ""
+        if not location_slug:
+            log.warning(
+                "[chain_missions] chain %s step %s: site_cleared step "
+                "has no location to anchor the scenario",
+                chain_id, step_num,
+            )
+            return None
+
+        room = await db.get_room_by_slug(location_slug)
+        if room is None:
+            log.warning(
+                "[chain_missions] chain %s step %s: site_cleared "
+                "location %r did not resolve to a room",
+                chain_id, step_num, location_slug,
+            )
+            return None
+        room_id = int(room["id"])
+        zone_id = int(room["zone_id"]) if room.get("zone_id") else None
+        region_slug = room.get("wilderness_region_id")
+        if not region_slug:
+            log.warning(
+                "[chain_missions] chain %s step %s: site_cleared "
+                "location %r has no wilderness_region_id — "
+                "investigate's region gate would reject it",
+                chain_id, step_num, location_slug,
+            )
+            return None
+
+        from engine.wilderness_anomalies import (
+            get_anomalies_for_region, spawn_scenario_anomaly,
+        )
+
+        anomaly_id = None
+        for existing in get_anomalies_for_region(region_slug):
+            if (existing.template_key == template_key
+                    and int(existing.anchor_room_id) == room_id):
+                anomaly_id = existing.id
+                break
+        if anomaly_id is None:
+            anomaly = await spawn_scenario_anomaly(
+                db, region_slug, template_key, room_id,
+                tier=tier, zone_id=zone_id,
+                suppress_payout=True,
+            )
+            if anomaly is None:
+                return None
+            anomaly_id = anomaly.id
+
+        # Stamp the armed anomaly id onto the character's chain-step
+        # state so the clear-hook (chain_events.on_site_cleared) can
+        # confirm THIS character's own armed instance is the one that
+        # cleared.
+        from engine.tutorial_chains import (
+            record_site_anomaly, _TUTORIAL_CHAIN_KEY,
+        )
+        skey = state_key or _TUTORIAL_CHAIN_KEY
+        attrs = _load_char_attrs(char)
+        if record_site_anomaly(attrs, anomaly_id, skey):
+            await _persist_char_attrs(db, char, attrs)
+
+        log.info(
+            "[chain_missions] armed site_cleared scenario %s (anomaly "
+            "#%d, tier %d) at room %d for chain %s step %s (char %s)",
+            template_key, anomaly_id, tier, room_id, chain_id,
+            step_num, char.get("id"),
+        )
+        return anomaly_id
+    except Exception as e:
+        log.warning("[chain_missions] maybe_arm_site_for_step failed: %s",
+                    e, exc_info=True)
+        return None

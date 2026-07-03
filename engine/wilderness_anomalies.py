@@ -2972,6 +2972,131 @@ SCENARIO_TEMPLATES = {
             "breaks."
         ),
     },
+
+    # ── Staged-questline archetype first slice (2026-07-03) ───────────────
+    # "The Undertow Skim" (kamino_undertow_skim, tutorials/chains.yaml).
+    # A STANDALONE questline site — not a staged-cult conversion, and
+    # `STAGED_CULTS` / `communal_objective` are untouched (Fork 6B). Proves
+    # the archetype's Fork 2A shape (Brian's ruling, 2026-07-03): ONE
+    # multi-phase anomaly per `site_cleared` step, wave -> skill_gate ->
+    # boss all inside this single template's phases[] (not three separate
+    # templates the way the 5 cults do it). This is also the first content
+    # to EXERCISE T3.23's `skill_gate` field, which shipped inert.
+    #
+    # Never random-tick-spawned (`regions: []`); armed only by
+    # engine.chain_missions.maybe_arm_site_for_step at the chain step's
+    # fixed anchor room (Fork 5A) with `suppress_payout=True` (Fork 3A) —
+    # the questline's own graduation reward (900cr + relic + rep, Fork 9A)
+    # is the ONE faucet that pays; `success_reward` below is dead weight
+    # on THIS path (documented for schema/reuse honesty only, same
+    # convention as the staged-cult templates above).
+    "kamino_undertow_purge": {
+        "tier": 2,
+        "regions": [],                       # orchestrator-spawned only
+        "resolution": "combat",
+        "display_name": "The Understructure Skim",
+        "short_desc": (
+            "A skimming crew has rigged the flooded understructure beneath "
+            "Tipoca City's pylons to bleed supply shipments."
+        ),
+        "long_desc": (
+            "Past the maintenance hatch, the pylon access corridor's "
+            "emergency lighting gives out and the flooded understructure "
+            "opens up — cargo netting slung across the dark water, crates "
+            "stacked on a rusted mooring shelf. A skimming crew has worked "
+            "this pocket for a season, bleeding a cut off every supply run "
+            "that crosses the ocean platforms and running it out through a "
+            "rigged flood-lock before Tipoca City's own logs ever miss it."
+        ),
+        "phases": [
+            {
+                "name": "The Flood-Lock Watch",
+                "intro": (
+                    "Watch lamps swing across the mooring shelf — three of "
+                    "the skim crew, weapons up, closing on the noise of "
+                    "your approach."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Weequay",
+                        "name_pool": ["Understructure Watchman", "Skim Crew Lookout"],
+                        "weapon": "blaster_pistol", "behavior": "aggressive",
+                        "personality": "A skim-crew watchman, guarding the mooring shelf against anyone who isn't paying the cut.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "average",
+                        "species": "Human",
+                        "name_pool": ["Understructure Watchman", "Skim Crew Deckhand"],
+                        "weapon": "vibroblade", "behavior": "aggressive",
+                        "personality": "A skim-crew deckhand, defending the crew's take.",
+                    },
+                    {
+                        "archetype": "thug", "tier": "novice",
+                        "species": "Human",
+                        "name_pool": ["Skim Crew Runner", "Understructure Runner"],
+                        "weapon": "blaster_pistol", "behavior": "aggressive",
+                        "personality": "A young skim-crew runner, thrown at the noise to buy the others time.",
+                    },
+                ],
+            },
+            {
+                "name": "The Rigged Flood-Lock",
+                "intro": (
+                    "Past the watch, a jury-rigged flood-lock controller "
+                    "guards the mooring shelf's cache — cut to flood the "
+                    "corridor if forced, unless it's overridden first. A "
+                    "rattled deckhand still minding the valve might be "
+                    "talked into shutting it down himself instead."
+                ),
+                "skill_gate": {
+                    "skill": "security",
+                    "difficulty": 13,
+                    "alt_skills": [
+                        "computer_programming", "demolitions",
+                        "persuasion", "con", "bargain",
+                    ],
+                    "solo_penalty": 3,
+                    "on_clear": (
+                        "The flood-lock's valve goes dead in your hands — "
+                        "or the rattled deckhand minding it shuts it down "
+                        "himself rather than drown for someone else's cut."
+                    ),
+                },
+            },
+            {
+                "name": "The Skim-Boss",
+                "intro": (
+                    "The valve dead behind you, the crew's foreman steps "
+                    "off the mooring shelf to meet you personally — this "
+                    "pocket has fed him too well to give up without a "
+                    "fight."
+                ),
+                "combat_npcs": [
+                    {
+                        "archetype": "bounty_hunter", "tier": "superior",
+                        "species": "Weequay",
+                        "name_pool": ["The Skim-Boss", "Bosun Tarl Ock"],
+                        "weapon": "blaster_rifle", "behavior": "tactical",
+                        "personality": "The skim crew's foreman — hardened, tactical, making a last stand over the mooring shelf's cache rather than lose the season's take.",
+                    },
+                ],
+            },
+        ],
+        "success_reward": {
+            "credits": (400, 800),
+            "resources": [
+                ("metal", 2, 55),
+                ("composite", 1, 50),
+            ],
+            "influence": TIER2_INFLUENCE_DELTA,
+        },
+        "news_text": (
+            "A skimming crew has been rooted out of {region}'s flooded "
+            "understructure — the mooring shelf's cache seized, the "
+            "rigged flood-lock silenced."
+        ),
+    },
 }
 
 
@@ -3027,6 +3152,15 @@ class WildernessAnomaly:
     # retry is always allowed, just throttled by
     # SKILL_GATE_RETRY_COOLDOWN_SECS).
     skill_gate_retry_at: dict = field(default_factory=dict)
+    # Staged-questline archetype (2026-07-03), Fork 3A: when a
+    # `site_cleared` chain step arms this anomaly, its OWN
+    # success_reward/named_loot/trophy/scaled-mat payout is suppressed —
+    # the questline reward funnel (chain_rewards) pays the ONE richer
+    # capstone reward instead, so a chain-armed scenario never double-
+    # pays. Defaults False (behavior-neutral for every existing spawner:
+    # the random tick, the 5 staged cults, and any other orchestrator
+    # caller that doesn't pass it).
+    suppress_payout: bool = False
 
     @property
     def template(self) -> dict:
@@ -3419,18 +3553,28 @@ async def spawn_scenario_anomaly(
     duration_secs: Optional[float] = None,
     now: Optional[float] = None,
     session_mgr=None,
+    suppress_payout: bool = False,
 ) -> Optional[WildernessAnomaly]:
     """Spawn a SPECIFIC authored anomaly at a SPECIFIC room — the
     deterministic counterpart to ``spawn_anomaly_for_region``.
 
     Used by the staged-event scenario orchestrator
     (engine.communal_objective_runtime) to arm one stage's anomaly at the
-    scenario site. Unlike the random tick spawner, the caller names the
-    template + anchor room explicitly, so a cult scenario walks a curated
-    sequence (wave → skill → boss) rather than a random roll. The resulting
-    WildernessAnomaly is identical in every other respect — it resolves through
-    the SAME ``investigate`` → ``_resolve_anomaly_*`` paths and pays through the
-    SAME reward funnels as any other anomaly (no new faucet/sink).
+    scenario site, and by the staged-questline archetype's arm-on-entry
+    hook (engine.chain_missions.maybe_arm_site_for_step). Unlike the
+    random tick spawner, the caller names the template + anchor room
+    explicitly, so a scenario walks a curated sequence (wave → skill →
+    boss) rather than a random roll. The resulting WildernessAnomaly is
+    identical in every other respect — it resolves through the SAME
+    ``investigate`` → ``_resolve_anomaly_*`` paths and pays through the
+    SAME reward funnels as any other anomaly.
+
+    ``suppress_payout`` (Fork 3A, staged-questline archetype 2026-07-03):
+    when True, ``_payout_combat_anomaly`` skips this anomaly's own
+    credit/resource/named-loot/trophy/scaled-mat funnel calls on its
+    final-phase clear — the caller (a chain's questline reward) pays the
+    ONE richer capstone reward instead, so a chain-armed scenario never
+    double-pays. Defaults False (every existing caller is unaffected).
 
     Returns the WildernessAnomaly, or None if the template is unknown. Does NOT
     enforce per-region caps or spawn-chance (scenarios are orchestrator-driven,
@@ -3472,6 +3616,7 @@ async def spawn_scenario_anomaly(
         spawned_at=now,
         expiry=now + float(duration_secs),
         tier=int(tier),
+        suppress_payout=bool(suppress_payout),
     )
     _anomalies.setdefault(region_slug, []).append(anomaly)
 
@@ -4578,6 +4723,44 @@ async def award_combat_anomaly_reward(
     )
 
 
+async def _dispatch_site_cleared(
+    db, anomaly: "WildernessAnomaly", participants: list,
+) -> None:
+    """Staged-questline archetype (2026-07-03): fire the questline
+    clear-hook for every payout participant.
+
+    A cheap no-op for the overwhelming majority of anomaly resolutions
+    (random-tick T1/T2/T3, the 5 staged cults) — chain_events.
+    on_site_cleared only advances a character whose OWN active chain
+    step is a `site_cleared` completion naming this anomaly's template
+    (and, if stamped, this exact anomaly id), so calling it here for
+    every participant on every anomaly clear is safe and matches the
+    unconditional-dispatch pattern every other chain hook uses
+    (on_combat_won fires after every combat win regardless of whether
+    the winner has an active chain).
+
+    Failure-tolerant: per-participant dispatch errors are logged and
+    swallowed — a broken chain hook must never block the anomaly payout
+    it's piggybacking on.
+    """
+    try:
+        from engine import chain_events
+    except Exception:
+        return
+    for p in participants:
+        if not p or not p.get("id"):
+            continue
+        try:
+            await chain_events.on_site_cleared(
+                db, p, anomaly.template_key, anomaly.id,
+            )
+        except Exception:
+            log.warning(
+                "[anomaly] on_site_cleared dispatch failed for char %s "
+                "(anomaly #%d)", p.get("id"), anomaly.id, exc_info=True,
+            )
+
+
 async def _payout_combat_anomaly(
     db, anomaly: "WildernessAnomaly", killer_char_id: int,
     rng: random.Random, now: float,
@@ -4610,11 +4793,18 @@ async def _payout_combat_anomaly(
 
     # Tier 1: simple — single-character payout.
     if anomaly.tier == 1:
-        credits, granted_stacks, influence_delta = (
-            await _apply_reward_to_char(
-                db, killer, anomaly, anomaly.region_slug, reward, rng,
+        # Fork 3A (staged-questline archetype, 2026-07-03): a chain-armed
+        # anomaly's own faucet is suppressed — the questline reward pays
+        # instead. Resolution bookkeeping (resolved/resolved_by/defeat
+        # broadcast/clear-hook) still fires; only the funnel calls skip.
+        if anomaly.suppress_payout:
+            credits, granted_stacks, influence_delta = 0, [], 0
+        else:
+            credits, granted_stacks, influence_delta = (
+                await _apply_reward_to_char(
+                    db, killer, anomaly, anomaly.region_slug, reward, rng,
+                )
             )
-        )
         anomaly.resolved = True
         anomaly.resolved_by = int(killer_char_id)
         anomaly.resolved_faction = killer.get("faction_id") or "independent"
@@ -4622,15 +4812,21 @@ async def _payout_combat_anomaly(
 
         log.info(
             "[anomaly] T1 combat reward paid for #%d (%s) to char %s — "
-            "%dcr, %d stacks, %d inf",
+            "%dcr, %d stacks, %d inf%s",
             anomaly.id, anomaly.template_key, killer_char_id,
             credits, len(granted_stacks), influence_delta,
+            " (suppressed)" if anomaly.suppress_payout else "",
         )
 
         # SYN.10 (May 25 2026): defeat news broadcast per design §2.6.
         await _broadcast_anomaly_defeat(
             anomaly, killer.get("faction_id"), session_mgr,
         )
+
+        # Staged-questline archetype (2026-07-03): fan the clear-hook
+        # over every payout participant (here: just the killer/resolver;
+        # Tier 1 has no room-shared participation model).
+        await _dispatch_site_cleared(db, anomaly, [killer])
 
         return {
             "anomaly_id": anomaly.id,
@@ -4709,12 +4905,28 @@ async def _payout_combat_anomaly(
 
     # Sample one credits + resources reward to split across
     # participants (each participant gets their share).
-    base_credits = _sample_credits(rng, reward.get("credits", (0, 0)))
-    base_resources = reward.get("resources", []) or []
-    influence_delta = int(reward.get("influence", 0))
-    named_loot = tmpl.get("named_loot")
-    trophy_def = tmpl.get("trophy_per_participant")     # T3 only
-    scaled_t5_def = tmpl.get("scaled_t5_mat")           # T3 only
+    #
+    # Fork 3A (staged-questline archetype, 2026-07-03): a chain-armed
+    # anomaly's own faucet is suppressed here — zeroing every reward
+    # input makes every funnel call below a natural no-op (they're all
+    # already guarded by truthiness checks), so the questline reward is
+    # the ONE faucet that pays. Participation/resolution bookkeeping
+    # (participants, resolved/resolved_by, the clear-hook dispatch)
+    # still runs unchanged.
+    if anomaly.suppress_payout:
+        base_credits = 0
+        base_resources = []
+        influence_delta = 0
+        named_loot = None
+        trophy_def = None
+        scaled_t5_def = None
+    else:
+        base_credits = _sample_credits(rng, reward.get("credits", (0, 0)))
+        base_resources = reward.get("resources", []) or []
+        influence_delta = int(reward.get("influence", 0))
+        named_loot = tmpl.get("named_loot")
+        trophy_def = tmpl.get("trophy_per_participant")     # T3 only
+        scaled_t5_def = tmpl.get("scaled_t5_mat")           # T3 only
 
     n_participants = max(1, len(participants))
     per_credits = base_credits // n_participants
@@ -4723,12 +4935,16 @@ async def _payout_combat_anomaly(
     for p in participants:
         granted_stacks = []
         granted_trophy = None
-        # Credits — equal split.
-        try:
-            p["credits"] = await db.adjust_credits(p["id"], per_credits, "wilderness_anomaly_reward")
-        except Exception:
-            log.warning("[anomaly] credits save failed (char %s)",
-                        p.get("id"), exc_info=True)
+        # Credits — equal split. Skipped when there's nothing to pay
+        # (per_credits == 0, always true when suppress_payout — Fork 3A
+        # keeps a chain-armed anomaly's own faucet from ever firing,
+        # not just zero-valuing it).
+        if per_credits:
+            try:
+                p["credits"] = await db.adjust_credits(p["id"], per_credits, "wilderness_anomaly_reward")
+            except Exception:
+                log.warning("[anomaly] credits save failed (char %s)",
+                            p.get("id"), exc_info=True)
 
         # Resources — each participant gets the full resource list.
         if base_resources:
@@ -4817,6 +5033,12 @@ async def _payout_combat_anomaly(
     await _broadcast_anomaly_defeat(
         anomaly, killer_faction, session_mgr,
     )
+
+    # Staged-questline archetype (2026-07-03), Fork 4B: fan the
+    # clear-hook over EVERY payout participant, not just the resolver —
+    # a co-quester on the same site_cleared step who only contributed
+    # (a wave kill, a cleared skill_gate) also advances.
+    await _dispatch_site_cleared(db, anomaly, participants)
 
     return {
         "anomaly_id": anomaly.id,

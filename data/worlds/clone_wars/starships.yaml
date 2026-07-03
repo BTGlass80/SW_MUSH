@@ -30,7 +30,7 @@
 # the closest existing data/starships.yaml entry to keep the same
 # scale-relative power curve.
 #
-# 14 templates total: 7 Republic, 7 CIS.
+# 15 templates total: 7 Republic, 7 CIS, 1 civilian/independent (quest-specific).
 
 # ═══════════════════════════════════════════════════════════════════════
 # REPUBLIC NAVY
@@ -564,6 +564,50 @@ sheathipede:
   notes: "Neimoidian shuttle. Used for senior CIS officer transport, diplomatic missions, and (in armed configurations) light combat. No fixed hyperdrive — booster sled is a separate vehicle."
 
 # ═══════════════════════════════════════════════════════════════════════
+# CIVILIAN / INDEPENDENT — QUEST-SPECIFIC
+# ═══════════════════════════════════════════════════════════════════════
+# space-combat-bridge (2026-07-03): the FIRST beatable capital-scale target
+# for a real ship-vs-ship questline step (space_combat_won, see
+# DESIGN_capital_ship_combat_2026-07-03.md §6). Re-statted (not copied
+# verbatim) from the WEG40120 Corellian Corvette / light-corvette family
+# (p.~371/~179 per the sidecar), deliberately sized well below that hull:
+# hull 2D+2 parses to hull_dice=2 in FireCommand._apply_hull_damage's
+# `destroyed_threshold = hull_dice*6` (space_commands.py:2805) -> a
+# 12-pip destruction threshold, a bounded, satisfying duel for a
+# scale-parity player capital (e.g. the purchasable `consular_cruiser`,
+# turbolaser 4D) rather than the Corellian Corvette's 24-pip marathon.
+# Faction-neutral / era-clean: no Imperial/Empire/Rebel/TIE framing, no
+# Republic-Navy warship identity — a former Sector Customs cutter (the
+# same "Customs Cutter" flavor already used by the neutral-zone PATROL
+# traffic pool, engine/npc_space_traffic.py) now flying escort for a
+# smuggling syndicate.
+
+rogue_customs_cutter:
+  name: "Renegade Customs Cutter"
+  nickname: "Rogue Cutter"
+  scale: capital
+  hull: "2D+2"
+  shields: "1D"
+  speed: 4
+  maneuverability: "1D"
+  crew: 6
+  passengers: 0
+  cargo: 150
+  consumables: "1 month"
+  hyperdrive: 2
+  hyperdrive_backup: 10
+  cost: 0
+  mod_slots: 4
+  reactor_power: 10
+  weapons:
+    - name: "Light Turbolaser Cannon"
+      fire_arc: turret
+      damage: "3D"
+      fire_control: "2D"
+      skill: capital_ship_gunnery
+  notes: "A former Sector Customs cutter, now running escort for a smuggling syndicate. Statted deliberately light -- a single capital-scale hull can beat it in a bounded, real duel; not a fleet action. NPC-only (cost: 0, not sold at the shipyard)."
+
+# ═══════════════════════════════════════════════════════════════════════
 # REGISTRY HINTS
 # ═══════════════════════════════════════════════════════════════════════
 # When the engine ship registry merges global + era YAMLs, these notes
@@ -586,6 +630,7 @@ registry_hints:
     - hyena_bomber
     - tri_fighter
     - sheathipede
+    - rogue_customs_cutter
   era_agnostic_global_keys_in_use:
     # Ships from data/starships.yaml that ARE valid in 20 BBY and should
     # remain registered in CW. The era-specific file does NOT redefine them.

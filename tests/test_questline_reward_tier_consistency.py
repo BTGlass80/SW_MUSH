@@ -91,13 +91,27 @@ def _is_t5(chain):
     return str(chain.get("chain_id", "")).startswith("master_")
 
 
+def _is_staged(chain):
+    """The staged-questline archetype (DESIGN_staged_questline_archetype_
+    2026-07-03.md): any `kind: questline` chain carrying a `site_cleared`
+    step. Brian's Fork 9A ruling (2026-07-03): a wave->skill_gate->boss
+    site is objectively more work than talk->check->shoot, so this tier
+    is DELIBERATELY exempt from the flat freelance-450 uniformity check
+    below and pays a distinct, higher, internally-uniform total instead."""
+    return any((s.get("completion") or {}).get("type") == "site_cleared"
+               for s in chain.get("steps") or [])
+
+
 class _Corpus(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
         cls.all = _questlines()
-        cls.freelance = [c for c in cls.all if not _is_t5(c)]
         cls.t5 = [c for c in cls.all if _is_t5(c)]
+        cls.staged = [c for c in cls.all
+                      if not _is_t5(c) and _is_staged(c)]
+        cls.freelance = [c for c in cls.all
+                         if not _is_t5(c) and not _is_staged(c)]
 
 
 class TestTierPartition(_Corpus):
@@ -114,7 +128,9 @@ class TestTierPartition(_Corpus):
             "expected the five master-trainer t5 trials")
 
     def test_every_questline_is_classified(self):
-        self.assertEqual(len(self.all), len(self.freelance) + len(self.t5))
+        self.assertEqual(
+            len(self.all),
+            len(self.freelance) + len(self.t5) + len(self.staged))
 
 
 class TestFreelanceTierConsistency(_Corpus):
@@ -182,6 +198,50 @@ class TestT5TierConsistency(_Corpus):
 
     def test_all_t5_rep_under_ceiling(self):
         for c in self.t5:
+            for fac, total in _total_reward(c)[1].items():
+                self.assertLess(total, HONORED,
+                                f"{c['chain_id']} {fac} {total} >= honored")
+                self.assertLessEqual(total, CEILING,
+                                     f"{c['chain_id']} {fac} {total} > ceiling")
+
+
+class TestStagedTierConsistency(_Corpus):
+    """The staged-questline archetype's own reward tier (Fork 9A,
+    2026-07-03): distinct-and-higher than the flat freelance 450, paid
+    ONCE through the questline reward path (the anomaly's own faucet is
+    suppressed — see engine.wilderness_anomalies.WildernessAnomaly.
+    suppress_payout / spawn_scenario_anomaly). Internally uniform once
+    more than one arc ships (currently a single slice, trivially
+    uniform) — same self-calibrating shape as the freelance/t5 checks
+    above, not a hard-pinned literal."""
+
+    def test_staged_tier_is_populated(self):
+        self.assertGreaterEqual(
+            len(self.staged), 1,
+            "expected at least the first staged-questline archetype "
+            "slice (a site_cleared-bearing questline)")
+
+    def test_staged_credits_uniform(self):
+        totals = {c["chain_id"]: _total_reward(c)[0] for c in self.staged}
+        self.assertEqual(
+            len(set(totals.values())), 1,
+            "staged questlines must all pay the same TOTAL credits "
+            f"(self-calibrating); found {sorted(set(totals.values()))} "
+            f"across {totals}")
+
+    def test_staged_pays_more_than_freelance(self):
+        if not self.freelance:
+            self.skipTest("no freelance questlines to compare against")
+        staged_cr = _total_reward(self.staged[0])[0]
+        free_cr = _total_reward(self.freelance[0])[0]
+        self.assertGreater(
+            staged_cr, free_cr,
+            f"staged total {staged_cr} should be > freelance total "
+            f"{free_cr} (Fork 9A: a wave+skill_gate+boss site is "
+            "objectively more work than talk->check->shoot)")
+
+    def test_staged_rep_under_tuned_ceiling(self):
+        for c in self.staged:
             for fac, total in _total_reward(c)[1].items():
                 self.assertLess(total, HONORED,
                                 f"{c['chain_id']} {fac} {total} >= honored")

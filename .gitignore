@@ -60,6 +60,9 @@ token_secret.key  # persisted HMAC login-token secret (server/api.py); also matc
 # WEG sourcebook PDFs + text sidecars — local only (size/copyright)
 docs/sourcebooks/
 
+# Fable review drop zips — contents are extracted to tracked .md files alongside
+docs/fable/*.zip
+
 # Claude Code local settings — per-machine (holds the unattended bypassPermissions mode); never commit
 .claude/settings.local.json
 

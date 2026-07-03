@@ -957,3 +957,19 @@ achievements:
     icon: "📦"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "kuat_phantom_tonnage"}
+
+  - key: kuat_intercept_cleared
+    name: "The Rogue Cutter"
+    description: "Answered Kuat Sector Customs' freelance call when a hijacked customs cutter went rogue and started running escort for a smuggling syndicate in the deep space beyond the Drive Yards: took a capital-scale hull out to intercept it and destroyed it in a real ship-to-ship duel, turbolasers to turbolasers, until its hull gave out."
+    category: profession
+    icon: "🛰️"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "kuat_capital_intercept"}
+
+  - key: undertow_skim_cleared
+    name: "The Undertow Skim"
+    description: "Rooted a skimming crew out of the flooded understructure beneath Kamino's ocean-platform pylons: fought through the crew's flood-lock watch, forced (or talked down) the rigged flood-lock guarding their mooring-shelf cache, and brought down the crew's foreman — the first staged site-clearance favor, ending with the supply chain's shortfall back on the books."
+    category: profession
+    icon: "🌊"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "kamino_undertow_skim"}

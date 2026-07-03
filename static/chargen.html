@@ -359,30 +359,6 @@
   }
   .skill-tip.show { display: block; }
 
-  /* ── Force step ── */
-  .force-choices { display: flex; gap: 16px; flex-wrap: wrap; }
-  .force-card {
-    flex: 1;
-    min-width: 260px;
-    padding: 20px;
-    background: var(--bg-panel);
-    border: 2px solid var(--border-dim);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: center;
-  }
-  .force-card:hover { border-color: var(--accent-blue); }
-  .force-card.selected { border-color: var(--accent-purple); background: rgba(176,124,255,0.06); }
-  .force-card.selected-no { border-color: var(--accent-blue); background: rgba(77,158,255,0.06); }
-  .force-card h3 {
-    font-family: var(--font-display);
-    font-size: 14px;
-    letter-spacing: 2px;
-    margin-bottom: 10px;
-  }
-  .force-card p { font-size: 14px; color: var(--text-dim); line-height: 1.6; }
-
   /* ── Form inputs ── */
   .form-group { margin-bottom: 16px; }
   .form-label {
@@ -664,11 +640,10 @@
     <div class="step-pill" data-step="1" data-tip="Choose your species — each has unique attributes and abilities">2 SPECIES</div>
     <div class="step-pill" data-step="2" data-tip="Distribute dice across 6 attributes (3 pips = 1D)">3 ATTRS</div>
     <div class="step-pill" data-step="3" data-tip="Add bonus dice to skills (max +2D per skill at creation)">4 SKILLS</div>
-    <div class="step-pill" data-step="4" data-tip="Choose whether your character can use the Force">5 FORCE</div>
-    <div class="step-pill" data-step="5" data-tip="Name your character and write an optional background">6 STORY</div>
-    <div class="step-pill" data-step="6" data-tip="Choose a tutorial chain — your starting profession and faction loyalty">7 CHAIN</div>
-    <div class="step-pill" data-step="7" data-tip="Review your full character sheet before finalizing">8 REVIEW</div>
-    <div class="step-pill" data-step="8" data-tip="Create your login credentials">9 ACCOUNT</div>
+    <div class="step-pill" data-step="4" data-tip="Name your character and write an optional background">5 STORY</div>
+    <div class="step-pill" data-step="5" data-tip="Choose a tutorial chain — your starting profession and faction loyalty">6 CHAIN</div>
+    <div class="step-pill" data-step="6" data-tip="Review your full character sheet before finalizing">7 REVIEW</div>
+    <div class="step-pill" data-step="7" data-tip="Create your login credentials">8 ACCOUNT</div>
   </div>
 
   <!-- Loading state -->
@@ -721,26 +696,16 @@
     <div id="skillGroups"></div>
   </div>
 
-  <!-- Step 4: Force Sensitivity -->
-  <div class="step-panel" id="step4">
-    <div class="step-title">THE FORCE</div>
-    <div class="step-desc">
-      Do you feel the Force? This choice affects gameplay significantly.
-    </div>
-    <div class="force-choices" id="forceChoices">
-      <div class="force-card" data-force="true" onclick="setForce(true)">
-        <h3>Force-Sensitive</h3>
-        <p>You sense something beyond the physical world. Start with <strong style="color:var(--accent-purple)">2 Force Points</strong> and access to Force powers (Control, Sense, Alter). You must resist the temptation of the Dark Side.</p>
-      </div>
-      <div class="force-card" data-force="false" onclick="setForce(false)">
-        <h3>Not Force-Sensitive</h3>
-        <p>The Force is an energy field? You'll believe it when you see it. Start with <strong style="color:var(--accent-blue)">1 Force Point</strong> for dramatic moments. No Force powers, but no Dark Side risk either.</p>
-      </div>
-    </div>
-  </div>
+  <!-- PG.3.gates.b: the Force Sensitivity chargen choice is removed.
+       All characters start non-Force-sensitive; the flag flips ONLY
+       during Village-quest completion (see engine/creation_wizard.py
+       PG.3.gates.b and server/api.py force_sensitive rejection). This
+       mirrors the telnet CreationWizard, which dropped its Force step
+       for the same reason. Do not re-add a client-settable Force
+       choice here — force_sensitive is derived, never player-set. -->
 
-  <!-- Step 5: Name & Background -->
-  <div class="step-panel" id="step5">
+  <!-- Step 4: Name & Background -->
+  <div class="step-panel" id="step4">
     <div class="step-title">YOUR STORY</div>
     <div class="step-desc">
       Give your character a name and optional background.
@@ -757,8 +722,8 @@
     </div>
   </div>
 
-  <!-- Step 6: Tutorial Chain — Drop 2b (May 19 2026 evening) -->
-  <div class="step-panel" id="step6">
+  <!-- Step 5: Tutorial Chain — Drop 2b (May 19 2026 evening) -->
+  <div class="step-panel" id="step5">
     <div class="step-title">CHOOSE YOUR TUTORIAL CHAIN</div>
     <div class="step-desc">
       Pick a starting profession. Each chain teaches you the game's
@@ -771,7 +736,7 @@
       Loading available chains&hellip;
     </div>
     <div class="cards-grid" id="chainCards"></div>
-    <!-- Skip option (only shown for alt characters; populated by renderStep6) -->
+    <!-- Skip option (only shown for alt characters; populated by renderStep5) -->
     <div id="chainSkipBlock" style="display:none; margin-top: 24px; padding: 16px; border: 1px dashed var(--border-mid); border-radius: 8px;">
       <div style="font-weight: 600; margin-bottom: 6px;">Skip the tutorial</div>
       <div style="color: var(--text-dim); font-size: 0.9em; margin-bottom: 10px;">
@@ -791,8 +756,8 @@
     </div>
   </div>
 
-  <!-- Step 7: Review -->
-  <div class="step-panel" id="step7">
+  <!-- Step 6: Review -->
+  <div class="step-panel" id="step6">
     <div class="step-title">REVIEW YOUR CHARACTER</div>
     <div class="step-desc">
       Check everything looks right. Click any section header to edit.
@@ -800,8 +765,8 @@
     <div class="review-sheet" id="reviewSheet"></div>
   </div>
 
-  <!-- Step 8: Account & Submit -->
-  <div class="step-panel" id="step8">
+  <!-- Step 7: Account & Submit -->
+  <div class="step-panel" id="step7">
     <div class="step-title">CREATE ACCOUNT & ENTER THE GALAXY</div>
     <div class="step-desc">
       Create your login credentials. You'll use these to connect on future visits.
@@ -862,7 +827,6 @@ const S = {
   species: null,      // species object
   attributes: {},     // {attr: totalPips}
   skills: {},         // {skillKey: bonusPips}
-  forceSensitive: null,
   name: '',
   background: '',
   // ── Drop 2b (May 19 2026 evening): tutorial chain selection ──
@@ -976,9 +940,8 @@ function showStep(n) {
   if (n === 1) renderStep1();
   if (n === 2) renderStep2();
   if (n === 3) renderStep3();
-  if (n === 4) renderStep4();
-  if (n === 6) renderStep6();  // Drop 2b: tutorial chain selection
-  if (n === 7) renderStep7();  // Review (was step 6 pre-Drop-2b)
+  if (n === 5) renderStep5();  // Drop 2b: tutorial chain selection
+  if (n === 6) renderStep6();  // Review
   hideErrors();
   window.scrollTo({top: 0, behavior: 'smooth'});
 }
@@ -989,13 +952,15 @@ function updateNav() {
   const nav = document.getElementById('navBar');
 
   prev.style.display = S.step === 0 ? 'none' : '';
-  // Drop 2b: step 8 is Account (final, no nav); step 7 is Review (last
-  // step before submit/account). Pre-Drop-2b these were 7 and 6.
-  if (S.step === 8) {
+  // chargen-hardening (2026-07-03): the Force step was removed (S1
+  // invariant fix — force_sensitive is derived, never player-set), so
+  // every step index below shifted down by one. Step 7 is Account
+  // (final, no nav); step 6 is Review (last step before submit/account).
+  if (S.step === 7) {
     nav.style.display = 'none';
   } else {
     nav.style.display = '';
-    next.textContent = S.step === 7
+    next.textContent = S.step === 6
       ? (EMBEDDED ? 'Create Character →' : 'Create Account →')
       : 'Next →';
   }
@@ -1008,12 +973,11 @@ function nextStep() {
     // Skip species step for templates
     markComplete(1);
     showStep(2);
-  } else if (S.step === 7 && EMBEDDED) {
+  } else if (S.step === 6 && EMBEDDED) {
     // Embedded mode: submit directly from review (no account step).
-    // Drop 2b: review is now step 7 (was 6).
     submitEmbeddedCharacter();
   } else {
-    showStep(Math.min(S.step + 1, 8));
+    showStep(Math.min(S.step + 1, 7));
   }
 }
 
@@ -1070,10 +1034,7 @@ function validateCurrentStep() {
       if (totalSkill > maxSkill) errors.push(`Skill points overspent by ${totalSkill-maxSkill} pips.`);
       break;
     }
-    case 4:
-      if (S.forceSensitive === null) errors.push('Choose whether your character is Force-sensitive.');
-      break;
-    case 5: {
+    case 4: {
       const name = document.getElementById('charName').value.trim();
       S.name = name;
       S.background = document.getElementById('charBackground').value.trim();
@@ -1082,9 +1043,9 @@ function validateCurrentStep() {
       else if (!/^[A-Za-z]/.test(name)) errors.push('Name must start with a letter.');
       break;
     }
-    case 6: {
+    case 5: {
       // Drop 2b: tutorial chain selection. If the era loaded no
-      // chains, renderStep6 auto-advances and this case won't fire
+      // chains, renderStep5 auto-advances and this case won't fire
       // for real users. If the panel is showing, the player must
       // either pick a chain OR (alt only) explicitly skip.
       if (S.chainsLoaded) {
@@ -1444,25 +1405,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════
-// STEP 4: FORCE
-// ═══════════════════════════════════════════════════════════════════════
-
-function renderStep4() {
-  document.querySelectorAll('.force-card').forEach(c => {
-    const isForce = c.dataset.force === 'true';
-    c.classList.remove('selected', 'selected-no');
-    if (S.forceSensitive === true && isForce) c.classList.add('selected');
-    if (S.forceSensitive === false && !isForce) c.classList.add('selected-no');
-  });
-}
-
-function setForce(val) {
-  S.forceSensitive = val;
-  renderStep4();
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// STEP 5: NAME (live validation + name check)
+// STEP 4: NAME (live validation + name check)
 // ═══════════════════════════════════════════════════════════════════════
 
 let nameCheckTimeout = null;
@@ -1514,7 +1457,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════
-// STEP 6: TUTORIAL CHAIN SELECTION  (Drop 2b — May 19 2026 evening)
+// STEP 5: TUTORIAL CHAIN SELECTION  (Drop 2b — May 19 2026 evening)
 // ═══════════════════════════════════════════════════════════════════════
 //
 // Fetches /api/chargen/chains?token=... which returns:
@@ -1526,7 +1469,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Alts may either pick a chain or skip; skip applies the era's
 // skip_starter_kit on the server side.
 
-async function renderStep6() {
+async function renderStep5() {
   const cards = document.getElementById('chainCards');
   const loading = document.getElementById('chainCardsLoading');
   const skipBlock = document.getElementById('chainSkipBlock');
@@ -1576,8 +1519,8 @@ async function renderStep6() {
   if (chains.length === 0) {
     // Wait one tick so the UI doesn't jank.
     setTimeout(() => {
-      markComplete(6);
-      showStep(7);
+      markComplete(5);
+      showStep(6);
     }, 50);
     return;
   }
@@ -1656,10 +1599,10 @@ function _refreshChainSelectionVisuals() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// STEP 7: REVIEW  (was step 6 pre-Drop-2b)
+// STEP 6: REVIEW
 // ═══════════════════════════════════════════════════════════════════════
 
-function renderStep7() {
+function renderStep6() {
   S.name = document.getElementById('charName').value.trim();
   S.background = document.getElementById('charBackground').value.trim();
 
@@ -1668,11 +1611,10 @@ function renderStep7() {
 
   // Name & Species
   html += `<div class="review-section">
-    <div class="review-section-title">Identity <button class="review-edit-btn" onclick="goToStep(5)">edit</button></div>
+    <div class="review-section-title">Identity <button class="review-edit-btn" onclick="goToStep(4)">edit</button></div>
     <div class="review-row"><span class="review-attr-name">Name</span><span class="review-attr-val">${escHtml(S.name||'(not set)')}</span></div>
     <div class="review-row"><span class="review-attr-name">Species</span><span class="review-attr-val">${S.species ? escHtml(S.species.name) : '(not set)'}</span></div>
     ${S.templateKey ? '<div class="review-row"><span class="review-attr-name">Template</span><span class="review-attr-val">'+escHtml(S.templateKey)+'</span></div>' : ''}
-    <div class="review-row"><span class="review-attr-name">Force</span><span class="review-attr-val">${S.forceSensitive === true ? 'Sensitive (2 FP)' : S.forceSensitive === false ? 'Not Sensitive (1 FP)' : '(not set)'}</span></div>
   </div>`;
 
   // Attributes
@@ -1723,7 +1665,7 @@ function renderStep7() {
   // Background
   if (S.background) {
     html += `<div class="review-section">
-      <div class="review-section-title">Background <button class="review-edit-btn" onclick="goToStep(5)">edit</button></div>
+      <div class="review-section-title">Background <button class="review-edit-btn" onclick="goToStep(4)">edit</button></div>
       <div style="color:var(--text-dim);white-space:pre-wrap">${escHtml(S.background)}</div>
     </div>`;
   }
@@ -1738,7 +1680,7 @@ function renderStep7() {
     chainLabel = '<span style="color:var(--accent-amber)">Not selected</span>';
   }
   html += `<div class="review-section">
-    <div class="review-section-title">Tutorial Chain <button class="review-edit-btn" onclick="goToStep(6)">edit</button></div>
+    <div class="review-section-title">Tutorial Chain <button class="review-edit-btn" onclick="goToStep(5)">edit</button></div>
     <div class="review-row"><span class="review-attr-name">Path</span><span class="review-attr-val">${chainLabel}</span></div>
   </div>`;
 
@@ -1822,7 +1764,6 @@ async function submitCharacter() {
       species: S.species ? S.species.name : 'Human',
       attributes,
       skills,
-      force_sensitive: S.forceSensitive === true,
       background: S.background || '',
     },
   };
@@ -1896,7 +1837,6 @@ async function submitEmbeddedCharacter() {
       species: S.species ? S.species.name : 'Human',
       attributes,
       skills,
-      force_sensitive: S.forceSensitive === true,
       background: S.background || '',
     },
   };
@@ -1970,10 +1910,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
-  // In embedded mode, hide the Account step pill (step 8 post-Drop-2b;
-  // was step 7 pre-Drop-2b).
+  // In embedded mode, hide the Account step pill (step 7 post-chargen-
+  // hardening; was step 8 before the Force step was removed).
   if (EMBEDDED) {
-    const acctPill = document.querySelector('.step-pill[data-step="8"]');
+    const acctPill = document.querySelector('.step-pill[data-step="7"]');
     if (acctPill) acctPill.style.display = 'none';
   }
 });

@@ -147,9 +147,18 @@ def test_portal_login_guards_non_dict_body_in_source():
     assert "Invalid request body" in WEB_PORTAL_SRC
 
 
-def test_create_character_char_body_coerced_to_dict():
-    # The chain-path force_sensitive probe must not call .get on a non-dict.
-    assert "_char_body = _cb if isinstance(_cb, dict) else {}" in API_SRC
+def test_create_character_chain_lock_check_hardcodes_force_sensitive_false():
+    # chargen-hardening (2026-07-03) FLIP: the chain-lock pre-check used to
+    # probe the (possibly non-dict) character body for a client-submitted
+    # force_sensitive flag via `_char_body.get("force_sensitive", False)`,
+    # guarded by `_char_body = _cb if isinstance(_cb, dict) else {}` so a
+    # malformed body wouldn't crash it. force_sensitive is DERIVED state
+    # (never player-set at chargen) — the pre-check now hard-codes
+    # force_sensitive=False outright, so there is no character-body access
+    # left here that a non-dict body could crash. This pins the stronger
+    # replacement invariant, not the removed coercion guard.
+    assert "force_sensitive is always False at chargen — it is" in API_SRC
+    assert '_char_body.get("force_sensitive"' not in API_SRC
 
 
 def test_create_character_guards_non_string_chain_id():

@@ -119,11 +119,18 @@ templates:
   # tactical doctrine. Strength bumped vs. baseline soldier to reflect
   # the clone genetic-enhancement template; Mechanical bumped to
   # reflect ARC-170/LAAT/AT-TE crew familiarity from boot camp.
+  # chargen-hardening (2026-07-03): Dexterity bumped 3D+2 -> 4D (the
+  # blaster-leaning archetype's headline stat) to spend the 18D/54-pip
+  # Human attribute budget exactly (was 53, 1 pip short — WEG-illegal,
+  # self-blocked finalize). Skills dropped Brawling (a clone trooper's
+  # doctrine is ranged/tactical, not hand-to-hand per the header above)
+  # and trimmed Dodge 1D+1 -> 1D to land exactly on the 7D/21-pip skill
+  # budget (was 25, a 4-pip overspend).
   clone_trooper:
     label: Clone Trooper
     species: Human
     attributes:
-      dexterity:  "3D+2"
+      dexterity:  "4D"
       knowledge:  "2D"
       mechanical: "3D"
       perception: "2D+2"
@@ -131,8 +138,7 @@ templates:
       technical:  "2D+2"
     skills:
       blaster:           "2D"
-      dodge:             "1D+1"
-      brawling:          "1D"
+      dodge:             "1D"
       grenade:           "1D"
       tactics:           "1D+1"
       stamina:           "1D+2"
@@ -141,12 +147,16 @@ templates:
   # dice than a clone trooper, more command/leadership/communication
   # dice. Captures the "ARC-170 wing commander" / "LAAT-launch officer"
   # / "Republic Senate Guard sergeant" archetype.
+  # chargen-hardening (2026-07-03): Knowledge bumped 3D+1 -> 3D+2 (the
+  # command/leadership-emphasis stat this archetype leans on) to spend
+  # the 54-pip Human attribute budget exactly (was 53, 1 pip short —
+  # WEG-illegal, self-blocked finalize).
   republic_officer:
     label: Republic Officer
     species: Human
     attributes:
       dexterity:  "3D"
-      knowledge:  "3D+1"
+      knowledge:  "3D+2"
       mechanical: "2D+2"
       perception: "3D+1"
       strength:   "2D+2"
@@ -205,6 +215,10 @@ templates:
   # bounty_hunter (less combat-front), heavier on stealth/tech/comms
   # than scoundrel (more spy-craft, less con-game). Knowledge bumped
   # for tactical/political analysis; Perception elevated for recon.
+  # chargen-hardening (2026-07-03): Perception bumped 3D+2 -> 4D (the
+  # recon-emphasis stat this archetype leans on) to spend the 54-pip
+  # Human attribute budget exactly (was 53, 1 pip short — WEG-illegal,
+  # self-blocked finalize).
   cis_field_agent:
     label: CIS Field Agent
     species: Human
@@ -212,7 +226,7 @@ templates:
       dexterity:  "3D"
       knowledge:  "2D+2"
       mechanical: "2D+1"
-      perception: "3D+2"
+      perception: "4D"
       strength:   "2D+2"
       technical:  "3D+1"
     skills:
