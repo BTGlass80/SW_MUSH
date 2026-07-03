@@ -1210,14 +1210,25 @@ async def checkout_room(db, char: dict, *, force: bool = False) -> dict:
         except Exception as e:
             log.warning("[housing] checkout room delete error: %s", e)
 
-    # Decrement lot occupancy (Tier 1 only)
-    if h["housing_type"] == "rented_room":
-        lot = await get_lot_by_room(db, h["entry_room_id"])
-        if lot:
-            await db.execute(
-                "UPDATE housing_lots SET current_homes = MAX(0, current_homes - 1) WHERE id = ?",
-                (lot["id"],),
-            )
+    # Decrement lot occupancy for EVERY housing type checkout_room tears down
+    # (rented_room, faction_quarters, private_residence) -- not just Tier 1.
+    # housing-teardown-completeness (2026-07-03): the prior gate here only
+    # fired for 'rented_room', so the two OTHER callers of
+    # checkout_room(force=True) on an owned Tier-3 home -- `@housing evict`
+    # and tick_housing_rent's rent-default foreclosure -- tore the home down
+    # but never freed its lot, permanently leaking the slot. faction_quarters
+    # has no backing housing_lots row, so get_lot_by_room naturally returns
+    # None for it and this is a no-op -- safe to run unconditionally.
+    # sell_home routes its own teardown through this function (force=True)
+    # and used to ALSO decrement the lot itself after calling us; that
+    # duplicate decrement has been removed there so this is the single,
+    # exactly-once decrement point for every checkout_room-mediated teardown.
+    lot = await get_lot_by_room(db, h["entry_room_id"])
+    if lot:
+        await db.execute(
+            "UPDATE housing_lots SET current_homes = MAX(0, current_homes - 1) WHERE id = ?",
+            (lot["id"],),
+        )
 
     await db.execute("DELETE FROM player_housing WHERE id = ?", (h["id"],))
 
@@ -2335,16 +2346,14 @@ async def sell_home(db, char: dict) -> dict:
     if not result["ok"]:
         return result
 
-    # Free the lot slot the sold home was occupying. sell_shopfront and
-    # sell_hq both do this ("UPDATE housing_lots SET current_homes = ...");
-    # sell_home was the one sibling missing it, which let every sold Tier-3
-    # home permanently consume a lot slot (housing-engine-hardening
-    # 2026-07-02, Bug 1).
-    await db.execute(
-        "UPDATE housing_lots SET current_homes = MAX(0, current_homes - 1) "
-        "WHERE room_id = ?",
-        (h["entry_room_id"],),
-    )
+    # Lot-slot decrement: checkout_room (called above) now decrements the
+    # lot for every housing type it tears down, INCLUDING private_residence
+    # (housing-teardown-completeness 2026-07-03) -- so sell_home must NOT
+    # also decrement here, or a sold Tier-3 home double-decrements its lot's
+    # current_homes. (The decrement used to live here only, added by
+    # housing-engine-hardening 2026-07-02 Bug 1; centralizing it in
+    # checkout_room is what let evict + rent-default foreclosure share the
+    # same fix instead of needing their own copies.)
     await db.commit()
 
     # Add refund
@@ -2862,7 +2871,14 @@ async def purchase_shopfront(db, char: dict, lot_id: int,
 async def sell_shopfront(db, char: dict) -> dict:
     """Sell a Tier 4 shopfront. 50% refund, vendor droids recalled first."""
     char_id = char["id"]
-    h = await get_housing(db, char_id)
+    # Resolve via resolve_active_home (the home the player is STANDING IN),
+    # matching the confirmation prompt in `_cmd_sell` (housing_commands.py)
+    # which quotes this same home's price. get_housing() picks the
+    # most-recently-created home by id, which for a 2-shopfront owner
+    # (MAX_TIER4_PER_CHAR=2, different planets) could be a DIFFERENT shop
+    # than the one they stood in and confirmed against -- destroying the
+    # wrong shopfront (housing-teardown-completeness 2026-07-03, Bug 2).
+    h = await resolve_active_home(db, char)
     if not h:
         return {"ok": False, "msg": "You don't own a shopfront."}
     if h["housing_type"] != "shopfront":
