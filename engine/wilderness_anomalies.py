@@ -182,6 +182,11 @@ SKILL_GATE_RETRY_COOLDOWN_SECS = 12
 #   long_desc        — narrative on resolution.
 #   primary_skill /  — only used when resolution == "skill".
 #     secondary_skill
+#   alt_skills       — OPTIONAL (resolution == "skill"). Extra role-
+#                      substitution skills the stage advertises (e.g. a face
+#                      turning the farmers instead of a slicer). The resolver
+#                      rolls the first of primary → secondary → alt_skills the
+#                      character has trained. Omit for a strict two-skill stage.
 #   combat_npcs      — only used when resolution == "combat". List of
 #                      dicts: {archetype, tier, species, name_pool}.
 #                      One NPC is spawned per entry; the kill hook
@@ -1941,6 +1946,11 @@ SCENARIO_TEMPLATES = {
         ),
         "primary_skill": "security",
         "secondary_skill": "computer_programming",
+        # The long_desc + staged_event pool also advertise a "turn the
+        # farmers" social route — honor it so a face character can resolve
+        # the stage they were told they could (role substitution, not
+        # dice min-maxing: _pick_best_of_skills takes the first trained).
+        "alt_skills": ["persuasion", "con", "bargain"],
         "success_reward": {
             "credits": (250, 500),
             "resources": [
@@ -2159,6 +2169,9 @@ SCENARIO_TEMPLATES = {
         ),
         "primary_skill": "security",
         "secondary_skill": "computer_programming",
+        # Advertised "rally the conscripted laborers" social route — see
+        # hollow_sun_cistern_slice's alt_skills note.
+        "alt_skills": ["persuasion", "con", "bargain"],
         "success_reward": {
             "credits": (250, 500),
             "resources": [
@@ -2380,6 +2393,10 @@ SCENARIO_TEMPLATES = {
         ),
         "primary_skill": "persuasion",
         "secondary_skill": "investigation",
+        # The staged_event pool also lets a fast-talker (con/bargain) or a
+        # slicer (security, tracing the dead-drops) cover this stage — see
+        # hollow_sun_cistern_slice's alt_skills note.
+        "alt_skills": ["con", "bargain", "security"],
         "success_reward": {
             "credits": (250, 500),
             "resources": [
@@ -3322,7 +3339,14 @@ async def _resolve_anomaly_skill(
     tmpl = anomaly.template
     primary = tmpl.get("primary_skill", "survival")
     secondary = tmpl.get("secondary_skill")
-    skill_to_use = _pick_better_skill(char, primary, secondary)
+    # A skill template MAY advertise extra role-substitution routes via
+    # alt_skills (e.g. a face turning the farmers instead of a slicer cutting
+    # the cistern). Honor primary → secondary → alt in order, using the first
+    # the character has trained. With no alt_skills this is byte-identical to
+    # the old _pick_better_skill(primary, secondary) behavior.
+    candidate_skills = [primary, secondary, *(tmpl.get("alt_skills") or [])]
+    candidate_skills = [s for s in candidate_skills if s]
+    skill_to_use = _pick_best_of_skills(char, candidate_skills)
 
     from engine.skill_checks import perform_skill_check
     try:
