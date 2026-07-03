@@ -245,7 +245,7 @@ class BountyTrackCommand(BaseCommand):
             return
 
         # Roll investigation skill — use best available
-        from engine.character import Character
+        from engine.character import Character, get_cached_skill_registry
         from engine.skill_checks import perform_skill_check
 
         # Load character for skill lookup
@@ -266,19 +266,27 @@ class BountyTrackCommand(BaseCommand):
 
         # QA H10 (2026-06-20): rank search/streetwise/tracking by the
         # character's pool (untrained → governing attribute fallback),
-        # then resolve through the dice chokepoint. The prior path called
-        # get_skill_pool() with no registry (TypeError swallowed → flat
-        # 2D floor) and rolled the pool directly, bypassing the funnel
-        # (wound penalties, lead/tool bonuses, telemetry). Now routed via
-        # perform_skill_check, mirroring the sister BountyCollectCommand.
+        # then resolve through the dice chokepoint via perform_skill_check
+        # (wound penalties, lead/tool bonuses, telemetry), mirroring the
+        # sister BountyCollectCommand.
+        #
+        # 2026-07-03: this ranking loop carried TWO swallowed TypeErrors that
+        # both pinned best_skill to its "search" default for every character
+        # (a Streetwise/Tracking specialist always rolled raw-attribute Search):
+        #   1. get_skill_pool REQUIRES (skill_name, skill_registry) — H10 left
+        #      it one-arg. Fixed by passing the process-cached registry.
+        #   2. DicePool.total_pips is a METHOD, not a property — `pool.total_pips`
+        #      (uncalled) compared against an int raised TypeError. Only defect 1
+        #      ever fired before (it raised first); fixing 1 exposed 2. Call it.
+        skill_reg = get_cached_skill_registry()
         investigation_skills = ["search", "streetwise", "tracking"]
         best_skill = "search"
         best_pips = -1
         for sk in investigation_skills:
             try:
-                pool = char_obj.get_skill_pool(sk)
-                if pool.total_pips > best_pips:
-                    best_pips = pool.total_pips
+                pool = char_obj.get_skill_pool(sk, skill_reg)
+                if pool.total_pips() > best_pips:
+                    best_pips = pool.total_pips()
                     best_skill = sk
             except Exception:
                 log.warning("execute: unhandled exception", exc_info=True)
