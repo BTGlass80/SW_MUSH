@@ -414,6 +414,16 @@ TITLE_SHARE_THRESHOLD = 0.10
 # STRIKE reward math.
 STAGE_CLEAR_POINTS = 100
 
+# Audit fix F10 (2026-07-03, Brian's Fork-4B ruling): a staged cult's stage
+# clear pays the resolver full stage_clear_points(), but the SAME participant
+# fan-out the site_cleared chain-hook already gets (WA._dispatch_site_cleared)
+# extends here too -- every OTHER payout participant on the stage (a
+# co-fighter who never landed the final blow / didn't hold the winning skill
+# roll) also earns a share of the points, not zero. Conservative default per
+# Brian (0.5 = half the resolver's points); 0 fully disables the fan-out
+# (resolver-only, the pre-fix behavior) without touching call sites.
+STAGED_PARTICIPANT_SHARE = 0.5
+
 
 # ── Reward-lever accessors (T3.19 config breadth; see the difficulty block) ───
 def rep_floor() -> int:
@@ -450,6 +460,17 @@ def stage_clear_points() -> int:
     return max(1, _safe_int(
         get_tunable("communal.stage_clear_points", STAGE_CLEAR_POINTS),
         STAGE_CLEAR_POINTS))
+
+
+def staged_participant_share() -> float:
+    """Fraction of a stage's resolver points a co-participant earns (see
+    STAGED_PARTICIPANT_SHARE). Clamped to [0.0, 1.0] -- 0 disables the
+    fan-out entirely (resolver-only); a value above 1.0 would let a
+    co-participant out-earn the resolver, which is never the intent."""
+    from engine.tunables import get_tunable
+    return max(0.0, min(1.0, _safe_float(
+        get_tunable("communal.staged_participant_share", STAGED_PARTICIPANT_SHARE),
+        STAGED_PARTICIPANT_SHARE)))
 
 
 def reward_rep_for_share(points: int, total_points: int, won: bool) -> int:

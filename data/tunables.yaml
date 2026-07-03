@@ -467,6 +467,7 @@ communal.rep_max: 15                 # Republic-rep for the single largest contr
 communal.title_share_threshold: 0.10 # effort share to also earn the status flag
 communal.staged_menace_per_minute: 0.18  # STAGED cults' one-way failure clock (~6h window; hollow-sun-tuning 2026-07-02). Was advertised but the row was missing (Fable F5a).
 communal.win_capstone_credits: 1000      # headline-rout WIN capstone paid to every title-earner (0 disables; hollow-sun-tuning 2026-07-02). Row added per Fable F5a.
+communal.staged_participant_share: 0.5   # audit F10 (2026-07-03, Brian's Fork-4B ruling): share of a stage's full resolver points a co-participant (not the resolver) earns per stage clear. Conservative default; 0 disables the fan-out (resolver-only).
 
 # ── Wilderness encounter density (engine/wilderness_encounters.py) ──
 # The two GLOBAL spawn-pacing levers — the mob-DENSITY complement to the

@@ -432,6 +432,14 @@ async def arm_stage_site(db, session_mgr, active: dict,
             db, region, template_key, int(room_id),
             tier=int(tier), zone_id=zone_id,
             session_mgr=session_mgr,
+            # Audit fix F8/F9 (2026-07-03): this orchestrator's own
+            # consumption is poll-driven (on_scenario_progress, called at
+            # most every ~120s), so a resolved-but-unconsumed stage
+            # anomaly must survive an in-region prune (hourly tick, or a
+            # player's `anomalies`) until on_scenario_progress explicitly
+            # deletes it — see WA._prune_expired_region /
+            # WA.delete_anomaly_by_id.
+            scenario_hold=True,
         )
     except Exception:
         log.warning("[communal_rt] scenario anomaly spawn failed", exc_info=True)
@@ -455,6 +463,23 @@ async def arm_stage_site(db, session_mgr, active: dict,
     log.info("[communal_rt] armed stage %d (%s) for %s at room %s (anomaly #%d)",
              state["idx"] + 1, template_key, cult.key, room_id, anomaly.id)
     return await get_active(db)
+
+
+def _credit_stage_points(contribs: dict, cid: int, pts: int, now: int) -> None:
+    """Add ``pts`` contribution points for ``cid`` into ``contribs``
+    (mutated in place), stamping ``last_strike_at``. Shared by the
+    resolver-credit and the F10 co-participant-share credit in
+    ``on_scenario_progress`` — both write into the SAME points ledger
+    ``record_strike`` uses, so no new funnel is introduced."""
+    if pts <= 0:
+        return
+    cid_str = str(int(cid))
+    mine = contribs.get(cid_str)
+    if not isinstance(mine, dict):
+        mine = {}
+    mine["points"] = int(mine.get("points") or 0) + int(pts)
+    mine["last_strike_at"] = float(now)
+    contribs[cid_str] = mine
 
 
 async def on_scenario_progress(db, session_mgr, active: dict,
@@ -491,40 +516,89 @@ async def on_scenario_progress(db, session_mgr, active: dict,
     if anom is not None and not anom.resolved:
         return None  # stage anomaly still in play — gameplay ongoing
 
-    # The stage's anomaly is no longer actively in play. is_expired is purely
-    # time-based, so a RESOLVED anomaly lingers (findable, resolved=True) until its
-    # expiry; this poll runs every tick and reliably catches resolved=True before
-    # prune. Therefore find->None means the anomaly aged out UNcleared: re-arm the
-    # SAME stage rather than free-advancing on a timeout. A staged scenario must be
-    # CLEARED, not won by waiting — the menace timer is the overall failure clock.
+    # The stage's anomaly is no longer actively in play. Audit fix F8/F9
+    # (2026-07-03): a RESOLVED scenario anomaly now sets `scenario_hold`
+    # (WA.spawn_scenario_anomaly), which exempts it from time-based prune
+    # entirely until THIS function explicitly consumes it below — before
+    # this fix, a resolved-but-unconsumed anomaly only lingered until its
+    # (short) expiry, racing this poll against any region prune (the
+    # hourly tick, or a player's `anomalies` in-region) that could evict
+    # it first and silently discard a real clear. So find->None here now
+    # means only one thing: the anomaly aged out UNcleared (never
+    # resolved). Re-arm the SAME stage rather than free-advancing on a
+    # timeout — a staged scenario must be CLEARED, not won by waiting;
+    # the menace timer is the overall failure clock.
     if not (anom is not None and anom.resolved):
+        # `anom is None` here can ALSO mean a racing caller (the inline
+        # push-notify, or another poll) already consumed this exact
+        # anomaly_id and advanced the stage while THIS caller was
+        # working from an ``active`` snapshot fetched moments earlier.
+        # Re-check the CURRENT persisted state before re-arming from our
+        # (possibly stale) local `state` — re-arming here would stomp an
+        # already-advanced stage with a duplicate anomaly.
+        fresh = await get_active(db)
+        if fresh:
+            fresh_state = SE.get_stage_state(
+                _parse_json(fresh.get("contributions_json"), {}))
+            if fresh_state.get("anomaly_id") != anomaly_id:
+                return None  # someone else already advanced past this
         return await arm_stage_site(db, session_mgr, active, now_ms=now)
+
+    # Idempotent-consumption gate (audit F8/F9): the FIRST caller to
+    # successfully delete this resolved anomaly from the in-memory
+    # registry is the one that credits + advances the stage. A racing
+    # second caller — the inline push-notify in
+    # WA._dispatch_site_cleared firing at resolve time, racing this same
+    # poll, or two overlapping polls — finds it already gone and must
+    # no-op rather than double-crediting the same clear.
+    if not WA.delete_anomaly_by_id(int(anomaly_id)):
+        return None
 
     # Cleared (a real resolve) — advance the stage cursor (one clear = one stage).
     # BUGFIX (2026-07-03): credit the resolver's CONTRIBUTION POINTS here. The
     # anomaly substrate already stamps `resolved_by` at every resolution path
-    # (skill: wilderness_anomalies.py:3847; combat kill hooks: :4619/:4802) —
-    # read that signal rather than threading a new one through. Without this,
-    # a staged win reached _distribute_rewards with only the "_stage"
-    # bookkeeping key in contributions_json, so `total = sum(points) <= 0` and
-    # the entire reward payout (rep, title, capstone credits, relic)
-    # short-circuited silently on every real staged-cult clear.
+    # (skill: wilderness_anomalies.py::_resolve_anomaly_skill; combat kill
+    # hooks: ::_payout_combat_anomaly) — read that signal rather than
+    # threading a new one through. Without this, a staged win reached
+    # _distribute_rewards with only the "_stage" bookkeeping key in
+    # contributions_json, so `total = sum(points) <= 0` and the entire
+    # reward payout (rep, title, capstone credits, relic) short-circuited
+    # silently on every real staged-cult clear.
     resolver_cid = getattr(anom, "resolved_by", None)
     try:
         resolver_cid = int(resolver_cid) if resolver_cid is not None else 0
     except (TypeError, ValueError):
         resolver_cid = 0
+    full_points = CO.stage_clear_points()
     if resolver_cid > 0:
-        cid_str = str(resolver_cid)
-        mine = contribs.get(cid_str)
-        if not isinstance(mine, dict):
-            mine = {}
-        mine["points"] = int(mine.get("points") or 0) + CO.stage_clear_points()
-        mine["last_strike_at"] = float(now)
-        contribs[cid_str] = mine
-    # else: no resolved_by (e.g. an aged-out re-arm never reaches this branch,
-    # or some other unattributed clear) — never block the stage advance for a
-    # missing attribution; that clear simply earns no contribution points.
+        _credit_stage_points(contribs, resolver_cid, full_points, now)
+    # else: no resolved_by (e.g. some unattributed clear) — never block
+    # the stage advance for a missing attribution; that clear simply
+    # earns no contribution points.
+
+    # Audit fix F10 (2026-07-03, Brian's Fork-4B ruling): extend the SAME
+    # participant fan-out the site_cleared chain-hook already gets
+    # (WA._dispatch_site_cleared) to the communal reward — every OTHER
+    # payout participant on this stage (a co-fighter who never landed
+    # the final blow / didn't hold the winning skill roll,
+    # `anom.resolved_participants`, stamped by the anomaly substrate
+    # alongside `resolved_by`) also earns a reduced share of the same
+    # stage-clear points, not zero. All credit still flows through the
+    # SAME contributions_json points ledger (no new funnel); every
+    # downstream payout (rep, title, the capstone) is already
+    # share-relative, so this just widens who earns a share.
+    share = CO.staged_participant_share()
+    if share > 0 and full_points > 0:
+        share_points = max(1, int(round(full_points * share)))
+        for pid in (getattr(anom, "resolved_participants", None) or []):
+            try:
+                pid_int = int(pid)
+            except (TypeError, ValueError):
+                continue
+            if pid_int <= 0 or pid_int == resolver_cid:
+                continue
+            _credit_stage_points(contribs, pid_int, share_points, now)
+
     new_state, all_cleared = SE.complete_current_stage(cult.key, state)
     # Drop the consumed anomaly id; keep the site room for the next stage.
     new_state["site_room_id"] = state.get("site_room_id")
