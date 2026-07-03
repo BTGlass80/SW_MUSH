@@ -126,11 +126,11 @@ Don't want to build from scratch? Nine pre-built templates set up reasonable att
 | **Bounty Hunter** | 3D+2 | 2D+1 | 2D+2 | 3D+1 | 3D+1 | 2D+2 | Blaster +2D, Dodge +1D, Brawling +1D, Search +1D, Sneak +1D, Security +1D |
 | **Scoundrel** | 3D | 3D | 2D+2 | 4D | 2D+2 | 2D+2 | Con +1D+2, Sneak +1D+1, Blaster +1D, Dodge +1D, Persuasion +1D, Gambling +1D |
 | **Technician** | 2D+1 | 3D+2 | 2D+2 | 2D+2 | 2D+2 | 4D | Comp Prog/Repair +1D+2, Space Transport Repair +1D+1, Droid Repair +1D, First Aid +1D, Security +1D, Blaster Repair +1D |
-| **Clone Trooper** | 3D+2 | 2D | 3D | 2D+2 | 3D+2 | 2D+2 | Blaster +2D, Dodge +1D+1, Brawling +1D, Grenade +1D, Tactics +1D+1, Stamina +1D+2 |
-| **Republic Officer** | 3D | 3D+1 | 2D+2 | 3D+1 | 2D+2 | 2D+2 | Blaster +1D+1, Dodge +1D, Command +1D+2, Tactics +1D, Bureaucracy +1D, Persuasion +1D |
+| **Clone Trooper** | 4D | 2D | 3D | 2D+2 | 3D+2 | 2D+2 | Blaster +2D, Dodge +1D, Grenade +1D, Tactics +1D+1, Stamina +1D+2 |
+| **Republic Officer** | 3D | 3D+2 | 2D+2 | 3D+1 | 2D+2 | 2D+2 | Blaster +1D+1, Dodge +1D, Command +1D+2, Tactics +1D, Bureaucracy +1D, Persuasion +1D |
 | **Republic Pilot** | 3D | 2D+2 | 4D | 3D | 2D+2 | 2D+2 | Starfighter Piloting +2D, Blaster +1D, Starship Gunnery +1D, Astrogation +1D, Sensors +1D, Starfighter Repair +1D |
 | **Separatist Pilot** | 3D | 2D+2 | 4D | 3D | 2D+2 | 2D+2 | Starfighter Piloting +2D, Blaster +1D, Starship Gunnery +1D, Astrogation +1D, Sensors +1D, Starfighter Repair +1D |
-| **CIS Field Agent** | 3D | 2D+2 | 2D+1 | 3D+2 | 2D+2 | 3D+1 | Sneak +1D+2, Security +1D+1, Blaster +1D, Dodge +1D, Search +1D, Forgery +1D |
+| **CIS Field Agent** | 3D | 2D+2 | 2D+1 | 4D | 2D+2 | 3D+1 | Sneak +1D+2, Security +1D+1, Blaster +1D, Dodge +1D, Search +1D, Forgery +1D |
 
 **Notes:** The Jedi path is not available as a chargen template — Force sensitivity is unlocked through in-play content (see §6). The Clone Trooper, Republic Pilot, and Separatist Pilot templates are Human-only by archetype (clones are exclusively human; the pilot templates represent faction-specific training rather than species traits).
 
