@@ -313,6 +313,18 @@ class _LiveHarness:
             log.debug("smoke harness: vendor droid lock reset failed",
                       exc_info=True)
 
+        # Same class of gotcha, engine.housing's per-char (_home_txn_locks)
+        # and per-lot (_lot_locks) registries (housing-concurrency-locks,
+        # 2026-07-03): a Lock left bound to a previous class-scoped
+        # harness's now-closed event loop collides with a same-numbered
+        # char/lot in this harness's fresh temp DB.
+        try:
+            from engine.housing import reset_housing_locks
+            reset_housing_locks()
+        except Exception:
+            log.debug("smoke harness: housing lock reset failed",
+                      exc_info=True)
+
         # ── Database ──
         await srv.db.connect()
         await srv.db.initialize()
