@@ -3117,6 +3117,24 @@
       "status": "open",
       "severity": "low",
       "summary": "engine/director.py:1490 (delivery=='ambient' branch of the pc_hook/narrative-event deliverer) calls get_ambient_manager().inject_once(content), but engine/ambient_events.py::AmbientEventManager has NO inject_once method (grep 'def inject_once' across engine/ = zero hits). So every 'ambient'-delivery beat raises AttributeError, is caught by the surrounding 'except Exception as exc' (director.py ~1491), logs '[director] ambient fallback to comlink', and is delivered as a PRIVATE comlink instead. Net: the Director's intended ambient-delivery channel ('injected into the ambient pool for the PC's zone', per the deliver docstring ~director.py:1400) has never worked -- it ALWAYS downgrades to comlink. LATENT/degraded, not crashing (the except keeps it safe). FIX is an engine/ambient_events.py addition: implement inject_once(text, ...) to push a one-shot ambient line. NOT done in the era-guard drop because reviving the path changes player-facing semantics that the call site (director.py, a different active session's lane) governs and does not currently supply: (a) which zone/room -- the call passes only `content`, no zone/session, but the docstring says 'the PC's zone'; (b) room-WIDE visibility -- ambient fires to everyone in the room via broadcast_json_to_room, and inject_once (unlike set_dynamic_pool) gets no online-player-name filter, so a PC-referencing beat could leak room-wide; (c) consumed-once-globally vs per-room. Needs a quick coordinated decision with the director.py owner + an era-guard on the injected text (reuse engine.era_validator.era_violations, same as set_dynamic_pool now does). Repro: call get_ambient_manager().inject_once('x') -> AttributeError."
+    },
+    {
+      "id": "AI.QWEN_ERA_DROP_TELEMETRY",
+      "name": "Qwen swap §6: surface bark/talk era-drop + parse-success rate as a @balance dashboard number (deferred quality signal)",
+      "added_date": "2026-07-03",
+      "added_by": "drop qwen-swap-hardening (Fable §6, deferred)",
+      "status": "open",
+      "severity": "low",
+      "summary": "The bark/talk era-guard drop counts are log-only today ('[idle_queue] Dropped N off-era bark(s)' ~engine/idle_queue.py; '[npc_brain] %s dialogue dropped (off-era)' ~ai/npc_brain.py). Fable §6 asks to add matching T3.19-style async/non-blocking telemetry emits + a small @balance line (barks_generated / barks_dropped_era / talk_dropped_era / bark_parse_success_rate) so the Qwen swap's pool-health is observable post-cutover. Explicitly a QUALITY signal, NOT a safety gate -- the runtime era-guard plus the new tolerant _extract_json_array make the swap safe either direction; this only surfaces whether Qwen's richer SW knowledge shifts the drop rate. Do NOT block launch on it. Wire when convenient after a day of A/B talk traffic."
+    },
+    {
+      "id": "AI.QWEN_SWAP_OUT_OF_SCOPE_BATCH",
+      "name": "Qwen swap §7 out-of-scope (log, don't build): world-state-aware barks, shorter refresh cycle, Haiku->Ollama migration",
+      "added_date": "2026-07-03",
+      "added_by": "drop qwen-swap-hardening (Fable §7 out-of-scope, logged not built)",
+      "status": "open",
+      "severity": "low",
+      "summary": "Fable §7 explicitly scoped these OUT of the swap (log, don't build): (1) world-state-aware barks -- inject the territory controller / active world-event into the bark prompt so ambient lines react to the live world (the 9B's ~2x tok/s headroom vs Mistral funds the richer prompt); (2) a shorter bark refresh cycle than the current BARK_REFRESH_HOURS=4; (3) any Haiku->Ollama task migration beyond the housing-desc cache that already exists (e.g. moving Director rewrites off the metered Anthropic key onto the now-stronger local model -- cuts cost but changes Director quality/latency, a design call, and interacts with the ~$20/mo circuit breaker). All post-cutover polish; revisit once the Qwen A/B has a day of talk traffic and the quality delta is known."
     }
   ],
   "standing_invariants_quick_ref": [
