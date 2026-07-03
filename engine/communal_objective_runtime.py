@@ -501,6 +501,30 @@ async def on_scenario_progress(db, session_mgr, active: dict,
         return await arm_stage_site(db, session_mgr, active, now_ms=now)
 
     # Cleared (a real resolve) — advance the stage cursor (one clear = one stage).
+    # BUGFIX (2026-07-03): credit the resolver's CONTRIBUTION POINTS here. The
+    # anomaly substrate already stamps `resolved_by` at every resolution path
+    # (skill: wilderness_anomalies.py:3847; combat kill hooks: :4619/:4802) —
+    # read that signal rather than threading a new one through. Without this,
+    # a staged win reached _distribute_rewards with only the "_stage"
+    # bookkeeping key in contributions_json, so `total = sum(points) <= 0` and
+    # the entire reward payout (rep, title, capstone credits, relic)
+    # short-circuited silently on every real staged-cult clear.
+    resolver_cid = getattr(anom, "resolved_by", None)
+    try:
+        resolver_cid = int(resolver_cid) if resolver_cid is not None else 0
+    except (TypeError, ValueError):
+        resolver_cid = 0
+    if resolver_cid > 0:
+        cid_str = str(resolver_cid)
+        mine = contribs.get(cid_str)
+        if not isinstance(mine, dict):
+            mine = {}
+        mine["points"] = int(mine.get("points") or 0) + CO.stage_clear_points()
+        mine["last_strike_at"] = float(now)
+        contribs[cid_str] = mine
+    # else: no resolved_by (e.g. an aged-out re-arm never reaches this branch,
+    # or some other unattributed clear) — never block the stage advance for a
+    # missing attribution; that clear simply earns no contribution points.
     new_state, all_cleared = SE.complete_current_stage(cult.key, state)
     # Drop the consumed anomaly id; keep the site room for the next stage.
     new_state["site_room_id"] = state.get("site_room_id")
@@ -744,20 +768,24 @@ _CAPSTONE_LOOT_DEFAULT = {"key": "cult_rout_token", "name": "Cult-Rout Token",
 
 async def _grant_capstone_item(db, cid: int, loot: dict) -> None:
     """Append a one-off commemorative cult relic to a contributor's inventory
-    items. Best-effort; a bad row/parse never blocks the rest of the payout."""
+    items. Best-effort; a bad row/parse never blocks the rest of the payout.
+
+    BUGFIX (2026-07-03): use the canonical engine.items.coerce_inventory
+    instead of hand-rolling the parse. A bare-LIST inventory (the DB column's
+    schema default '[]' — the shape a fresh character carries) was silently
+    discarded (`if not isinstance(inv, dict): inv = {}`) and replaced with
+    {"items": [relic]}, destroying every other item the contributor held.
+    coerce_inventory normalizes both the dict-form and bare-list shapes
+    without ever dropping existing items (mirrors engine/vendor_droids.py's
+    stock/unstock fix for the same ambiguity)."""
     char = await db.get_character(int(cid))
     if not char:
         return
-    inv = _parse_json(char.get("inventory"), {})
-    if not isinstance(inv, dict):
-        inv = {}
-    items = inv.get("items")
-    if not isinstance(items, list):
-        items = []
-    items.append({"key": loot["key"], "name": loot["name"],
-                  "description": loot.get("description", ""),
-                  "is_capstone_loot": True})
-    inv["items"] = items
+    from engine.items import coerce_inventory
+    inv = coerce_inventory(char.get("inventory", "[]"))
+    inv["items"].append({"key": loot["key"], "name": loot["name"],
+                         "description": loot.get("description", ""),
+                         "is_capstone_loot": True})
     await db.save_character(int(cid), inventory=json.dumps(inv))
 
 
@@ -970,15 +998,38 @@ async def force_post(db, session_mgr, cult_key=None, now_ms=None) -> "dict | Non
 
 
 async def force_resolve(db, session_mgr, won: bool,
-                        now_ms=None) -> "str | None":
+                        now_ms=None,
+                        credit_char_id: "int | None" = None) -> "str | None":
     """ADMIN: resolve the active uprising immediately as won/lost. A forced win
     pays the normal rewards from whatever contributions exist. Returns the new
-    state, or None if nothing was active."""
+    state, or None if nothing was active.
+
+    ``credit_char_id`` (2026-07-03): `@director cult win` has no real
+    stage-clearing anomaly behind it, so a forced win on a fresh/uncontributed
+    uprising used to pay nothing — confusing for anyone verifying the reward
+    chain via the admin command. When the invoking admin's character is
+    identifiable, credit them one stage-clear worth of contribution points
+    (in-memory only — this does NOT persist to the row's contributions_json,
+    since the row is about to go terminal) so the payout is actually visible.
+    Real play always drives the reward through the tracked contribs instead."""
     now = int(now_ms if now_ms is not None else _now_ms())
     active = await get_active(db)
     if not active:
         return None
     contribs = _parse_json(active.get("contributions_json"), {})
+    if won and credit_char_id:
+        try:
+            cid = int(credit_char_id)
+        except (TypeError, ValueError):
+            cid = 0
+        if cid > 0:
+            cid_str = str(cid)
+            mine = contribs.get(cid_str)
+            if not isinstance(mine, dict):
+                mine = {}
+            mine["points"] = int(mine.get("points") or 0) + CO.stage_clear_points()
+            mine["last_strike_at"] = float(now)
+            contribs[cid_str] = mine
     await _finalize(db, session_mgr, dict(active), contribs,
                     won=bool(won), now_ms=now)
     return CO.STATE_WON if won else CO.STATE_LOST

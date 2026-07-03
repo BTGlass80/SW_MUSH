@@ -127,13 +127,32 @@ async def _drive_talk_to_npc(h, s, completion: dict, get_step) -> str:
 
     The `talk` command fires its chain hook (`on_talk_to_npc`) from
     `_post_talk_hooks`, which runs AFTER the NPC's AI dialogue is
-    generated. In the smoke harness there is no real Ollama backend, so
-    that AI call takes a few seconds to fall back — longer than the
-    default cmd() quiet-window. The chain therefore advances a beat
-    AFTER `talk` returns, exactly as it would for a real player who sees
-    the NPC reply and then the step tick. We issue `talk` then poll for
-    the advance with a bounded settle wait."""
+    generated. The smoke harness boots the real game server, which wires
+    a real `AIManager` — if a local Ollama happens to be reachable on the
+    test box (it's part of the normal dev-box stack; see CLAUDE.md), the
+    dialogue call is a genuine network round-trip, not an instant offline
+    fallback. Production bounds that call to at most
+    `NPC_DIALOGUE_TIMEOUT_S` via `asyncio.wait_for` (parser/npc_commands.py)
+    — so the post-talk hook is GUARANTEED to have run by
+    `NPC_DIALOGUE_TIMEOUT_S` plus a small margin for the surrounding DB/
+    broadcast work, regardless of whether Ollama is up, down, warm, or
+    cold-starting the model.
+
+    2026-07-03 fix: this poll used to be a flat ~6s window (30 * 0.2s),
+    shorter than production's own 12s dialogue bound. On a box with a
+    live-but-cold Ollama (first NPC dialogue call in the process — the
+    common case when a single chain is walked in isolation, e.g.
+    `-k smuggler`), the real call can take 8-12s, so the poll gave up and
+    the assertion below failed before the chain had actually advanced —
+    reproducing deterministically on such boxes for EVERY chain with a
+    talk_to_npc step (smuggler step 3, republic_soldier steps 1 & 4,
+    separatist_commando step 4), not just smuggler. Polling out to the
+    production bound (+ margin) makes the wait deterministic instead of
+    racing an external service's warm/cold state."""
     import asyncio
+    import time
+    from parser.npc_commands import NPC_DIALOGUE_TIMEOUT_S
+
     await _satisfy_requires_first(h, s, completion)
     npc = (completion.get("npc") or "").strip()
     # Use the first name token so `talk Major` resolves 'Major Tarrn'.
@@ -141,8 +160,11 @@ async def _drive_talk_to_npc(h, s, completion: dict, get_step) -> str:
     start_step = (get_step() or {}).get("step")
     out = await h.cmd(s, f"talk {token}")
     # Settle: the post-talk chain hook fires asynchronously behind the
-    # AI dialogue generation. Poll up to ~6s for the step to advance.
-    for _ in range(30):
+    # AI dialogue generation, which production itself caps at
+    # NPC_DIALOGUE_TIMEOUT_S. Poll out to that bound plus a margin for
+    # the DB round-trips and broadcasts around the call.
+    deadline = time.monotonic() + NPC_DIALOGUE_TIMEOUT_S + 8.0
+    while time.monotonic() < deadline:
         s.character = await h.get_char(s.character["id"])
         s.session.invalidate_char_obj()
         info = get_step()
