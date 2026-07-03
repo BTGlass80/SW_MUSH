@@ -38,8 +38,14 @@ class TestEngagementSpec(unittest.TestCase):
     def test_specs_well_formed(self):
         for t, spec in _ANOMALY_ENGAGE.items():
             self.assertIn("mechanic", spec, f"{t} spec missing mechanic")
-            self.assertIn("one_shot", spec, f"{t} spec missing one_shot")
             m = spec["mechanic"]
+            if m == "combat":
+                # pirates: spawns hostiles into live combat — no pre-roll skill,
+                # no engage faucet (reward is the fire-kill bounty + wreck)
+                self.assertNotIn("skill", spec)
+                self.assertNotIn("tag", spec)
+                continue
+            self.assertIn("one_shot", spec, f"{t} spec missing one_shot")
             if m == "two_step":
                 self.assertEqual(len(spec["steps"]), 2, f"{t} needs 2 steps")
                 for skill, diff in spec["steps"]:
@@ -48,14 +54,11 @@ class TestEngagementSpec(unittest.TestCase):
             else:
                 self.assertIn("skill", spec, f"{t} spec missing skill")
                 self.assertIn("diff", spec, f"{t} spec missing diff")
-            if m == "skirmish":
-                # pirates: reward is the dropped wreck's salvage, not a faucet
-                self.assertNotIn("tag", spec,
-                                 "skirmish must not carry a credit-faucet tag")
-            else:
-                self.assertEqual(len(spec["credits"]), 2)
-                self.assertLess(spec["credits"][0], spec["credits"][1])
-                self.assertTrue(spec["tag"].startswith("anomaly_"))
+            # credit-bearing mechanics (faucet, two_step, detach_damage,
+            # slice_or_patrol) all carry a valid credits range + anomaly_ tag
+            self.assertEqual(len(spec["credits"]), 2)
+            self.assertLess(spec["credits"][0], spec["credits"][1])
+            self.assertTrue(spec["tag"].startswith("anomaly_"))
 
 
 class TestWiring(unittest.TestCase):
@@ -96,8 +99,11 @@ class TestEngagementResolves(unittest.TestCase):
                  "strength", "technical"}
         pairs = []
         for t, spec in _ANOMALY_ENGAGE.items():
-            if spec["mechanic"] == "two_step":
+            m = spec["mechanic"]
+            if m == "two_step":
                 pairs += [(t, s, d) for (s, d) in spec["steps"]]
+            elif m == "combat":
+                continue  # spawns hostiles, no pre-roll skill
             else:
                 pairs.append((t, spec["skill"], spec["diff"]))
         for t, skill, diff in pairs:

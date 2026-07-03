@@ -86,6 +86,19 @@ async def boarding_encounter_tick(ctx: "TickContext") -> None:
     ``TickContext`` like every other handler.
     """
     await _boarding_encounter_tick_impl(ctx.db, ctx.session_mgr)
+
+
+async def npc_space_combat_tick(ctx: "TickContext") -> None:
+    """TickContext adapter for the NPC space-combat AI.
+
+    Animates promoted NPC combatants (return fire / maneuver / flee / hyperspace
+    out). It is dormant unless something has called ``promote_to_combat`` — today
+    only a live ``course anomaly <id>`` pirate-nest / dead-drop-patrol engagement
+    does, via a DIRECT call from parser.space_commands (NOT the unwired
+    structured-encounter framework, whose handlers are never registered).
+    """
+    from engine.npc_space_combat_ai import get_npc_combat_manager
+    await get_npc_combat_manager().tick(ctx.db, ctx.session_mgr)
 from parser.commands import CommandRegistry, CommandParser, CommandContext
 from parser.builtin_commands import register_all
 from parser.d6_commands import register_d6_commands
@@ -497,6 +510,9 @@ class GameServer:
         # ── NPC behaviour (every tick, before ship physics) ──
         self._tick_scheduler.register("npc_space_crew",    npc_space_crew_tick,    interval=1)
         self._tick_scheduler.register("npc_space_traffic", npc_space_traffic_tick, interval=1)
+        # Animates anomaly-engagement combatants (pirate nests / dead-drop
+        # patrols promoted from `course anomaly <id>`); no-op until one exists.
+        self._tick_scheduler.register("npc_space_combat",  npc_space_combat_tick,  interval=1)
         # ── ship physics (every tick) ──
         self._tick_scheduler.register("ion_and_tractor",   ion_and_tractor_tick,   interval=1)
         self._tick_scheduler.register("sublight_transit",  sublight_transit_tick,  interval=1)

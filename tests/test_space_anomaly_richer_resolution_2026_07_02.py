@@ -24,11 +24,15 @@ from parser.space_commands import _ANOMALY_ENGAGE, CourseCommand
 
 # ── helpers ────────────────────────────────────────────────────────────────
 def _engagement_skills():
-    """Every (skill, diff) across all mechanics, including two-step steps."""
+    """Every (skill, diff) across the skill-check mechanics, including two-step
+    steps. `combat` (pirates) has no pre-roll skill — it spawns hostiles."""
     out = []
     for t, spec in _ANOMALY_ENGAGE.items():
-        if spec["mechanic"] == "two_step":
+        m = spec["mechanic"]
+        if m == "two_step":
             out += [(t, s, d) for (s, d) in spec["steps"]]
+        elif m == "combat":
+            continue
         else:
             out.append((t, spec["skill"], spec["diff"]))
     return out
@@ -70,10 +74,10 @@ class _Ctx:
 # ── spec shape ───────────────────────────────────────────────────────────────
 def test_each_type_carries_its_mechanic():
     assert _ANOMALY_ENGAGE["distress"]["mechanic"] == "faucet"
-    assert _ANOMALY_ENGAGE["imperial"]["mechanic"] == "faucet"
+    assert _ANOMALY_ENGAGE["imperial"]["mechanic"] == "slice_or_patrol"
     assert _ANOMALY_ENGAGE["cache"]["mechanic"] == "two_step"
     assert _ANOMALY_ENGAGE["mynock"]["mechanic"] == "detach_damage"
-    assert _ANOMALY_ENGAGE["pirates"]["mechanic"] == "skirmish"
+    assert _ANOMALY_ENGAGE["pirates"]["mechanic"] == "combat"
 
 
 def test_cache_is_a_two_skill_gate():
@@ -83,8 +87,10 @@ def test_cache_is_a_two_skill_gate():
     assert steps[0][1] < steps[1][1]
 
 
-def test_pirates_reward_is_salvage_not_a_faucet():
-    # skirmish victory drops a wreck to salvage; no direct credit faucet
+def test_pirates_is_combat_not_a_faucet():
+    # pirates spawns real hostiles into live combat; reward is the fire-kill
+    # bounty + salvageable wreck via the existing fire path, not an engage faucet
+    assert _ANOMALY_ENGAGE["pirates"]["mechanic"] == "combat"
     assert "tag" not in _ANOMALY_ENGAGE["pirates"]
     assert "credits" not in _ANOMALY_ENGAGE["pirates"]
 
@@ -160,3 +166,109 @@ def test_anomaly_payout_crit_pays_the_ceiling():
                                     target, crit=True))
     _cid, delta, _tag = ctx.db.adjust_calls[0]
     assert delta == spec["credits"][1]  # crit == max payout
+
+
+# ── pirates/imperial-failure: real interactive combat (FORK-1 = A) ───────────
+import pathlib
+from engine.npc_space_traffic import TrafficArchetype
+
+
+class _FakeTS:
+    def __init__(self, sid, name):
+        self.ship_id = sid
+        self.display_name = name
+
+
+class _FakeTrafficMgr:
+    def __init__(self):
+        self.spawns = []
+
+    async def spawn_for_encounter(self, db, session_mgr, zone_id, archetype):
+        sid = 1000 + len(self.spawns)
+        self.spawns.append((zone_id, archetype))
+        return _FakeTS(sid, f"Hostile-{sid}"), {"template": "z95", "crew_skill": "3D"}
+
+
+class _FakeCombatMgr:
+    def __init__(self):
+        self.promotes = []
+
+    def promote_to_combat(self, **kw):
+        self.promotes.append(kw)
+        return object()
+
+
+def _patch_combat(monkeypatch):
+    import engine.npc_space_traffic as nst
+    import engine.npc_space_combat_ai as nsc
+    import engine.space_anomalies as sa
+    ftraffic, fcombat, removed = _FakeTrafficMgr(), _FakeCombatMgr(), []
+    monkeypatch.setattr(nst, "get_traffic_manager", lambda: ftraffic)
+    monkeypatch.setattr(nsc, "get_npc_combat_manager", lambda: fcombat)
+    monkeypatch.setattr(sa, "remove_anomaly", lambda z, i: removed.append((z, i)) or True)
+    return ftraffic, fcombat, removed
+
+
+def test_engage_combat_pirates_spawns_2_3_and_promotes(monkeypatch):
+    ftraffic, fcombat, removed = _patch_combat(monkeypatch)
+    cmd = CourseCommand()
+    ctx = _Ctx()
+    ship = {"id": 5, "bridge_room_id": 42}
+    target = Anomaly(id=7, zone_id="tz", anomaly_type="pirates", resolution=2)
+    asyncio.run(cmd._engage_combat(ctx, ship, "tz", target, kind="pirate"))
+    assert 2 <= len(ftraffic.spawns) <= 3                      # 2-3 hostiles
+    assert all(z == "tz" for z, _a in ftraffic.spawns)         # in the anomaly's zone
+    assert all(a == TrafficArchetype.PIRATE for _z, a in ftraffic.spawns)
+    assert len(fcombat.promotes) == len(ftraffic.spawns)       # each promoted to combat
+    assert all(p["profile"] == "aggressive" for p in fcombat.promotes)
+    assert all(p["target_ship_id"] == 5 for p in fcombat.promotes)
+    assert removed == [("tz", 7)]                              # the nest is consumed
+    assert any("[COMBAT]" in ln for ln in ctx.session.lines)
+
+
+def test_engage_combat_patrol_spawns_exactly_one(monkeypatch):
+    ftraffic, fcombat, removed = _patch_combat(monkeypatch)
+    cmd = CourseCommand()
+    ctx = _Ctx()
+    target = Anomaly(id=3, zone_id="tz", anomaly_type="imperial", resolution=4)
+    asyncio.run(cmd._engage_combat(ctx, {"id": 5, "bridge_room_id": 42}, "tz",
+                                   target, kind="patrol"))
+    assert len(ftraffic.spawns) == 1
+    assert ftraffic.spawns[0][1] == TrafficArchetype.PATROL
+    assert len(fcombat.promotes) == 1
+    assert fcombat.promotes[0]["profile"] == "patrol"
+    assert removed == [("tz", 3)]
+
+
+def test_spawn_for_encounter_forces_the_given_zone():
+    from engine.npc_space_traffic import get_traffic_manager
+    mgr = get_traffic_manager()
+
+    class _FakeDB:
+        async def create_traffic_ship(self, name, template):
+            return 424242
+
+        async def create_traffic_npc(self, name, ship_id, skill):
+            return 1
+
+        async def update_traffic_ship_state(self, ship_id, data):
+            pass
+
+    try:
+        res = asyncio.run(mgr.spawn_for_encounter(
+            _FakeDB(), None, "tatooine_deep_space", TrafficArchetype.PIRATE))
+        assert res is not None
+        ts, tmpl = res
+        assert ts.current_zone == "tatooine_deep_space"   # NOT a random SPAWN_ZONE
+        assert ts.ship_id == 424242
+        assert "template" in tmpl and "crew_skill" in tmpl
+    finally:
+        mgr._ships.pop(424242, None)
+
+
+def test_npc_space_combat_tick_is_registered():
+    """FORK-1=A: the dormant combat AI tick must actually be scheduled, else
+    promoted anomaly hostiles never fire back."""
+    src = pathlib.Path("server/game_server.py").read_text(encoding="utf-8")
+    assert "async def npc_space_combat_tick" in src
+    assert 'register("npc_space_combat"' in src

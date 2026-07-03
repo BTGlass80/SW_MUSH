@@ -101,7 +101,7 @@ _ATYPE_ERA_OVERLAY: dict[str, dict[str, tuple]] = {
             "Encrypted data package — Republic cipher signature.",
             "Republic Dead Drop — a dead-letter container with encrypted "
             "intelligence data. Slicing check (Difficult, diff 20) to decode. "
-            "Failure triggers a Republic patrol. "
+            "Failure triggers a sector patrol. "
             "Type 'course anomaly {id}' to retrieve.",
         ),
     },

@@ -188,7 +188,7 @@ A deep-space sweep can surface any of these. The scan readout names the type and
 | **Hidden Cache** | A cold, armored container — small, not a ship. Concealed cargo or credits. |
 | **Pirate Nest** | Two or three vessels running silent, watching traffic. Expect a fight if you close. |
 | **Asteroid Mineral Vein** | High-grade ore exposed by a recent impact — raw resources to extract. |
-| **Republic Dead Drop** | An encrypted dead-letter cache. Decoding it is a Slicing check (Difficult, diff 20); failure triggers a Republic patrol. |
+| **Republic Dead Drop** | An encrypted dead-letter cache. Decoding it is a Slicing check (Difficult, diff 20); failure triggers a sector patrol. |
 | **Mynock Colony** | A swarm of hull parasites that attach on proximity (system damage; an Easy piloting roll shakes them). |
 
 ### Discovery
@@ -217,8 +217,8 @@ course anomaly <id>        — engage a fully-resolved anomaly
 | **Asteroid Mineral Vein** | Moves you into extraction range — then `mine` pulls the ore. |
 | **Distress Signal** | A **Perception** read (Easy) to tell a real mayday from bait. Read it true and you stabilize the crew for a grateful reward; misread it and you break off before the ambush springs. |
 | **Hidden Cache** | **Two steps, both must land** — hold the approach vector (**Space Transports**, Easy), then crack the security seal (**Security** bypass, Moderate). Miss either and you re-set and try again. |
-| **Pirate Nest** | A running gunfight (**Starship Gunnery**, Moderate). Win and a raider breaks apart — its **wreck drifts free to `salvage`** for the spoils; lose the pass and the pack scatters with them. |
-| **Republic Dead Drop** | A **Slicing** decode (**Computer Programming/Repair**, Difficult 20). Crack it and you lift the intel package; fail and a patrol pings your position — you withdraw and the drop is blown. |
+| **Pirate Nest** | **Real combat** — you commit and 2–3 raiders break formation and open fire. Fight with `fire <target>` (or `fleeship` to break away); each kill pays a bounty and leaves a **salvageable wreck**. |
+| **Republic Dead Drop** | A **Slicing** decode (**Computer Programming/Repair**, Difficult 20). Crack it and you lift the intel package; **fail and a sector patrol jumps you** — `fire`/`fleeship` to fight or run, and the drop is blown. |
 | **Mynock Colony** | An Easy piloting burn (**Space Transports**) to shake the swarm and skim the nest material. Botch it and a mynock chews into a working ship system — repair it at a spacedock or with `+ship/repair`. |
 
 A crewed ship shines on the two-step contacts: the pilot can hold the approach while an engineer works the bypass. Solo, you simply roll both yourself.
@@ -235,7 +235,7 @@ A Technical check — Easy (8) for a quiet derelict, Moderate (15) for a battle 
 
 ### When it's worth it
 
-Anomalies are **risk-and-reward**, and resolving one costs real-time minutes of scanning. A derelict is reliable income; a Republic Dead Drop gambles a Republic patrol against the intel; a pirate nest or mynock colony is a threat to weigh, not free loot. If you're carrying valuable cargo and can't afford a delay or a fight, note the contact and move on. For a dedicated salvager, working the derelicts in a busy transit zone is a steady credit stream.
+Anomalies are **risk-and-reward**, and resolving one costs real-time minutes of scanning. A derelict is reliable income; a Republic Dead Drop gambles a sector patrol against the intel; a pirate nest is a real fight and a mynock colony a threat to weigh, not free loot. If you're carrying valuable cargo and can't afford a delay or a fight, note the contact and move on. For a dedicated salvager, working the derelicts in a busy transit zone is a steady credit stream.
 
 ---
 
@@ -447,7 +447,7 @@ Six concrete pictures.
 | Pirate negotiate | Moderate (15); success = ½ demand, critical = ¼ |
 | Deepscan check | Sensors vs. Moderate (15) |
 | Anomaly types | 7 (derelict, distress, cache, pirates, mineral vein, republic dead drop, mynock) |
-| Republic Dead Drop decode | Slicing vs. Difficult (20); failure → Republic patrol |
+| Republic Dead Drop decode | Slicing vs. Difficult (20); failure → sector patrol (combat) |
 | Dehydration | −1 pip STR + −1 pip DEX per stack, max 3 (→ −1D / −1D) |
 | Toxic exposure / radiation debuff | −1D STR, single stack |
 | Env-hazard debuff decay (dehydration / toxic exposure) | ~20 minutes (1,200 seconds) after you leave the hazard |

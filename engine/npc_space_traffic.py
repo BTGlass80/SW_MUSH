@@ -1047,6 +1047,57 @@ class NpcSpaceTrafficManager:
         log.info(f"[traffic] spawned {archetype.value} '{ship_name}' in {spawn_zone}")
         return ts
 
+    async def spawn_for_encounter(self, db, session_mgr, zone_id: str,
+                                  archetype: "TrafficArchetype"):
+        """Spawn ONE traffic ship of ``archetype`` in a SPECIFIC ``zone_id``
+        (not a random SPAWN_ZONE), for a scripted engagement — the anomaly
+        pirate-nest and dead-drop-patrol combats. Returns ``(TrafficShip,
+        template_dict)`` so the caller can ``promote_to_combat`` it, or ``None``
+        on failure.
+
+        This is the generic, zone-honoring spawn the (never-defined, phantom)
+        ``spawn_pirate_for_encounter`` was meant to be. Unlike ``_spawn`` it does
+        NOT set a wander route (the ship holds station for the fight) and does
+        not emit the generic hyperspace-arrival blurb (the caller narrates the
+        engagement).
+        """
+        if archetype == TrafficArchetype.PATROL:
+            tmpl = _pick_patrol_template(zone_id)
+        else:
+            templates = TRAFFIC_SHIP_TEMPLATES.get(archetype, [])
+            tmpl = random.choice(templates) if templates else None
+        if not tmpl:
+            return None
+        ship_name = _make_ship_name(tmpl)
+        captain_name = _make_captain_name(tmpl)
+        try:
+            ship_id = await db.create_traffic_ship(
+                name=ship_name, template=tmpl["template"])
+        except Exception as e:
+            log.error(f"[traffic] spawn_for_encounter: create ship failed: {e}")
+            return None
+        try:
+            await db.create_traffic_npc(
+                name=captain_name, ship_id=ship_id, skill=tmpl["crew_skill"])
+        except Exception as e:
+            log.warning(f"[traffic] spawn_for_encounter: captain NPC failed: {e}")
+        ts = TrafficShip(
+            ship_id=ship_id,
+            archetype=archetype,
+            state=TrafficState.IDLE,
+            current_zone=zone_id,
+            spawned_at=time.time(),
+            max_lifetime=random.uniform(BASE_LIFETIME_MIN, BASE_LIFETIME_MAX),
+            display_name=ship_name,
+            transponder_type=tmpl["transponder"],
+            captain_name=captain_name,
+        )
+        self._ships[ship_id] = ts
+        await self._persist_ship(ts, db)
+        log.info(f"[traffic] spawn_for_encounter: {archetype.value} "
+                 f"'{ship_name}' in {zone_id}")
+        return ts, tmpl
+
     def _set_initial_route(self, ts: TrafficShip):
         """Set the initial route for a newly spawned ship based on archetype."""
         if ts.archetype == TrafficArchetype.TRADER:

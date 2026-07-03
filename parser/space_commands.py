@@ -3385,13 +3385,16 @@ class SlipCommand(BaseCommand):
 # roll was the old MVP). Skill fields are real data/skills.yaml slugs — the
 # earlier specs passed governing-ATTRIBUTE names (technical/mechanical), which
 # _get_skill_pool can't find, so those checks silently rolled untrained dice.
-#   faucet        -- one skill check -> credit faucet -> remove_anomaly.
-#   two_step      -- two sequential checks (approach + bypass), BOTH must pass.
-#   detach_damage -- one check; FAILURE knocks a working ship system to damaged.
-#   skirmish      -- pirates interim: one gunnery check; SUCCESS drops a
-#                    salvageable wreck (reward = the salvage, per the readout).
-#                    Full multi-hostile combat is deferred (design call
-#                    SPACE.anomaly_combat_live_tick_vs_skirmish).
+#   faucet         -- one skill check -> credit faucet -> remove_anomaly.
+#   two_step       -- two sequential checks (approach + bypass), BOTH must pass.
+#   detach_damage  -- one check; FAILURE knocks a working ship system to damaged.
+#   combat         -- pirates: spawn 2-3 hostiles and promote them to LIVE
+#                     interactive combat (player fights with `fire`/`fleeship`;
+#                     the npc_space_combat tick drives return fire). Reward =
+#                     kill-bounty + salvageable wreck via the existing fire path.
+#   slice_or_patrol-- imperial dead-drop: decode SUCCESS pays the faucet;
+#                     FAILURE spawns a real era-clean sector patrol into combat.
+# (SPACE.anomaly_combat_live_tick_vs_skirmish resolved A: full interactive combat.)
 _ANOMALY_ENGAGE = {
     "distress": dict(mechanic="faucet", skill="search", diff=10, label="Easy",
                      one_shot=True, credits=(600, 1200), tag="anomaly_distress",
@@ -3407,18 +3410,13 @@ _ANOMALY_ENGAGE = {
                                 "Line it up and try again.",
                   fail_bypass="Approach good, but the security seal holds. Work the "
                               "bypass and try again."),
-    "pirates": dict(mechanic="skirmish", skill="starship gunnery", diff=15,
-                    label="Moderate", one_shot=True,
-                    ok="You win the running gunfight; a raider breaks apart and its "
-                       "wreck drifts free.",
-                    fail="The pack outguns you this pass and scatters with their "
-                         "spoils. The nest is gone."),
-    "imperial": dict(mechanic="faucet", skill="computer programming/repair", diff=20,
-                     label="Difficult", one_shot=True,
+    "pirates": dict(mechanic="combat", label="Pirate Nest"),
+    "imperial": dict(mechanic="slice_or_patrol", skill="computer programming/repair",
+                     diff=20, label="Difficult", one_shot=True,
                      credits=(1200, 2400), tag="anomaly_deaddrop",
                      ok="You crack the cipher and lift the intelligence package.",
-                     fail="The cipher resists -- and a patrol pings your "
-                          "position. You withdraw before they close. The drop is blown."),
+                     fail="The cipher resists -- and a sector patrol vectors in. "
+                          "They've made you."),
     "mynock": dict(mechanic="detach_damage", skill="space transports", diff=8,
                    label="Easy", one_shot=False, credits=(200, 600),
                    tag="anomaly_mynock",
@@ -3507,8 +3505,7 @@ class CourseCommand(BaseCommand):
         dice roll goes through perform_skill_check and fails CLOSED.
         """
         from engine.skill_checks import perform_skill_check
-        from engine.space_anomalies import (
-            get_anomalies_for_zone, remove_anomaly, add_wreck_anomaly)
+        from engine.space_anomalies import get_anomalies_for_zone, remove_anomaly
         parts = raw.split()
         if len(parts) < 2 or not parts[1].isdigit():
             await ctx.session.send_line(
@@ -3566,6 +3563,11 @@ class CourseCommand(BaseCommand):
 
         mechanic = spec.get("mechanic", "faucet")
 
+        # ── pirates: real interactive combat — spawn a nest, promote it live ─
+        if mechanic == "combat":
+            await self._engage_combat(ctx, ship, zone_id, target, kind="pirate")
+            return
+
         # ── cache: two-step approach (pilot) + bypass (engineer); both gate ──
         if mechanic == "two_step":
             (a_skill, a_diff), (b_skill, b_diff) = spec["steps"]
@@ -3586,12 +3588,16 @@ class CourseCommand(BaseCommand):
                 crit=bool(bypass and bypass.critical_success))
             return
 
-        # ── single-roll types (distress / imperial / mynock / pirates) ──────
+        # ── single-roll types (distress / imperial-decode / mynock) ─────────
         result = _roll(spec["skill"], spec["diff"])
         if not _ok(result):
             await ctx.session.send_line(
                 f"  {ansi.BRIGHT_YELLOW}[ANOMALY]{ansi.RESET} {spec['fail']} "
                 f"({spec['label']} {spec['skill']}, diff {spec['diff']})")
+            # imperial decode failure -> a real era-clean sector patrol jumps you
+            if mechanic == "slice_or_patrol":
+                await self._engage_combat(ctx, ship, zone_id, target, kind="patrol")
+                return
             # mynock: a latched colony chews a working system (readout: 1 system damage)
             if mechanic == "detach_damage":
                 await self._damage_random_system(ctx, ship, systems)
@@ -3599,16 +3605,7 @@ class CourseCommand(BaseCommand):
                 remove_anomaly(zone_id, target.id)
             return
 
-        # ── success ─────────────────────────────────────────────────────────
-        # pirates (skirmish): the reward is the salvage, per the readout — drop
-        # a wreck the player then works with `salvage`, no separate faucet.
-        if mechanic == "skirmish":
-            add_wreck_anomaly(zone_id, "Pirate Raider")
-            remove_anomaly(zone_id, target.id)
-            await ctx.session.send_line(
-                f"  {ansi.BRIGHT_CYAN}[ANOMALY]{ansi.RESET} {spec['ok']} "
-                f"A wreck drifts nearby -- `salvage` it for the spoils.")
-            return
+        # ── success: credit faucet (distress / imperial-decode / mynock) ────
         await self._anomaly_payout(
             ctx, char, spec, zone_id, target,
             crit=bool(result and result.critical_success))
@@ -3646,6 +3643,73 @@ class CourseCommand(BaseCommand):
             await ctx.db.update_ship(ship["id"], systems=json.dumps(systems))
         except Exception:
             log.debug("mynock system-damage update failed", exc_info=True)
+
+    async def _engage_combat(self, ctx, ship, zone_id, target, kind):
+        """Spawn NPC hostiles for a `course anomaly <id>` engagement and promote
+        them to LIVE combat: the player fights with `fire`/`fleeship`, and the
+        registered npc_space_combat tick drives the hostiles' return fire /
+        maneuver / flee. Rewards flow through the existing fire-kill path
+        (pirate bounty + salvageable wreck).
+
+        This is a DIRECT promote_to_combat from a live command — it does NOT go
+        through the unwired structured-encounter framework or the phantom
+        engine.npc_space_traffic.spawn_pirate_for_encounter.
+        """
+        import random
+        from engine.npc_space_traffic import get_traffic_manager, TrafficArchetype
+        from engine.npc_space_combat_ai import get_npc_combat_manager
+        from engine.starships import SpaceRange
+        from engine.space_anomalies import remove_anomaly
+        if kind == "pirate":
+            arch, profile, count = TrafficArchetype.PIRATE, "aggressive", random.randint(2, 3)
+        else:
+            arch, profile, count = TrafficArchetype.PATROL, "patrol", 1
+        mgr = get_traffic_manager()
+        combat = get_npc_combat_manager()
+        bridge = ship.get("bridge_room_id")
+        spawned = 0
+        for _ in range(count):
+            res = await mgr.spawn_for_encounter(ctx.db, ctx.session_mgr, zone_id, arch)
+            if not res:
+                continue
+            ts, tmpl = res
+            try:
+                combat.promote_to_combat(
+                    npc_ship_id=ts.ship_id,
+                    target_ship_id=ship["id"],
+                    target_bridge_room=bridge,
+                    zone_id=zone_id,
+                    template_key=tmpl["template"],
+                    display_name=ts.display_name,
+                    crew_skill=tmpl.get("crew_skill", "3D"),
+                    profile=profile,
+                    starting_range=SpaceRange.SHORT,
+                )
+                spawned += 1
+            except Exception:
+                log.warning("anomaly combat: promote_to_combat failed", exc_info=True)
+        # The contact is consumed the moment you commit — win or lose.
+        remove_anomaly(zone_id, target.id)
+        if spawned == 0:
+            await ctx.session.send_line(
+                "  The contact scatters before you can close — nothing to engage.")
+            return
+        if kind == "pirate":
+            plural = "s" if spawned != 1 else ""
+            msg = (f"  {ansi.BRIGHT_RED}[COMBAT]{ansi.RESET} You commit to the attack — "
+                   f"{spawned} raider{plural} break formation and open fire! Return "
+                   f"fire with `fire <target>`; `fleeship` to break away.")
+        else:
+            from engine.encounter_patrol import _default_patrol_name
+            pname = _default_patrol_name(zone_id)
+            msg = (f"  {ansi.BRIGHT_RED}[COMBAT]{ansi.RESET} A {pname} vectors in, "
+                   f"weapons hot — they've made you. `fire <target>` to fight or "
+                   f"`fleeship` to run.")
+        await ctx.session.send_line(msg)
+        try:
+            await ctx.session.send_hud_update(db=ctx.db, session_mgr=ctx.session_mgr)
+        except Exception:
+            log.debug("anomaly combat: HUD refresh failed", exc_info=True)
 
     async def _validate_helm(self, ctx):
         """Check ship, pilot seat, hyperspace, ion — return (ship, systems, zone, arg) or (None,)*4."""
