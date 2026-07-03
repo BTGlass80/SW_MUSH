@@ -525,6 +525,7 @@ rooms:
     map_y: 8
     exits:
       hub: kuat_ring_transit_hub
+      gangway: kuat_liner_gangway        # <-- ADD: board the docked bulk liner Ardent Span
 
   - id: 323
     slug: kuat_military_station
@@ -806,3 +807,78 @@ rooms:
     security_level: contested
     exits:
       out: kuat_ring_warehouses
+
+  # ══════════════════════════════════════════════════════════════════════
+  # THE ARDENT SPAN — civilian bulk-freight liner interior (phantom_tonnage
+  # 36th accessible questline, 2026-07-03). Boarded from the Supply Space
+  # Station (room 322) via its `gangway` exit; a linear four-room interior.
+  # zone: kuat_bulk_liner. No exterior-surface coords -> not snapshot-pinned.
+  # ══════════════════════════════════════════════════════════════════════
+  - id: 335
+    slug: kuat_liner_gangway
+    name: "Ardent Span - Boarding Gangway"
+    short_desc: "The cleared boarding gangway of a bonded bulk-freight liner riding the inspection queue."
+    description: >
+      The Ardent Span's boarding gangway runs off the Supply Station's
+      inspection apron — a combine bulk hauler, bonded and stamped, its
+      manifest lodged clean against the berth. The hull reads honest on the
+      papers. It does not read honest on a sensor sweep: the loaded mass
+      the frame is carrying is more than the declared tonnage the manifest
+      swears, and the difference is the whole racket.
+    zone: kuat_bulk_liner
+    map_x: 29
+    map_y: 7
+    security_level: contested
+    exits:
+      out: kuat_supply_station
+      in: kuat_liner_gundeck
+  - id: 336
+    slug: kuat_liner_gundeck
+    name: "Ardent Span - Rigged Gun-Deck"
+    short_desc: "A civilian liner's illegally-manned gun-deck, kept crewed to guard the contraband run."
+    description: >
+      No bonded civilian bulk hauler carries a manned gun-deck. The Ardent
+      Span does — a run of point-defense mounts crewed and hot, kept to keep
+      anyone who reads the true tonnage from reaching the manifest core.
+      The syndicate's deck-boss holds it, and the way aft to the core runs
+      straight through him.
+    zone: kuat_bulk_liner
+    map_x: 29
+    map_y: 6
+    security_level: contested
+    exits:
+      out: kuat_liner_gangway
+      in: kuat_liner_manifest_core
+  - id: 337
+    slug: kuat_liner_manifest_core
+    name: "Ardent Span - Manifest Core"
+    short_desc: "The liner's manifest core, where the declared tonnage is doctored to bury the ghost mass."
+    description: >
+      The manifest core is where a liner's cargo record is written and
+      bonded. The Ardent Span's has been doctored: forged entries that make
+      the declared tonnage match the bonded freight while the ghost mass — a
+      syndicate's contraband run — rides undeclared beneath it. Slice the
+      core and the ghost entries surface against the true loaded mass.
+    zone: kuat_bulk_liner
+    map_x: 29
+    map_y: 5
+    security_level: contested
+    exits:
+      out: kuat_liner_gundeck
+      in: kuat_liner_bridge
+  - id: 338
+    slug: kuat_liner_bridge
+    name: "Ardent Span - Command Bridge"
+    short_desc: "The liner's bridge, where its enforcer captain runs the ghost-manifest front."
+    description: >
+      The Ardent Span's bridge, where the enforcer captain who runs the
+      ghost-manifest front kept the whole racket squared: the bonded papers
+      up top, the doctored core below, the gun-deck between them. With the
+      deck cleared, the true mass read, and the manifest sliced open, there
+      is nothing left for him to hold — only the choice to stand down.
+    zone: kuat_bulk_liner
+    map_x: 29
+    map_y: 4
+    security_level: contested
+    exits:
+      out: kuat_liner_manifest_core

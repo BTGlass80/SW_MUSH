@@ -494,6 +494,20 @@ zones:
       security: contested
       threat_band: contested_marches     # DIFF.2 (2026-06-13): zoned difficulty band
 
+  kuat_bulk_liner:
+    name_match: "Ardent Span"
+    narrative_tone: >
+      A merchant-combine bulk-freight liner riding the Supply Station's
+      inspection queue, bonded and cleared on its papers — and, below the
+      manifest, a hull whose true loaded mass its declared tonnage cannot
+      account for, an illegally-manned gun-deck, and a doctored manifest core.
+    # phantom_tonnage 36th-arc venue (2026-07-03): the boardable civilian
+    # capital-class liner interior for the T3.24 "The Phantom Tonnage" arc.
+    # Contested — a syndicate contraband front sitting inside a KSF-cleared berth.
+    properties:
+      security: contested
+      threat_band: frontier
+
   # ── Kamino (Drop 3) ──────────────────────────────────────────────────────
 
   kamino_tipoca_city:

@@ -327,14 +327,19 @@ class TestRoomsManifest:
     def test_manifest_room_count(self, write_result):
         _, result = write_result
         manifest = build_rooms_manifest(result)
-        # 293 = 292 (287 pre-Lane-D-arc + 7 Geonosis arc rooms: Gladiator
+        # 297 = 293 (292 [287 pre-Lane-D-arc + 7 Geonosis arc rooms: Gladiator
         # Barracks interior zone + E'Y-Akh anchors, 2026-06-07 drop; + 5
-        # space-zone anchor rooms, QA L7 commit c0798e6) + 1
-        # (iron_veil_kuat_staged_scenario, 2026-07-02: kuat_sabotaged_yards_edge,
+        # space-zone anchor rooms, QA L7 commit c0798e6] + 1
+        # [iron_veil_kuat_staged_scenario, 2026-07-02: kuat_sabotaged_yards_edge,
         # the new on-foot edge room off Kuat Drive Yards - Ring Warehouse
-        # District into the new kuat_sabotaged_yards wilderness region).
-        assert len(manifest["rooms"]) == 293
-        assert len(manifest["by_id"]) == 293
+        # District into the new kuat_sabotaged_yards wilderness region]) + 4
+        # (generalized-questline-phantom-tonnage, 2026-07-03: the Ardent Span
+        # civilian bulk-liner interior -- kuat_liner_gangway / kuat_liner_gundeck
+        # / kuat_liner_manifest_core / kuat_liner_bridge, ids 335-338, new zone
+        # kuat_bulk_liner -- appended to planets/kuat.yaml for the 36th
+        # accessible questline "The Phantom Tonnage").
+        assert len(manifest["rooms"]) == 297
+        assert len(manifest["by_id"]) == 297
 
     def test_manifest_round_trips(self, write_result):
         _, result = write_result
