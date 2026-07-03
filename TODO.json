@@ -1943,16 +1943,6 @@
       "decision_needed": "None — informational. Confirms the resync 'bug' is likely a measurement artifact; the real next step is the soft-lock/attack fixes + a re-run."
     },
     {
-      "id": "FUN.shop_verb_and_natural_verb_surface",
-      "status": "OPEN",
-      "title": "'shop' means 'manage your OWN vendor droid', not 'browse a store and buy'; and many natural verbs (+attributes, skills, inventory, equipment, +goals, objectives, exits) error out though the data exists behind a panel — rename + alias, or leave?",
-      "origin": "Fun-assessment pass 2026-06-25, min-maxer/explorer/systems/new-player lenses: a newcomer with 1000 starting credits has no obvious way to spend them; discoverability collapses when the obvious word errors out.",
-      "premise_verified_at_head": "The exit-name half is already FIXED (drop first-session-unblock — typed/clicked named exits now route). UPDATE 2026-06-27 (drop fun7-reward-loop): the SPEND-PATH / reward-loop half is RESOLVED — the real blocker was not the verb but that ALL 8 CW profession-chain graduates landed in vendorless pockets (7/8 had ZERO exits = a graduation-stranding soft-lock). Fix: chains.yaml retargets each to a live vendor-hub (coco_town / mos_eisley_market_district / nar_shaddaa_promenade_main / kuat_ring_commercial) + 3 new ai_config.vendor starter outfitters (Brekka Solwynn / Muss Farren / Orvak Tesh); the in-room buy producer (BuyCommand open-market) already existed. Guarded by tests/test_fun7_graduate_economy_reachable.py. Remaining open = the verb-rename/alias half ONLY: 'shop' is still the vendor-droid-owner command; browse/buy is a different verb; +attributes/skills/inventory/equipment/+goals are not registered aliases. (Re-verify each against the registry before aliasing.)",
-      "fork": "(A) Rename the vendor-owner command (e.g. +myshop/+vendor) so 'shop'/'list'/'buy' mean browse-and-buy, AND alias the obvious sheet/sidebar verbs to their existing data. (B) Leave verbs as-is and rely on the Ctrl+K palette + qa-row for discovery. NOTE: a rename/alias pass COLLIDES with the already-planned command-syntax-rework (memory [[command-syntax-rework]]) — likely fold into that, not a one-off.",
-      "lane_note": "Parser verb surface + the planned command-syntax-rework. Additive aliasing is low-risk; the 'shop' rename is a breaking-ish change to muscle memory — sequence with the syntax rework.",
-      "decision_needed": "Spend-path/reward-loop half RESOLVED by drop fun7-reward-loop (2026-06-27). Remaining decision is the VERB-RENAME/alias half only: confirm whether to (A) do an additive alias pass now (which verbs), and whether the 'shop' rename folds into the command-syntax-rework (recommended) or ships standalone."
-    },
-    {
       "id": "UX.sound_atmosphere_asset_sourcing",
       "status": "OPEN",
       "title": "UX.sound_atmosphere (zone-keyed ambient audio) is code-ready in design but BLOCKED on an audio-asset decision — source CC0/licensed loops, and embed-vs-CDN?",
@@ -1961,16 +1951,6 @@
       "fork": "(A) Source a small set of CC0 ambient loops (cantina / spaceport / market / deep-space) and ship them embedded under static/audio/. (B) Host loops on a CDN. (C) Defer sound entirely to post-launch.",
       "lane_note": "Web-client only; off-by-default. Asset sourcing/licensing is content work I can't safely do autonomously (licensing judgment) — needs your call on source + delivery.",
       "decision_needed": "Decide whether sound is in scope for launch and, if so, the loop source (CC0 pack?) + embed-vs-CDN. Default: C (defer) unless you want the ambient slice."
-    },
-    {
-      "id": "UX.living_sheet_delta_semantic",
-      "status": "OPEN",
-      "title": "Living character sheet (Drop 8) highlights values changed since the LAST VIEW (per-view, default) — keep that, or make it session-cumulative 'what changed this session' until dismissed?",
-      "origin": "UX Drop 8 (drop ux-drop8-living-sheet, 2026-06-25); flagged in the TODO item's decisions field as the one open fork.",
-      "premise_verified_at_head": "static/client.html sheetComputeChanges diffs the previous opened payload vs the new one (per-view); first/identical open highlights nothing. Session-cumulative would require persisting a session baseline + a dismiss control.",
-      "fork": "(A) Keep per-view deltas (shipped default — simplest, no extra state). (B) Switch to session-cumulative deltas (highlight everything changed since login until dismissed) — more 'what did I gain this session' but needs a baseline + dismiss UI.",
-      "lane_note": "Web-client only; the shipped default is A. B is a bounded follow-up.",
-      "decision_needed": "Confirm A (keep) or request B. Low priority."
     },
     {
       "id": "CP.ai_trickle_director_wiring",
@@ -2011,6 +1991,30 @@
     }
   ],
   "design_calls_resolved_recent": [
+    {
+      "id": "FUN.shop_verb_and_natural_verb_surface",
+      "status": "RESOLVED",
+      "title": "'shop' means 'manage your OWN vendor droid', not 'browse a store and buy'; and many natural verbs (+attributes, skills, inventory, equipment, +goals, objectives, exits) error out though the data exists behind a panel — rename + alias, or leave?",
+      "origin": "Fun-assessment pass 2026-06-25, min-maxer/explorer/systems/new-player lenses: a newcomer with 1000 starting credits has no obvious way to spend them; discoverability collapses when the obvious word errors out.",
+      "premise_verified_at_head": "The exit-name half is already FIXED (drop first-session-unblock — typed/clicked named exits now route). UPDATE 2026-06-27 (drop fun7-reward-loop): the SPEND-PATH / reward-loop half is RESOLVED — the real blocker was not the verb but that ALL 8 CW profession-chain graduates landed in vendorless pockets (7/8 had ZERO exits = a graduation-stranding soft-lock). Fix: chains.yaml retargets each to a live vendor-hub (coco_town / mos_eisley_market_district / nar_shaddaa_promenade_main / kuat_ring_commercial) + 3 new ai_config.vendor starter outfitters (Brekka Solwynn / Muss Farren / Orvak Tesh); the in-room buy producer (BuyCommand open-market) already existed. Guarded by tests/test_fun7_graduate_economy_reachable.py. Remaining open = the verb-rename/alias half ONLY: 'shop' is still the vendor-droid-owner command; browse/buy is a different verb; +attributes/skills/inventory/equipment/+goals are not registered aliases. (Re-verify each against the registry before aliasing.)",
+      "fork": "(A) Rename the vendor-owner command (e.g. +myshop/+vendor) so 'shop'/'list'/'buy' mean browse-and-buy, AND alias the obvious sheet/sidebar verbs to their existing data. (B) Leave verbs as-is and rely on the Ctrl+K palette + qa-row for discovery. NOTE: a rename/alias pass COLLIDES with the already-planned command-syntax-rework (memory [[command-syntax-rework]]) — likely fold into that, not a one-off.",
+      "lane_note": "Parser verb surface + the planned command-syntax-rework. Additive aliasing is low-risk; the 'shop' rename is a breaking-ish change to muscle memory — sequence with the syntax rework.",
+      "decision_needed": "Spend-path/reward-loop half RESOLVED by drop fun7-reward-loop (2026-06-27). Remaining decision is the VERB-RENAME/alias half only: confirm whether to (A) do an additive alias pass now (which verbs), and whether the 'shop' rename folds into the command-syntax-rework (recommended) or ships standalone.",
+      "date": "2026-07-03",
+      "decision": "DEFERRED-TO-REWORK (Brian 2026-07-01, recorded in the fun16 CHANGELOG entry: 'shop_verb=deferred to the command-syntax-rework'): the shop-verb rename + natural-verb surface lands as part of the command-syntax rework pass, not as a standalone drop. The Fable 2026-07-02 review's OBS additionally notes fun12's unknown-command recovery + fun13/15 aliases already cover much of the original list, and the live natural-verb ground truth supersedes the stale enumeration here - the rework should re-derive the surface at build time rather than trust this entry's list. Pending entry was stale bookkeeping; cleaned 2026-07-03 (attended session)."
+    },
+    {
+      "id": "UX.living_sheet_delta_semantic",
+      "status": "RESOLVED",
+      "title": "Living character sheet (Drop 8) highlights values changed since the LAST VIEW (per-view, default) — keep that, or make it session-cumulative 'what changed this session' until dismissed?",
+      "origin": "UX Drop 8 (drop ux-drop8-living-sheet, 2026-06-25); flagged in the TODO item's decisions field as the one open fork.",
+      "premise_verified_at_head": "static/client.html sheetComputeChanges diffs the previous opened payload vs the new one (per-view); first/identical open highlights nothing. Session-cumulative would require persisting a session baseline + a dismiss control.",
+      "fork": "(A) Keep per-view deltas (shipped default — simplest, no extra state). (B) Switch to session-cumulative deltas (highlight everything changed since login until dismissed) — more 'what did I gain this session' but needs a baseline + dismiss UI.",
+      "lane_note": "Web-client only; the shipped default is A. B is a bounded follow-up.",
+      "decision_needed": "Confirm A (keep) or request B. Low priority.",
+      "date": "2026-07-03",
+      "decision": "OPTION A - keep per-view deltas. Brian had ALREADY resolved this on 2026-07-01 (recorded in the fun16 CHANGELOG entry: 'sheet-delta=keep-per-view' - one of his four 2026-07-01 fork calls); the pending entry was stale bookkeeping. No code change needed - A is the shipped default. Cleaned 2026-07-03 (attended session)."
+    },
     {
       "id": "MAP.fable_f4_wilderness_overview_no_areageometry_reconfirmed",
       "date": "2026-07-03",
@@ -3148,9 +3152,11 @@
       "name": "Qwen swap §2 install-time check: confirm qwen3.5:9b format:json behavior on Brian's installed Ollama version (needs Brian's box, not a design call)",
       "added_date": "2026-07-03",
       "added_by": "drop qwen-default-hardening (Fable §2 install-time verification step, cannot run in this sandbox)",
-      "status": "open",
+      "status": "closed",
       "severity": "medium",
-      "summary": "QWEN_SWAP_SPEC_FOR_CLAUDE_CODE_2026-07-03.md §2 step 1 calls for a one-curl install-time check against a live Ollama daemon before trusting the format:json-bypass assumption: `curl -s http://localhost:11434/api/chat -d '{\"model\":\"qwen3.5:9b\",\"stream\":false,\"format\":\"json\",\"messages\":[{\"role\":\"user\",\"content\":\"List three colors as a JSON array of strings, nothing else.\"}]}'` -- content must be valid JSON; record the Ollama version + result in the drop's CHANGELOG entry per the spec. NOT run here: this sandbox has no installed Ollama runtime/daemon (the whole point of the check is Brian's actual `ollama --version` + pulled qwen3.5:9b tag on his RTX 3070 box). The engine/idle_queue.py::_extract_json_array hardening (drop qwen-default-hardening, 2026-07-03) already makes both bark lanes safe REGARDLESS of the curl result -- ollama/ollama#14645 either is or isn't present on Brian's installed version, but the tolerant parse fallback (fence/prose/<think> strip + first balanced [ ] substring) covers both outcomes, so this is a confirmation/telemetry item, not a blocker. ACTION for Brian: run the curl above once Ollama + the qwen3.5:9b tag are pulled, paste the Ollama version + raw response into a CHANGELOG follow-up line, then close this out."
+      "summary": "QWEN_SWAP_SPEC_FOR_CLAUDE_CODE_2026-07-03.md §2 step 1 calls for a one-curl install-time check against a live Ollama daemon before trusting the format:json-bypass assumption: `curl -s http://localhost:11434/api/chat -d '{\"model\":\"qwen3.5:9b\",\"stream\":false,\"format\":\"json\",\"messages\":[{\"role\":\"user\",\"content\":\"List three colors as a JSON array of strings, nothing else.\"}]}'` -- content must be valid JSON; record the Ollama version + result in the drop's CHANGELOG entry per the spec. NOT run here: this sandbox has no installed Ollama runtime/daemon (the whole point of the check is Brian's actual `ollama --version` + pulled qwen3.5:9b tag on his RTX 3070 box). The engine/idle_queue.py::_extract_json_array hardening (drop qwen-default-hardening, 2026-07-03) already makes both bark lanes safe REGARDLESS of the curl result -- ollama/ollama#14645 either is or isn't present on Brian's installed version, but the tolerant parse fallback (fence/prose/<think> strip + first balanced [ ] substring) covers both outcomes, so this is a confirmation/telemetry item, not a blocker. ACTION for Brian: run the curl above once Ollama + the qwen3.5:9b tag are pulled, paste the Ollama version + raw response into a CHANGELOG follow-up line, then close this out.",
+      "closed_date": "2026-07-03",
+      "closure": "RAN 2026-07-03 on Brian's box (attended session): Ollama 0.31.1, qwen3.5:9b. format:json IS honored - content came back as valid JSON ({\"colors\":[\"red\",\"green\",\"blue\"]}), so ollama/ollama#14645 is fixed/absent on the installed version. Two observations recorded in the CHANGELOG follow-up: (1) the grammar guarantees valid JSON but NOT the asked-for bare-array shape (the model returned an object) - the _extract_json_array balanced-bracket fallback remains load-bearing; (2) the response carried a populated `thinking` field, i.e. thinking is ON by default on this Ollama/model combo (the spec expected off) - extra latency per bark call, worth watching under AI.QWEN_ERA_DROP_TELEMETRY."
     },
     {
       "id": "COMMUNAL.staged_concurrency_gaps",
