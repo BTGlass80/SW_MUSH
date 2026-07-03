@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "P=\"${CLAUDE_PROJECT_DIR:-.}/venv/Scripts/python.exe\"; [ -f \"$P\" ] || P=python; \"$P\" 'c:\\SW_MUSH\\.codex\\hooks\\world_yaml_additive_guard.py'"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "P=\"${CLAUDE_PROJECT_DIR:-.}/venv/Scripts/python.exe\"; [ -f \"$P\" ] || P=python; \"$P\" 'c:\\SW_MUSH\\.codex\\hooks\\post_edit_validate.py'"
+          }
+        ]
+      }
+    ]
+  }
+}

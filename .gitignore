@@ -69,3 +69,18 @@ static/tools/batches/
 
 # Playwright E2E screenshots + server log — regenerated on every run, never committed
 tests/e2e/_screens/
+
+# ── Session/loop scratch (2026-07-02) ────────────────────────────
+# Playthrough CAPTURE dirs (_fun_min_maxer, _play_*) + root probe scripts are
+# generated output / throwaway, never committed. NOTE: the real reusable E2E
+# harnesses (tests/e2e/breakit_*.py, tests/e2e/play_*.py) are NON-underscore and
+# stay tracked — this only hides the `_`-prefixed output.
+tests/e2e/_*/
+/_probe_*.py
+/_verify_*.py
+# Session-internal tooling (workflow/probe scripts) + generated map seed
+# artifacts. Underscore-prefixed tools are scratch by convention; de-underscore
+# a harness to commit it. Map seeds regenerate from the paint pipeline
+# (companion to static/tools/batches/).
+tools/_*
+static/tools/seeds/
