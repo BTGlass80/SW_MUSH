@@ -459,12 +459,14 @@ cp.ai_max_ticks_per_eval: 15    # ceiling on a single AI-evaluation grant
 #  * title_share_threshold: share of total effort at/above which a contributor
 #    also earns the commemorative status flag (0.10 = top ~10%-share earners).
 communal.menace_start: 35            # menace at post (0..100)
-communal.menace_per_minute: 0.35     # menace gained per real minute active
+communal.menace_per_minute: 0.35     # LEGACY strike-path cults only: menace/min while active (STAGED cults use communal.staged_menace_per_minute)
 communal.deadline_hours: 48          # hours from post to the win/lose deadline
 communal.strike_cooldown_s: 600      # per-character strike cooldown (10 min)
 communal.rep_floor: 3                # Republic-rep floor for any winning contributor
 communal.rep_max: 15                 # Republic-rep for the single largest contributor
 communal.title_share_threshold: 0.10 # effort share to also earn the status flag
+communal.staged_menace_per_minute: 0.18  # STAGED cults' one-way failure clock (~6h window; hollow-sun-tuning 2026-07-02). Was advertised but the row was missing (Fable F5a).
+communal.win_capstone_credits: 1000      # headline-rout WIN capstone paid to every title-earner (0 disables; hollow-sun-tuning 2026-07-02). Row added per Fable F5a.
 
 # ── Wilderness encounter density (engine/wilderness_encounters.py) ──
 # The two GLOBAL spawn-pacing levers — the mob-DENSITY complement to the

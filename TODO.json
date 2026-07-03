@@ -2706,6 +2706,30 @@
   ],
   "tech_debt": [
     {
+      "id": "TD.FABLE_F4_wilderness_overview_no_areageometry",
+      "name": "coruscant_underworld_and_tatooine_dune_sea_have_overview_yaml_but_no_full_areageometry",
+      "added_date": "2026-07-03",
+      "added_by": "Fable review 2026-07-02 (F4); diagnosis corrected by Claude Code at HEAD",
+      "status": "OPEN - map/nav lane",
+      "summary": "area_loader logs 'skipping coruscant_underworld / tatooine_dune_sea: AreaGeometry YAML not found: maps/<slug>.yaml' every boot. Fable read it as a filename mismatch (only <slug>_overview.yaml exists) fixable in one line. VERIFIED AT HEAD it is NOT that: maps/<slug>_overview.yaml is a GENERATED Tier-1b OVERVIEW projection (area_key/bounds/landmarks/pos, NO rooms/districts/exit_paths) with a DIFFERENT schema than a full AreaGeometry, so a naive _overview.yaml fallback loads then fails _validate_area_geometry. Both regions ARE live (dune_sea anchors wilderness anomalies + a force landmark; underworld hosts the mob-grind batch + is the T3.23 first-party-challenge candidate). REAL FIX is a map/nav DESIGN call: (a) wilderness needs only the overview projection -> teach area_loader to SKIP overview-schema files silently + confirm the SPA overview consumer renders them; or (b) generate full <slug>.yaml AreaGeometry for wilderness. Add a boot-parity guard once decided (every declared area must load)."
+    },
+    {
+      "id": "TD.FABLE_F6_minor_batch",
+      "name": "fable_review_batchable_minors",
+      "added_date": "2026-07-03",
+      "added_by": "Fable review 2026-07-02 (F6)",
+      "status": "OPEN - low, batchable",
+      "summary": "Low-sev cleanups from Fable's review (real signals, none blocking): (1) npcs_drop_mob_grind_coruscant_underworld.yaml is wilderness_npcs:-keyed (correct, own loader) but the generic npcs: sweep warns 'no npcs key' every boot -> teach the generic loader to skip that key shape silently. (2) help-corpus duplicate keys anomalies/force/salvage warn-and-override at boot (engine/help_loader.py ~L290) -> confirm the later-file winner + dedupe. (3) tests/spa/test_m3_tokens.py skips one case on every box ('Could not locate WoundLevel(IntEnum)') -> stale source-regex locator; that assertion never runs. (4) GCW display-string residue (dormant on CW): engine/territory.py::_GUARD_TEMPLATES['empire'/'rebel'], engine/contest.py champion twins, _influence_flavor GCW half -> strip to comments or add a guard asserting no live org row resolves those keys. (5) UI: .here-wound-hurt and -crit share --warn (crit differs by bold only) -> one extra CSS var for colorblind setups."
+    },
+    {
+      "id": "TD.FABLE_F2_condemned_hull_winnability_watch",
+      "name": "condemned_hull_melee_foil_winnability_telemetry_watch",
+      "added_date": "2026-07-03",
+      "added_by": "Fable review 2026-07-02 (F2)",
+      "status": "OPEN - telemetry watch (fun14 CHANGELOG rationale corrected)",
+      "summary": "fun14 admitted the vibroaxe melee foil (Bohrus Kang) with a 'ranged advantage / kite' rationale Fable showed does NOT exist in the engine (ground combat opens at SHORT round 1; no closing cost / advance verb; dodge defends ranged only, melee is opposed vs melee/brawling parry a blaster build hasn't raised). Stat-band acceptance stands, but on Bohrus's numbers a landed vibroaxe swing mean-margins to Incapacitated, so whether The Condemned Hull is genuinely fresh-char-winnable is a telemetry question. WATCH: condemned_hull start->complete funnel on @balance chains vs its 34 siblings; if it lags, the PARKED lever is a blaster_pistol foil one-liner (NOT vibroblade -- same Incap-per-hit). A real melee-foil CLASS needs a range-band verb (separate design)."
+    },
+    {
       "id": "TD.TUTORIAL_V1_DEAD_CODE",
       "name": "engine_tutorial_v1_manager_instantiated_but_never_driven",
       "added_date": "2026-06-19",
@@ -3193,6 +3217,12 @@
     }
   ],
   "investigation_notes": [
+    {
+      "id": "OBS.fable_review_2026_07_02",
+      "raised": "2026-07-03",
+      "note": "Fable's unattended review of the Claude Code era (343 drops; docs/fable/REVIEW_FABLE_2026-07-02.md + FINDINGS_FOR_CLAUDE_CODE_2026-07-02.md). VERDICT: discipline held at scale (every invariant intact, near-zero phantom rate, funnels + faucet/consumer honored, fiction quality strong). ACTIONED at HEAD (re-derived per Fable's reference-only-zip contract): F1 P0 chain combat_won DEAD-snapshot soft-lock FIXED (drop chain-combat-won-dead-snapshot, 2/6 flaky -> 9/9); F5a hollow-sun tunables rows added (staged_menace_per_minute 0.18 / win_capstone_credits 1000); F3 fun15 'sit'-alias CHANGELOG phantom corrected; F2 fun14 kite-rationale CHANGELOG corrected. LOGGED as tech_debt: TD.FABLE_F4 (wilderness overview-vs-AreaGeometry, diagnosis corrected), TD.FABLE_F6_minor_batch, TD.FABLE_F2 telemetry watch. DESIGN OBSERVATIONS (4a, for the design-call owners; NOT yet actioned): (1) REP SATURATION - questline pays 17 rep/arc but rep clamps at +-100, so the rep line-item is dead after ~6 arcs; if lane rep should matter, add higher-tier consumers or a lane-scoped clears-counter titles read. (2) NO DIFFICULTY LADDER + flat 450cr -> fresh-winnable = veteran-trivial; a post-launch 'hard remix' tier (scaled foil band, 2-3x payout, gated on N clears) is cheap reuse IF @balance chains shows completionists blowing through. (3) AGGREGATE ECONOMY not re-audited since 33 arcs landed - lane total 15,750cr (+3,500 master = 19,250, a one-shot STOCK not a rate); DON'T pre-tune, schedule ONE economy-aggregate pass at LAUNCH+2WK on @balance flows/chains/grind/events (credit-funnel ledger baseline in FINDINGS Appendix A: 108 adjust_credits sites, 84 tags, ZERO funnel bypasses). (4) staged-menace one-way clock makes every uprising a pure race; if @balance events shows near-100% off-peak timeouts, the lever is a strike-driven SLOWDOWN (not reduction). Fable's design-call reads (Appendix C) - SOME superseded by Brian's 2026-07-02 decisions: comlink Fable recommends GLOBAL-IC-rebrand but Brian chose PLANET-SCOPED (BUILT - Fable's review predates the push); hazard-cure + space-anomaly-wiring Fable flags open but both DONE. Live-relevant reads: QUEST.t3_24_36th = WIND DOWN at 35 + pivot next content budget to a STAGED-QUESTLINE ARCHETYPE on the Hollow-Sun/T3.23 substrate, unified with EVENT.communal_rework in ONE design pass; CP.ai_trickle = stay dormant; UX.living_sheet_delta = keep per-view; FUN2.feed_render = close as misattribution pending one live glance. FINDINGS Appendix B supersedes the stale natural-verb list inside FUN.shop_verb_and_natural_verb_surface (still-dead bare reflexes: attributes/attr/stats/sheet [+sheet exists], skills, equipment/gear [equip exists], objectives, exits, map, store; semantic traps: shop=manage-vendor-droid not browse, sit->join, browse=vendor-droids not in-room NPC).",
+      "status": "OPEN - findings logged; design observations for owners; docs/fable preserved in-repo"
+    },
     {
       "id": "OBS.buy_verb_followups",
       "raised": "2026-06-12",
