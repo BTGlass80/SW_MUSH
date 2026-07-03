@@ -196,10 +196,32 @@ def validate_chargen_submission(
     char_name = data.get("name", "")
     errors.extend(validate_character_name(char_name))
 
-    # 7. Force sensitive is boolean
+    # 7. Force sensitivity is DERIVED state (from the presence of
+    # control/sense/alter dice in the attributes JSON) — it is never
+    # player-settable at chargen. Every character starts non-Force-
+    # sensitive; the flag flips ONLY during Village-quest completion
+    # (see engine/creation_wizard.py PG.3.gates.b, engine/village_choice.py).
+    # Reject a submission that claims force_sensitive=true, or that
+    # supplies control/sense/alter dice directly in "attributes" — either
+    # is an attempt to write derived state from the client. This is the
+    # authoritative gate; server/api.py's chargen handlers also refuse to
+    # honor these fields even if a validator bypass let a submission
+    # through (defense-in-depth).
     force_sensitive = data.get("force_sensitive")
     if force_sensitive is not None and not isinstance(force_sensitive, bool):
         errors.append("force_sensitive must be true or false")
+    elif force_sensitive:
+        errors.append(
+            "force_sensitive cannot be set at character creation — "
+            "Force sensitivity is unlocked later, during the Village quest."
+        )
+    for _force_attr in ("control", "sense", "alter"):
+        if _force_attr in raw_attrs:
+            errors.append(
+                f"'{_force_attr}' cannot be set at character creation — "
+                "it is derived Force-sensitivity state, unlocked during "
+                "the Village quest."
+            )
 
     return errors
 

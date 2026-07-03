@@ -318,6 +318,9 @@ class NPCBrain:
         # each call, so calling it twice could mismatch).
         fallback = self._get_fallback()
 
+        # Cap talk-lane context to fit 8GB VRAM alongside the resident model,
+        # and keep the model warm between turns (Qwen3.5 swap, 2026-07-03).
+        from engine.tunables import get_tunable
         response = await self.ai.generate(
             system_prompt=system_prompt,
             messages=self.conversation_history,
@@ -327,6 +330,8 @@ class NPCBrain:
             model=self._get_model(),
             provider=self.npc.ai_config.provider_override,
             fallback_text=fallback,
+            options={"num_ctx": int(get_tunable("ai.num_ctx_talk", 4096))},
+            keep_alive=str(get_tunable("ai.ollama_keep_alive", "30m")),
         )
 
         # Era-guard: a local model prompted for Star Wars can emit GCW-era

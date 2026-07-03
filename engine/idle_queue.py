@@ -2,7 +2,7 @@
 """
 engine/idle_queue.py — Ollama Idle Queue for SW_MUSH.
 
-Uses GPU idle time to pre-generate content via Mistral 7B:
+Uses GPU idle time to pre-generate content via the local Ollama model:
   - NPC ambient barks (one-liners on room entry)
   - Scene summaries (after +scene/stop)
   - Director event rewrites (atmospheric headlines)
@@ -25,6 +25,7 @@ from typing import Optional, TYPE_CHECKING
 
 from engine.era_validator import era_violations, is_era_clean, ERA_PROMPT_HINT
 from engine.scenes import MAX_SUMMARY_LEN
+from engine.tunables import get_tunable
 
 if TYPE_CHECKING:
     from ai.providers import AIManager
@@ -39,6 +40,103 @@ BARK_COOLDOWN_SECS = 30.0   # Per-NPC per-player cooldown between barks
 MAX_BARKS_PER_NPC = 8       # Number of barks to pre-generate per NPC
 MAX_QUEUE_SIZE = 200         # Hard cap on pending tasks
 AMBIENT_FLAVOR_REFRESH_HOURS = 4   # Regenerate Ollama ambient room lines every N hours
+
+
+# ── Ollama generation tuning (Qwen3.5 swap, 2026-07-03) ────────────────────────
+# All retunable live via `ai.*` tunables (data/tunables.yaml); code defaults are
+# Qwen3.5-9B's recommended non-thinking sampling + 8GB-VRAM-safe context caps.
+
+def _bark_temperature() -> float:
+    return float(get_tunable("ai.bark_temperature", 0.7))
+
+
+def _bark_options() -> dict:
+    """Qwen-tuned sampling + VRAM-capped context for the JSON bark lanes.
+
+    Qwen3.5-9B loops/repeats without a presence penalty (Mistral's flat 0.85
+    temperature doesn't carry); the num_ctx cap keeps the vision-projector-laden
+    official tag inside the 3070's 8GB.
+    """
+    return {
+        "num_ctx": int(get_tunable("ai.num_ctx_bark", 2048)),
+        "top_p": float(get_tunable("ai.bark_top_p", 0.8)),
+        "top_k": int(get_tunable("ai.bark_top_k", 20)),
+        "presence_penalty": float(get_tunable("ai.bark_presence_penalty", 1.5)),
+    }
+
+
+def _ctx_options(key: str, default: int) -> dict:
+    """Per-lane context cap (num_ctx) so a longer prompt lane can't blow VRAM."""
+    return {"num_ctx": int(get_tunable(key, default))}
+
+
+def _keep_alive() -> str:
+    """Keep the model resident between idle ticks so the 9B doesn't cold-load."""
+    return str(get_tunable("ai.ollama_keep_alive", "30m"))
+
+
+def _extract_json_array(text: str):
+    """Best-effort parse of a JSON array from LLM output.
+
+    Robust to the qwen3.5 non-thinking `format:"json"` bypass (ollama#14645):
+    when the JSON grammar mask is skipped the model may wrap the array in a
+    ```json fence, a <think> preamble, or surrounding prose. Strips those, then
+    falls back to the first balanced top-level ``[ … ]`` substring (string-aware,
+    so brackets inside quips don't fool it). Returns ``None`` if nothing parses —
+    callers treat that as an empty pool, they never raise.
+    """
+    if not text:
+        return None
+    t = text.strip()
+    # strip a ```json … ``` fence
+    if t.startswith("```"):
+        t = t.split("\n", 1)[-1]
+        if t.rstrip().endswith("```"):
+            t = t.rstrip()[:-3]
+        t = t.strip()
+    # strip a <think>…</think> preamble (future-proofs thinking-enabled tags)
+    lo = t.find("<think>")
+    if lo != -1:
+        hi = t.find("</think>", lo)
+        if hi != -1:
+            t = (t[:lo] + t[hi + len("</think>"):]).strip()
+    # direct parse
+    try:
+        v = json.loads(t)
+        if isinstance(v, list):
+            return v
+    except Exception:
+        pass
+    # fall back to the first balanced, string-aware top-level [ … ]
+    start = t.find("[")
+    if start == -1:
+        return None
+    depth = 0
+    in_str = False
+    esc = False
+    for i in range(start, len(t)):
+        c = t[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+            continue
+        if c == '"':
+            in_str = True
+        elif c == "[":
+            depth += 1
+        elif c == "]":
+            depth -= 1
+            if depth == 0:
+                try:
+                    v = json.loads(t[start:i + 1])
+                    return v if isinstance(v, list) else None
+                except Exception:
+                    return None
+    return None
 
 
 # ── Task Types ────────────────────────────────────────────────────────────────
@@ -92,21 +190,19 @@ class AmbientBarkTask(IdleTask):
                 system_prompt=system_prompt,
                 messages=[{"role": "user", "content": "Generate the ambient lines now."}],
                 max_tokens=250,
-                temperature=0.85,
+                temperature=_bark_temperature(),
                 json_mode=True,
                 provider="ollama",
+                options=_bark_options(),
+                keep_alive=_keep_alive(),
             )
             if not raw:
                 return
 
-            # Parse JSON array — handle markdown fences
-            cleaned = raw.strip()
-            if cleaned.startswith("```"):
-                cleaned = cleaned.split("\n", 1)[-1]
-                if cleaned.endswith("```"):
-                    cleaned = cleaned[:-3].strip()
-
-            barks = json.loads(cleaned)
+            # Parse the JSON array. Tolerant of the qwen3.5 non-thinking
+            # `format:"json"` bypass (ollama#14645) — fences, prose, or a
+            # <think> preamble instead of clean JSON. None ⇒ leave pool as-is.
+            barks = _extract_json_array(raw)
             if isinstance(barks, list) and barks:
                 # Filter: only keep strings, strip, limit length
                 candidates = [
@@ -173,6 +269,8 @@ class SceneSummaryTask(IdleTask):
                 max_tokens=200,
                 temperature=0.5,
                 provider="ollama",
+                options=_ctx_options("ai.num_ctx_scene", 8192),
+                keep_alive=_keep_alive(),
             )
             if summary and db:
                 # Era-guard: an off-era summary is dropped (column stays NULL,
@@ -231,6 +329,8 @@ class EventRewriteTask(IdleTask):
                 max_tokens=60,
                 temperature=0.7,
                 provider="ollama",
+                options=_ctx_options("ai.num_ctx_default", 2048),
+                keep_alive=_keep_alive(),
             )
             if not rewrite or len(rewrite.strip()) < 10:
                 return  # Keep original
@@ -313,6 +413,8 @@ class HousingDescTask(IdleTask):
                 max_tokens=250,
                 temperature=0.8,
                 provider="ollama",
+                options=_ctx_options("ai.num_ctx_default", 2048),
+                keep_alive=_keep_alive(),
             )
             if desc and len(desc.strip()) > 20:
                 # Era-guard: don't cache an off-era description; leaving the
@@ -368,20 +470,17 @@ class AmbientFlavorTask(IdleTask):
                 system_prompt=system_prompt,
                 messages=[{"role": "user", "content": "Generate the ambient lines now."}],
                 max_tokens=220,
-                temperature=0.85,
+                temperature=_bark_temperature(),
                 json_mode=True,
                 provider="ollama",
+                options=_bark_options(),
+                keep_alive=_keep_alive(),
             )
             if not raw:
                 return
 
-            cleaned = raw.strip()
-            if cleaned.startswith("```"):
-                cleaned = cleaned.split("\n", 1)[-1]
-                if cleaned.endswith("```"):
-                    cleaned = cleaned[:-3].strip()
-
-            lines = json.loads(cleaned)
+            # Tolerant parse — see _extract_json_array (qwen3.5 json bypass).
+            lines = _extract_json_array(raw)
             if not isinstance(lines, list):
                 return
             lines = [

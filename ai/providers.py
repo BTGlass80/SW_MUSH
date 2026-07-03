@@ -62,6 +62,34 @@ def _ollama_tier2_model() -> str:
     return (os.environ.get("OLLAMA_TIER2_MODEL") or "").strip() or _ollama_model()
 
 
+def _try_autostart_ollama() -> bool:
+    """Best-effort: spawn `ollama serve` detached if the daemon isn't reachable.
+
+    Harmless if Ollama is already running (the second `serve` just fails on the
+    bound port) or not installed (we skip with a log line). Returns True if we
+    launched a process, False otherwise. Never raises into the boot path.
+    """
+    import shutil
+    import subprocess
+    exe = shutil.which("ollama")
+    if not exe:
+        log.warning("autostart_ollama: `ollama` not found on PATH; skipping")
+        return False
+    try:
+        kwargs = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+        if os.name == "nt":
+            # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP so it outlives us.
+            kwargs["creationflags"] = 0x00000008 | 0x00000200
+        else:
+            kwargs["start_new_session"] = True
+        subprocess.Popen([exe, "serve"], **kwargs)
+        log.info("autostart_ollama: launched `ollama serve`")
+        return True
+    except Exception as e:
+        log.warning("autostart_ollama: failed to launch `ollama serve`: %s", e)
+        return False
+
+
 # ── Configuration ──
 
 @dataclass
@@ -100,6 +128,8 @@ class AIProvider(ABC):
         temperature: float = 0.7,
         json_mode: bool = False,
         model: str = "",
+        options: Optional[dict] = None,
+        keep_alive: str = "",
     ) -> str:
         """
         Generate a response.
@@ -204,13 +234,23 @@ class OllamaProvider(AIProvider):
         temperature: float = 0.7,
         json_mode: bool = False,
         model: str = "",
+        options: Optional[dict] = None,
+        keep_alive: str = "",
     ) -> str:
         if not _AIOHTTP_AVAILABLE:
             return ""
 
         model = model or self.default_model
 
-        # Build the Ollama API request
+        # Build the Ollama API request. Per-call `options` (num_ctx, top_p,
+        # top_k, presence_penalty, …) merge in UNDER the explicit temperature/
+        # num_predict, which always win. This is how the idle-queue lanes cap
+        # context to fit 8GB VRAM and apply Qwen's anti-repetition sampling.
+        # `keep_alive` keeps the (larger) model resident between idle ticks so
+        # it doesn't cold-load each time.
+        opts = {k: v for k, v in (options or {}).items() if v is not None}
+        opts["temperature"] = temperature
+        opts["num_predict"] = max_tokens
         payload = {
             "model": model,
             "messages": [
@@ -218,11 +258,10 @@ class OllamaProvider(AIProvider):
                 *messages,
             ],
             "stream": False,
-            "options": {
-                "temperature": temperature,
-                "num_predict": max_tokens,
-            },
+            "options": opts,
         }
+        if keep_alive:
+            payload["keep_alive"] = keep_alive
 
         if json_mode:
             payload["format"] = "json"
@@ -252,6 +291,37 @@ class OllamaProvider(AIProvider):
         except Exception as e:
             log.warning("Ollama request failed: %s", e)
             return ""
+
+    async def preload(self, keep_alive: str = "30m") -> bool:
+        """Load the configured model into VRAM ahead of first use.
+
+        An empty-prompt POST to /api/generate is Ollama's documented way to
+        resident-load a model without producing tokens; `keep_alive` sets how
+        long it stays warm. Returns True once the daemon confirms the load.
+        Best-effort: any failure returns False (the caller logs, never raises).
+        """
+        if not _AIOHTTP_AVAILABLE:
+            return False
+        payload = {"model": self.default_model, "keep_alive": keep_alive}
+        try:
+            async with _aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{self.host}/api/generate",
+                    json=payload,
+                    # First load of a 9B can take a while; give it real headroom.
+                    timeout=_aiohttp.ClientTimeout(total=max(self.timeout, 180.0)),
+                ) as resp:
+                    if resp.status == 200:
+                        await resp.read()
+                        return True
+                    log.warning(
+                        "Ollama preload of %s failed: HTTP %d",
+                        self.default_model, resp.status,
+                    )
+                    return False
+        except Exception as e:
+            log.warning("Ollama preload of %s failed: %s", self.default_model, e)
+            return False
 
     async def list_models(self) -> list[str]:
         """List models available in Ollama."""
@@ -298,9 +368,13 @@ class MockProvider(AIProvider):
         temperature: float = 0.7,
         json_mode: bool = False,
         model: str = "",
+        options: Optional[dict] = None,
+        keep_alive: str = "",
     ) -> str:
         self.last_system_prompt = system_prompt
         self.last_messages = messages
+        self.last_options = options
+        self.last_keep_alive = keep_alive
         self.call_count += 1
 
         if self.responses:
@@ -387,6 +461,59 @@ class AIManager:
         name = name or self.config.default_provider
         return self.providers.get(name, self.providers.get("mock"))
 
+    async def warmup(self) -> None:
+        """Preload the local model at server startup so the first player `talk`
+        isn't a cold multi-second load.
+
+        Best-effort and fully guarded — never raises into the boot path. Honors
+        ai.warmup_on_startup / ai.autostart_ollama (default both on). If Ollama
+        is unreachable it optionally spawns `ollama serve`, re-probes, then loads
+        the configured model with the configured keep_alive.
+        """
+        if not self.config.enabled:
+            return
+        try:
+            from engine.tunables import get_tunable
+        except Exception:
+            def get_tunable(_k, _d=None):
+                return _d
+        if not bool(get_tunable("ai.warmup_on_startup", True)):
+            return
+
+        prov = self.get_provider("ollama")
+        if not isinstance(prov, OllamaProvider):
+            return
+        keep_alive = str(get_tunable("ai.ollama_keep_alive", "30m"))
+
+        if not await prov.is_available() and bool(get_tunable("ai.autostart_ollama", True)):
+            log.info("[ai] Ollama not reachable at %s — attempting autostart…", prov.host)
+            _try_autostart_ollama()
+            for _ in range(15):
+                await asyncio.sleep(1.0)
+                prov._available = None  # force a fresh probe past the cached flag
+                if await prov.is_available():
+                    break
+
+        if not await prov.is_available():
+            log.warning(
+                "[ai] Ollama not reachable at %s — NPC dialogue will use canned "
+                "in-era fallbacks. Start it with `ollama serve` and pull the "
+                "model (`ollama pull %s`).", prov.host, prov.default_model,
+            )
+            return
+
+        log.info("[ai] warming up Ollama model %s (keep_alive=%s)…",
+                 prov.default_model, keep_alive)
+        ok = await prov.preload(keep_alive)
+        if ok:
+            log.info("[ai] Ollama model %s is resident and warm.", prov.default_model)
+        else:
+            log.warning(
+                "[ai] Ollama model %s did not confirm preload; first talk may "
+                "cold-load. Is the tag pulled? `ollama pull %s`.",
+                prov.default_model, prov.default_model,
+            )
+
     async def is_available(self, provider: str = "") -> bool:
         """Quick availability check for the default (or named) provider.
 
@@ -415,6 +542,8 @@ class AIManager:
         model: str = "",
         provider: str = "",
         fallback_text: str = "",
+        options: Optional[dict] = None,
+        keep_alive: str = "",
     ) -> str:
         """
         Generate AI text with rate limiting and fallback.
@@ -455,6 +584,8 @@ class AIManager:
             temperature=temperature,
             json_mode=json_mode,
             model=model,
+            options=options,
+            keep_alive=keep_alive,
         )
 
         if not result:

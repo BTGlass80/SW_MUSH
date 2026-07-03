@@ -42,6 +42,39 @@ _UNLOCKED_CHAINS = [
 ]
 
 
+async def _prewarm_ollama(harness) -> None:
+    """Pre-warm Ollama once before this class's chain walks run
+    (Qwen3.5 swap cold-load fix, 2026-07-03).
+
+    `harness` is class-scoped (tests/harness.py) — every chain in
+    `_UNLOCKED_CHAINS` shares one booted GameServer, so only the FIRST
+    talk_to_npc step in the class ever hits a truly cold model
+    (republic_soldier steps 1/4, separatist_commando step 4, smuggler
+    step 3). Production hard-bounds that call to NPC_DIALOGUE_TIMEOUT_S
+    (parser/npc_commands.py) and `_drive_talk_to_npc` polls out to that
+    bound + margin, so a cold load degrades to the canned fallback
+    rather than hanging — but this removes the race outright by reusing
+    the already-shipped `AIManager.warmup()` seam (ai/providers.py) so
+    the model is resident before any chain step ever calls it. No-op
+    and fully guarded when Ollama isn't reachable (e.g. a CI box with no
+    daemon) — `warmup()` never raises and returns near-instantly in
+    that case, so this doesn't slow down boxes without Ollama. Wrapped
+    in its own try/except anyway: a class-scoped autouse fixture raising
+    would fail every parametrized case in the class, which is strictly
+    worse than the cold-load race it exists to prevent.
+    """
+    try:
+        await harness.server.ai_manager.warmup()
+    except Exception:
+        pass
+
+
+@pytest.fixture(scope="class", autouse=True)
+async def _prewarm_ollama_for_talk_steps(harness):
+    await _prewarm_ollama(harness)
+    yield
+
+
 class TestChainWalkthrough:
     """Every unlocked chain must walk to graduation by player action."""
 

@@ -702,6 +702,17 @@ class GameServer:
         except Exception as _tun_err:
             log.warning("[tunables] load skipped: %s", _tun_err)
 
+        # Warm the local LLM in the background so the first player `talk` isn't a
+        # cold multi-second load (Qwen3.5 swap, 2026-07-03). Fire-and-forget and
+        # self-guarding: it optionally autostarts `ollama serve`, preloads the
+        # configured model, and never blocks or fails boot. Tunables loaded above
+        # gate it (ai.warmup_on_startup / ai.autostart_ollama). Stored on self so
+        # the task isn't garbage-collected mid-flight.
+        try:
+            self._ai_warmup_task = asyncio.create_task(self.ai_manager.warmup())
+        except Exception as _warm_err:
+            log.warning("[ai] warmup task launch skipped: %s", _warm_err)
+
         # Rehydrate the trade supply/demand pools from the DB (economy audit v2
         # §1.5) so a restart doesn't re-seed every market to full / clear demand
         # depression. Fail-open: empty pools = pre-persistence behaviour.

@@ -11,18 +11,35 @@ rejects 0D as non-sensitive (pool.is_zero() check). The bugs were purely in
 the PRODUCERS writing 0D.
 
 Fixes tested here:
-  (a) BLOCKER — server/api.py handle_submit + handle_create_character both
-      wrote DicePool(0,0) for force_sensitive chars; changed to DicePool(1,0).
-      Round-trip via Character.from_db_dict must yield force_sensitive=True
-      and list_powers_for_char non-empty.
+  (a) chargen-hardening (2026-07-03) FLIP — see note below. handle_submit /
+      handle_create_character used to accept a client-submitted
+      force_sensitive=True and write DicePool(1,0) (originally DicePool(0,0),
+      the 2026-06-22 bug this class name still references). That whole
+      premise is now invalid: force_sensitive is DERIVED state (from
+      control/sense/alter presence), never player-settable at chargen.
+      PG.3.gates.b already removed the chargen Force choice from design (all
+      characters start non-sensitive; Force is earned via the Village
+      quest) — this drop closes the web-chargen API hole that still let a
+      raw POST mint a free Jedi-track character. TestHandleSubmit
+      ForceSensitive / TestHandleCreateCharacterForceSensitive below are
+      REWRITTEN to assert REJECTION (success=False, nothing created)
+      instead of the old "accepted + seeds 1D" behavior — that old
+      assertion was pinning the exact bug this drop fixes.
   (b) HIGH — parser/padawan_master_training_commands.py _ensure_padawan_skills_one_die
       wrote skill_key into the SKILLS dict; Force skills are ATTRIBUTES so it
-      must write to the attrs dict and save via attributes= kwarg.
+      must write to the attrs dict and save via attributes= kwarg. Unaffected
+      by the 2026-07-03 flip — this is the LEGITIMATE Force-grant path
+      (Master/Padawan +teach bond), not the chargen API.
   (c) MEDIUM — parser/cp_commands.py TrainCommand silently hit "Unknown skill"
       for control/sense/alter; must return a clear teacher-redirect message.
+      Also unaffected by the flip.
 
 The L2 lockout test (test_qa_l2_force_0d_lockout.py) remains correct and
-must not be modified — 0D still means non-sensitive.
+must not be modified — 0D still means non-sensitive. The "1D not 0D" WEG
+R&E rule this file was built around also remains correct for the
+legitimate grant path (engine/village_choice.py._seed_force_attributes,
+untouched by this drop) — only the CLIENT-CHARGEN route to force_sensitive
+is now closed.
 """
 from __future__ import annotations
 
@@ -78,6 +95,23 @@ class _MockDB:
 
     async def get_characters(self, account_id):
         return list(self.characters_by_account.get(account_id, []))
+
+    async def get_character_by_name(self, name):
+        # chargen-hardening (2026-07-03): handle_submit's pre-check calls
+        # this before creating an account. No pre-existing characters in
+        # this mock, so every name is available.
+        for chars in self.characters_by_account.values():
+            for c in chars:
+                if c.get("name") == name:
+                    return c
+        return None
+
+    async def execute_commit(self, sql, params=()):
+        # chargen-hardening (2026-07-03): the orphaned-account rollback
+        # backstop in handle_submit's except block. Best-effort no-op here
+        # (these tests never reach that path — validation rejects the
+        # force-sensitive submission before any account is created).
+        pass
 
     async def fetchall(self, sql, params=()):
         param_blob = " ".join(str(p) for p in (params or ()))
@@ -242,7 +276,12 @@ def _make_db_row_from_fields(fields: dict, char_id: int = 1) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestHandleSubmitForceSensitive(unittest.TestCase):
-    """BLOCKER: handle_submit force-sensitive char gets 1D attrs; reloads True."""
+    """chargen-hardening (2026-07-03) FLIP: handle_submit must REJECT a
+    force_sensitive=True (or control/sense/alter-carrying) submission
+    outright — no account, no character created. This replaces the
+    2026-06-22 assertions that such a submission SUCCEEDED and seeded 1D
+    Force dice; that was the exact free-Jedi-track hole this drop closes.
+    """
 
     def setUp(self):
         _set_era("clone_wars")
@@ -251,10 +290,9 @@ class TestHandleSubmitForceSensitive(unittest.TestCase):
     def tearDown(self):
         _clear_era()
 
-    def test_submit_writes_1d_control_sense_alter(self):
-        """handle_submit must write '1D' (not '0D') for control/sense/alter
-        when force_sensitive=True.  From the DB roundtrip, from_db_dict must
-        reconstruct force_sensitive=True."""
+    def test_submit_force_sensitive_true_rejected(self):
+        """A force_sensitive=True submission must be rejected; nothing
+        gets created (no account, no character)."""
         db = _MockDB()
         api = _build_api(db)
 
@@ -265,70 +303,54 @@ class TestHandleSubmitForceSensitive(unittest.TestCase):
         }
         resp = _run(api.handle_submit(_MockRequest(json_body=body)))
         result = _resp_json(resp)
-        self.assertTrue(result.get("success"), f"handle_submit failed: {result}")
 
-        _aid, fields = db.created[0]
-        attrs = json.loads(fields.get("attributes", "{}"))
+        self.assertFalse(
+            result.get("success"),
+            f"handle_submit must reject force_sensitive=True: {result}",
+        )
+        errors_blob = " ".join(
+            m for msgs in result.get("errors", {}).values() for m in msgs
+        ).lower()
+        self.assertIn("force_sensitive", errors_blob)
+        self.assertEqual(
+            db.created, [],
+            "No character may be created for a rejected force_sensitive submission",
+        )
+        self.assertEqual(
+            db.accounts, {1},
+            "No account may be created for a rejected force_sensitive submission",
+        )
 
-        for fa in ("control", "sense", "alter"):
-            self.assertIn(fa, attrs, f"'{fa}' missing from persisted attributes")
-            self.assertEqual(
-                attrs[fa], "1D",
-                f"'{fa}' must be '1D' (not '0D') for a force-sensitive chargen char; got {attrs[fa]!r}",
-            )
-
-    def test_submit_roundtrip_force_sensitive_true(self):
-        """After a submit, reloading the persisted attribute blob via
-        Character.from_db_dict must yield force_sensitive=True."""
-        from engine.character import Character
-
+    def test_submit_control_attribute_key_rejected(self):
+        """Smuggling 'control' into attributes (without the boolean flag)
+        must also be rejected — force_sensitive is derived from key
+        presence, not just the flag."""
         db = _MockDB()
         api = _build_api(db)
 
-        body = {
-            "username": "fsuser2",
-            "password": "pw1234",
-            "character": _valid_fs_char_body(),
-        }
-        resp = _run(api.handle_submit(_MockRequest(json_body=body)))
-        self.assertTrue(_resp_json(resp).get("success"))
-
-        _aid, fields = db.created[0]
-        row = _make_db_row_from_fields(fields)
-        char = Character.from_db_dict(row)
-
-        self.assertTrue(
-            char.force_sensitive,
-            "Reloaded character must be force_sensitive=True after handle_submit "
-            f"chargen; attributes JSON was {fields.get('attributes')!r}",
-        )
-
-    def test_submit_roundtrip_list_powers_nonempty(self):
-        """force_sensitive=True + 1D pools → list_powers_for_char non-empty."""
-        from engine.character import Character
-        from engine.force_powers import list_powers_for_char
-
-        db = _MockDB()
-        api = _build_api(db)
+        char_body = _valid_fs_char_body()
+        char_body["force_sensitive"] = False
+        char_body["name"] = "Sly Attempt"
+        char_body["attributes"]["control"] = "1D"
 
         body = {
-            "username": "fsuser3",
+            "username": "sneakuser",
             "password": "pw1234",
-            "character": _valid_fs_char_body(),
+            "character": char_body,
         }
         resp = _run(api.handle_submit(_MockRequest(json_body=body)))
-        self.assertTrue(_resp_json(resp).get("success"))
+        result = _resp_json(resp)
 
-        _aid, fields = db.created[0]
-        row = _make_db_row_from_fields(fields)
-        char = Character.from_db_dict(row)
-
-        powers = list_powers_for_char(char)
-        self.assertGreater(
-            len(powers), 0,
-            "A freshly-created force-sensitive character must have at least "
-            "one available Force power (all three pools are 1D).",
+        self.assertFalse(
+            result.get("success"),
+            f"handle_submit must reject a smuggled 'control' attribute key: {result}",
         )
+        errors_blob = " ".join(
+            m for msgs in result.get("errors", {}).values() for m in msgs
+        ).lower()
+        self.assertIn("control", errors_blob)
+        self.assertEqual(db.created, [])
+        self.assertEqual(db.accounts, {1})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -336,7 +358,10 @@ class TestHandleSubmitForceSensitive(unittest.TestCase):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestHandleCreateCharacterForceSensitive(unittest.TestCase):
-    """BLOCKER: handle_create_character force-sensitive char gets 1D attrs."""
+    """chargen-hardening (2026-07-03) FLIP: same rejection as
+    TestHandleSubmitForceSensitive, for the embedded create-character
+    endpoint. Replaces the 2026-06-22 assertions that this succeeded.
+    """
 
     def setUp(self):
         _set_era("clone_wars")
@@ -345,8 +370,9 @@ class TestHandleCreateCharacterForceSensitive(unittest.TestCase):
     def tearDown(self):
         _clear_era()
 
-    def test_create_character_writes_1d_force_attrs(self):
-        """handle_create_character must write '1D' for control/sense/alter."""
+    def test_create_character_force_sensitive_true_rejected(self):
+        """A force_sensitive=True submission must be rejected; nothing
+        gets created."""
         db = _MockDB()
         api = _build_api(db)
 
@@ -356,64 +382,43 @@ class TestHandleCreateCharacterForceSensitive(unittest.TestCase):
         }
         resp = _run(api.handle_create_character(_MockRequest(json_body=body)))
         result = _resp_json(resp)
-        self.assertTrue(result.get("success"), f"handle_create_character failed: {result}")
 
-        _aid, fields = db.created[0]
-        attrs = json.loads(fields.get("attributes", "{}"))
-
-        for fa in ("control", "sense", "alter"):
-            self.assertIn(fa, attrs, f"'{fa}' missing from persisted attributes")
-            self.assertEqual(
-                attrs[fa], "1D",
-                f"'{fa}' must be '1D'; got {attrs[fa]!r}",
-            )
-
-    def test_create_character_roundtrip_force_sensitive_true(self):
-        """Reload via Character.from_db_dict after handle_create_character
-        must yield force_sensitive=True."""
-        from engine.character import Character
-
-        db = _MockDB()
-        api = _build_api(db)
-
-        body = {
-            "token": _make_token(1),
-            "character": _valid_fs_char_body(),
-        }
-        resp = _run(api.handle_create_character(_MockRequest(json_body=body)))
-        self.assertTrue(_resp_json(resp).get("success"))
-
-        _aid, fields = db.created[0]
-        row = _make_db_row_from_fields(fields)
-        char = Character.from_db_dict(row)
-
-        self.assertTrue(
-            char.force_sensitive,
-            "handle_create_character round-trip must yield force_sensitive=True; "
-            f"attributes JSON was {fields.get('attributes')!r}",
+        self.assertFalse(
+            result.get("success"),
+            f"handle_create_character must reject force_sensitive=True: {result}",
         )
+        errors_blob = " ".join(
+            m for msgs in result.get("errors", {}).values() for m in msgs
+        ).lower()
+        self.assertIn("force_sensitive", errors_blob)
+        self.assertEqual(db.created, [])
 
-    def test_create_character_roundtrip_list_powers_nonempty(self):
-        """list_powers_for_char must be non-empty after create-character chargen."""
-        from engine.character import Character
-        from engine.force_powers import list_powers_for_char
-
+    def test_create_character_control_attribute_key_rejected(self):
+        """Smuggling 'sense' into attributes must also be rejected."""
         db = _MockDB()
         api = _build_api(db)
 
+        char_body = _valid_fs_char_body()
+        char_body["force_sensitive"] = False
+        char_body["name"] = "Sly Attempt Two"
+        char_body["attributes"]["sense"] = "1D"
+
         body = {
             "token": _make_token(1),
-            "character": _valid_fs_char_body(),
+            "character": char_body,
         }
         resp = _run(api.handle_create_character(_MockRequest(json_body=body)))
-        self.assertTrue(_resp_json(resp).get("success"))
+        result = _resp_json(resp)
 
-        _aid, fields = db.created[0]
-        row = _make_db_row_from_fields(fields)
-        char = Character.from_db_dict(row)
-
-        powers = list_powers_for_char(char)
-        self.assertGreater(len(powers), 0, "list_powers_for_char must be non-empty")
+        self.assertFalse(
+            result.get("success"),
+            f"handle_create_character must reject a smuggled 'sense' attribute key: {result}",
+        )
+        errors_blob = " ".join(
+            m for msgs in result.get("errors", {}).values() for m in msgs
+        ).lower()
+        self.assertIn("sense", errors_blob)
+        self.assertEqual(db.created, [])
 
 
 # ─────────────────────────────────────────────────────────────────────────────

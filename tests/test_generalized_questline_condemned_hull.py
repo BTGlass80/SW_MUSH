@@ -34,9 +34,12 @@ Firsts for the accessible-questline arc:
     runs on the faction-neutral independent-freighter margins of the ring), so
     the war stays offstage the way every prior accessible arc keeps the
     Republic/CIS conflict offstage;
-  * the FIRST melee-armed combat foil across all thirteen arcs — the prior
-    eleven foils carry blaster_pistol; Bohrus Kang is a Houk hull-stripper with
-    a vibroaxe, stat-offset to the proven beatable band.
+  * Bohrus Kang, a Houk hull-stripper, ORIGINALLY shipped as the first
+    melee-armed combat foil across all thirteen arcs (a vibroaxe). RESOLVED
+    2026-07-03 (BAL.condemned_hull_melee_foil_band): the "kite" rationale
+    doesn't hold for melee (dodge defends ranged only), so his weapon was
+    swapped to blaster_pistol — the same proven ranged-foil band (4D
+    blaster) as the other twelve arcs.
 
 The story shape is new too — breaking a ship-condemnation / certification-fraud
 racket (no prior accessible arc touches one): a corrupt KSF cert-inspector
@@ -511,20 +514,24 @@ class TestNpcs(_RealCorpusBase):
             ant["ai_config"].get("chain_enemy_template"), ENEMY_TEMPLATE)
         self.assertTrue(ant["ai_config"].get("hostile"))
 
-    def test_antagonist_is_first_melee_foil(self):
-        # The first melee-armed foil across all 13 arcs: Bohrus Kang carries a
-        # vibroaxe (a real weapons.yaml melee key), not the prior foils'
-        # blaster_pistol.
+    def test_antagonist_carries_a_winnable_ranged_sidearm(self):
+        # BAL.condemned_hull_melee_foil_band, resolved 2026-07-03: swapped off
+        # the original vibroaxe (melee) to blaster_pistol (ranged, 4D) so a
+        # fresh blaster build can actually dodge-defend + kite him, matching
+        # the other twelve foils' proven band.
         ant = self.by_name[ANTAGONIST_NPC]
-        weapon = (ant.get("char_sheet") or {}).get("weapon")
-        self.assertEqual(weapon, "vibroaxe")
+        cs = ant.get("char_sheet") or {}
+        self.assertEqual(cs.get("weapon"), "blaster_pistol")
+        self.assertEqual((cs.get("skills") or {}).get("blaster"), "4D")
         weapons = yaml.safe_load(open(
             PROJECT_ROOT / "data" / "weapons.yaml", encoding="utf-8"))
         wkeys = weapons.get("weapons", weapons)
         keys = set(wkeys.keys()) if isinstance(wkeys, dict) else {
             w.get("key") for w in wkeys}
-        self.assertIn("vibroaxe", keys,
-                      "the foil's weapon 'vibroaxe' is not a real weapon key")
+        self.assertIn("blaster_pistol", keys,
+                      "the foil's weapon 'blaster_pistol' is not a real "
+                      "weapon key")
+        self.assertEqual(wkeys["blaster_pistol"].get("damage"), "4D")
 
     def test_exactly_two_placed_npcs(self):
         # The combat questline ships exactly the giver + the single foil; the
