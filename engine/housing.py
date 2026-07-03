@@ -1289,8 +1289,17 @@ async def tick_housing_rent(db, session_mgr) -> None:
                 continue
             char = dict(char_rows[0])
 
+            # Credit-integrity (weekly-tick sink): the ``credits`` pre-check reads
+            # a per-row fetch that can go stale before the debit, and the default
+            # ``allow_negative=True`` would drive rent negative on a concurrent
+            # drain. ``allow_negative=False`` refuses the overdraw atomically
+            # (None) so a broke tenant falls to the overdue branch instead.
+            new_credits = None
             if char.get("credits", 0) >= h["weekly_rent"]:
-                new_credits = await db.adjust_credits(char["id"], -h["weekly_rent"], "housing_rent")
+                new_credits = await db.adjust_credits(
+                    char["id"], -h["weekly_rent"], "housing_rent",
+                    allow_negative=False)
+            if new_credits is not None:
                 await db.execute(
                     "UPDATE player_housing SET rent_paid_until = ?, rent_overdue = 0, last_activity = ? WHERE id = ?",
                     (now + RENT_TICK_INTERVAL, now, h["id"]),

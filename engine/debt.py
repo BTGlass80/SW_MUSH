@@ -123,21 +123,51 @@ async def process_all_debts(db, session_mgr):
             # Try to collect payment
             payment = min(DEBT_WEEKLY_PAYMENT, debt["principal"])
 
+            # Credit-integrity (weekly-tick sink): debit FIRST, atomically. The
+            # ``credits`` pre-check is a STALE per-tick snapshot from the bulk
+            # SELECT at the top of the loop — a concurrent spend between that read
+            # and here would let the default ``allow_negative=True`` drive the
+            # balance negative, and persisting the principal reduction BEFORE the
+            # debit meant a debit failure handed out free debt forgiveness.
+            # ``allow_negative=False`` refuses a concurrent overdraw (None → treat
+            # as a missed payment, exactly like insufficient funds); doing the
+            # debit before the principal write means the debt only drops once the
+            # credits are truly taken.
+            new_credits = None
             if credits >= payment:
-                # Successful payment
-                new_credits = credits - payment
+                try:
+                    new_credits = await db.adjust_credits(
+                        char_id, -payment, "debt_payment", allow_negative=False)
+                except Exception:
+                    log.warning("process_all_debts: debit failed for char %s",
+                                char_id, exc_info=True)
+                    new_credits = None
+
+            if new_credits is not None:
+                # Payment collected. Persist the principal reduction; if THAT
+                # fails, refund the debit rather than charge without progress
+                # (mirrors the den/insurance sink-compensation pattern).
                 debt["principal"] -= payment
                 debt["total_paid"] = debt.get("total_paid", 0) + payment
                 debt["payments_missed"] = 0
                 debt["next_payment_due"] = now + 604800  # 7 days
 
                 attrs["hutt_debt"] = debt
-                await db.save_character(
-                    char_id,
-                    attributes=json.dumps(attrs),
-                )
-                # Ledger chokepoint (F1): debt payment as a logged sink.
-                await db.adjust_credits(char_id, -payment, "debt_payment")
+                try:
+                    await db.save_character(
+                        char_id,
+                        attributes=json.dumps(attrs),
+                    )
+                except Exception:
+                    log.warning("process_all_debts: principal persist failed for "
+                                "char %s; refunding debit", char_id, exc_info=True)
+                    try:
+                        await db.adjust_credits(
+                            char_id, payment, "debt_payment_refund")
+                    except Exception:
+                        log.error("process_all_debts: debt refund FAILED for "
+                                  "char %s", char_id, exc_info=True)
+                    continue
 
                 remaining = debt["principal"]
                 # Lifecycle telemetry: AFTER the sink + attr persist both
