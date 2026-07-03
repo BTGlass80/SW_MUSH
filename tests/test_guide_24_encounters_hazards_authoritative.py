@@ -30,8 +30,10 @@ data/schematics.yaml at HEAD):
     than curing existing stacks.
   - Pirate negotiate reduces tribute to 1/2 the demand (1/4 on a critical),
     not "1/3".
-  - Space anomalies are engaged via scan/deepscan + `salvage` (derelicts);
-    the phantom `investigate <anomaly_id>` (a wilderness verb) was removed.
+  - Space anomalies are engaged via scan/deepscan then `course anomaly <id>`
+    (per-type: decode / two-step bypass / gunfight / detach), with `salvage`
+    for derelicts and combat wrecks; `investigate <anomaly_id>` is a WILDERNESS
+    verb, not a space command.
 """
 
 import pathlib
@@ -211,15 +213,19 @@ def test_dead_drop_decode_is_slicing_difficult_20():
     assert "Imperial patrol" not in text
 
 
-def test_no_phantom_anomaly_investigate_command():
+def test_anomaly_engagement_commands_are_accurate():
     text = read_guide()
-    # `investigate <anomaly_id>` is a wilderness verb, not a space command;
-    # `course anomaly <id>` is the engine's own (unwired) readout hint.
+    # `investigate <anomaly_id>` is a WILDERNESS verb (§5), never a space
+    # command — it must stay out of the space-anomaly section.
     assert "investigate <anomaly_id>" not in text, (
         "Phantom command: space anomalies are not engaged via "
         "`investigate <anomaly_id>`."
     )
-    assert "course anomaly" not in text
+    # `course anomaly <id>` IS the live per-type space engagement (Brian
+    # 2026-07-02 richer rework) and must be documented.
+    assert "course anomaly" in text, (
+        "Guide_24 must document the live `course anomaly <id>` per-type engagement."
+    )
     # The live anomaly loop (scan/deepscan/salvage) must be present.
     assert "salvage" in text and "deepscan" in text
 

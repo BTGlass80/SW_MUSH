@@ -37,12 +37,25 @@ class TestEngagementSpec(unittest.TestCase):
 
     def test_specs_well_formed(self):
         for t, spec in _ANOMALY_ENGAGE.items():
-            for k in ("skill", "diff", "label", "credits", "tag", "ok", "fail",
-                      "one_shot"):
-                self.assertIn(k, spec, f"{t} spec missing {k}")
-            self.assertEqual(len(spec["credits"]), 2)
-            self.assertLess(spec["credits"][0], spec["credits"][1])
-            self.assertTrue(spec["tag"].startswith("anomaly_"))
+            self.assertIn("mechanic", spec, f"{t} spec missing mechanic")
+            self.assertIn("one_shot", spec, f"{t} spec missing one_shot")
+            m = spec["mechanic"]
+            if m == "two_step":
+                self.assertEqual(len(spec["steps"]), 2, f"{t} needs 2 steps")
+                for skill, diff in spec["steps"]:
+                    self.assertIsInstance(skill, str)
+                    self.assertIsInstance(diff, int)
+            else:
+                self.assertIn("skill", spec, f"{t} spec missing skill")
+                self.assertIn("diff", spec, f"{t} spec missing diff")
+            if m == "skirmish":
+                # pirates: reward is the dropped wreck's salvage, not a faucet
+                self.assertNotIn("tag", spec,
+                                 "skirmish must not carry a credit-faucet tag")
+            else:
+                self.assertEqual(len(spec["credits"]), 2)
+                self.assertLess(spec["credits"][0], spec["credits"][1])
+                self.assertTrue(spec["tag"].startswith("anomaly_"))
 
 
 class TestWiring(unittest.TestCase):
@@ -54,7 +67,7 @@ class TestWiring(unittest.TestCase):
     def test_resolution_uses_the_funnels(self):
         body = SRC[SRC.index("async def _engage_anomaly"):
                    SRC.index("async def _validate_helm")]
-        self.assertIn('perform_skill_check(char, spec["skill"]', body)
+        self.assertIn("perform_skill_check(char, skill, diff", body)
         self.assertIn('adjust_credits(char["id"], amount, spec["tag"])', body)
         self.assertIn("remove_anomaly(zone_id, target.id)", body)
 
@@ -65,9 +78,11 @@ class TestEngagementResolves(unittest.TestCase):
         self.assertGreaterEqual(a.resolution, a.scans_needed)
 
     def test_engagement_skills_actually_roll(self):
-        # every engagement skill must produce a real skill-check result, so the
-        # dispatcher never falls into the graceful except (which treats a broken
-        # check as success and would make the engagement free).
+        # every engagement skill must (a) be a real skill SLUG, not a governing
+        # ATTRIBUTE name -- the old bug passed technical/mechanical, which
+        # _get_skill_pool can't find, so the check silently rolled untrained
+        # attribute dice -- and (b) produce a real skill-check result so the
+        # dispatcher never falls into the graceful except.
         from engine.character import SkillRegistry
         from engine.skill_checks import perform_skill_check
         import os
@@ -77,9 +92,19 @@ class TestEngagementResolves(unittest.TestCase):
                 "attributes": json.dumps({"dexterity": "2D", "knowledge": "2D",
                                           "mechanical": "2D", "perception": "2D",
                                           "strength": "2D", "technical": "2D"})}
+        attrs = {"dexterity", "knowledge", "mechanical", "perception",
+                 "strength", "technical"}
+        pairs = []
         for t, spec in _ANOMALY_ENGAGE.items():
-            r = perform_skill_check(char, spec["skill"], spec["diff"], sr)
-            self.assertIsNotNone(r, f"{t}: skill {spec['skill']!r} did not roll")
+            if spec["mechanic"] == "two_step":
+                pairs += [(t, s, d) for (s, d) in spec["steps"]]
+            else:
+                pairs.append((t, spec["skill"], spec["diff"]))
+        for t, skill, diff in pairs:
+            self.assertNotIn(skill, attrs,
+                             f"{t}: {skill!r} is an ATTRIBUTE name, not a skill slug")
+            r = perform_skill_check(char, skill, diff, sr)
+            self.assertIsNotNone(r, f"{t}: skill {skill!r} did not roll")
             self.assertTrue(hasattr(r, "success"), f"{t}: result has no .success")
 
 

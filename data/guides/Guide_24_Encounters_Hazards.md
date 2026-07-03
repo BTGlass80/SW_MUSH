@@ -203,6 +203,26 @@ deepscan <id>              — Focus-scan one anomaly to resolve its details fur
 
 A fresh contact reads as a vague signal. Each successful `deepscan <id>` advances its resolution — one step per scan, two on a critical Sensors roll — until it's fully identified (most types need two or three focus-scans; a faint Republic Dead Drop takes four, a mynock colony just one). Botch a deepscan badly and the sensor backscatter scrambles your array for a 60-second cooldown. A Sensors crew member rolls this at a bonus, so a crewed ship resolves anomalies faster than a solo pilot.
 
+### Engaging an anomaly
+
+Once a contact is **fully resolved**, you close and work it with `course anomaly <id>` — the scan readout tells you when it's ready. Each type plays differently, so the skill that matters and the risk you take depend on what you found:
+
+```
+course anomaly <id>        — engage a fully-resolved anomaly
+```
+
+| Type | What `course anomaly <id>` does |
+|---|---|
+| **Derelict Ship** | Brings you alongside — then `salvage` (below) strips it. |
+| **Asteroid Mineral Vein** | Moves you into extraction range — then `mine` pulls the ore. |
+| **Distress Signal** | A **Perception** read (Easy) to tell a real mayday from bait. Read it true and you stabilize the crew for a grateful reward; misread it and you break off before the ambush springs. |
+| **Hidden Cache** | **Two steps, both must land** — hold the approach vector (**Space Transports**, Easy), then crack the security seal (**Security** bypass, Moderate). Miss either and you re-set and try again. |
+| **Pirate Nest** | A running gunfight (**Starship Gunnery**, Moderate). Win and a raider breaks apart — its **wreck drifts free to `salvage`** for the spoils; lose the pass and the pack scatters with them. |
+| **Republic Dead Drop** | A **Slicing** decode (**Computer Programming/Repair**, Difficult 20). Crack it and you lift the intel package; fail and a patrol pings your position — you withdraw and the drop is blown. |
+| **Mynock Colony** | An Easy piloting burn (**Space Transports**) to shake the swarm and skim the nest material. Botch it and a mynock chews into a working ship system — repair it at a spacedock or with `+ship/repair`. |
+
+A crewed ship shines on the two-step contacts: the pilot can hold the approach while an engineer works the bypass. Solo, you simply roll both yourself.
+
 ### Salvaging a derelict
 
 Salvage is the live payout path. Once a **derelict** (or a fresh combat wreck) is fully resolved, anyone aboard can work it — no crew station required:
@@ -396,6 +416,7 @@ Six concrete pictures.
 | `scan` | Quick read of the current zone, including detected anomalies |
 | `deepscan` | Sensor sweep that detects a hidden anomaly |
 | `deepscan <id>` | Focus-scan one anomaly to resolve its details |
+| `course anomaly <id>` | Engage a fully-resolved space anomaly — per-type: decode / two-step bypass / gunfight / detach |
 | `salvage` | Strip a fully-resolved derelict or wreck for resources |
 | `anomalies` | List active **wilderness** anomalies in your current region (alias `anom`) |
 | `investigate <id>` | Act on a wilderness anomaly at its anchor site — skill check, combat engage, or skill-gate phase |

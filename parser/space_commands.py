@@ -3380,33 +3380,52 @@ class SlipCommand(BaseCommand):
 # (the credit funnel) -> remove_anomaly, mirroring the salvage pattern. The
 # governing attribute/skill + difficulty follow each type's scan-readout design;
 # one-shot types consume the anomaly on a failed attempt, retry types keep it.
+# Each entry carries a `mechanic` that _engage_anomaly branches on, so the
+# richer flow each scan-readout PROMISES is actually delivered (a flat single
+# roll was the old MVP). Skill fields are real data/skills.yaml slugs — the
+# earlier specs passed governing-ATTRIBUTE names (technical/mechanical), which
+# _get_skill_pool can't find, so those checks silently rolled untrained dice.
+#   faucet        -- one skill check -> credit faucet -> remove_anomaly.
+#   two_step      -- two sequential checks (approach + bypass), BOTH must pass.
+#   detach_damage -- one check; FAILURE knocks a working ship system to damaged.
+#   skirmish      -- pirates interim: one gunnery check; SUCCESS drops a
+#                    salvageable wreck (reward = the salvage, per the readout).
+#                    Full multi-hostile combat is deferred (design call
+#                    SPACE.anomaly_combat_live_tick_vs_skirmish).
 _ANOMALY_ENGAGE = {
-    "distress": dict(skill="sensors", diff=10, label="Easy", one_shot=True,
-                     credits=(600, 1200), tag="anomaly_distress",
-                     ok="You answer the mayday and stabilize the stricken crew; "
-                        "they transfer a grateful reward.",
-                     fail="Your sensors flag the 'distress call' as bait -- you "
+    "distress": dict(mechanic="faucet", skill="search", diff=10, label="Easy",
+                     one_shot=True, credits=(600, 1200), tag="anomaly_distress",
+                     ok="You read the signal true, answer the mayday and stabilize "
+                        "the stricken crew; they transfer a grateful reward.",
+                     fail="A Perception read flags the 'distress call' as bait -- you "
                           "break off before the ambush springs. Nothing recovered."),
-    "cache": dict(skill="technical", diff=15, label="Moderate", one_shot=False,
+    "cache": dict(mechanic="two_step", label="Moderate", one_shot=False,
                   credits=(800, 1800), tag="anomaly_cache",
-                  ok="You bypass the cache's security seal and strip its contents.",
-                  fail="The security seal holds. Line up the bypass and try again."),
-    "pirates": dict(skill="mechanical", diff=15, label="Moderate", one_shot=True,
-                    credits=(1000, 2200), tag="anomaly_pirates",
-                    ok="Your guns scatter the pirate pack; you scavenge their wrecks.",
+                  steps=(("space transports", 10), ("security", 15)),
+                  ok="Approach held and the seal cracks -- you strip the cache clean.",
+                  fail_approach="You can't hold the approach vector against the drift. "
+                                "Line it up and try again.",
+                  fail_bypass="Approach good, but the security seal holds. Work the "
+                              "bypass and try again."),
+    "pirates": dict(mechanic="skirmish", skill="starship gunnery", diff=15,
+                    label="Moderate", one_shot=True,
+                    ok="You win the running gunfight; a raider breaks apart and its "
+                       "wreck drifts free.",
                     fail="The pack outguns you this pass and scatters with their "
                          "spoils. The nest is gone."),
-    "imperial": dict(skill="technical", diff=20, label="Difficult", one_shot=True,
+    "imperial": dict(mechanic="faucet", skill="computer programming/repair", diff=20,
+                     label="Difficult", one_shot=True,
                      credits=(1200, 2400), tag="anomaly_deaddrop",
                      ok="You crack the cipher and lift the intelligence package.",
-                     fail="The cipher resists -- and a patrol pings your position. "
-                          "You withdraw before they close. The drop is blown."),
-    "mynock": dict(skill="mechanical", diff=8, label="Easy", one_shot=False,
-                   credits=(200, 600), tag="anomaly_mynock",
+                     fail="The cipher resists -- and a patrol pings your "
+                          "position. You withdraw before they close. The drop is blown."),
+    "mynock": dict(mechanic="detach_damage", skill="space transports", diff=8,
+                   label="Easy", one_shot=False, credits=(200, 600),
+                   tag="anomaly_mynock",
                    ok="A hard burn shakes the mynock colony loose; you skim the "
                       "salvageable nest material.",
-                   fail="A few mynocks latch on -- minor system strain. "
-                        "Shake them again."),
+                   fail="A few mynocks chew into a system before you shake them -- "
+                        "minor damage. Burn them off again."),
 }
 
 
@@ -3478,11 +3497,18 @@ class CourseCommand(BaseCommand):
     # ── Helpers ────────────────────────────────────────────────────────────
 
     async def _engage_anomaly(self, ctx, raw):
-        """`course anomaly <id>` -- per-type resolution for a fully-scanned anomaly."""
-        import random
-        from engine.character import SkillRegistry
+        """`course anomaly <id>` -- per-type resolution for a fully-scanned anomaly.
+
+        Branches on the type's `mechanic` so each scan-readout's promised flow
+        is delivered: distress = Perception ambush gate; cache = two-step
+        approach + bypass (both must pass); mynock = piloting detach with a real
+        system-damage penalty on failure; imperial = slicing decode; pirates =
+        a gunnery skirmish that drops a salvageable wreck on victory. Every
+        dice roll goes through perform_skill_check and fails CLOSED.
+        """
         from engine.skill_checks import perform_skill_check
-        from engine.space_anomalies import get_anomalies_for_zone, remove_anomaly
+        from engine.space_anomalies import (
+            get_anomalies_for_zone, remove_anomaly, add_wreck_anomaly)
         parts = raw.split()
         if len(parts) < 2 or not parts[1].isdigit():
             await ctx.session.send_line(
@@ -3523,32 +3549,76 @@ class CourseCommand(BaseCommand):
             await ctx.session.send_line(f"  There's nothing to engage on anomaly #{aid}.")
             return
         char = ctx.session.character
-        sr = SkillRegistry()
-        try:
-            import os as _os
-            sr.load_file(_os.path.join(
-                _os.path.dirname(_os.path.dirname(__file__)), "data", "skills.yaml"))
-        except Exception:
-            pass  # an unloaded registry still rolls the governing attribute
-        try:
-            result = perform_skill_check(char, spec["skill"], spec["diff"], sr)
-        except Exception:
-            log.warning("anomaly engage: skill check raised; failing closed",
-                        exc_info=True)
-            result = None
-        # Fail CLOSED: a skill-check error must NOT award credits (this is a
-        # faucet). Only a real, non-fumbled success pays out.
-        success = (result is not None) and result.success and not result.fumble
-        if not success:
+        sr = get_cached_skill_registry()
+
+        def _roll(skill, diff):
+            """One out-of-combat skill check; fails CLOSED on any error so a
+            broken check can never award a faucet."""
+            try:
+                return perform_skill_check(char, skill, diff, sr)
+            except Exception:
+                log.warning("anomaly engage: skill check raised; failing closed",
+                            exc_info=True)
+                return None
+
+        def _ok(res):
+            return (res is not None) and res.success and not res.fumble
+
+        mechanic = spec.get("mechanic", "faucet")
+
+        # ── cache: two-step approach (pilot) + bypass (engineer); both gate ──
+        if mechanic == "two_step":
+            (a_skill, a_diff), (b_skill, b_diff) = spec["steps"]
+            approach = _roll(a_skill, a_diff)
+            if not _ok(approach):
+                await ctx.session.send_line(
+                    f"  {ansi.BRIGHT_YELLOW}[ANOMALY]{ansi.RESET} {spec['fail_approach']} "
+                    f"({a_skill}, diff {a_diff})")
+                return
+            bypass = _roll(b_skill, b_diff)
+            if not _ok(bypass):
+                await ctx.session.send_line(
+                    f"  {ansi.BRIGHT_YELLOW}[ANOMALY]{ansi.RESET} {spec['fail_bypass']} "
+                    f"({b_skill}, diff {b_diff})")
+                return
+            await self._anomaly_payout(
+                ctx, char, spec, zone_id, target,
+                crit=bool(bypass and bypass.critical_success))
+            return
+
+        # ── single-roll types (distress / imperial / mynock / pirates) ──────
+        result = _roll(spec["skill"], spec["diff"])
+        if not _ok(result):
             await ctx.session.send_line(
                 f"  {ansi.BRIGHT_YELLOW}[ANOMALY]{ansi.RESET} {spec['fail']} "
                 f"({spec['label']} {spec['skill']}, diff {spec['diff']})")
+            # mynock: a latched colony chews a working system (readout: 1 system damage)
+            if mechanic == "detach_damage":
+                await self._damage_random_system(ctx, ship, systems)
             if spec["one_shot"]:
                 remove_anomaly(zone_id, target.id)
             return
+
+        # ── success ─────────────────────────────────────────────────────────
+        # pirates (skirmish): the reward is the salvage, per the readout — drop
+        # a wreck the player then works with `salvage`, no separate faucet.
+        if mechanic == "skirmish":
+            add_wreck_anomaly(zone_id, "Pirate Raider")
+            remove_anomaly(zone_id, target.id)
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_CYAN}[ANOMALY]{ansi.RESET} {spec['ok']} "
+                f"A wreck drifts nearby -- `salvage` it for the spoils.")
+            return
+        await self._anomaly_payout(
+            ctx, char, spec, zone_id, target,
+            crit=bool(result and result.critical_success))
+
+    async def _anomaly_payout(self, ctx, char, spec, zone_id, target, crit=False):
+        """Faucet payout shared by the credit-reward anomaly mechanics."""
+        import random
+        from engine.space_anomalies import remove_anomaly
         lo, hi = spec["credits"]
-        amount = hi if (result and result.critical_success) \
-            else random.randint(lo, hi)
+        amount = hi if crit else random.randint(lo, hi)
         new_bal = await ctx.db.adjust_credits(char["id"], amount, spec["tag"])
         if isinstance(char, dict) and new_bal is not None:
             char["credits"] = new_bal
@@ -3560,6 +3630,22 @@ class CourseCommand(BaseCommand):
             await ctx.session.send_hud_update(db=ctx.db, session_mgr=ctx.session_mgr)
         except Exception:
             log.debug("anomaly engage: HUD refresh failed", exc_info=True)
+
+    async def _damage_random_system(self, ctx, ship, systems):
+        """Mynock failure: knock one working ship system to 'damaged'. Recovers
+        via `+ship/repair` (engineer) or a spacedock — mirrors the hazard-table
+        system-damage path."""
+        import random
+        from engine.starships import get_system_state
+        working = [s for s in ("sensors", "weapons", "shields", "engines", "hyperdrive")
+                   if get_system_state(systems, s) == "working"]
+        if not working:
+            return
+        systems[random.choice(working)] = "damaged"
+        try:
+            await ctx.db.update_ship(ship["id"], systems=json.dumps(systems))
+        except Exception:
+            log.debug("mynock system-damage update failed", exc_info=True)
 
     async def _validate_helm(self, ctx):
         """Check ship, pilot seat, hyperspace, ion — return (ship, systems, zone, arg) or (None,)*4."""
