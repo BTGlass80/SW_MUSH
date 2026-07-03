@@ -215,6 +215,13 @@ def _patch_combat(monkeypatch):
 
 
 def test_engage_combat_pirates_spawns_2_3_and_promotes(monkeypatch):
+    # 2026-07-03 space-combat-hardening (SPACE.b3): the anomaly claim
+    # (remove_anomaly) moved UP to _engage_anomaly()'s atomic up-front claim
+    # so two racing players can't both win the same contact -- _engage_combat
+    # itself no longer removes it (that responsibility is the caller's now).
+    # The player-observable behavior is unchanged (the contact is still
+    # consumed the moment you commit); only which function does the removal
+    # moved. See test_space_combat_hardening_2026_07_03.py for the race test.
     ftraffic, fcombat, removed = _patch_combat(monkeypatch)
     cmd = CourseCommand()
     ctx = _Ctx()
@@ -227,7 +234,7 @@ def test_engage_combat_pirates_spawns_2_3_and_promotes(monkeypatch):
     assert len(fcombat.promotes) == len(ftraffic.spawns)       # each promoted to combat
     assert all(p["profile"] == "aggressive" for p in fcombat.promotes)
     assert all(p["target_ship_id"] == 5 for p in fcombat.promotes)
-    assert removed == [("tz", 7)]                              # the nest is consumed
+    assert removed == []  # _engage_combat no longer claims -- the caller already did
     assert any("[COMBAT]" in ln for ln in ctx.session.lines)
     # BLOCKER-1 fix: each hostile is individually targetable (distinct callsign
     # + a display-surfacing 'combat' transponder, not all 'Unregistered fighter')
@@ -240,6 +247,9 @@ def test_engage_combat_pirates_spawns_2_3_and_promotes(monkeypatch):
 
 
 def test_engage_combat_patrol_spawns_exactly_one(monkeypatch):
+    # See the 2026-07-03 comment on test_engage_combat_pirates_... above --
+    # the claim moved to the caller (_engage_anomaly); _engage_combat itself
+    # no longer removes the anomaly.
     ftraffic, fcombat, removed = _patch_combat(monkeypatch)
     cmd = CourseCommand()
     ctx = _Ctx()
@@ -250,7 +260,7 @@ def test_engage_combat_patrol_spawns_exactly_one(monkeypatch):
     assert ftraffic.spawns[0][1] == TrafficArchetype.PATROL
     assert len(fcombat.promotes) == 1
     assert fcombat.promotes[0]["profile"] == "patrol"
-    assert removed == [("tz", 3)]
+    assert removed == []  # _engage_combat no longer claims -- the caller already did
 
 
 def test_spawn_for_encounter_forces_the_given_zone():

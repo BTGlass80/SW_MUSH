@@ -1576,7 +1576,15 @@ async def faction_payroll_tick(db) -> int:
                 if stipend <= 0:
                     continue
                 if treasury - org_paid < stipend:
-                    break  # Treasury depleted
+                    # Can't afford THIS member's stipend. Members are
+                    # ordered rank DESC (get_org_members: biggest stipends
+                    # first), so a later, lower-rank member's SMALLER
+                    # stipend may still fit the remaining treasury. Skip
+                    # this one and keep paying the rest — a `break` here
+                    # starved every affordable lower-rank member the moment
+                    # one high-rank stipend outran the treasury. The guard
+                    # still bounds org_paid to the treasury (never overdraws).
+                    continue
 
                 # Fetch the character's ACTUAL current credits before updating
                 char_row = await db.get_character(mem["char_id"])
