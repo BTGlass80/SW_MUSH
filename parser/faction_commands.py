@@ -12,6 +12,7 @@ Commands:
   faction missions    — show faction-specific mission board
   faction channel <m> — send message on faction comms channel
   faction requisition <item> — request replacement equipment (logged for Director)
+  faction donate <cr> — donate personal credits to faction treasury (audit fix F6)
 
   guild               — show your guild memberships
   guild list          — list all guilds
@@ -64,6 +65,9 @@ class FactionCommand(BaseCommand):
         "  faction channel <m>  — send message on faction comms channel\n"
         "  faction requisition <item> — request replacement equipment\n"
         "\n"
+        "  faction donate <cr>  — donate PERSONAL credits to your faction's "
+        "treasury (1 rep per 100cr, capped weekly)\n"
+        "\n"
         "TERRITORY:\n"
         "  faction invest <cr>  — invest treasury credits into zone influence\n"
         "  faction influence    — show territorial influence and claimed rooms\n"
@@ -85,7 +89,7 @@ class FactionCommand(BaseCommand):
         "You can only belong to ONE faction at a time.\n"
         "Switching factions has a 7-day cooldown."
     )
-    usage = "faction [list|join|leave|info|roster|missions|channel|invest|influence|claim|unclaim|guard|armory]"
+    usage = "faction [list|join|leave|info|roster|missions|channel|donate|invest|influence|claim|unclaim|guard|armory]"
 
     async def execute(self, ctx: CommandContext):
         """Dispatch to sub-command handlers. Phase 3 C4 refactor.
@@ -118,6 +122,7 @@ class FactionCommand(BaseCommand):
             "channel": self._cmd_channel,
             "requisition": self._cmd_requisition,
             "invest": self._cmd_invest,
+            "donate": self._cmd_donate,
             "influence": self._cmd_influence,
             "territory": self._cmd_influence,
             "terr": self._cmd_influence,
@@ -426,6 +431,36 @@ class FactionCommand(BaseCommand):
         await ctx.session.send_line(
             f"  Requisition submitted: \033[2m{rest[:100]}\033[0m\n"
             f"  The Director will review your request at the next faction cycle."
+        )
+        return
+
+        # ── faction donate <amount> ──
+
+    async def _cmd_donate(self, ctx, char, rest):
+        """``faction donate <amount>`` -- audit fix F6 (2026-07-03).
+
+        Implements the member-side treasury faucet Guide_10 has documented
+        ("Donating credits to the faction treasury (1 rep per 100 credits,
+        capped per week)") since before this fix existed. Debits the
+        donor's PERSONAL credits (unlike ``faction invest``, which spends
+        treasury credits already in the faction's coffers).
+        """
+        faction_id = char.get("faction_id", "independent")
+        if not faction_id or faction_id == "independent":
+            await ctx.session.send_line("  You're not in a faction.")
+            return
+        if not rest or not rest.isdigit() or int(rest) <= 0:
+            await ctx.session.send_line(
+                "  Usage: faction donate <amount>\n"
+                "  Donate PERSONAL credits to your faction's treasury.\n"
+                "  Earns 1 rep per 100cr donated, capped per week."
+            )
+            return
+        from engine.organizations import donate_to_treasury
+        result = await donate_to_treasury(ctx.db, char, faction_id, int(rest))
+        await ctx.session.send_line(
+            f"  \033[1;36m{result['msg']}\033[0m" if result["ok"]
+            else f"  \033[1;33m{result['msg']}\033[0m"
         )
         return
 

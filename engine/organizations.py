@@ -1552,7 +1552,22 @@ async def faction_payroll_tick(db) -> int:
     Pay weekly stipends to eligible faction members.
     Should be called once per game-day from the tick loop.
     Returns total credits disbursed.
+
+    Audit fix F6 (2026-07-03): accrues the territory-income FAUCET
+    (``engine.territory.tick_territory_income``) at the top of this same
+    daily tick, before reading org treasuries, so the income lands before
+    the stipend SINK below debits it -- one cadence layer, no new
+    scheduler entry. See engine/territory.py's TERRITORY_INCOME_PER_
+    INFLUENCE_POINT comment for the faucet/sink pairing + rate derivation.
     """
+    try:
+        from engine.territory import tick_territory_income
+        await tick_territory_income(db)
+    except Exception:
+        log.warning("[orgs] faction_payroll_tick: territory income accrual "
+                    "failed (payroll continues on existing treasury)",
+                    exc_info=True)
+
     total_paid = 0
     try:
         orgs = await db.get_all_organizations()
@@ -1700,6 +1715,103 @@ async def faction_payroll_tick(db) -> int:
     except Exception as e:
         log.exception("[orgs] faction_payroll_tick failed: %s", e)
     return total_paid
+
+
+# ── Member donation faucet (audit fix F6, 2026-07-03) ───────────────────────
+#
+# The DOCUMENTED (data/guides/Guide_10_Organizations_Factions.md, "Gaining
+# reputation": "Donating credits to the faction treasury (1 rep per 100
+# credits, capped per week)") member-side treasury faucet -- a phantom
+# guide promise with no implementation until this fix. Complements the
+# territory-income faucet (engine.territory.tick_territory_income) as the
+# SECOND non-admin treasury producer feeding the faction_payroll_tick sink.
+DONATION_REP_PER_100CR   = 1     # 1 rep per 100cr donated (Guide_10 rate)
+DONATION_REP_WEEKLY_CAP  = 20    # max donation-sourced rep per rolling week
+
+
+async def donate_to_treasury(db, char: dict, org_code: str, amount: int) -> dict:
+    """Member-side ``faction donate <amount>`` handler.
+
+    Debits the donor's PERSONAL credits (``adjust_credits``, tag
+    "faction_donation" -- the sink), credits the org treasury
+    (``adjust_org_treasury`` -- the faucet), refunding the donor if the
+    treasury credit fails (mirrors ``engine.dens.establish_den``'s
+    debit-first/refund pattern), then awards the documented capped weekly
+    rep through the existing ``adjust_rep`` funnel. The weekly cap counter
+    lives in the donor's attributes JSON (schema-neutral -- no new table).
+
+    Returns {"ok": bool, "msg": str}.
+    """
+    if amount <= 0:
+        return {"ok": False, "msg": "Donation amount must be positive."}
+
+    org = await db.get_organization(org_code)
+    if not org:
+        return {"ok": False, "msg": f"Unknown organization: {org_code}"}
+
+    mem = await db.get_membership(char["id"], org["id"])
+    if not mem:
+        return {"ok": False, "msg": "You must be a faction member to donate."}
+
+    # Debit the donor first (sink), matching the establish_den precedent.
+    try:
+        new_balance = await db.adjust_credits(
+            char["id"], -amount, "faction_donation", allow_negative=False)
+    except Exception:
+        log.warning("[orgs] donation debit failed for char %s",
+                    char.get("id"), exc_info=True)
+        return {"ok": False, "msg": "Donation failed (ledger error)."}
+    if new_balance is None:
+        return {"ok": False, "msg": "You can't afford that donation."}
+    char["credits"] = new_balance
+
+    try:
+        new_treasury = await db.adjust_org_treasury(org["id"], amount)
+    except Exception:
+        log.warning("[orgs] donation treasury credit failed for org %s; "
+                    "refunding donor %s", org_code, char.get("id"),
+                    exc_info=True)
+        try:
+            char["credits"] = await db.adjust_credits(
+                char["id"], amount, "faction_donation_refund")
+        except Exception:
+            log.error("[orgs] donation REFUND FAILED for char %s",
+                      char.get("id"), exc_info=True)
+        return {"ok": False, "msg": "Donation failed; refunded."}
+
+    # Documented capped weekly rep. ISO year-week key mirrors the
+    # region_quality weekly-idempotence anchor pattern elsewhere.
+    rep_awarded = 0
+    try:
+        a = _get_attrs(char)
+        week_key = time.strftime("%G-W%V", time.gmtime())
+        donation_state = a.get("donation_rep_week") or {}
+        if donation_state.get("week") != week_key:
+            donation_state = {"week": week_key, "rep": 0}
+        remaining_cap = max(0, DONATION_REP_WEEKLY_CAP
+                             - donation_state.get("rep", 0))
+        eligible_rep = (amount // 100) * DONATION_REP_PER_100CR
+        rep_awarded = min(eligible_rep, remaining_cap)
+        if rep_awarded > 0:
+            donation_state["rep"] = donation_state.get("rep", 0) + rep_awarded
+            a["donation_rep_week"] = donation_state
+            _set_attrs(char, a)
+            await db.save_character(char["id"],
+                                    attributes=char.get("attributes", "{}"))
+            await adjust_rep(char, org_code, db, delta=rep_awarded,
+                             reason="faction_donation")
+    except Exception:
+        log.warning("[orgs] donation rep award failed for char %s",
+                    char.get("id"), exc_info=True)
+
+    msg = (f"Donated {amount:,}cr to {org.get('name', org_code)}'s "
+           f"treasury (now {new_treasury:,}cr).")
+    if rep_awarded > 0:
+        msg += f" +{rep_awarded} rep."
+    elif amount >= 100:
+        msg += " (Weekly donation-rep cap reached -- no rep awarded.)"
+
+    return {"ok": True, "msg": msg}
 
 
 # ── Guild CP bonus ────────────────────────────────────────────────────────────

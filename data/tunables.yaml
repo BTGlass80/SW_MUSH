@@ -574,6 +574,24 @@ dsp_hunter.stage_at_heels: 100             # progress entering `at_heels` (clima
 # Brian decision #7 (2026-06-16): T3.14 cities are OPTIONAL at launch.
 cities.found_enabled: false
 
+# ── Territory income (engine/territory.py tick_territory_income) ──
+# The faction-treasury FAUCET half of the F6 audit fix, paired with the
+# pre-existing faction_payroll_tick stipend SINK. Fires daily (called from
+# faction_payroll_tick, same 86400-tick cadence) and credits each faction
+# org treasury = (sum of its influence across every zone) * this rate. EQUALS
+# the in-code default, so this section is behaviour-identical to omitting
+# it; read at the use site (result floored at 0 via the int() truncation of
+# a >=0 influence sum) so an edit takes effect on the next tick.
+#  * income_per_influence_point: cr/day per influence point held. Derivation
+#    (conservative, sized to roughly SUSTAIN a typical holding, not fund a
+#    windfall): at THRESHOLD_DOMINANCE (75, "one zone convincingly held"),
+#    500 / 75 ~= 6.7 rounded to 7 -- 500cr being the richest single-rank
+#    stipend near that bracket in STIPEND_TABLE (republic rank 5-6 /
+#    hutt_cartel rank 5 tops out at 750). At DOMINANCE that's 525cr/day; at
+#    INFLUENCE_CAP (150, one zone maxed) it's 1,050cr/day. Multi-zone
+#    holdings scale linearly (a straight sum), rewarding spread over turtle.
+territory.income_per_influence_point: 7   # cr/day per influence point (all zones summed)
+
 # ── Local LLM generation (ai/providers.py, engine/idle_queue.py, ai/npc_brain.py) ──
 # Qwen3.5-9B swap, 2026-07-03. Sampling + per-lane context caps are threaded
 # through OllamaProvider.generate(options=…, keep_alive=…). Defaults are Qwen's

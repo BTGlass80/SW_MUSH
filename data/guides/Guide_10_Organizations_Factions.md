@@ -288,7 +288,8 @@ That's the texture of faction life. Choices have weight, the world reacts, and p
 | `faction missions` | Show available faction missions |
 | `faction channel <message>` | Speak on faction channel (requires `faction_comms` permission) |
 | `faction requisition <item>` | Request replacement for lost faction-issued equipment |
-| `faction invest <amount>` | Invest personal credits into zone influence |
+| `faction donate <amount>` | Donate personal credits to the faction treasury (1 rep per 100cr, capped weekly) |
+| `faction invest <amount>` | Invest treasury credits into zone influence |
 | `faction influence` | Show your faction's territory influence across zones |
 | `faction armory` | View shared faction armory (in claimed rooms) |
 | `+reputation` | Show your reputation in all factions and guilds (alias: `+rep`) |
