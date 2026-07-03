@@ -68,6 +68,10 @@ ALLOWED_COMPLETION_TYPES = frozenset({
     "item_used",
     "room_entered",
     "prerequisite",
+    # space-combat-bridge (2026-07-03): destroying a chain-tagged capital
+    # ship in real ship-vs-ship combat (see engine/chain_events.py
+    # on_space_combat_won + DESIGN_capital_ship_combat_2026-07-03.md).
+    "space_combat_won",
 })
 
 ALLOWED_NPC_ROLES = frozenset({"instructor", "contact", "antagonist"})

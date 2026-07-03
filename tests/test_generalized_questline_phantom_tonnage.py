@@ -13,21 +13,31 @@ quest_expansion_postlaunch_path_v1.md.
 
 THE 36TH-ARC DESIGN FORK (Fork B, resolved): the standing memory flag
 (QUEST.t3_24_36th_arc_skill_pool_exhausted) was that every clean skill pool
-the loop could reach was spent. There is NO capital-ship-as-combatant seam
-(ALLOWED_COMPLETION_TYPES has no ship_destroyed / space_combat_won; the
-wilderness-anomaly multi-phase machinery is parallel and unbridged). This
-arc realizes "big-ship combat" honestly: PERSON-SCALE ground combat fought
-ABOARD a NEW capital-class liner venue (the Ardent Span, a civilian
-bulk-freight liner docked at Kuat's Supply Space Station), via the one real
-chain combat seam (`combat_won` against a statically-authored NPC tagged
+the loop could reach was spent. At the time this arc shipped there was NO
+capital-ship-as-combatant seam (ALLOWED_COMPLETION_TYPES had no
+ship_destroyed / space_combat_won; the wilderness-anomaly multi-phase
+machinery is parallel and unbridged). This arc realizes "big-ship combat"
+honestly: PERSON-SCALE ground combat fought ABOARD a NEW capital-class
+liner venue (the Ardent Span, a civilian bulk-freight liner docked at
+Kuat's Supply Space Station), via the one real chain combat seam
+(`combat_won` against a statically-authored NPC tagged
 `ai_config.chain_enemy_template`). The capital-ship identity comes from the
 VENUE — four new hand-built rooms (kuat_liner_gangway / kuat_liner_gundeck
 / kuat_liner_manifest_core / kuat_liner_bridge, zone kuat_bulk_liner)
 appended additively to planets/kuat.yaml and boarded via a single new
 `gangway:` exit off the existing kuat_supply_station (room 322) — not from
-a ship-vs-ship mechanic. A TRUE ship-vs-ship capital combat step has no
-seam and is a separate, non-blocking future design+build (see the arc's
-NPC-file header comment and CHANGELOG).
+a ship-vs-ship mechanic.
+
+UPDATE (2026-07-03, capital-ship-combat-bridge drop): the TRUE ship-vs-ship
+gap flagged above is now CLOSED — `space_combat_won` is a registered
+completion type (engine/tutorial_chains.ALLOWED_COMPLETION_TYPES), bridged
+from the real fire-kill seam via engine.npc_space_traffic.
+handle_traffic_ship_destroyed -> engine.chain_events.on_space_combat_won
+(see DESIGN_capital_ship_combat_2026-07-03.md and
+tests/test_space_combat_won_bridge.py). This arc's PERSON-SCALE aboard-a-
+liner design remains correct and unchanged on its own merits — the two
+are complementary "big-ship combat" flavors (ground assault aboard a
+capital vs. a real ship-to-ship duel), not a superseding fix.
 
 This test complements (does not replace) the generic data-driven walkability
 test (test_t5_questline_content.TestAllQuestlinesWalkable, which auto-covers

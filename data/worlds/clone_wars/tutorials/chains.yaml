@@ -12738,6 +12738,117 @@ chains:
           core against its own papers.
 
   # ═══════════════════════════════════════════════════════════════════════
+  # kuat_capital_intercept — "The Rogue Cutter" (space-combat-bridge, 2026-07-03)
+  # ═══════════════════════════════════════════════════════════════════════
+  # The FIRST slice of the real ship-vs-ship capital combat bridge
+  # (DESIGN_capital_ship_combat_2026-07-03.md): a `space_combat_won` step,
+  # bridged from the live fire-kill seam
+  # (engine.npc_space_traffic.handle_traffic_ship_destroyed ->
+  # engine.chain_events.on_space_combat_won), NOT person-scale ground
+  # combat aboard a venue (that's the complementary 36th-arc pattern,
+  # kuat_phantom_tonnage, just above). Step A (`course intercept`) spawns
+  # + promotes the tagged capital hostile (mirrors `course anomaly`'s
+  # promote-to-live-combat pattern); step B (`space_combat_won`) advances
+  # the instant the player destroys it in a real ship-to-ship duel.
+  # Scale parity (a solo starfighter cannot meaningfully damage a capital)
+  # is enforced by `course intercept` itself: it refuses unless the player
+  # is at the helm of a capital-scale hull, reusing the existing
+  # `+shipyard` purchase path rather than granting a new, temporary
+  # command. DESTROY-only for this slice; disable/board and a richer
+  # crewed multi-gunner tier are deferred (logged in TODO.json).
+  - chain_id: kuat_capital_intercept
+    chain_name: "The Rogue Cutter"
+    description: >
+      A hijacked Sector Customs cutter has gone rogue in the deep space beyond the Kuat Drive Yards,
+      running escort for a smuggling syndicate slipping cargo past the picket line. KSF has no capital
+      hull to spare from the checkpoint queue. Anyone flying a capital-scale command can pick up the
+      intercept — find it, fight it ship-to-ship, and put it down.
+    archetype_label: "Freelance Capital Escort"
+    faction_alignment: independent
+    starting_zone: kuat_main_spaceport
+    starting_room: kuat_arrivals
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 10
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 450
+      faction_rep:
+        independent: 17
+      items: []
+      achievements: ["kuat_intercept_cleared"]
+      drop_room: kuat_arrivals
+      follow_up_hint: >
+        The Rogue Cutter's hull gave out under sustained turbolaser fire — the syndicate's smuggling
+        escort is gone, and the picket line beyond the Drive Yards is clear again. KSF has no bounty
+        ledger for a favor like this, but the berths remember a hand who answers a capital-scale
+        distress call when the sector has no warship to spare.
+
+    steps:
+      - step: 1
+        title: "No Hull to Spare"
+        location: kuat_arrivals
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["course"]
+        objective: "A KSF dispatch channel is asking for any capital-scale command to intercept a rogue customs cutter running escort for smugglers in Kuat's deep space. Launch, reach deep space, and `course intercept`."
+        command_to_type: "course intercept"
+        npc_intro: >
+          [A KSF dispatch burst cuts into the general channel, addressed to any capital-scale hull in
+          range.] "All stations, Kuat Sector Customs — we have a hijacked cutter running dark in the
+          deep-space approach, now flying escort for a smuggling run past the picket line. Every warship
+          we have is committed to the checkpoint queue. If you're at the helm of a capital-class command
+          and you can hear this, we're asking you to intercept. Reach deep space and lock a course on it
+          yourself — we can't spare the escort to hold your hand out there." [The channel goes quiet,
+          waiting on whoever answers.]
+        completion:
+          type: command_executed
+          command: "course"
+          target_contains: "intercept"
+        npc_complete: >
+          [Sensors resolve a contact dropping out of the debris field ahead — a former Sector Customs
+          cutter, transponder spoofed, running hot on an intercept vector of its own. It's made you.
+          There's no dispatch channel out here to back you up; whatever happens next is a ship-to-ship
+          duel, turbolasers to turbolasers.]
+        reward: {}
+        next_hint: "The Rogue Cutter has broken formation and opened fire — `fire rogue cutter` to return fire; `fleeship` to break off."
+
+      - step: 2
+        title: "Turbolasers to Turbolasers"
+        location: ""
+        npc: "(none)"
+        npc_role: antagonist
+        teaches: ["fire"]
+        objective: "Destroy the Rogue Cutter in ship-to-ship combat — `fire rogue cutter` from a gunner station until its hull gives out."
+        command_to_type: "fire rogue cutter"
+        npc_intro: >
+          [The Rogue Cutter holds its line and answers fire for fire — a light hull, but not a helpless
+          one, its lone turbolaser turret tracking your approach. Scale-for-scale this is a fair fight:
+          your hull and shields against its own, no fleet, no ambush, just two capital-scale hulls
+          trading turbolaser fire until one of them stops answering.] `fire rogue cutter` from your
+          gunner station, round after round, until the hull damage crosses the threshold and the cutter's
+          escort run ends for good.
+        completion:
+          type: space_combat_won
+          enemy_ship_template: "kuat_intercept_rogue_cutter"
+          enemy_count: 1
+        npc_complete: >
+          [The Rogue Cutter's hull finally gives out under the sustained fire — a last flare across its
+          turbolaser turret, then the hull breaches and the escort run is over. No fleet needed, no
+          ambush, just a capital-scale duel won turbolaser for turbolaser. Salvage is yours if you want
+          it; KSF's picket line is clear again either way.]
+        reward: {}
+        next_hint: >
+          The Rogue Cutter is gone — its hull breached, its escort run ended, and the smuggling
+          convoy it was covering left without a warship at its back. KSF has no capital hull to spare
+          for a thank-you, but Kuat's berths remember who answers a distress call when the sector's
+          own navy is stretched thin over a checkpoint queue. A real ship-to-ship duel, won the way a
+          fleet action never is — one hull against one hull, turbolasers to turbolasers, until only one
+          of them was still answering fire.
+
+  # ═══════════════════════════════════════════════════════════════════════
   # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════
 # When the CW tutorial engine session lands:

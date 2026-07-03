@@ -957,3 +957,11 @@ achievements:
     icon: "📦"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "kuat_phantom_tonnage"}
+
+  - key: kuat_intercept_cleared
+    name: "The Rogue Cutter"
+    description: "Answered Kuat Sector Customs' freelance call when a hijacked customs cutter went rogue and started running escort for a smuggling syndicate in the deep space beyond the Drive Yards: took a capital-scale hull out to intercept it and destroyed it in a real ship-to-ship duel, turbolasers to turbolasers, until its hull gave out."
+    category: profession
+    icon: "🛰️"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "kuat_capital_intercept"}

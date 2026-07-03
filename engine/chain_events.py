@@ -49,6 +49,18 @@ Phase 3 (split between F.8.c.2.b₅ and a future drop):
                         |   `jedi_path_unlocked`, `chargen_complete`,
                         |   `force_sensitive`, `tutorial_core_complete`.
 
+space-combat-bridge (2026-07-03) adds one more:
+
+    completion.type     | seam                                        | impl
+    --------------------+---------------------------------------------+-------
+    space_combat_won    | engine/npc_space_traffic.py                 |  ✅
+                        |   handle_traffic_ship_destroyed (before the
+                        |   ship despawns). The space analog of
+                        |   combat_won: a TrafficShip tagged
+                        |   `chain_enemy_ship_template` credits a step
+                        |   when destroyed via the real fire-kill seam.
+                        |   See DESIGN_capital_ship_combat_2026-07-03.md.
+
 F.8.c.2.b₆ design note — skill_check_passed seam: RESOLVED
 ----------------------------------------------------------
 chains.yaml has six `skill_check_passed` completions across the
@@ -306,6 +318,24 @@ def _match_combat_won(completion: dict, defeated_template: str,
     return defeated_count >= expected_count
 
 
+def _match_space_combat_won(completion: dict, ship_template: str,
+                            destroyed_count: int) -> bool:
+    """True iff a `space_combat_won` completion matches a destroyed
+    chain-tagged capital ship. Mirror of `_match_combat_won` for the
+    space-combat bridge (DESIGN_capital_ship_combat_2026-07-03.md):
+    `enemy_ship_template` matches the destroyed TrafficShip's
+    `chain_enemy_ship_template` tag exactly, and `destroyed_count`
+    meets `enemy_count` (default 1). No cumulative tally is needed for
+    the first slice -- see `on_space_combat_won`'s docstring."""
+    expected_tpl = (completion.get("enemy_ship_template") or "").strip()
+    if not expected_tpl:
+        return False
+    if (ship_template or "").strip() != expected_tpl:
+        return False
+    expected_count = int(completion.get("enemy_count") or 1)
+    return destroyed_count >= expected_count
+
+
 def _match_room_entered(completion: dict, room_slug: str) -> bool:
     """True iff a `room_entered` completion matches the room slug.
 
@@ -551,6 +581,41 @@ async def on_combat_won(db, char: dict, defeated_template: str,
         return advanced_any
     except Exception as e:
         log.warning("[chain_events] on_combat_won failed: %s", e,
+                    exc_info=True)
+        return False
+
+
+async def on_space_combat_won(db, char: dict, ship_template: str,
+                              destroyed_count: int = 1) -> bool:
+    """Hook: the player just destroyed a chain-tagged capital ship in
+    space combat.
+
+    Called from engine.npc_space_traffic.NpcSpaceTrafficManager.
+    handle_traffic_ship_destroyed, once per kill, before the ship
+    despawns -- the single chokepoint both the fire-kill path and the
+    NPC-tick self-kill path funnel through. `ship_template` is the
+    destroyed TrafficShip's `chain_enemy_ship_template` TAG (NOT the
+    ShipTemplate registry key -- a hull can be reused across many quest
+    targets; the tag is the quest-specific identity, exactly like ground
+    combat_won's `ai_config.chain_enemy_template` vs. the NPC's stat-
+    template key). Returns True iff a chain step advanced.
+
+    space-combat-bridge (2026-07-03): unlike `on_combat_won`, no
+    cumulative-kill tally is implemented here -- every `space_combat_won`
+    step in the shipped corpus uses `enemy_count: 1` (a single beatable
+    light-capital target; DESIGN_capital_ship_combat_2026-07-03.md §9
+    fork #6). A future multi-target step would need the same per-slot
+    `record_combat_kills`-style accumulation `on_combat_won` uses --
+    deliberately deferred, not built here."""
+    try:
+        return await _try_advance_all_slots(
+            db, char,
+            event_type="space_combat_won",
+            matcher=lambda c: _match_space_combat_won(
+                c, ship_template, destroyed_count),
+        )
+    except Exception as e:
+        log.warning("[chain_events] on_space_combat_won failed: %s", e,
                     exc_info=True)
         return False
 

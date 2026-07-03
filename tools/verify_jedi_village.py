@@ -59,6 +59,9 @@ ALLOWED_COMPLETION_TYPES = {
     "item_used",
     "room_entered",
     "prerequisite",
+    # space-combat-bridge (2026-07-03): mirror of
+    # engine/tutorial_chains.ALLOWED_COMPLETION_TYPES.
+    "space_combat_won",
     # Village extensions:
     "dialogue_completion",
     "timed_room_dwell",
