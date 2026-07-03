@@ -1,0 +1,297 @@
+# Generalized Questline Drop — "The Phantom Tonnage" (T3.24 thirty-sixth slice, 2026-07-03)
+#
+# The THIRTY-SIXTH accessible (non-t5, non-tutorial) `kind: questline` chain, set
+# aboard a NEW hand-built four-room capital-class liner interior — the Ardent
+# Span, a merchant-combine civilian bulk-freight liner docked at Kuat's Supply
+# Space Station (room 322, kdy_orbital_ring). Boarded via a single additive
+# `gangway:` exit off kuat_supply_station, the liner interior is its own new
+# zone (kuat_bulk_liner): the Boarding Gangway (kuat_liner_gangway), the Rigged
+# Gun-Deck (kuat_liner_gundeck), the Manifest Core (kuat_liner_manifest_core),
+# and the Command Bridge (kuat_liner_bridge). Every one of these four rooms is
+# brand new to the world and to the entire chain corpus.
+#
+# THE 36TH-ARC DESIGN FORK, RESOLVED (Fork B): the standing memory flag
+# (QUEST.t3_24_36th_arc_skill_pool_exhausted) was that every clean skill pool
+# the accessible-questline loop could reach was spent. There is NO capital-
+# ship-as-combatant seam (ALLOWED_COMPLETION_TYPES has no ship_destroyed /
+# space_combat_won; engine/starships.py emits no chain event; the wilderness-
+# anomaly multi-phase "wave" machinery is parallel and unbridged to the chain
+# step engine). Fork B realizes "big-ship combat" honestly: PERSON-SCALE ground
+# combat fought ABOARD a capital-class liner, via the one real chain combat
+# seam (`combat_won` against a statically-authored NPC tagged
+# `ai_config.chain_enemy_template`). The capital-ship IDENTITY comes from the
+# VENUE (a boardable multi-room capital liner interior, which did not exist
+# before this drop), not from a ship-vs-ship mechanic. A TRUE ship-vs-ship
+# capital combat step (fly the liner, trade turbolaser fire, disable it) has NO
+# seam and is a separate, deliberate FUTURE design+build (a new
+# ALLOWED_COMPLETION_TYPES value + a space-combat -> chain bridge) — flagged for
+# Brian, non-blocking, and this arc does not wait on it.
+#
+# It reuses the SAME live questline engine (engine/tutorial_chains.py +
+# chain_events.py: the `kind: questline` type + `active_questline` slot, the
+# existing event types, the four reward funnels) with NO new engine code, no
+# new slot, no new event type, no schema migration, no new reward faucet — the
+# sanctioned right-of-launch widening per quest_expansion_postlaunch_path_v1.md
+# (T3.24): author MORE questlines on the proven pattern, composing existing
+# pieces rather than building a new top-level system.
+#
+# The concept: a merchant-combine civilian bulk-freight liner, the Ardent Span,
+# docked at Kuat's Supply Space Station, runs a phantom-tonnage / ghost-manifest
+# smuggling front — it books bonded bulk freight, but its manifest core is
+# doctored so a large slice of its true loaded mass moves as undeclared
+# contraband tonnage for a syndicate, hidden behind forged manifest entries that
+# make the declared tonnage match the bonded cargo. KSF inspectors clear it on
+# the papers. An independent bonded-tonnage auditor, Suli Verrin, has caught the
+# Ardent Span squawking a manifest tonnage its scanned hull-mass cannot be
+# carrying, but a suspicion cannot pull a bonded liner's registry — she needs a
+# neutral hand to bring back the live proof. The player boards the liner, scans
+# the true loaded mass against the declared tonnage (sensors), fights through
+# the illegally-manned, rigged gun-deck the syndicate keeps to guard the
+# contraband run (combat_won — the big-ship combat beat, aboard a capital-class
+# ship), slices the doctored manifest core to surface the ghost entries
+# (computer programming), and stands down the liner's enforcer captain, Renk
+# Talo, once the deck is cleared and the manifest is exposed. A freelance favor
+# — open to anyone, no faction required.
+#
+# These NPCs back the `kuat_phantom_tonnage` questline in
+# data/worlds/clone_wars/tutorials/chains.yaml:
+#   * Suli Verrin  — the human independent bonded-tonnage auditor who offers +
+#                    closes the quest (step-1 npc = the questline's start-NPC,
+#                    per get_questline_offer). Step-1 + step-5-adjacent giver
+#                    (graduation drop_room is kuat_supply_station).
+#   * Hakko Vurm   — the Weequay syndicate gun-deck deck-boss
+#                    (ai_config.chain_enemy_template
+#                    phantom_tonnage_gundeck_boss; the step-3 combat_won foil),
+#                    STAT-CLONED VERBATIM from the proven-in-band
+#                    `papered_refit_enforcer` (Vodran Sekk) so the foil-
+#                    winnability guard passes by construction. Only he carries
+#                    chain_enemy_template — this is a REAL combat_won chain
+#                    step (unlike the staged-cult bosses, which omit the tag
+#                    because they have no chain step).
+#   * Renk Talo    — the human enforcer captain who runs the ghost-manifest
+#                    front from the bridge; the step-5 talk_to_npc NPC. He is
+#                    NOT hostile — the confrontation is verbal, the gun-deck
+#                    already cleared and the manifest already sliced, so he
+#                    stands down rather than fight.
+# The syndicate backing the contraband run, the shippers' survey board, KSF,
+# and the "cleared" bonded cargo itself are NARRATED ONLY — story beats carried
+# in the prose, never spawned NPC entities. Only the giver, the combat foil,
+# and the stand-down captain are real placed NPCs.
+#
+# Original characters, era-clean ~20 BBY, WEG R&E D6 stats. No canon figures.
+# The racket is a generic civilian syndicate / contraband front, never a war
+# faction; KSF (Kuati Security Forces, established in kuat.yaml) is the only
+# on-stage authority named, and the Senate, the Jedi, and the Republic war
+# effort have no reach at a civilian bulk-freight liner and never appear. The
+# Ardent Span is explicitly a CIVILIAN merchant liner — no Republic-Navy
+# warship framing — keeping the arc independent / faction-neutral like all 35
+# peers. Hakko Vurm's stat block is a verbatim clone of `papered_refit_enforcer`
+# (Vodran Sekk, data/worlds/clone_wars/npcs_drop_generalized_questline_papered_refit.yaml),
+# already squarely in the proven beatable band guarded by
+# tests/test_questline_foil_winnability_band.py.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # The auditor — Suli Verrin (questline GIVER)
+  # Questline: kuat_phantom_tonnage ("The Phantom Tonnage")
+  # Placement: Kuat - Supply Space Station (kuat_supply_station, zone
+  #            kdy_orbital_ring). Step-1 NPC; graduation.drop_room is her
+  #            room, so she also closes the arc.
+  # NOTE: an independent bonded-tonnage auditor who caught the Ardent Span
+  # squawking a manifest tonnage its scanned hull-mass cannot be carrying, but
+  # a suspicion cannot pull a bonded liner's registry on her word alone — she
+  # needs a neutral hand to bring back the live proof.
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Suli Verrin
+    room: "Kuat - Supply Space Station"
+    species: Human
+    description: >-
+      A lean, sun-weathered woman working a scanner slate against the docking
+      manifests scrolling past the Supply Station's inspection apron, an
+      independent bonded-tonnage auditor by trade — the kind of neutral hand
+      the underwriters and the shipping combines hire when they want a hull's
+      true loaded mass read against what its own paperwork swears, not what a
+      berth's overworked KSF inspectors have time to double-check. She has run
+      a scanner over the Ardent Span's hull twice now, off her own clock, and
+      both times the scanned mass sits well above the tonnage its manifest
+      declares — a bonded bulk-freight liner riding the inspection queue clean
+      on its papers and carrying a hold's worth of cargo its own paper swears
+      isn't there. A suspicion is not proof; an auditor's flagged discrepancy
+      without a hand who can get aboard and read the hull, the gun-deck, and
+      the manifest core in person cannot pull a bonded liner's registry, no
+      matter how far the scanned mass sits from the declared tonnage.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 3D
+        strength: 2D
+        technical: 2D+2
+      skills:
+        sensors: 4D
+        streetwise: 3D
+        bureaucracy: 3D+1
+        bargain: 2D+2
+        blaster: 2D+1
+        dodge: 2D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 1
+      character_points: 4
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A bonded-tonnage auditor's flat, exact economy — she reads a manifest
+        the way another being reads a face, and trusts a scanned hull-mass over
+        any bonded certificate a berth's paperwork stamps. Level and certain
+        that a manifest tonnage a hull's own scanned mass cannot support is not
+        a rounding error but a racket, and that KSF's paper-clean inspection
+        will never catch what a scanner reads from the outside; she needs a
+        neutral hand who can get aboard, prove the true mass in person, fight
+        through whatever the liner keeps crewed to guard it, and bring the live
+        proof back to a survey board that can actually pull the registry.
+      knowledge:
+        - "She is Suli Verrin, an independent bonded-tonnage auditor who reads a hull's scanned mass against its own declared manifest for the underwriters and shipping combines that hire her, off KSF's overworked inspection queue."
+        - "She has scanned the merchant-combine bulk-freight liner Ardent Span, docked at the Supply Space Station, twice off her own clock — both times its true hull mass sits well above the tonnage its manifest declares. The liner is bonded and cleared on its papers; the difference between its scanned mass and its declared tonnage is a syndicate's ghost-manifest contraband run riding undeclared beneath the bonded cargo."
+        - "A suspicion cannot pull a bonded liner's registry — she needs a neutral hand to board the Ardent Span, scan the true loaded mass against the declared tonnage in person (sensors), fight through the illegally-manned gun-deck the syndicate keeps crewed to guard the contraband run, slice the doctored manifest core to surface the ghost entries (computer programming), and stand down the liner's enforcer captain once the deck is cleared and the manifest is exposed."
+        - "With the true mass read, the manifest core sliced to its ghost entries, and the captain stood down, the shippers' survey board / KSF can pull the Ardent Span's bonded registry — a phantom-tonnage racket a scanner alone could flag but never prove."
+      faction: independent
+      dialogue_style: >-
+        Flat, exact, an auditor's economy of words — names the scanned mass
+        against the declared tonnage before she names a suspicion, and trusts a
+        hull's own scan over any bonded manifest a liner's papers swear.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'You want to know why I'm running a scanner over a bonded liner's hull instead of trusting its own manifest? Because the Ardent Span's manifest says one tonnage and its hull-mass says another, and the gap between them is wide enough to hide a contraband run. I'm Suli Verrin — independent bonded-tonnage auditor. I read what a hull's actually carrying against what its own paper swears it's carrying, for underwriters and combines who'd rather know before the raiders or the customs board finds out for them.'"
+        - "*Suli Verrin taps her scanner slate, a manifest tonnage figure sitting stubbornly below the hull-mass reading beside it, both scans run off her own clock, off the record, twice.* 'Bonded, cleared, stamped by KSF at the berth — and carrying more mass than its own manifest admits to. That's not a rounding error on a bulk hauler this size. That's a ghost-manifest front: declared tonnage squared against the bonded cargo, and a syndicate's contraband riding undeclared underneath it. I can't pull a liner's registry on a flagged discrepancy. I need someone aboard who can read it in person.'"
+        - "'Get aboard the Ardent Span off the Supply Station's gangway. Scan the true loaded mass against the declared tonnage yourself and read the gap I've been flagging — that's the first half of the proof. The syndicate keeps an illegally-manned gun-deck crewed to guard the run; you'll have to fight through it to reach the manifest core aft, where the ghost entries are doctored in. Slice that core and the phantom tonnage surfaces against the bonded declaration. Then there's the captain running the front from the bridge, Renk Talo — with the deck cleared and the manifest sliced, he won't have anything left to hold. Bring it all back to me and the shippers' survey board pulls this liner's bond before it makes another run.'"
+
+  # ── Questline antagonist: Hakko Vurm (combat step 3, the gun-deck) ────────
+  # Single hostile instance on the gun-deck, guarding the contraband run
+  # aboard the Ardent Span. Matches the kuat_phantom_tonnage step-3
+  # combat_won enemy_template. STAT BLOCK CLONED VERBATIM from the proven-
+  # in-band papered_refit_enforcer (Vodran Sekk) so the foil-winnability
+  # guard passes by construction — a fresh post-chargen character has a
+  # real, winnable fight. This is a REAL combat_won chain step (unlike the
+  # staged-cult bosses, which omit chain_enemy_template because they have
+  # no chain step) — carrying chain_enemy_template is REQUIRED here so
+  # on_combat_won actually credits the kill and advances step 3.
+
+  - name: Hakko Vurm
+    room: "Ardent Span - Rigged Gun-Deck"
+    species: Weequay
+    description: >-
+      A Weequay deck-boss holding the illegally-manned gun-deck of a civilian
+      bulk liner, kept crewed to keep anyone who reads the true tonnage from
+      reaching the manifest core; a worn blaster pistol loose at his hip;
+      muscle for a contraband run, not a spacer — he settles it with a blaster
+      on the deck plating.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+1
+        brawling: 3D+1
+        intimidation: 3D+2
+        streetwise: 3D
+        search: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: phantom_tonnage_gundeck_boss
+      personality: >-
+        Contemptuous while the papers hold and the tonnage stays buried;
+        immediately violent the moment a neutral hand comes aboard reading the
+        true mass and moving toward the manifest core. Plants himself on the
+        gun-deck between the boarder and the core; would rather down a hand on
+        the deck plating than let the ghost tonnage be read. Combat foil for
+        the confrontation beat — the syndicate's muscle, settled with a
+        blaster, aboard the liner.
+      knowledge:
+        - "He holds the Ardent Span's rigged gun-deck for the syndicate running its ghost-manifest front."
+        - "A neutral hand has come aboard reading the liner's true loaded mass against its declared tonnage and is moving aft toward the doctored manifest core; he draws on whoever carries the live proof."
+      faction: criminal
+      dialogue_style: >-
+        Flat, contemptuous — names the manifest as bonded and the tonnage as
+        squared before the threat.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'That manifest's bonded, friend — tonnage squared, papers stamped. Whatever you think you read off this hull, it doesn't reach any board. Off the deck.'"
+        - "*Hakko Vurm comes off the gun-deck mounts as you come up from the gangway with a sensor read, and lets his hand fall loose to the worn blaster.*"
+        - "'Last time — off the deck, or you don't walk that read anywhere. This liner's clean on its papers. I'm the part of it that keeps a read hull from reaching a survey desk.'"
+
+  # ── Stand-down NPC: Renk Talo (step 5, the bridge) ────────────────────────
+  # The liner's enforcer captain, who runs the ghost-manifest front from the
+  # bridge. Non-hostile: with the gun-deck cleared and the manifest core
+  # sliced open, he has nothing left to hold and stands down rather than
+  # fight — a talk_to_npc completion requires a present, talkable NPC, not
+  # another combat beat.
+
+  - name: Renk Talo
+    room: "Ardent Span - Command Bridge"
+    species: Human
+    description: >-
+      A greying, heavyset man in a liner captain's worn jacket, standing at
+      the Ardent Span's bridge console with the flat stillness of a man who
+      knows the run is over. He ran the ghost-manifest front from up here —
+      the bonded papers up top, the doctored manifest core below, the gun-deck
+      between them — and kept it squared as long as no one aboard could prove
+      otherwise. With the deck cleared, the true mass read, and the manifest
+      sliced open below, there is nothing left on this bridge for him to hold.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 2D+2
+        mechanical: 2D+1
+        perception: 2D+1
+        strength: 2D
+        technical: 2D
+      skills:
+        bureaucracy: 3D
+        streetwise: 2D+2
+        bargain: 2D+1
+        blaster: 2D
+        con: 2D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        Runs the ghost-manifest front from the bridge with a captain's flat
+        authority — squares the bonded papers, keeps the gun-deck crewed, and
+        never has to raise his voice as long as the manifest holds. Once the
+        deck is down and the core is sliced open, he reads the situation like
+        any other bad manifest: there is nothing left to hold, so he stands
+        down rather than draw on a hand who has already proven the front is
+        finished. Talkable, not a second fight.
+      knowledge:
+        - "He is Renk Talo, the Ardent Span's enforcer captain, who ran the ghost-manifest front from the bridge — the bonded papers up top, the doctored manifest core below, the gun-deck between them keeping anyone who read the true tonnage from reaching the core."
+        - "The gun-deck is down, the manifest core is sliced open to its ghost entries, and the true loaded mass has already been read against the declared tonnage — the front is finished, and he has nothing left on this bridge worth dying for."
+      faction: criminal
+      dialogue_style: >-
+        Level, resigned — a captain who knows a beaten manifest when he sees
+        one and stands down rather than draw on proof that's already aboard.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'Deck's down. Core's sliced. You've got the read mass and the ghost entries both, and there's nothing on this bridge left to square that against. I'm not drawing on a hand who's already proven the front's finished.'"
+        - "*Renk Talo sets both hands flat on the bridge console, well clear of the console-side blaster, and lets out a breath like a man setting down a weight he's carried a long time.*"
+        - "'The Ardent Span ran a clean manifest as long as no one could prove otherwise. You proved otherwise. Take it to the survey board — I'll not pretend a stood-down bridge is a fight worth having.'"

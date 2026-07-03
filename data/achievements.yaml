@@ -949,3 +949,11 @@ achievements:
     icon: "🎯"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "coruscant_cleared_fault"}
+
+  - key: phantom_tonnage_cleared
+    name: "The Phantom Tonnage"
+    description: "Broke a phantom-tonnage / ghost-manifest smuggling front aboard the civilian bulk-freight liner Ardent Span at Kuat: scanned the true loaded mass against the declared tonnage (sensors), fought through the illegally-manned rigged gun-deck, sliced the doctored manifest core to surface the ghost entries (computer programming), and stood down its enforcer captain — the shippers' survey board pulled the liner's bonded registry."
+    category: profession
+    icon: "📦"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "kuat_phantom_tonnage"}
