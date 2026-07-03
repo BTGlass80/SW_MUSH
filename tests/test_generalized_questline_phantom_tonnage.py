@@ -39,6 +39,24 @@ liner design remains correct and unchanged on its own merits — the two
 are complementary "big-ship combat" flavors (ground assault aboard a
 capital vs. a real ship-to-ship duel), not a superseding fix.
 
+INVARIANT NOTE (Fable addendum, 2026-07-03) — LOGGED, NOT SILENT PRECEDENT:
+EXPECTED_SKILLS below (`sensors`, `computer programming`) CONSCIOUSLY
+RELAXES the lane's "distinct skill spread" convention that every prior
+sibling test file enforces via its own PRIOR_SPREAD_SKILLS set (see e.g.
+tests/test_generalized_questline_papered_refit.py) — both skills were
+already used by earlier arcs (`sensors` by arc 10, `computer programming`
+by arc 9), so this file deliberately carries NO PRIOR_SPREAD_SKILLS
+overlap assertion of its own. That is Fork B's accepted tradeoff (the
+freshness claim lives on the SHAPE axis — first aboard-a-capital-ship-venue
+combat — not the skill axis; see
+docs/design/DESIGN_36th_arc_big_ship_spec_2026-07-03.md §10.4 and the
+matching header note in npcs_drop_generalized_questline_phantom_tonnage
+.yaml), not an oversight. It trips no code guard — the "fresh spread" rule
+is a self-imposed lane authoring convention, never an enforced engine
+invariant — but arc 37+ must NOT cite this file as silent precedent for
+skipping its own fresh skill spread; the lane's default still stands, and
+this arc is the one logged exception.
+
 This test complements (does not replace) the generic data-driven walkability
 test (test_t5_questline_content.TestAllQuestlinesWalkable, which auto-covers
 THIS questline too), the static reachability invariant, the reward-tier

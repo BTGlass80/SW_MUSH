@@ -116,13 +116,7 @@ def run_with_dom(script_paths: Iterable[Path | str], setup_js: str) -> dict:
         process.stdout.write(JSON.stringify(result));
     """
 
-    proc = subprocess.run(
-        ["node", "-e", wrapper],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=20,
-    )
+    proc = _run_node_with_one_retry(["node", "-e", wrapper], timeout=20)
     if proc.returncode != 0:
         pytest.fail(
             f"node exited {proc.returncode}\n"
@@ -130,3 +124,25 @@ def run_with_dom(script_paths: Iterable[Path | str], setup_js: str) -> dict:
             f"stdout:\n{proc.stdout}"
         )
     return json.loads(proc.stdout)
+
+
+def _run_node_with_one_retry(cmd: list[str], timeout: int) -> subprocess.CompletedProcess:
+    """``subprocess.run`` with ONE retry on ``TimeoutExpired``.
+
+    Fable addendum 2026-07-03 §5b: under ``-n auto --dist loadscope``, many
+    xdist workers spawn Node concurrently; a handful of calls can get
+    CPU-starved past the fixed ``timeout`` on a busy box even though
+    nothing is actually hung (observed as "SPA/jsdom parallel-contention
+    flakes, green in isolation"). One retry absorbs that transient
+    contention — the timeout itself is unchanged, so a GENUINE hang (a
+    real infinite loop in the evaluated JS) still fails, just after the
+    second attempt instead of the first.
+    """
+    try:
+        return subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8", timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8", timeout=timeout,
+        )

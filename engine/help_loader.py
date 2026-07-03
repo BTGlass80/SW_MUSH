@@ -259,10 +259,26 @@ def iter_help_files(root: str) -> Iterable[str]:
 
     Deterministic order is useful for reproducible boots and for the
     portal's category listing being stable.
+
+    ``os.walk`` only guarantees the order of files *within* a directory
+    if we sort them ourselves (done below) — it does NOT guarantee the
+    order subdirectories are visited in. That order comes straight from
+    the OS's raw directory-entry (readdir) order, which differs between
+    filesystems (e.g. Windows NTFS vs Linux ext4/xfs). Two files in
+    different subdirectories (e.g. ``commands/+sensors.md`` and
+    ``topics/anomalies.md``) that legally register the *same alias*
+    resolve to "whichever loads last wins" (see ``load_help_directory``
+    below) — if subdirectory order isn't pinned, that winner flips
+    between platforms, which is exactly the ``deepscan`` alias
+    collision found cross-platform in the F6 hygiene batch. Sorting
+    ``dirnames`` in place (``os.walk`` recurses using that same list
+    object when ``topdown=True``, the default) makes the whole walk,
+    and therefore every last-wins resolution, identical on every OS.
     """
     if not os.path.isdir(root):
         return
-    for dirpath, _dirnames, filenames in os.walk(root):
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames.sort()
         for fname in sorted(filenames):
             if not fname.endswith(".md"):
                 continue
@@ -277,8 +293,18 @@ def load_help_directory(root: str, HelpEntryCls) -> list["HelpEntry"]:
     Broken files are skipped (with a warning). Duplicate keys across
     files: the last one wins and a warning is emitted — this is
     almost always an authoring mistake, not an intentional override.
+
+    Duplicate ALIASES are checked the same way. ``HelpManager.register``
+    (in ``data/help_topics.py``) resolves an alias claimed by two
+    entries the same "last registration wins" way it resolves a
+    duplicate key — that resolution is invisible unless something
+    warns, and (pre-fix) it depended on filesystem walk order, which is
+    not the same on every OS. This is the alias-level companion to the
+    key-dedup warning above: it makes the winner-take-all resolution
+    loud instead of silent, on every OS, every boot.
     """
     entries: dict[str, "HelpEntry"] = {}
+    alias_owners: dict[str, str] = {}  # alias -> key of the entry currently claiming it
     count_loaded = 0
     count_skipped = 0
     for path in iter_help_files(root):
@@ -291,6 +317,16 @@ def load_help_directory(root: str, HelpEntryCls) -> list["HelpEntry"]:
                 "Help loader: duplicate key %r — later file %s overrides earlier",
                 entry.key, path,
             )
+        for alias in entry.aliases:
+            owner = alias_owners.get(alias)
+            if owner is not None and owner != entry.key:
+                log.warning(
+                    "Help loader: duplicate alias %r — key %r (file %s) also "
+                    "claims an alias already owned by key %r; last "
+                    "registration wins",
+                    alias, entry.key, path, owner,
+                )
+            alias_owners[alias] = entry.key
         entries[entry.key] = entry
         count_loaded += 1
     if count_skipped:

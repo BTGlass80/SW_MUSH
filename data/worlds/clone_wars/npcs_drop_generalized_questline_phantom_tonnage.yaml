@@ -37,6 +37,26 @@
 # (disable/board win, a crewed multi-gunner set-piece tier) are logged in
 # TODO.json for Brian.
 #
+# INVARIANT NOTE (Fable addendum, 2026-07-03) — LOGGED, NOT SILENT PRECEDENT:
+# this arc CONSCIOUSLY RELAXES the T3.24 accessible-questline lane's
+# "distinct skill spread" convention (each prior arc's own test file tracks
+# a PRIOR_SPREAD_SKILLS set of every non-combat skill any earlier arc has
+# gated a skill_check_passed step on, and asserts its OWN spread shares none
+# of them — see tests/test_generalized_questline_papered_refit.py for the
+# pattern). This arc's spread is `sensors` (first used by arc 10) and
+# `computer programming` (first used by arc 9) — BOTH reused, not fresh.
+# This is Fork B's accepted tradeoff, not an oversight: the freshness this
+# arc claims lives on the SHAPE axis (the first aboard-a-capital-ship-venue
+# combat) rather than the skill axis (see
+# docs/design/DESIGN_36th_arc_big_ship_spec_2026-07-03.md §10.4). It trips
+# no code guard — the "fresh spread" rule was always a self-imposed
+# authoring convention for this lane, never an enforced engine invariant —
+# but it is written down here explicitly so a future 37th (or later) arc
+# cannot point at this file as silent precedent for skipping a fresh skill
+# spread of its own. The lane's default expectation (a distinct,
+# previously-unused skill pair per arc) still stands; this arc is the one
+# logged, deliberate exception.
+#
 # It reuses the SAME live questline engine (engine/tutorial_chains.py +
 # chain_events.py: the `kind: questline` type + `active_questline` slot, the
 # existing event types, the four reward funnels) with NO new engine code, no

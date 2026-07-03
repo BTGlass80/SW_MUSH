@@ -39,11 +39,15 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import subprocess
 import tempfile
 from pathlib import Path
 
 import pytest
+
+# Fable addendum 2026-07-03 §5b: reuse spa_dom_harness's one-retry-on-
+# TimeoutExpired wrapper instead of duplicating it — same 20s Node
+# subprocess timeout, same cross-worker CPU-contention flake class.
+from .spa_dom_harness import _run_node_with_one_retry
 
 
 REPO_ROOT       = Path(__file__).resolve().parent.parent.parent
@@ -207,10 +211,7 @@ def run_with_d_prime_block(setup_js: str, extra_stubs: str = "") -> dict:
             }}).call(window);
             process.stdout.write(JSON.stringify(result));
         """
-        proc = subprocess.run(
-            ["node", "-e", wrapper],
-            capture_output=True, text=True, encoding="utf-8", timeout=20,
-        )
+        proc = _run_node_with_one_retry(["node", "-e", wrapper], timeout=20)
         if proc.returncode != 0:
             pytest.fail(
                 f"node exited {proc.returncode}\n"

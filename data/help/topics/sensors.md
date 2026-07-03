@@ -3,8 +3,8 @@ key: sensors
 title: Sensors
 category: "Rules: Space"
 summary: Sensors detect other ships and reveal their details.
-aliases: [scanning, scan]
-see_also: [spacecombat, crew]
+aliases: [scanning]
+see_also: [spacecombat, crew, +sensors]
 ---
 Sensors detect other ships and reveal their details.
 
