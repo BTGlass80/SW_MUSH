@@ -300,6 +300,19 @@ class _LiveHarness:
             log.debug("smoke harness: bounty board reset failed",
                       exc_info=True)
 
+        # Same class of gotcha: engine.vendor_droids._droid_locks is a
+        # module-level per-droid asyncio.Lock registry (2026-07-02
+        # credit-integrity fix). A Lock left over from a previous
+        # class-scoped harness's now-closed event loop collides with a
+        # same-numbered droid in this harness's fresh temp DB (autoincrement
+        # restarts at 1), raising "bound to a different event loop".
+        try:
+            from engine.vendor_droids import reset_droid_locks
+            reset_droid_locks()
+        except Exception:
+            log.debug("smoke harness: vendor droid lock reset failed",
+                      exc_info=True)
+
         # ── Database ──
         await srv.db.connect()
         await srv.db.initialize()
